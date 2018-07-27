@@ -1,0 +1,94 @@
+group 'apex'
+version '1.0-SNAPSHOT'
+
+
+apply plugin: 'idea'
+apply plugin: 'scala'
+
+task "createDirs" << {
+    sourceSets*.scala.srcDirs*.each { it.mkdirs() }
+    sourceSets*.resources.srcDirs*.each { it.mkdirs() }
+}
+
+configurations.all {
+    exclude group: 'ch.qos.logback'
+    exclude group: 'org.apache.logging.log4j', module: 'log4j-slf4j-impl'
+    resolutionStrategy.cacheChangingModulesFor 0, 'seconds'
+}
+configurations {
+    runtime.exclude group: "'ch.qos.logback'"
+    runtime.exclude group: 'org.apache.logging.log4j', module: 'log4j-slf4j-impl'
+}
+
+repositories{
+    mavenCentral()
+    mavenLocal()
+}
+
+dependencies{
+    compile "org.scala-lang:scala-library:2.12.3"
+    compile "org.scala-lang:scala-compiler:2.12.3"
+    compile "org.scala-lang:scala-reflect:2.12.3"
+    compile "org.slf4j:slf4j-api:1.8.0-beta1"
+    compile "org.slf4j:slf4j-log4j12:1.8.0-beta1"
+    compile "log4j:log4j:1.2.17"
+    compile "org.bitlet:weupnp:0.1.4"
+    
+    compile "org.bouncycastle:bcprov-jdk15on:1.59"
+
+    compile group: 'org.iq80.leveldb', name: 'leveldb', version: '0.10'
+
+    compile group: 'org.iq80.leveldb', name: 'leveldb-api', version: '0.10'
+
+    compile group: 'org.fusesource.leveldbjni', name: 'leveldbjni-all', version: '1.8'
+    compile group: 'com.typesafe.play', name: 'play-json_2.12', version: '2.6.9'
+    compile group: 'org.scala-lang.modules', name: 'scala-xml_2.12', version: '1.0.6'
+    compile "com.typesafe.akka:akka-actor_2.12:2.5.12"
+    compile "com.typesafe.akka:akka-http-core_2.12:10.1.0"
+    compile "ch.megard:akka-http-cors_2.12:0.2.2"
+    compile "com.google.guava:guava:14.0"
+    compile group: 'org.rudogma', name: 'supertagged_2.12', version: '1.4'
+    compile "org.bouncycastle:bcprov-jdk15on:1.59"
+    compile group: 'com.iheart', name: 'ficus_2.12', version: '1.4.3'
+    compile group: 'com.typesafe.scala-logging', name: 'scala-logging_2.12', version: '3.9.0'
+    testCompile group: 'org.scalacheck', name: 'scalacheck_2.12', version: '1.14.0'
+    compile group: 'de.heikoseeberger', name: 'akka-http-circe_2.12', version: '1.21.0'
+    
+
+    compile group: 'io.circe', name: 'circe-core_2.12', version: '0.8.0'
+    compile group: 'io.circe', name: 'circe-generic_2.12', version: '0.8.0'
+    compile group: 'io.circe', name: 'circe-parser_2.12', version: '0.8.0'
+    compile group: 'commons-net', name: 'commons-net', version: '3.5'
+    
+    compile group: 'org.whispersystems', name: 'curve25519-java', version: '0.2.4'
+    compile group: 'com.typesafe', name: 'config', version: '1.3.2'
+    compile group: 'org.scorexfoundation', name: 'iodb_2.12', version: '0.3.2'
+    testCompile "junit:junit:4.11"
+	
+}
+
+jar {
+    String someString = ''
+    configurations.runtime.each {someString = someString + " lib\\"+it.name}
+
+    manifest {
+        attributes 'Main-Class': 'com.apex.MainEntry'
+        attributes 'Class-Path': someString
+    }
+}
+
+task run(type: JavaExec, dependsOn: classes) {
+    main = 'Main'
+    classpath sourceSets.main.runtimeClasspath
+    classpath configurations.runtime
+}
+
+task copyJar(type: Copy){
+    from configurations.runtime
+    into ('build/libs/lib')
+}
+
+task release(type: Copy,dependsOn: [build,copyJar]) {
+    from  'conf'
+    into ('build/libs/conf')
+}
