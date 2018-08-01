@@ -12,7 +12,7 @@ import collection.mutable.Map
 
 import com.apex.common.ApexLogging
 import com.apex.crypto.UInt256
-import com.apex.core.{BlockChain, Block, Transaction}
+import com.apex.core.{Blockchain, Block, Transaction}
 
 class LocalNode extends ApexLogging {
   
@@ -30,7 +30,7 @@ class LocalNode extends ApexLogging {
      //lock (Blockchain.Default.PersistLock)
      //lock (mem_pool)
      if (memPool.contains(tx.id)) return false
-     if (BlockChain.Current.containsTransaction(tx.id)) return false
+     if (Blockchain.Current.containsTransaction(tx.id)) return false
      //if (!tx.Verify(mem_pool.Values)) return false;
      memPool.put(tx.id, tx)
      //CheckMemPool()    

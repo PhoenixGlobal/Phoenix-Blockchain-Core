@@ -1,4 +1,4 @@
-package com.apex.core.validation
+package com.apex.exceptions
 
 trait ModifierError {
   def message: String

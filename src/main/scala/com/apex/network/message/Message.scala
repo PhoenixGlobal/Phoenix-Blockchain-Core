@@ -36,7 +36,7 @@ class MessageSerializer[Content] extends Serializer[Message[Content]] {
     val dataWithChecksum = if (obj.dataLength > 0) {
       val checksum = Blake2b256.hash(obj.dataBytes).take(ChecksumLength)
       Bytes.concat(checksum, obj.dataBytes)
-    } else obj.dataBytes //empty array
+    } else obj.dataBytes 
 
     MAGIC ++ Array(obj.spec.messageCode) ++ Ints.toByteArray(obj.dataLength) ++ dataWithChecksum
   }

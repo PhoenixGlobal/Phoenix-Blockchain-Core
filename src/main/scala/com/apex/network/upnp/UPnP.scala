@@ -17,38 +17,22 @@ class UPnP(settings: NetworkSettings) extends ApexLogging{
   lazy val externalAddress = gateway.map(_.externalIPAddress).get.map(InetAddress.getByName(_))
 
   Try {
-    log.info("Looking for UPnP gateway device...")
-    //TODO: read from configuration
-    val defaultHttpReadTimeout =  100
-    //GatewayDevice.setHttpReadTimeout(defaultHttpReadTimeout)
+    log.info("寻找UPnP网关设备...")
     val discover = GatewayDiscover()
 
-    //TODO: read from configuration
-    //val defaultDiscoverTimeout = 100
-    //discover.setTimeout(defaultDiscoverTimeout)
-    //val gatewayMap = Option(discover.discover).map(_.toMap).getOrElse(Map())
     if (discover.isEmpty) {
-      log.info("There are no UPnP gateway devices")
+      log.info("没有UPnP网关设备")
     } else {
       Option(discover.getValidGateway) match {
-        case None => log.debug("There is no connected UPnP gateway device")
+        case None => log.debug("没有连接的UPnP网关设备")
         case Some(device) =>
           gateway = Some(device.get)
-          log.debug("Using UPnP gateway device on " + localAddress.map(_.getHostAddress).getOrElse("err"))
-          log.info("External IP address is " + externalAddress.map(_.getHostAddress).getOrElse("err"))
+          log.debug("使用UPnP网关设备 " + localAddress.map(_.getHostAddress).getOrElse("err"))
+          log.info("外部IP地址是 " + externalAddress.map(_.getHostAddress).getOrElse("err"))
       }
-      
-      
-      
-      val activeGW = discover.getValidGateway.get;
-      activeGW.getAllPortMappingEntries foreach (x => println("Portmapping retrieved (" + x.internalClient + ":" + x.externalPort + ")"));//检索的端口映射
-      
-      
-      
-      
     }
   }.recover { case t: Throwable =>
-    log.error("Unable to discover UPnP gateway devices: " + t.toString)
+    log.error("无法发现UPnP网关设备: " + t.toString)
   }
   
   if(Option(gateway.get.getSpecificPortMappingEntry(settings.bindAddress.getPort,"TCP"))!=None){
@@ -56,23 +40,23 @@ class UPnP(settings: NetworkSettings) extends ApexLogging{
   }
   addPort(settings.bindAddress.getPort)
   def addPort(port: Int): Try[Unit] = Try {
-    if (gateway.get.addPortMapping(port, port, localAddress.get.getHostAddress, "TCP", "Scorex")) {
-      log.info("Mapped port [" + localAddress.get.getHostAddress + "]:" + port)
+    if (gateway.get.addPortMapping(port, port, localAddress.get.getHostAddress, "TCP", "Apex")) {
+      log.info("映射端口 [" + localAddress.get.getHostAddress + "]:" + port)
     } else {
-      log.info("Unable to map port " + port)
+      log.info("无法映射端口 " + port)
     }
   }.recover { case t: Throwable =>
-    log.error("Unable to map port " + port + ": " + t.toString)
+    log.error("无法映射端口 " + port + ": " + t.toString)
   }
 
   def deletePort(port: Int): Try[Unit] = Try {
     if (gateway.get.deletePortMapping(port, "TCP")) {
-      log.info("Mapping deleted for port " + port)
+      log.info("删除端口映射 " + port)
     } else {
-      log.info("Unable to delete mapping for port " + port)
+      log.info("无法删除端口映射 " + port)
     }
   }.recover { case t: Throwable =>
-    log.error("Unable to delete mapping for port " + port + ": " + t.toString)
+    log.error("无法删除端口映射 " + port + ": " + t.toString)
   }
 }
 

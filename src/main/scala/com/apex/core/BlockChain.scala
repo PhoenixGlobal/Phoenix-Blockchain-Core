@@ -6,13 +6,18 @@ import com.apex.crypto.{MerkleTree, UInt256}
 import com.apex.storage.BlockChainStorage
 
 import scala.collection.mutable.Map
+import scala.collection.mutable.Set
 
-trait BlockChain extends ApexLogging {
+trait Blockchain extends Iterable[Block] with ApexLogging {
+  def getLatestHeader: BlockHeader
+
   def getHeader(id: UInt256): Option[BlockHeader]
 
   def getHeader(index: Int): Option[BlockHeader]
 
   def getBlock(height: Int): Option[Block]
+
+  def getBlock(id: UInt256): Option[Block]
 
   def containsBlock(id: UInt256): Boolean
 
@@ -27,44 +32,59 @@ trait BlockChain extends ApexLogging {
   def verifyTransaction(tx: Transaction): Boolean
 }
 
-object BlockChain {
-  final val Current: BlockChain = new LevelDBBlockChain()
+object Blockchain {
+  final val Current: Blockchain = new LevelDBBlockchain()
 
 }
 
-class LevelDBBlockChain extends BlockChain {
+class LevelDBBlockchain extends Blockchain {
   private val storage: BlockChainStorage = new BlockChainStorage("test")
   private val genesisBlockHeader: BlockHeader = BlockHeader.build(0, 0, UInt256.Zero, UInt256.Zero)
   private val genesisBlock: Block = Block.build(genesisBlockHeader, Seq.empty)
 
-  private val txMap: Map[UInt256, Transaction] = Map.empty
-  private val blockIndexMap: Map[Int, Block] = Map.empty
-  private val blockMap: Map[UInt256, Block] = Map.empty
+  private val txBlockMap: Map[UInt256, UInt256] = Map.empty
+  private val blockIndexMap: Map[Int, UInt256] = Map.empty
+  private val utxoSet: Set[(UInt256, Int)] = Set.empty
+  private val blkSet: Set[UInt256] = Set.empty
 
   private var latestHeader: BlockHeader = genesisBlockHeader
 
   populate()
 
-  override def getHeader(hash: UInt256): Option[BlockHeader] = {
-    blockMap.get(hash) match {
-      case Some(block) => Some(block.header)
-      case _ => None
+  override def iterator: Iterator[Block] = new BlockchainIterator(this)
+
+  override def getLatestHeader: BlockHeader = latestHeader
+
+  override def getHeader(id: UInt256): Option[BlockHeader] = {
+    storage.readBlock(id) match {
+      case Some(blk) => Some(blk.header)
+      case None => None
     }
   }
 
   override def getHeader(index: Int): Option[BlockHeader] = {
     blockIndexMap.get(index) match {
-      case Some(block) => Some(block.header)
+      case Some(id) => getHeader(id)
       case _ => None
     }
   }
 
+  override def getBlock(id: UInt256): Option[Block] = {
+    storage.readBlock(id) match {
+      case Some(blk) => Some(blk)
+      case None => None
+    }
+  }
+
   override def getBlock(index: Int): Option[Block] = {
-    blockIndexMap.get(index)
+    blockIndexMap.get(index) match {
+      case Some(id) => getBlock(id)
+      case _ => None
+    }
   }
 
   override def containsBlock(id: UInt256): Boolean = {
-    blockMap.contains(id)
+    blkSet.contains(id)
   }
 
   override def produceBlock(transactions: Seq[Transaction]): Option[Block] = {
@@ -75,7 +95,9 @@ class LevelDBBlockChain extends BlockChain {
     val block = Block.build(header, transactions)
 
     if (storage.writeBlock(block).isSuccess) {
+      updateUTXOSet(transactions)
       latestHeader = header
+      blkSet.add(block.id)
       Some(block)
     } else {
       None
@@ -83,11 +105,21 @@ class LevelDBBlockChain extends BlockChain {
   }
 
   override def getTransaction(id: UInt256): Option[Transaction] = {
-    txMap.get(id)
+    txBlockMap.get(id) match {
+      case Some(blkId) => {
+        getBlock(blkId) match {
+          case Some(blk) => {
+            blk.transactions.find(_.id.equals(id))
+          }
+          case None => None
+        }
+      }
+      case None => None
+    }
   }
 
   override def containsTransaction(id: UInt256): Boolean = {
-    txMap.contains(id)
+    txBlockMap.contains(id)
   }
 
   override def verifyBlock(block: Block): Boolean = {
@@ -100,7 +132,7 @@ class LevelDBBlockChain extends BlockChain {
   }
 
   override def verifyTransaction(tx: Transaction): Boolean = {
-    if (tx.inputs.groupBy(i => (i.blockId, i.index)).exists(_._2.size > 0)) {
+    if (tx.inputs.groupBy(i => (i.txId, i.index)).exists(_._2.size > 0)) {
       false
     } else {
       true
@@ -108,22 +140,16 @@ class LevelDBBlockChain extends BlockChain {
   }
 
   private def populate() = {
-    storage.scan((_, value) => {
-      val block = Block.parseFrom(value).toOption
-      block match {
-        case Some(blk) => {
-          if (blk.header.index > latestHeader.index) {
-            latestHeader = blk.header
-          }
-          blockIndexMap.put(blk.header.index, blk)
-          blockMap.put(blk.id, blk)
-          blk.transactions.foreach(tx => {
-            txMap.put(tx.id, tx)
-          })
-        }
-        case _ =>
+    val it = iterator
+    while (it.hasNext) {
+      val blk = it.next()
+      blkSet.add(blk.id)
+      blockIndexMap.put(blk.header.index, blk.id)
+      updateUTXOSet(blk.transactions)
+      for (tx <- blk.transactions) {
+        txBlockMap.put(tx.id, blk.id)
       }
-    })
+    }
   }
 
   private def verfyHeader(header: BlockHeader): Boolean = {
@@ -138,5 +164,16 @@ class LevelDBBlockChain extends BlockChain {
 
   private def verifyTxs(txs: Seq[Transaction]): Boolean = {
     txs.isEmpty || txs(0).txType == TransactionType.Miner
+  }
+
+  private def updateUTXOSet(transactions: Seq[Transaction]) = {
+    for (tx <- transactions) {
+      for (i <- tx.inputs) {
+        utxoSet.remove(i.txId, i.index)
+      }
+      for (i <- 0 to tx.outputs.length - 1) {
+        utxoSet.add(tx.id, i)
+      }
+    }
   }
 }

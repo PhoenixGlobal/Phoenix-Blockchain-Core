@@ -7,7 +7,7 @@ import com.apex.common.ApexLogging
 import com.typesafe.config.{Config, ConfigFactory}
 import net.ceedubs.ficus.Ficus._
 import net.ceedubs.ficus.readers.ArbitraryTypeReader._
-import com.apex.core.utils.{ByteStr, NetworkTimeProviderSettings}
+import com.apex.core.utils.NetworkTimeProviderSettings
 
 import scala.concurrent.duration._
 
@@ -19,7 +19,7 @@ case class RESTApiSettings(bindAddress: InetSocketAddress,
 case class NetworkSettings(nodeName: String,
                            addedMaxDelay: Option[FiniteDuration],
                            localOnly: Boolean,
-                           var knownPeers: Seq[InetSocketAddress],
+                           knownPeers: Seq[InetSocketAddress],
                            bindAddress: InetSocketAddress,
                            maxConnections: Int,
                            connectionTimeout: FiniteDuration,

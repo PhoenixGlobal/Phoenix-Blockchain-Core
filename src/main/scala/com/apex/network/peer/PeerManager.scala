@@ -1,10 +1,9 @@
-package com.apex.core.network.peer
+package com.apex.network.peer
 
 import java.net.InetSocketAddress
 
 import akka.actor.{Actor, ActorRef, ActorSystem, Props}
 import com.apex.common.ApexLogging
-import com.apex.network._
 import com.apex.core.settings.ApexSettings
 import com.apex.core.utils.NetworkTimeProvider
 
@@ -13,15 +12,12 @@ import scala.util.Random
 import com.apex.network.SendingStrategy
 import com.apex.network.Handshake
 import com.apex.network.{Incoming,Outgoing}
-import com.apex.network.peer.PeerDatabaseImpl
-
-import com.apex.network.peer.PeerInfo
 
 class PeerManager(settings: ApexSettings, timeProvider: NetworkTimeProvider) extends Actor with ApexLogging {
 
   import PeerManager.ReceivableMessages._
   import com.apex.network.NetworkController.ReceivableMessages.ConnectTo
-  import com.apex.core.network.NodeViewSynchronizer.ReceivableMessages.{DisconnectedPeer, HandshakedPeer}
+  import com.apex.network.NodeViewSynchronizer.ReceivableMessages.{DisconnectedPeer, HandshakedPeer}
   import com.apex.network.PeerConnectionHandler.ReceivableMessages.{CloseConnection, StartInteraction}
   import com.apex.network.{ConnectedPeer,ConnectionType}
   //握手成功
@@ -76,12 +72,6 @@ class PeerManager(settings: ApexSettings, timeProvider: NetworkTimeProvider) ext
 
     case GetBlacklistedPeers =>
       sender() ! peerDatabase.blacklistedPeers()
-
-//    case Subscribe(listener, events) =>
-//      events.foreach { evt =>
-//        val current = subscribers.getOrElse(evt, Seq())
-//        subscribers.put(evt, current :+ listener)
-//      }
   }
 
 
@@ -99,13 +89,13 @@ class PeerManager(settings: ApexSettings, timeProvider: NetworkTimeProvider) ext
   private def connecting: Receive = {
     case DoConnecting(remote, direction) =>
       if (peerDatabase.isBlacklisted(remote)) {
-        log.info(s"Got incoming connection from blacklisted $remote")
+        log.info(s"从黑名单中获得传入连接 $remote")
       } else {
         val peerHandlerRef = sender
         val isIncoming = direction == Incoming
         val isAlreadyConnecting = connectingPeers.contains(remote)
         if (isAlreadyConnecting && !isIncoming) {
-          log.info(s"Trying to connect twice to $remote, going to drop the duplicate connection")
+          log.info(s"尝试连接两次 $remote, 将删除重复连接")
           peerHandlerRef ! CloseConnection
         } else {
           if (!isIncoming) {
@@ -122,7 +112,7 @@ class PeerManager(settings: ApexSettings, timeProvider: NetworkTimeProvider) ext
   private def handshaked: Receive = {
     case Handshaked(peer) =>
       if (peerDatabase.isBlacklisted(peer.socketAddress)) {
-        log.info(s"Got handshake from blacklisted ${peer.socketAddress}")
+        log.info(s"从黑名单中得到握手 ${peer.socketAddress}")
       } else {
         if (peer.direction == Outgoing && isSelf(peer.socketAddress, peer.handshake.declaredAddress)) {
           peer.handlerRef ! CloseConnection
@@ -133,7 +123,8 @@ class PeerManager(settings: ApexSettings, timeProvider: NetworkTimeProvider) ext
             peerDatabase.remove(peer.socketAddress)
           }
           connectedPeers += peer.socketAddress -> peer
-          context.system.eventStream.publish(HandshakedPeer(peer))
+          log.info("更新本节点连接的节点="+connectedPeers)
+          context.system.eventStream.publish(HandshakedPeer(peer))//本节点连接的节点状态追踪及优化连接
         }
       }
   }

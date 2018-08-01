@@ -1,7 +1,10 @@
 package com.apex.storage
 
+import java.io.{ByteArrayInputStream, DataInputStream}
+
 import com.apex.common.ApexLogging
 import com.apex.core.Block
+import com.apex.crypto.UInt256
 
 import scala.collection.concurrent.TrieMap
 import scala.util.Try
@@ -16,19 +19,15 @@ class BlockChainStorage(val path: String) extends ApexLogging {
 
   private val blocksCache: TrieMap[Int, Option[Block]] = TrieMap.empty
 
-  def readBlock(height: Int): Option[Block] = {
-
-    //缓存区块的最大数目
-    if (blocksCacheSize > BlocksCacheSizeLimit) {
-      blocksCacheSize = 0
-      blocksCache.clear()
-    } else {
-      blocksCacheSize = blocksCacheSize + 1
+  def readBlock(id: UInt256): Option[Block] = {
+    database.get(id.toBytes) match {
+      case Some(bytes) => {
+        val bis = new ByteArrayInputStream(bytes)
+        val is = new DataInputStream(bis)
+        Some(Block.deserialize(is))
+      }
+      case None => None
     }
-
-    // 从缓存读取/更新
-    //    blocksCache.getOrElseUpdate(height, Try(database.get(height)).get.flatMap(b => Block.parseFrom(b).toOption))
-    throw new NotImplementedError()
   }
 
   def writeBlock(block: Block): Try[Boolean] = Try {

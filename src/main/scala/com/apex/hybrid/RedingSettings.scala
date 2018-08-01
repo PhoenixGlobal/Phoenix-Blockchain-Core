@@ -1,37 +1,16 @@
-package com.apex.hybrid.mining
-
-import java.io.File
+package com.apex.hybrid
 
 import com.apex.common.ApexLogging
-import com.apex.core.ModifierId
 import com.apex.core.settings.ApexSettings.readConfigFromPath
 import com.apex.core.settings._
-import com.apex.core.utils.ByteStr
 import com.typesafe.config.Config
 import net.ceedubs.ficus.Ficus._
 import net.ceedubs.ficus.readers.ArbitraryTypeReader._
 import net.ceedubs.ficus.readers.ValueReader
-
 import scala.concurrent.duration._
 import scala.util.Random
 
-case class HybridSettings(mining: HybridMiningSettings,
-                          walletSettings: WalletSettings,
-                          apexSettings: ApexSettings)
-
-case class WalletSettings(seed: ByteStr,
-                          password: String,
-                          walletDir: File)
-
-case class HybridMiningSettings(offlineGeneration: Boolean,
-                                targetBlockDelay: FiniteDuration,
-                                blockGenerationDelay: FiniteDuration,
-                                posAttachmentSize: Int,
-                                rParamX10: Int,
-                                initialDifficulty: BigInt) {
-  lazy val MaxTarget = BigInt(1, Array.fill(32)(Byte.MinValue))
-  lazy val GenesisParentId = ModifierId @@ Array.fill(32)(1: Byte)
-}
+case class HybridSettings(apexSettings: ApexSettings)
 
 object HybridSettings extends ApexLogging with SettingsReaders {
   def read(userConfigPath: Option[String]): HybridSettings = {
@@ -42,8 +21,6 @@ object HybridSettings extends ApexLogging with SettingsReaders {
     (cfg: Config, path: String) => fromConfig(cfg.getConfig(path))
 
   private def fromConfig(config: Config): HybridSettings = {
-    val walletSettings = config.as[WalletSettings]("apex.wallet")
-    val miningSettings = config.as[HybridMiningSettings]("apex.miner")
     val apexSettings = config.as[ApexSettings]("apex")
     
 //    val discover = GatewayDiscover()
@@ -88,8 +65,7 @@ object HybridSettings extends ApexLogging with SettingsReaders {
 //          }
 //      }
 //    }
-//    println("aaaaaaaaaaaaaaaaaa="+apexSettings.network.knownPeers)
-    HybridSettings(miningSettings, walletSettings, apexSettings)
+    HybridSettings(apexSettings)
   }
     
   //在m中找到n个随机数

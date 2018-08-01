@@ -20,6 +20,7 @@ import org.bouncycastle.crypto.params.{ECDomainParameters, ECPrivateKeyParameter
 import org.bouncycastle.crypto.signers.{ECDSASigner, HMacDSAKCalculator}
 import org.bouncycastle.math.ec.ECPoint
 import com.apex.common.Serializable
+import com.apex.wallets.Wallet
 
 object BinaryData {
   def apply(hex: String): BinaryData = hex
@@ -166,7 +167,7 @@ object Ecdsa {
     override def toString = toBin.toString
     
     def toAddress: String = { 
-       Crypto.computeP2PkhAddress(hash160)
+      Wallet.toAddress(hash160)
     }
   }
 

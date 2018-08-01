@@ -1,4 +1,4 @@
-package com.apex.core.structure
+package com.apex.network.message
 
 import com.apex.core.{EphemerealNodeViewModifier, ModifierId, ModifierTypeId}
 import com.apex.core.hash.Blake2b256

@@ -64,14 +64,8 @@ object Crypto {
      val aes = Cipher.getInstance("AES/CBC/PKCS5PADDING", BouncyCastleProvider.PROVIDER_NAME)
      aes.init(Cipher.DECRYPT_MODE, secretKeySpec, new IvParameterSpec(iv))
      aes.doFinal(data)
-  }
-  
-  def computeP2PkhAddress(pubkeyHash: Array[Byte]): String = {
-     assert(pubkeyHash.length == 20)
-     
-     // "0FBABD70" is for APEX prefix
-     Base58Check.encode(BinaryData("0FBABD70"), pubkeyHash)      
-  }
+  } 
+
 
 }
 

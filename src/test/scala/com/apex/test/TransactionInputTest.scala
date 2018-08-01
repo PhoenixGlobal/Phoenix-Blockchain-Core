@@ -51,6 +51,6 @@ class TransactionInputTest {
   @Test
   def testToJSON = {
     val a = TransactionInput(SerializerTest.testHash256(), Int.MaxValue)
-    assert(Json.toJson(a).toString.equals(s"""{"blockId":"${a.blockId}","index":${a.index}}"""))
+    assert(Json.toJson(a).toString.equals(s"""{"txId":"${a.txId}","index":${a.index}}"""))
   }
 }

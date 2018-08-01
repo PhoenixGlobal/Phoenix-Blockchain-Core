@@ -18,7 +18,11 @@ object Base58Check {
 
    def encode(prefix: Array[Byte], data: Array[Byte]): String = {
       val prefixAndData = prefix ++ data
-      Base58.encode(prefixAndData ++ checksum(prefixAndData))
+      encode(prefixAndData)
+   }
+   
+   def encode(all: Array[Byte]): String = {
+      Base58.encode(all ++ checksum(all))
    }
 
    def decode(input: String): Try[Array[Byte]] = Try {

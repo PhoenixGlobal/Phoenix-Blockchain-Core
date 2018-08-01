@@ -56,20 +56,21 @@ class PeerConnectionHandler(val settings: NetworkSettings,
   extends Actor with DataBuffering with ApexLogging {
 
   import PeerConnectionHandler.ReceivableMessages._
-  import com.apex.core.network.peer.PeerManager.ReceivableMessages.{AddToBlacklist, Disconnected, DoConnecting, Handshaked}
+  import com.apex.network.peer.PeerManager.ReceivableMessages.{AddToBlacklist, Disconnected, DoConnecting, Handshaked}
 
   context watch connection
 
   override val supervisorStrategy: SupervisorStrategy = SupervisorStrategy.stoppingStrategy
 
-
+  //接收握手
   private var receivedHandshake: Option[Handshake] = None
   private var selfPeer: Option[ConnectedPeer] = None
 
   private def handshakeGot = receivedHandshake.isDefined
 
   private var handshakeSent = false
-
+  
+  //握手超时取消选择
   private var handshakeTimeoutCancellableOpt: Option[Cancellable] = None
 
   private var chunksBuffer: ByteString = CompactByteString()
@@ -84,23 +85,22 @@ class PeerConnectionHandler(val settings: NetworkSettings,
 
   private def processErrors(stateName: String): Receive = {
     case CommandFailed(w: Write) =>
-      log.warn(s"Write failed :$w " + remote + s" in state $stateName")
-      //      peerManager ! AddToBlacklist(remote)
+      log.warn(s"写入失败 :$w " + remote + s" 状态 $stateName")
       connection ! Close
       connection ! ResumeReading
       connection ! ResumeWriting
 
     case cc: ConnectionClosed =>
       peerManagerRef ! Disconnected(remote)
-      log.info("Connection closed to : " + remote + ": " + cc.getErrorCause + s" in state $stateName")
+      log.info("连接关闭 : " + remote + ": " + cc.getErrorCause + s" 状态  $stateName")
       context stop self
 
     case CloseConnection =>
-      log.info(s"Enforced to abort communication with: " + remote + s" in state $stateName")
+      log.info(s"强制中止通信: " + remote + s" 状态  $stateName")
       connection ! Close
 
     case CommandFailed(cmd: Tcp.Command) =>
-      log.info("Failed to execute command : " + cmd + s" in state $stateName")
+      log.info("执行命令失败 : " + cmd + s" 状态 $stateName")
       connection ! ResumeReading
   }
 
@@ -132,7 +132,7 @@ class PeerConnectionHandler(val settings: NetworkSettings,
 
   private def handshakeTimeout: Receive = {
     case HandshakeTimeout =>
-      log.info(s"Handshake timeout with $remote, going to drop the connection")
+      log.info(s"与远程 $remote 握手超时, 将删除连接")
       self ! CloseConnection
   }
 
@@ -154,7 +154,7 @@ class PeerConnectionHandler(val settings: NetworkSettings,
     case msg: message.Message[_] =>
       def sendOutMessage() {
         val bytes = msg.bytes
-        log.info("Send message " + msg.spec + " to " + remote)
+        log.info("发送消息 " + msg.spec + " 到 " + remote)
         connection ! Write(ByteString(Ints.toByteArray(bytes.length) ++ bytes))
       }
 
@@ -167,7 +167,7 @@ class PeerConnectionHandler(val settings: NetworkSettings,
       }
 
     case Blacklist =>
-      log.info(s"Going to blacklist " + remote)
+      log.info(s"加入黑名单 " + remote)
       peerManagerRef ! AddToBlacklist(remote)
       connection ! Close
   }
@@ -181,14 +181,12 @@ class PeerConnectionHandler(val settings: NetworkSettings,
       t._1.find { packet =>
         messagesHandler.parseBytes(packet.toByteBuffer, selfPeer) match {
           case Success(message) =>
-            log.info("Received message " + message.spec + " from " + remote)
+            log.info(" 从 " + remote + "收到消息 " + message.spec )
             networkControllerRef ! message
             false
 
           case Failure(e) =>
-            log.info(s"Corrupted data from: " + remote, e)
-            //  connection ! Close
-            //  context stop self
+            log.info(s"损坏的数据来自: " + remote, e)
             true
         }
       }
@@ -197,7 +195,7 @@ class PeerConnectionHandler(val settings: NetworkSettings,
 
   private def reportStrangeInput: Receive= {
       case nonsense: Any =>
-        log.warn(s"Strange input for PeerConnectionHandler: $nonsense")
+        log.warn(s"未知的错误: $nonsense")
   }
 
   def workingCycle: Receive =

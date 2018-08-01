@@ -6,14 +6,14 @@ import com.apex.common.Serializable
 import com.apex.crypto.UInt256
 import play.api.libs.json.{JsValue, Json, Writes}
 
-case class TransactionInput(val blockId: UInt256,
+case class TransactionInput(val txId: UInt256,
                             val index: Int) extends Serializable {
   override def hashCode(): Int = {
-    blockId.hashCode() + index.hashCode()
+    txId.hashCode() + index.hashCode()
   }
 
   override def serialize(os: DataOutputStream): Unit = {
-    os.write(blockId)
+    os.write(txId)
     os.writeInt(index)
   }
 }
@@ -22,7 +22,7 @@ object TransactionInput {
   implicit val transactionInputWrites = new Writes[TransactionInput] {
     override def writes(o: TransactionInput): JsValue = {
       Json.obj(
-        "blockId" -> o.blockId.toString,
+        "txId" -> o.txId.toString,
         "index" -> o.index
       )
     }
@@ -31,7 +31,7 @@ object TransactionInput {
   def deserialize(is: DataInputStream): TransactionInput = {
     import com.apex.common.Serializable._
     return new TransactionInput(
-      blockId = is.readObj(UInt256.deserialize),
+      txId = is.readObj(UInt256.deserialize),
       index = is.readInt
     )
   }

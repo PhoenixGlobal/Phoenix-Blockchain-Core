@@ -20,7 +20,7 @@ trait DataBuffering {
         (packets.reverse, current)
       } else {
         val len = current.iterator.getInt(ByteOrder.BIG_ENDIAN)
-        if (len > settings.maxPacketSize || len < 0) throw new Exception(s"Invalid packet length: $len")
+        if (len > settings.maxPacketSize || len < 0) throw new Exception(s"无效数据包长度: $len")
         if (current.length < len + headerSize) {
           (packets.reverse, current)
         } else {

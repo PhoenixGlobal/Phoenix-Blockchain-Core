@@ -19,6 +19,7 @@ import scala.concurrent.ExecutionContext
 import scala.concurrent.duration._
 import scala.language.{existentials, postfixOps}
 import scala.util.{Failure, Success, Try}
+import scala.reflect.runtime.universe.TypeTag
 
 
 /**
@@ -35,14 +36,14 @@ class NetworkController(settings: NetworkSettings,
   import NetworkController.ReceivableMessages._
   import NetworkControllerSharedMessages.ReceivableMessages.DataFromPeer
   import PeerConnectionHandler.ReceivableMessages.CloseConnection
-  import com.apex.core.network.peer.PeerManager.ReceivableMessages.{CheckPeers, Disconnected, FilterPeers}
+  import com.apex.network.peer.PeerManager.ReceivableMessages.{CheckPeers, Disconnected, FilterPeers}
 
   private implicit val system: ActorSystem = context.system
 
-  private val peerSynchronizer: ActorRef = PeerSynchronizerRef("PeerSynchronizer", self, peerManagerRef, settings)
-
   private implicit val timeout: Timeout = Timeout(settings.controllerTimeout.getOrElse(5 seconds))
 
+  private val peerSynchronizer: ActorRef = PeerSynchronizerRef("PeerSynchronizer", self, peerManagerRef, settings)
+  
   private val messageHandlers = mutable.Map[Seq[Message.MessageCode], ActorRef]()
 
   private val tcpManager = IO(Tcp)
@@ -61,7 +62,7 @@ class NetworkController(settings: NetworkSettings,
           }
         } || (settings.upnpEnabled && myAddrs.exists(_ == upnp.externalAddress))
       } recover { case t: Throwable =>
-        log.error("Declared address validation failed: ", t)
+        log.error("声明的地址验证失败: ", t)
       }
     }
   }
@@ -91,7 +92,7 @@ class NetworkController(settings: NetworkSettings,
       context.system.scheduler.schedule(600.millis, 5.seconds)(peerManagerRef ! CheckPeers)
 
     case CommandFailed(_: Bind) =>
-      log.error("Network port " + settings.bindAddress.getPort + " already in use!")
+      log.error("端口 " + settings.bindAddress.getPort + " already in use!")
       context stop self
     //TODO catch?
   }
@@ -108,10 +109,10 @@ class NetworkController(settings: NetworkSettings,
               handler ! DataFromPeer(spec, content, remote)
 
             case None =>
-              log.error("No handlers found for message: " + msgId)
+              log.error("没有操作者处理消息: " + msgId)
           }
         case Failure(e) =>
-          log.error("Failed to deserialize data: ", e)
+          log.error("反序列化数据失败: ", e)
       }
 
     case SendToNetwork(message, sendingStrategy) =>
@@ -122,6 +123,7 @@ class NetworkController(settings: NetworkSettings,
 
   private val outgoing = mutable.Set[InetSocketAddress]()
 
+  //首次启动连接远程节点
   def peerLogic: Receive = {
     case ConnectTo(remote) =>
       log.info(s"Connecting to: $remote")
@@ -130,7 +132,7 @@ class NetworkController(settings: NetworkSettings,
                           localAddress = externalSocketAddress,
                           options = KeepAlive(true) :: Nil,
                           timeout = connTimeout,
-                          pullMode = true) //todo: check pullMode flag
+                          pullMode = true)
 
     case DisconnectFrom(peer) =>
       log.info(s"Disconnected from ${peer.socketAddress}")
@@ -141,11 +143,12 @@ class NetworkController(settings: NetworkSettings,
       peer.handlerRef ! PeerConnectionHandler.ReceivableMessages.Blacklist
       peerManagerRef ! Disconnected(peer.socketAddress)
 
+    //远程连接绑定到本地端口,所有连接的节点同时互相绑定
     case Connected(remote, local) =>
       val direction: ConnectionType = if(outgoing.contains(remote)) Outgoing else Incoming
       val logMsg = direction match {
-        case Incoming => s"New incoming connection from $remote established (bound to local $local)"
-        case Outgoing => s"New outgoing connection to $remote established (bound to local $local)"
+        case Incoming => s"传入的远程连接 $remote 绑定到本地 $local"
+        case Outgoing => s"输入的远程连接 $remote 绑定到本地 $local"
       }
       log.info(logMsg)
       val connection = sender()
@@ -156,13 +159,13 @@ class NetworkController(settings: NetworkSettings,
 
     case CommandFailed(c: Connect) =>
       outgoing -= c.remoteAddress
-      log.info("Failed to connect to : " + c.remoteAddress)
+      log.info("未能连接到 : " + c.remoteAddress)
       peerManagerRef ! Disconnected(c.remoteAddress)
   }
 
   def interfaceCalls: Receive = {
     case ShutdownNetwork =>
-      log.info("Going to shutdown all connections & unbind port")
+      log.info("关闭所有连接和解除绑定端口")
       (peerManagerRef ? FilterPeers(Broadcast))
         .map(_.asInstanceOf[Seq[ConnectedPeer]])
         .foreach(_.foreach(_.handlerRef ! CloseConnection))
@@ -176,10 +179,10 @@ class NetworkController(settings: NetworkSettings,
       messageHandlers += specs.map(_.messageCode) -> handler
 
     case CommandFailed(cmd: Tcp.Command) =>
-      log.info("Failed to execute command : " + cmd)
+      log.info("执行命令失败 : " + cmd)
 
     case nonsense: Any =>
-      log.warn(s"NetworkController: got something strange $nonsense")
+      log.warn(s"NetworkController: 未知的错误  $nonsense")
   }
 }
 
@@ -191,6 +194,13 @@ object NetworkController {
     case class ConnectTo(address: InetSocketAddress)
     case class DisconnectFrom(peer: ConnectedPeer)
     case class Blacklist(peer: ConnectedPeer)
+  }
+}
+
+
+object NetworkControllerSharedMessages {
+  object ReceivableMessages {
+    case class DataFromPeer[DT: TypeTag](spec: MessageSpec[DT], data: DT, source: ConnectedPeer)
   }
 }
 

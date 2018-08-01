@@ -2,31 +2,32 @@ package com.apex.hybrid
 
 import com.apex.core.utils.ApexEncoding
 import akka.actor.{Actor,ActorRef, ActorSystem, Props}
-import com.apex.core.PersistentNodeViewModifier
 import com.apex.common.ApexLogging
-import com.apex.core.network.NodeViewSynchronizer.ReceivableMessages.SuccessfulStructureStr
+import com.apex.network.NodeViewSynchronizer.ReceivableMessages.SuccessfulStructureMessageInfo
 import com.apex.network.message.Message
 
+/**
+ * 广播消息
+ */
 class BroadcastMessage
   extends Actor with ApexLogging{
   
-  import BroadcastMessage.ReceivableMessages._
-  import BroadcastMessage._
+  import BroadcastMessage.ReceivableMessages.LocallyGeneratedMessageInfo
   def receive = {
-    case LocallyGeneratedStructureTest(msg) =>
+    case LocallyGeneratedMessageInfo(msg) =>
       txModify(msg)
-    case a: Any => log.error("Strange input: " + a)
+    case a: Any => log.error("异常的输入: " + a)
   }
 
   //对外广播交易
   protected def txModify(message: Message[_]): Unit = {
-      context.system.eventStream.publish(SuccessfulStructureStr(message))
+      context.system.eventStream.publish(SuccessfulStructureMessageInfo(message))
   }
 }
 
 object BroadcastMessage {
   object ReceivableMessages {
-    case class LocallyGeneratedStructureTest(message: Message[_])
+    case class LocallyGeneratedMessageInfo(message: Message[_])
   }
 }
 

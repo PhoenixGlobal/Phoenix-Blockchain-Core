@@ -5,7 +5,6 @@ import java.net.{InetAddress, InetSocketAddress}
 import java.util
 
 import com.google.common.primitives.{Bytes, Ints}
-import com.apex.core.consensus.SyncInfo
 import com.apex.network.message.Message.MessageCode
 import com.apex.core.{ModifierId, ModifierTypeId, NodeViewModifier}
 
@@ -18,16 +17,6 @@ object BasicMsgDataTypes {
 }
 
 import com.apex.network.message.BasicMsgDataTypes._
-
-class SyncInfoMessageSpec[SI <: SyncInfo](deserializer: Array[Byte] => Try[SI]) extends MessageSpec[SI] {
-
-  override val messageCode: MessageCode = 65: Byte
-  override val messageName: String = "Sync"
-
-  override def parseBytes(bytes: Array[Byte]): Try[SI] = deserializer(bytes)
-
-  override def toBytes(data: SI): Array[Byte] = data.bytes
-}
 
 object InvSpec {
   val MessageCode: Byte = 55

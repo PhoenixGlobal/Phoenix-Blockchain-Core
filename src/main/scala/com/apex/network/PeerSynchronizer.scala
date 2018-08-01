@@ -8,7 +8,7 @@ import com.apex.common.ApexLogging
 import com.apex.network.NetworkController.ReceivableMessages.{RegisterMessagesHandler, SendToNetwork}
 import com.apex.network.NetworkControllerSharedMessages.ReceivableMessages.DataFromPeer
 import com.apex.network.message.{GetPeersSpec, Message, PeersSpec}
-import com.apex.core.network.peer.PeerManager.ReceivableMessages.{AddOrUpdatePeer, RandomPeers}
+import com.apex.network.peer.PeerManager.ReceivableMessages.{AddOrUpdatePeer, RandomPeers}
 import com.apex.core.settings.NetworkSettings
 import shapeless.syntax.typeable._
 import scala.concurrent.ExecutionContext
@@ -30,7 +30,7 @@ class PeerSynchronizer(val networkControllerRef: ActorRef, peerManager: ActorRef
 
     val msg = Message[Unit](GetPeersSpec, Right(Unit), None)
     val stn = SendToNetwork(msg, SendToRandom)
-    context.system.scheduler.schedule(2.seconds, 10.seconds)(networkControllerRef ! stn)
+    context.system.scheduler.schedule(2.seconds, 10.seconds)(networkControllerRef ! stn)//定时发送消息
   }
 
   override def receive: Receive = {
