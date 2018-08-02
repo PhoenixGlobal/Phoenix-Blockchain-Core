@@ -5,7 +5,7 @@ import java.util.Map.Entry
 
 import com.apex.common.ApexLogging
 import org.fusesource.leveldbjni.JniDBFactory._
-import org.iq80.leveldb.{DB, DBIterator, Options}
+import org.iq80.leveldb.{DB, DBIterator, Options, WriteBatch}
 
 class LevelDbStorage(private val db: DB) extends Storage[Array[Byte], Array[Byte]] with ApexLogging {
   override def set(key: Array[Byte], value: Array[Byte]): Boolean = {
@@ -65,6 +65,21 @@ class LevelDbStorage(private val db: DB) extends Storage[Array[Byte], Array[Byte
 
   override def close(): Unit = {
     db.close()
+  }
+
+  def batchWrite(action: WriteBatch => Unit): Boolean = {
+    val batch = db.createWriteBatch()
+    try {
+      action(batch)
+      db.write(batch)
+      true
+    } catch {
+      case e: Throwable =>
+        log.error("batchWrite failed", e)
+        false
+    } finally {
+      batch.close()
+    }
   }
 
   private def seekThenApply(seekAction: DBIterator => Unit, func: Entry[Array[Byte], Array[Byte]] => Boolean): Unit = {
