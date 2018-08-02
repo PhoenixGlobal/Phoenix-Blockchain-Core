@@ -1,6 +1,6 @@
 package com.apex.core
 
-import java.io.{ByteArrayOutputStream, DataInputStream, DataOutputStream}
+import java.io.{ByteArrayInputStream, ByteArrayOutputStream, DataInputStream, DataOutputStream}
 
 import com.apex.common.Serializable
 import com.apex.crypto.{Crypto, Fixed8, UInt256}
@@ -57,5 +57,11 @@ object Transaction {
         return TransferTransaction.deserialize(is)
       case _ => throw new NotImplementedError
     }
+  }
+
+  def fromBytes(bytes: Array[Byte]): Transaction = {
+    val bis = new ByteArrayInputStream(bytes)
+    val is = new DataInputStream(bis)
+    Transaction.deserialize(is)
   }
 }

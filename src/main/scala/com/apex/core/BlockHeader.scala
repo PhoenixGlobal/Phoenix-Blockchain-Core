@@ -1,6 +1,6 @@
 package com.apex.core
 
-import java.io.{ByteArrayOutputStream, DataInputStream, DataOutputStream}
+import java.io.{ByteArrayInputStream, ByteArrayOutputStream, DataInputStream, DataOutputStream}
 
 import com.apex.crypto.{Crypto, UInt256}
 import play.api.libs.json.{JsValue, Json, Writes}
@@ -70,5 +70,11 @@ object BlockHeader {
       prevBlock = is.readObj(UInt256.deserialize),
       version = version,
       is.readObj(UInt256.deserialize))
+  }
+
+  def fromBytes(bytes: Array[Byte]): BlockHeader = {
+    val bis = new ByteArrayInputStream(bytes)
+    val is = new DataInputStream(bis)
+    BlockHeader.deserialize(is)
   }
 }

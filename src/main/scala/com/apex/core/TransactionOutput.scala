@@ -1,6 +1,6 @@
 package com.apex.core
 
-import java.io.{DataInputStream, DataOutputStream}
+import java.io.{ByteArrayInputStream, DataInputStream, DataOutputStream}
 
 import com.apex.common.Serializable
 import com.apex.crypto.{Fixed8, UInt160, UInt256}
@@ -38,5 +38,11 @@ object TransactionOutput {
       assetId = UInt256.deserialize(is),
       amount = Fixed8.deserialize(is),
       version = version)
+  }
+
+  def fromBytes(bytes: Array[Byte]): TransactionOutput = {
+    val bs = new ByteArrayInputStream(bytes)
+    val is = new DataInputStream(bs)
+    deserialize(is)
   }
 }

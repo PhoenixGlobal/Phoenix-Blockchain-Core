@@ -51,11 +51,9 @@ object Block {
     return new Block(header, txs)
   }
 
-  def parseFrom(data: Array[Byte]): Try[Block] = {
+  def fromBytes(data: Array[Byte]): Block = {
     val bs = new ByteArrayInputStream(data)
     val is = new DataInputStream(bs)
-    Try {
-      deserialize(is)
-    }
+    deserialize(is)
   }
 }
