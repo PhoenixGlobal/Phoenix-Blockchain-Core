@@ -37,6 +37,8 @@ trait Blockchain extends Iterable[Block] with ApexLogging {
   def getBalance(address: UInt160): Option[collection.immutable.Map[UInt256, Long]]
 
   def getUTXOSet: UTXOSet
+  
+  def getUTXObyAddress(address: UInt160): Option[Set[(UInt256, Int)]]
 }
 
 object Blockchain {
@@ -216,6 +218,17 @@ class LevelDBBlockchain extends Blockchain {
 
   override def getUTXOSet: UTXOSet = {
     new UTXOSet(utxoStore)
+  }
+  
+  override def getUTXObyAddress(address: UInt160): Option[Set[(UInt256, Int)]] = {
+    
+    // return all the (TxID, outputIndex) in UTXO of the specified address
+    // maybe also search the mempool for 0-confirmation 
+    //
+    // todo: need replaced by WalletIndexer for full transaction history of some specified address, 
+    //       so need to search all the blocks, not only just the UTXO
+    
+    None
   }
 
   private def populate(): Unit = {
