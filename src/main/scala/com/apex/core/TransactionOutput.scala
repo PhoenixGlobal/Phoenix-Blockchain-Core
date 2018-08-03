@@ -40,9 +40,9 @@ object TransactionOutput {
       version = version)
   }
 
-  def fromBytes(bytes: Array[Byte]): TransactionOutput = {
-    val bs = new ByteArrayInputStream(bytes)
-    val is = new DataInputStream(bs)
-    deserialize(is)
-  }
+//  def fromBytes(bytes: Array[Byte]): TransactionOutput = {
+//    val bs = new ByteArrayInputStream(bytes)
+//    val is = new DataInputStream(bs)
+//    deserialize(is)
+//  }
 }

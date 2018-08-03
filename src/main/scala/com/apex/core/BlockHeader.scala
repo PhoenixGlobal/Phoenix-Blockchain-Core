@@ -71,10 +71,4 @@ object BlockHeader {
       version = version,
       is.readObj(UInt256.deserialize))
   }
-
-  def fromBytes(bytes: Array[Byte]): BlockHeader = {
-    val bis = new ByteArrayInputStream(bytes)
-    val is = new DataInputStream(bis)
-    BlockHeader.deserialize(is)
-  }
 }

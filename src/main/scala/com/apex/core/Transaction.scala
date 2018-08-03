@@ -58,10 +58,4 @@ object Transaction {
       case _ => throw new NotImplementedError
     }
   }
-
-  def fromBytes(bytes: Array[Byte]): Transaction = {
-    val bis = new ByteArrayInputStream(bytes)
-    val is = new DataInputStream(bis)
-    Transaction.deserialize(is)
-  }
 }

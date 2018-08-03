@@ -5,7 +5,7 @@ import java.util.Map.Entry
 
 import com.apex.common.ApexLogging
 import org.fusesource.leveldbjni.JniDBFactory._
-import org.iq80.leveldb.{DB, DBIterator, Options, WriteBatch}
+import org.iq80.leveldb._
 
 class LevelDbStorage(private val db: DB) extends Storage[Array[Byte], Array[Byte]] with ApexLogging {
   override def set(key: Array[Byte], value: Array[Byte]): Boolean = {
@@ -23,6 +23,18 @@ class LevelDbStorage(private val db: DB) extends Storage[Array[Byte], Array[Byte
   override def get(key: Array[Byte]): Option[Array[Byte]] = {
     try {
       val value = db.get(key)
+      if (value == null) None else Some(value)
+    } catch {
+      case e: Exception => {
+        log.error("db get failed", e)
+        None
+      }
+    }
+  }
+
+  def get(key: Array[Byte], opt: ReadOptions): Option[Array[Byte]] = {
+    try {
+      val value = db.get(key, opt)
       if (value == null) None else Some(value)
     } catch {
       case e: Exception => {

@@ -62,6 +62,8 @@ object Fixed8 {
   final val One: Fixed8 = new Fixed8(100000000)
   final val Zero: Fixed8 = new Fixed8(0)
 
+  def sum(args: Fixed8*): Fixed8 = args.sum
+
   def max(args: Fixed8*): Fixed8 = args.max
 
   def min(args: Fixed8*): Fixed8 = args.min

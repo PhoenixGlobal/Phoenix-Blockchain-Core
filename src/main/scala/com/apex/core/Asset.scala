@@ -5,16 +5,17 @@ import java.io.{ByteArrayOutputStream, DataInputStream, DataOutputStream}
 import com.apex.crypto.Ecdsa.Point
 import com.apex.crypto.{Crypto, Fixed8, UInt160, UInt256}
 
-class AssetView(val assetType: AssetType.Value,
-                val issuer: UInt160,
-                val name: String,
-                val amount: Fixed8,
-                val available: Fixed8,
-                val precision: Byte,
-                val fee: Fixed8,
-                val active: Boolean,
-                val version: Int = 0x01,
-                override protected var _id: UInt256 = null) extends Identifier[UInt256] {
+class Asset(val assetType: AssetType.Value,
+            val issuer: UInt160,
+            val name: String,
+            val amount: Fixed8,
+            val available: Fixed8,
+            val precision: Byte,
+            val fee: Fixed8,
+            val active: Boolean,
+            val version: Int = 0x01,
+            override protected var _id: UInt256 = null)
+  extends Identifier[UInt256] {
 
   override def serialize(os: DataOutputStream): Unit = {
     serializeExcludeId(os)
@@ -25,7 +26,7 @@ class AssetView(val assetType: AssetType.Value,
     val bs = new ByteArrayOutputStream()
     val os = new DataOutputStream(bs)
     serializeExcludeId(os)
-    return UInt256.fromBytes(Crypto.hash256(bs.toByteArray))
+    UInt256.fromBytes(Crypto.hash256(bs.toByteArray))
   }
 
   private def serializeExcludeId(os: DataOutputStream): Unit = {
@@ -42,11 +43,11 @@ class AssetView(val assetType: AssetType.Value,
   }
 }
 
-object AssetView {
-  def deserialize(is: DataInputStream): AssetView = {
+object Asset {
+  def deserialize(is: DataInputStream): Asset = {
     import com.apex.common.Serializable._
     val version = is.readInt
-    new AssetView(
+    new Asset(
       assetType = AssetType(is.readByte),
       issuer = is.readObj(UInt160.deserialize),
       name = is.readString,

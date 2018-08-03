@@ -8,24 +8,23 @@
 
 package com.apex.test
 
-import com.apex.core.AccountView
+import com.apex.core.Account
 import com.apex.crypto.Ecdsa.Point
 import com.apex.crypto.{Crypto, Fixed8, UInt160, UInt256}
 import org.junit.Test
 
 @Test
-class AccountViewTest {
+class AccountTest {
   @Test
   def testSerialize = {
     val balances = (1 to 10)
       .map(i => SerializerTest.testHash256(s"test$i") -> new Fixed8(i))
       .toMap
-    val a = new AccountView(false, Seq.empty[Point], balances)
-    val o = new SerializerTest[AccountView](
-      AccountView.deserialize,
+    val a = new Account(false, balances)
+    val o = new SerializerTest[Account](
+      Account.deserialize,
       (x, _) => x.id == a.id
         && x.active == a.active
-        && x.votes.sameElements(a.votes)
         && x.balances.sameElements(a.balances))
     o.test(a)
   }

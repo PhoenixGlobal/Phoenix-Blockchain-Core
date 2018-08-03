@@ -1,14 +1,14 @@
 /*
  * Copyright  2018 APEX Technologies.Co.Ltd. All rights reserved.
  *
- * FileName: AssetViewTest.scala
+ * FileName: AssetTest.scala
  *
  * @author: ruixiao.xiao@chinapex.com: 18-7-23 下午4:30@version: 1.0
  */
 
 package com.apex.test
 
-import com.apex.core.{AssetType, AssetView}
+import com.apex.core.{AssetType, Asset}
 import com.apex.crypto.Ecdsa.Point
 import com.apex.crypto.{Crypto, Fixed8, UInt160, UInt256}
 import org.junit.Test
@@ -17,7 +17,7 @@ import org.junit.Test
 class AssettViewTest {
   @Test
   def testSerialize = {
-    val a = new AssetView(
+    val a = new Asset(
       AssetType.Token,
       SerializerTest.testHash160(),
       "cpx",
@@ -27,8 +27,8 @@ class AssettViewTest {
       Fixed8.One,
       true
     )
-    val o = new SerializerTest[AssetView](
-      AssetView.deserialize,
+    val o = new SerializerTest[Asset](
+      Asset.deserialize,
       (x, _) => x.version == a.version
         && x.id == a.id
         && x.issuer == a.issuer

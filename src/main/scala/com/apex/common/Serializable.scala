@@ -1,6 +1,6 @@
 package com.apex.common
 
-import java.io.{ByteArrayOutputStream, DataInputStream, DataOutputStream}
+import java.io.{ByteArrayInputStream, ByteArrayOutputStream, DataInputStream, DataOutputStream}
 
 trait Serializable {
   def serialize(os: DataOutputStream): Unit
@@ -9,12 +9,20 @@ trait Serializable {
 }
 
 object Serializable {
-  implicit class Extension(val obj: Serializable) {
+  implicit class Writer(val obj: Serializable) {
     def toBytes: Array[Byte] = {
       val bs = new ByteArrayOutputStream()
       val os = new DataOutputStream(bs)
       obj.serialize(os)
       bs.toByteArray
+    }
+  }
+
+  implicit class Reader(val bytes: Array[Byte]) {
+    def toInstance[A <: Serializable](deserializer: DataInputStream => A): A = {
+      val bs = new ByteArrayInputStream(bytes)
+      val is = new DataInputStream(bs)
+      deserializer(is)
     }
   }
 
