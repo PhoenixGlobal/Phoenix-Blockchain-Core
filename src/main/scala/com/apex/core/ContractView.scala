@@ -31,7 +31,7 @@ class ContractView(val name: String,
     os.writeString(author)
     os.writeString(email)
     os.writeString(description)
-    os.writeBytes(script)
+    os.writeByteArray(script)
   }
 }
 
@@ -44,7 +44,7 @@ object ContractView {
       author = is.readString(),
       email = is.readString(),
       description = is.readString(),
-      script = is.readBytes,
+      script = is.readByteArray,
       version = version,
       is.readObj(UInt160.deserialize)
     )
