@@ -17,11 +17,11 @@ import play.api.libs.json.Json
 class TransactionOutputTest {
   @Test
   def testEqual = {
-    val a = TransactionOutput(SerializerTest.testHash160(), SerializerTest.testHash256(), Fixed8.One)
-    val b = TransactionOutput(SerializerTest.testHash160(), SerializerTest.testHash256(), Fixed8.One)
-    val c = TransactionOutput(SerializerTest.testHash160(), SerializerTest.testHash256(), Fixed8.Zero)
-    val d = TransactionOutput(SerializerTest.testHash160("Test"), SerializerTest.testHash256(), Fixed8.One)
-    val e = TransactionOutput(SerializerTest.testHash160(), SerializerTest.testHash256("Test"), Fixed8.One)
+    val a = TransactionOutput(SerializerTest.testHash160(), SerializerTest.testHash256(), Fixed8.One, "1234")
+    val b = TransactionOutput(SerializerTest.testHash160(), SerializerTest.testHash256(), Fixed8.One, "1234")
+    val c = TransactionOutput(SerializerTest.testHash160(), SerializerTest.testHash256(), Fixed8.Zero, "1234")
+    val d = TransactionOutput(SerializerTest.testHash160("Test"), SerializerTest.testHash256(), Fixed8.One, "1234")
+    val e = TransactionOutput(SerializerTest.testHash160(), SerializerTest.testHash256("Test"), Fixed8.One, "1234")
     assert(a.equals(a))
     assert(a.equals(b))
     assert(!a.equals(c))
@@ -33,17 +33,17 @@ class TransactionOutputTest {
   @Test
   def testSerialize = {
     val o = new SerializerTest(TransactionOutput.deserialize)
-    val a = TransactionOutput(SerializerTest.testHash160(), SerializerTest.testHash256(), Fixed8.One)
+    val a = TransactionOutput(SerializerTest.testHash160(), SerializerTest.testHash256(), Fixed8.One, "1234")
     o.test(a)
-    val b = TransactionOutput(SerializerTest.testHash160("中文"), SerializerTest.testHash256(), Fixed8.One)
+    val b = TransactionOutput(SerializerTest.testHash160("中文"), SerializerTest.testHash256(), Fixed8.One, "1234")
     o.test(b)
-    val c = TransactionOutput(SerializerTest.testHash160(), SerializerTest.testHash256("中文"), Fixed8.One)
+    val c = TransactionOutput(SerializerTest.testHash160(), SerializerTest.testHash256("中文"), Fixed8.One, "1234")
     o.test(c)
   }
 
   @Test
   def testToJSON = {
-    val a = TransactionOutput(SerializerTest.testHash160(), SerializerTest.testHash256(), Fixed8.One)
-    assert(Json.toJson(a).toString.equals(s"""{"address":"${a.address}","assetId":"${a.assetId}","amount":${a.amount.value},"version":${a.version}}"""))
+    val a = TransactionOutput(SerializerTest.testHash160(), SerializerTest.testHash256(), Fixed8.One, "1234")
+    assert(Json.toJson(a).toString.equals(s"""{"address":"${a.address}","assetId":"${a.assetId}","amount":${a.amount.value},"pubKeyScript":"${a.pubKeyScript}","version":${a.version}}"""))
   }
 }
