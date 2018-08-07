@@ -32,11 +32,7 @@ class HybridApp2(val settingsFilename: String){
   
   val peerHandlerManagerRef = PeerHandlerManagerRef(settings,timeProvider)
   
-  val ip:String = "127.0.0.1"
-  val port:Int = 9084
-  
-  val promise = Promise[(Boolean, ActorRef)]()
-  val networkControllerRef: ActorRef = NetworkManagerRef("networkController",settings.network,upnp,peerHandlerManagerRef,timeProvider,ip,port)
+  val networkControllerRef: ActorRef = NetworkManagerRef("networkController",settings.network,upnp,peerHandlerManagerRef,timeProvider)
 
   def run(): Unit = {
     require(settings.network.agentName.length <= ApplicationNameLimit)

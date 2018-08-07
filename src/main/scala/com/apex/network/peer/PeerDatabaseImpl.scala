@@ -6,7 +6,7 @@ import scala.collection.mutable
 import com.apex.common.ApexLogging
 
 
-class PeerDatabaseImpl(filename: Option[String]) extends PeerDatabase with ApexLogging{
+class PeerDatabaseImpl(filename: Option[String]) extends PeerDatabase{
 
   private val whitelistPersistence = mutable.Map[InetSocketAddress, PeerInfo]()
 
@@ -18,7 +18,6 @@ class PeerDatabaseImpl(filename: Option[String]) extends PeerDatabase with ApexL
       val connTypeOpt = peerInfo.connectionType orElse  dbPeerInfo.connectionType
       PeerInfo(peerInfo.lastSeen, nodeNameOpt, connTypeOpt)
     }
-    log.info("加入白名单的信息="+address+":"+updatedPeerInfo)
     whitelistPersistence.put(address, updatedPeerInfo)
   }
 

@@ -32,7 +32,7 @@ import com.apex.core.utils.NetworkTimeProvider
   * 控制所有网络交互
   * 必须是单例
   */
-class NetworkManager(settings: NetworkSettings,upnp: UPnP,peerHandlerManagerRef:ActorRef,timeProvider: NetworkTimeProvider,ip:String,port:Int)(implicit ec: ExecutionContext) extends Actor with ApexLogging {
+class NetworkManager(settings: NetworkSettings,upnp: UPnP,peerHandlerManagerRef:ActorRef,timeProvider: NetworkTimeProvider)(implicit ec: ExecutionContext) extends Actor with ApexLogging {
 
   import NetworkManager.ReceivableMessages._
   import PeerConnectionManager.ReceivableMessages.CloseConnection
@@ -48,13 +48,13 @@ class NetworkManager(settings: NetworkSettings,upnp: UPnP,peerHandlerManagerRef:
   lazy val localAddress = settings.bindAddress
 
   //发送给peers的地址
-  lazy val externalSocketAddress: Option[InetSocketAddress] = {
+  lazy val externalSocketAddress: Option[InetSocketAddress] = None /*{
     settings.declaredAddress orElse {
       if (settings.upnpEnabled) {
         upnp.externalAddress.map(a => new InetSocketAddress(a, settings.bindAddress.getPort))
       } else None
     }
-  }
+  }*/
 
   log.info(s"Declared address: $externalSocketAddress")
 
@@ -67,8 +67,11 @@ class NetworkManager(settings: NetworkSettings,upnp: UPnP,peerHandlerManagerRef:
   private def bindingLogic: Receive = {
     case Bound(_) =>
       log.info("成功绑定到端口 " + settings.bindAddress.getPort)
-      if(ip.length()>0 && port != 0){
-        self ! ConnectTo(new InetSocketAddress(ip, port))
+      val knownPeers = settings.knownPeers
+      if(knownPeers.size>0){
+        for(knownPeer <- knownPeers){
+           self ! ConnectTo(new InetSocketAddress(knownPeer.getAddress, knownPeer.getPort))
+        }
       }
     case CommandFailed(_: Bind) =>
       log.error("端口 " + settings.bindAddress.getPort + " already in use!")
@@ -144,12 +147,12 @@ object NetworkManager {
 }
 
 object NetworkManagerRef {
-  def props(settings: NetworkSettings,upnp: UPnP,peerHandlerManagerRef:ActorRef,timeProvider: NetworkTimeProvider,ip:String,port:Int)(implicit ec: ExecutionContext): Props =
-    Props(new NetworkManager(settings, upnp,peerHandlerManagerRef:ActorRef,timeProvider,ip,port))
+  def props(settings: NetworkSettings,upnp: UPnP,peerHandlerManagerRef:ActorRef,timeProvider: NetworkTimeProvider)(implicit ec: ExecutionContext): Props =
+    Props(new NetworkManager(settings, upnp,peerHandlerManagerRef:ActorRef,timeProvider))
 
-  def apply(settings: NetworkSettings,upnp: UPnP,peerHandlerManagerRef:ActorRef,timeProvider: NetworkTimeProvider,ip:String,port:Int)(implicit system: ActorSystem, ec: ExecutionContext): ActorRef =
-    system.actorOf(props(settings, upnp,peerHandlerManagerRef:ActorRef,timeProvider,ip,port))
+  def apply(settings: NetworkSettings,upnp: UPnP,peerHandlerManagerRef:ActorRef,timeProvider: NetworkTimeProvider)(implicit system: ActorSystem, ec: ExecutionContext): ActorRef =
+    system.actorOf(props(settings, upnp,peerHandlerManagerRef:ActorRef,timeProvider))
 
-  def apply(name: String,settings: NetworkSettings,upnp: UPnP,peerHandlerManagerRef:ActorRef,timeProvider: NetworkTimeProvider,ip:String,port:Int)(implicit system: ActorSystem, ec: ExecutionContext): ActorRef =
-    system.actorOf(props(settings, upnp,peerHandlerManagerRef,timeProvider,ip,port), name)
+  def apply(name: String,settings: NetworkSettings,upnp: UPnP,peerHandlerManagerRef:ActorRef,timeProvider: NetworkTimeProvider)(implicit system: ActorSystem, ec: ExecutionContext): ActorRef =
+    system.actorOf(props(settings, upnp,peerHandlerManagerRef,timeProvider), name)
 }

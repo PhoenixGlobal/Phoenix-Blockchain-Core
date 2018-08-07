@@ -11,11 +11,6 @@ import com.apex.core.utils.NetworkTimeProviderSettings
 
 import scala.concurrent.duration._
 
-case class RESTApiSettings(bindAddress: InetSocketAddress,
-                           apiKeyHash: Option[String],
-                           corsAllowedOrigin: Option[String],
-                           timeout: FiniteDuration)
-
 case class NetworkSettings(nodeName: String,
                            addedMaxDelay: Option[FiniteDuration],
                            localOnly: Boolean,
@@ -28,24 +23,15 @@ case class NetworkSettings(nodeName: String,
                            upnpDiscoverTimeout: Option[FiniteDuration],
                            declaredAddress: Option[InetSocketAddress],
                            handshakeTimeout: FiniteDuration,
-                           deliveryTimeout: FiniteDuration,
-                           maxDeliveryChecks: Int,
                            appVersion: String,
                            agentName: String,
                            maxPacketSize: Int,
-                           maxInvObjects: Int,
-                           syncInterval: FiniteDuration,
-                           syncStatusRefresh: FiniteDuration,
-                           syncIntervalStable: FiniteDuration,
-                           syncStatusRefreshStable: FiniteDuration,
-                           syncTimeout: Option[FiniteDuration],
-                           controllerTimeout: Option[FiniteDuration],
-                           maxModifiersCacheSize: Int)
+                           controllerTimeout: Option[FiniteDuration])
+                                                      
 
 case class ApexSettings(dataDir: File,
                           logDir: File,
                           network: NetworkSettings,
-                          /*restApi: RESTApiSettings,*/
                           ntp: NetworkTimeProviderSettings
                          )
 
