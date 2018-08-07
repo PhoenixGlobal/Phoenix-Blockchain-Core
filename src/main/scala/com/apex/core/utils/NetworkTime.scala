@@ -41,7 +41,7 @@ class NetworkTimeProvider(ntpSettings: NetworkTimeProviderSettings)(implicit ec:
       updateOffset().onComplete {
         case Success(newOffset) =>
           offset.set(newOffset)
-          log.info("New offset adjusted: " + offset)
+          log.info("新时间偏移调整: " + offset)
           lastUpdate.set(time)
         case Failure(e) =>
           log.warn("Problems with NTP: ", e)

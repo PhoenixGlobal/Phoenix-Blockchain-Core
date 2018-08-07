@@ -5,12 +5,10 @@ import java.net.InetSocketAddress
 import scala.collection.mutable
 import scala.concurrent.ExecutionContext
 import scala.concurrent.duration.DurationInt
-import scala.language.existentials
-import scala.language.postfixOps
-
 import com.apex.common.ApexLogging
 import com.apex.core.settings.NetworkSettings
 import com.apex.network.upnp.UPnP
+import com.apex.network.peer.PeerHandlerManager.ReceivableMessages.PeerHandler
 
 import akka.actor.Actor
 import akka.actor.ActorRef
@@ -26,19 +24,21 @@ import akka.io.Tcp.Connect
 import akka.io.Tcp.Connected
 import akka.io.Tcp.SO.KeepAlive
 import akka.util.Timeout
-import com.apex.network.message.GetPeersSpec
 import com.apex.network.message.Message
-import scala.concurrent.Promise
+import com.apex.core.utils.NetworkTimeProvider
 
 
 /**
   * 控制所有网络交互
   * 必须是单例
   */
-class NetworkManager(settings: NetworkSettings,upnp: UPnP,ip:String,port:Int, promise:Promise[(Boolean, ActorRef)])(implicit ec: ExecutionContext) extends Actor with ApexLogging {
+class NetworkManager(settings: NetworkSettings,upnp: UPnP,peerHandlerManagerRef:ActorRef,timeProvider: NetworkTimeProvider,ip:String,port:Int)(implicit ec: ExecutionContext) extends Actor with ApexLogging {
 
   import NetworkManager.ReceivableMessages._
-
+  import PeerConnectionManager.ReceivableMessages.CloseConnection
+  import com.apex.network.peer.PeerHandlerManager.ReceivableMessages.Disconnected
+  import PeerConnectionManager.ReceivableMessages.GetHandlerToPeerConnectionManager
+  
   private implicit val system: ActorSystem = context.system
 
   private implicit val timeout: Timeout = Timeout(settings.controllerTimeout.getOrElse(5 seconds))
@@ -77,8 +77,8 @@ class NetworkManager(settings: NetworkSettings,upnp: UPnP,ip:String,port:Int, pr
 
 
   private val outgoing = mutable.Set[InetSocketAddress]()
-  
-  var linkState = false
+  var handler:ActorRef = system.actorOf(Props.empty)
+
   //首次启动连接远程节点
   def peerLogic: Receive = {
     case ConnectTo(remote) =>
@@ -89,7 +89,11 @@ class NetworkManager(settings: NetworkSettings,upnp: UPnP,ip:String,port:Int, pr
                           options = KeepAlive(true) :: Nil,
                           timeout = connTimeout,
                           pullMode = true)
-
+    
+//    case Blacklist(peer) =>
+//      peer.handlerRef ! PeerConnectionmanager.ReceivableMessages.Blacklist
+//      peerHandlerManagerRef ! Disconnected(peer.socketAddress)
+      
     //远程连接绑定到本地端口,所有连接的节点同时互相绑定
     case Connected(remote, local) =>
       val direction: ConnectionType = if(outgoing.contains(remote)) Outgoing else Incoming
@@ -99,21 +103,30 @@ class NetworkManager(settings: NetworkSettings,upnp: UPnP,ip:String,port:Int, pr
       }
       log.info(logMsg)
       val connection = sender()
-      val handlerProps: Props = PeerConnectionManagerRef.props(settings,connection, remote)
-      context.actorOf(handlerProps)
-//      if(outgoing.contains(remote)){
-//        val msg = Message[Unit](GetPeersSpec, Right(Unit), None)
-//        context.actorOf(handlerProps) ! msg
-//      }
-      if(outgoing.contains(remote)){
-        linkState = true
-      }
-      promise.trySuccess(linkState,context.actorOf(handlerProps))
+      val handlerProps: Props = PeerConnectionManagerRef.props(settings,peerHandlerManagerRef,connection, direction,externalSocketAddress,remote,self,timeProvider)
+      handler = context.actorOf(handlerProps)
       outgoing -= remote
+      
+    case CommandFailed(c: Connect) =>
+      outgoing -= c.remoteAddress
+      log.info("未能连接到 : " + c.remoteAddress)
+      peerHandlerManagerRef ! Disconnected(c.remoteAddress)
   }
+  def getHandler: Receive = {
+    case GetHandlerToPeerConnectionManager =>
+      peerHandlerManagerRef ! PeerHandler(handler) //handler做为消息发送到peerHandlerManager，由peerHandlerManager统一管理
+  }
+//  def interfaceCalls: Receive = {
+//    case ShutdownNetwork =>
+//      log.info("关闭所有连接和解除绑定端口")
+//      (peerManagerRef ? FilterPeers(Broadcast))
+//        .map(_.asInstanceOf[Seq[ConnectedPeer]])
+//        .foreach(_.foreach(_.handlerRef ! CloseConnection))
+//      self ! Unbind
+//      context stop self
+//  }
 
-
-  override def receive: Receive = bindingLogic orElse peerLogic orElse {
+  override def receive: Receive = bindingLogic orElse peerLogic orElse getHandler orElse{
     case CommandFailed(cmd: Tcp.Command) =>
       log.info("执行命令失败 : " + cmd)
 
@@ -125,16 +138,18 @@ class NetworkManager(settings: NetworkSettings,upnp: UPnP,ip:String,port:Int, pr
 object NetworkManager {
   object ReceivableMessages {
     case class ConnectTo(address: InetSocketAddress)
+    case class DisconnectFrom(peer: ConnectedPeer)
+    case class Blacklist(peer: ConnectedPeer)
   }
 }
 
 object NetworkManagerRef {
-  def props(settings: NetworkSettings,upnp: UPnP,ip:String,port:Int, promise:Promise[(Boolean, ActorRef)])(implicit ec: ExecutionContext): Props =
-    Props(new NetworkManager(settings, upnp,ip:String,port:Int, promise:Promise[(Boolean, ActorRef)]))
+  def props(settings: NetworkSettings,upnp: UPnP,peerHandlerManagerRef:ActorRef,timeProvider: NetworkTimeProvider,ip:String,port:Int)(implicit ec: ExecutionContext): Props =
+    Props(new NetworkManager(settings, upnp,peerHandlerManagerRef:ActorRef,timeProvider,ip,port))
 
-  def apply(settings: NetworkSettings,upnp: UPnP,ip:String,port:Int, promise:Promise[(Boolean, ActorRef)])(implicit system: ActorSystem, ec: ExecutionContext): ActorRef =
-    system.actorOf(props(settings, upnp,ip:String,port:Int, promise:Promise[(Boolean, ActorRef)]))
+  def apply(settings: NetworkSettings,upnp: UPnP,peerHandlerManagerRef:ActorRef,timeProvider: NetworkTimeProvider,ip:String,port:Int)(implicit system: ActorSystem, ec: ExecutionContext): ActorRef =
+    system.actorOf(props(settings, upnp,peerHandlerManagerRef:ActorRef,timeProvider,ip,port))
 
-  def apply(name: String,settings: NetworkSettings,upnp: UPnP,ip:String,port:Int, promise:Promise[(Boolean, ActorRef)])(implicit system: ActorSystem, ec: ExecutionContext): ActorRef =
-    system.actorOf(props(settings, upnp,ip:String,port:Int, promise:Promise[(Boolean, ActorRef)]), name)
+  def apply(name: String,settings: NetworkSettings,upnp: UPnP,peerHandlerManagerRef:ActorRef,timeProvider: NetworkTimeProvider,ip:String,port:Int)(implicit system: ActorSystem, ec: ExecutionContext): ActorRef =
+    system.actorOf(props(settings, upnp,peerHandlerManagerRef,timeProvider,ip,port), name)
 }
