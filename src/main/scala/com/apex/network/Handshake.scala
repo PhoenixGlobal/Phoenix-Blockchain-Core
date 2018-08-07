@@ -2,7 +2,7 @@ package com.apex.network
 
 import java.net.{InetAddress, InetSocketAddress}
 import com.google.common.primitives.{Ints, Longs}
-import com.apex.core.app.{ApplicationVersionSerializer, Version}
+import com.apex.core.utils.{ApplicationVersionSerializer, Version}
 import com.apex.core.serialization.{BytesSerializable, Serializer}
 import scala.util.Try
 

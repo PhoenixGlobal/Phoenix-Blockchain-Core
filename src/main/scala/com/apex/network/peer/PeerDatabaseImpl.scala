@@ -3,9 +3,10 @@ package com.apex.network.peer
 import java.net.InetSocketAddress
 import com.apex.core.utils.NetworkTime
 import scala.collection.mutable
+import com.apex.common.ApexLogging
 
 
-class PeerDatabaseImpl(filename: Option[String]) extends PeerDatabase {
+class PeerDatabaseImpl(filename: Option[String]) extends PeerDatabase with ApexLogging{
 
   private val whitelistPersistence = mutable.Map[InetSocketAddress, PeerInfo]()
 
@@ -17,6 +18,7 @@ class PeerDatabaseImpl(filename: Option[String]) extends PeerDatabase {
       val connTypeOpt = peerInfo.connectionType orElse  dbPeerInfo.connectionType
       PeerInfo(peerInfo.lastSeen, nodeNameOpt, connTypeOpt)
     }
+    log.info("加入白名单的信息="+address+":"+updatedPeerInfo)
     whitelistPersistence.put(address, updatedPeerInfo)
   }
 
