@@ -33,7 +33,6 @@ case class NetworkSettings(nodeName: String,
                            appVersion: String,
                            agentName: String,
                            maxPacketSize: Int,
-                           maxHandshakeSize: Int,
                            maxInvObjects: Int,
                            syncInterval: FiniteDuration,
                            syncStatusRefresh: FiniteDuration,
@@ -41,13 +40,12 @@ case class NetworkSettings(nodeName: String,
                            syncStatusRefreshStable: FiniteDuration,
                            syncTimeout: Option[FiniteDuration],
                            controllerTimeout: Option[FiniteDuration],
-                           maxModifiersCacheSize: Int,
-                           linkNumber: Int)
+                           maxModifiersCacheSize: Int)
 
 case class ApexSettings(dataDir: File,
                           logDir: File,
                           network: NetworkSettings,
-                          restApi: RESTApiSettings,
+                          /*restApi: RESTApiSettings,*/
                           ntp: NetworkTimeProviderSettings
                          )
 
