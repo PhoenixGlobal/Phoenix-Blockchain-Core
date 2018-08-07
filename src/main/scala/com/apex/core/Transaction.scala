@@ -3,8 +3,9 @@ package com.apex.core
 import java.io.{ByteArrayInputStream, ByteArrayOutputStream, DataInputStream, DataOutputStream}
 
 import com.apex.common.Serializable
-import com.apex.crypto.{Crypto, Fixed8, UInt256}
+import com.apex.crypto.{Crypto, Fixed8, UInt256, Ecdsa, BinaryData}
 import play.api.libs.json.{JsValue, Json, Writes}
+import com.apex.core.script.{OP_PUSHDATA, Script}
 
 abstract class Transaction(val txType: TransactionType.Value,
                            val inputs: Seq[TransactionInput],
@@ -37,6 +38,27 @@ abstract class Transaction(val txType: TransactionType.Value,
   }
 
   protected def serializeExtraData(os: DataOutputStream): Unit
+
+  def serializeForSign(os: DataOutputStream) = {
+    import com.apex.common.Serializable._
+    os.writeByte(txType.toByte)
+    os.writeInt(version)
+    inputs.foreach(_.serializeForSign(os))
+    os.writeSeq(outputs)
+    serializeExtraData(os)
+  }
+
+  def dataForSigning(sigHashType: Int): Array[Byte] = {
+    val bs = new ByteArrayOutputStream()
+    val os = new DataOutputStream(bs)
+    serializeForSign(os)
+    bs.toByteArray
+  }
+
+  def signInput(inputIndex: Int, sigHashType: Int, signatureVersion: Int, privateKey: Ecdsa.PrivateKey) = {
+    val sig = Crypto.sign(dataForSigning(sigHashType), privateKey.toBin)
+    inputs(inputIndex).signatureScript = Script.write(OP_PUSHDATA(sig) :: OP_PUSHDATA(privateKey.publicKey) :: Nil)
+  }
 
 }
 

@@ -8,7 +8,7 @@ import play.api.libs.json.{JsValue, Json, Writes}
 
 case class TransactionInput(val txId: UInt256,
                             val index: Int,
-                            val signatureScript: BinaryData) extends Serializable {
+                            var signatureScript: BinaryData) extends Serializable {
   override def hashCode(): Int = {
     //signatureScript ?
     txId.hashCode() + index.hashCode()
