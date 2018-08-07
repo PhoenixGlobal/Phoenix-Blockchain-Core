@@ -9,6 +9,7 @@ trait Serializable {
 }
 
 object Serializable {
+
   implicit class Writer(val obj: Serializable) {
     def toBytes: Array[Byte] = {
       val bs = new ByteArrayOutputStream()
@@ -23,6 +24,12 @@ object Serializable {
       val bs = new ByteArrayInputStream(bytes)
       val is = new DataInputStream(bs)
       deserializer(is)
+    }
+
+    def toInstances[A <: Serializable](deserializer: DataInputStream => A): Seq[A] = {
+      val bs = new ByteArrayInputStream(bytes)
+      val is = new DataInputStream(bs)
+      (1 to is.readInt) map (_ => deserializer(is))
     }
   }
 
@@ -78,5 +85,4 @@ object Serializable {
       new String(is.readByteArray, "UTF-8")
     }
   }
-
 }

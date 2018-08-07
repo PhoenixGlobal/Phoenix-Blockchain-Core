@@ -1,6 +1,6 @@
 package com.apex.test
 
-import com.apex.core.LRUCache
+import com.apex.common.LRUCache
 import org.junit.Test
 
 @Test

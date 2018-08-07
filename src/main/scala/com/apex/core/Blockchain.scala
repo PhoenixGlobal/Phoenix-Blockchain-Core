@@ -1,12 +1,11 @@
 package com.apex.core
 
-import java.io.{ByteArrayInputStream, ByteArrayOutputStream, DataInputStream, DataOutputStream}
+import java.io.{DataInputStream, DataOutputStream}
 
 import akka.http.scaladsl.model.DateTime
 import com.apex.common.{ApexLogging, Serializable}
 import com.apex.crypto.{Fixed8, MerkleTree, UInt160, UInt256}
 import com.apex.storage.LevelDbStorage
-import org.iq80.leveldb.{ReadOptions, WriteBatch}
 
 import scala.collection.mutable.{Map, Set}
 
@@ -37,7 +36,7 @@ trait Blockchain extends Iterable[Block] with ApexLogging {
 
   def getUTXOSet: UTXOSet
 
-  def getUTXObyAddress(address: UInt160): Option[Set[(UInt256, Int)]]
+  def getUTXOByAddress(address: UInt160): Option[Set[(UInt256, Int)]]
 }
 
 object Blockchain {
@@ -52,6 +51,7 @@ class LevelDBBlockchain extends Blockchain {
   private val heightStore = new HeightStore(db)
   private val txStore = new TransactionStore(db)
   private val accountStore = new AccountStore(db)
+//  private val addressStore = new AddressStore(db)
   private val blkTxMappingStore = new BlkTxMappingStore(db)
   private val headBlkStore = new HeadBlockStore(db)
   private val utxoStore = new UTXOStore(db)
@@ -219,14 +219,18 @@ class LevelDBBlockchain extends Blockchain {
     new UTXOSet(utxoStore)
   }
 
-  override def getUTXObyAddress(address: UInt160): Option[Set[(UInt256, Int)]] = {
-    // return all the (TxID, outputIndex) in UTXO of the specified address
-    // maybe also search the mempool for 0-confirmation 
-    //
-    // todo: need replaced by WalletIndexer for full transaction history of some specified address, 
-    //       so need to search all the blocks, not only just the UTXO
-
-    None
+  override def getUTXOByAddress(address: UInt160): Option[Set[(UInt256, Int)]] = {
+    val utxoSet = Set.empty[(UInt256, Int)]
+    utxoStore.foreach((k, v) => {
+      if (v.address.equals(address)) {
+        utxoSet.add(UTXOKey.unapply(k).get)
+      }
+    })
+    if (utxoSet.isEmpty){
+      None
+    } else {
+      Some(utxoSet)
+    }
   }
 
   private def populate(): Unit = {
@@ -264,356 +268,4 @@ class LevelDBBlockchain extends Blockchain {
   }
 }
 
-object StoreType extends Enumeration {
-  val Block = Value(0x00)
-  val Transaction = Value(0x01)
-  val Height = Value(0x02)
-  val HeadBlock = Value(0x03)
-  val UTXO = Value(0x04)
-  val BlkTxMapping = Value(0x05)
-  val Account = Value(0x06)
-}
 
-case class BlkTxMapping(blkId: UInt256, txIds: Seq[UInt256]) extends Serializable {
-  override def serialize(os: DataOutputStream): Unit = {
-    import com.apex.common.Serializable._
-    os.write(blkId)
-    os.writeSeq(txIds)
-  }
-}
-
-object BlkTxMapping {
-  def deserialize(is: DataInputStream): BlkTxMapping = {
-    import com.apex.common.Serializable._
-    BlkTxMapping(
-      is.readObj(UInt256.deserialize),
-      is.readSeq(UInt256.deserialize)
-    )
-  }
-}
-
-case class UTXOKey(val txId: UInt256, val index: Int) extends Serializable {
-  override def serialize(os: DataOutputStream): Unit = {
-    os.write(txId)
-    os.writeInt(index)
-  }
-}
-
-object UTXOKey {
-  val Size: Int = UInt256.Size + 4
-
-  def deserialize(is: DataInputStream): UTXOKey = {
-    import com.apex.common.Serializable._
-    UTXOKey(
-      is.readObj(UInt256.deserialize),
-      is.readInt()
-    )
-  }
-}
-
-class UTXOSet(val utxoStore: UTXOStore) {
-  def contains(txId: UInt256, index: Int): Boolean = {
-    utxoStore.contains(UTXOKey(txId, index))
-  }
-
-  def contains(key: UTXOKey): Boolean = {
-    utxoStore.contains(key)
-  }
-
-  def get(txId: UInt256, index: Int): Option[TransactionOutput] = {
-    utxoStore.get(UTXOKey(txId, index))
-  }
-
-  def get(key: UTXOKey): Option[TransactionOutput] = {
-    utxoStore.get(key)
-  }
-
-  def foreach(func: (UTXOKey, TransactionOutput) => Unit): Unit = {
-    utxoStore.foreach(func)
-  }
-}
-
-trait Cache[K, V] {
-  def size(): Int
-
-  def contains(key: K): Boolean
-
-  def get(key: K): Option[V]
-
-  def set(key: K, value: V): Unit
-
-  def delete(key: K): Unit
-}
-
-class LRUCache[K, V](val capacity: Int) extends Cache[K, V] {
-
-  class LRUMap[K, V] extends java.util.LinkedHashMap[K, V](capacity, 1.0f, true) {
-    override def removeEldestEntry(eldest: java.util.Map.Entry[K, V]): Boolean = {
-      size() > capacity
-    }
-  }
-
-  val container = new LRUMap[K, V]
-
-  override def size(): Int = container.size()
-
-  override def contains(key: K): Boolean = {
-    container.containsKey(key)
-  }
-
-  override def get(key: K): Option[V] = {
-    val value = container.get(key)
-    if (value == null) {
-      None
-    } else {
-      Some(value)
-    }
-  }
-
-  override def set(key: K, value: V): Unit = {
-    container.put(key, value)
-  }
-
-  override def delete(key: K): Unit = {
-    container.remove(key)
-  }
-}
-
-abstract class DbStore[K <: Serializable, V <: Serializable](val db: LevelDbStorage, val storeType: StoreType.Value) {
-  protected val cache: Cache[K, V] = new LRUCache(100) //TODO: read config file
-
-  def foreach(func: (K, V) => Unit): Unit = {
-    db.find(Array(storeType.id.toByte), (k, v) => {
-      func(toKey(k.drop(1)), toValue(v))
-    })
-  }
-
-  def contains(key: K): Boolean = {
-    cache.contains(key) match {
-      case true => true
-      case false => getFromBackStore(key) match {
-        case Some(_) => true
-        case None => false
-      }
-    }
-  }
-
-  def get(key: K): Option[V] = {
-    var item = cache.get(key)
-    if (item.isEmpty) {
-      item = getFromBackStore(key)
-      if (item.isEmpty) {
-        None
-      } else {
-        cache.set(key, item.get)
-        item
-      }
-    } else {
-      item
-    }
-  }
-
-  def set(key: K, value: V, batch: WriteBatch = null): Boolean = {
-    if (setBackStore(key, value, batch)) {
-      cache.set(key, value)
-      true
-    } else {
-      false
-    }
-  }
-
-  def delete(key: K, batch: WriteBatch = null): Unit = {
-    deleteBackStore(key, batch)
-    cache.delete(key)
-  }
-
-  protected def genKey(key: K): Array[Byte] = {
-    val bos = new ByteArrayOutputStream(keySize + 1)
-    val os = new DataOutputStream(bos)
-    os.writeByte(storeType.id.toByte)
-    key.serialize(os)
-    bos.toByteArray
-  }
-
-  protected def getFromBackStore(key: K): Option[V] = {
-    val opt = new ReadOptions().fillCache(false)
-    db.get(genKey(key), opt) match {
-      case Some(value) => Some(toValue(value))
-      case None => None
-    }
-  }
-
-  protected def setBackStore(key: K, value: V, batch: WriteBatch): Boolean = {
-    if (batch == null) {
-      db.set(genKey(key), value.toBytes)
-    } else {
-      batch.put(genKey(key), value.toBytes)
-      true
-    }
-  }
-
-  protected def deleteBackStore(key: K, batch: WriteBatch): Unit = {
-    if (batch == null) {
-      db.delete(genKey(key))
-    } else {
-      batch.delete(genKey(key))
-    }
-  }
-
-  protected def keySize: Int
-
-  protected def toKey(bytes: Array[Byte]): K
-
-  protected def toValue(bytes: Array[Byte]): V
-}
-
-class HeaderStore(db: LevelDbStorage) extends DbStore[UInt256, BlockHeader](db, StoreType.Block) {
-  override protected def keySize = UInt256.Size
-
-  override protected def toKey(bytes: Array[Byte]): UInt256 = {
-    UInt256.fromBytes(bytes)
-  }
-
-  override protected def toValue(bytes: Array[Byte]): BlockHeader = {
-    import com.apex.common.Serializable.Reader
-    bytes.toInstance(BlockHeader.deserialize)
-  }
-}
-
-case class IntKey(value: Int) extends Serializable {
-  override def serialize(os: DataOutputStream): Unit = {
-    os.writeInt(value)
-  }
-}
-
-class IntKeyStore[V <: Serializable](db: LevelDbStorage, storeType: StoreType.Value, toV: Array[Byte] => V) extends DbStore[IntKey, V](db, storeType) {
-  override protected def keySize: Int = 4
-
-  override protected def toKey(bytes: Array[Byte]): IntKey = {
-    val ba = new ByteArrayInputStream(bytes)
-    val is = new DataInputStream(ba)
-    IntKey(is.readInt)
-  }
-
-  override protected def toValue(bytes: Array[Byte]): V = {
-    toV(bytes)
-  }
-}
-
-class HeightStore(db: LevelDbStorage) {
-  val innerStore = new IntKeyStore[UInt256](db, StoreType.Height, UInt256.fromBytes)
-
-  def contains(key: Int): Boolean = {
-    innerStore.contains(IntKey(key))
-  }
-
-  def get(key: Int): Option[UInt256] = {
-    innerStore.get(IntKey(key))
-  }
-
-  def set(key: Int, value: UInt256, batch: WriteBatch = null): Boolean = {
-    innerStore.set(IntKey(key), value, batch)
-  }
-
-  def foreach(func: (Int, UInt256) => Unit): Unit = {
-    innerStore.foreach((key, value) => {
-      func(key.value, value)
-    })
-  }
-}
-
-class TransactionStore(db: LevelDbStorage) extends DbStore[UInt256, Transaction](db, StoreType.Transaction) {
-  override protected def keySize: Int = UInt256.Size
-
-  override protected def toKey(bytes: Array[Byte]): UInt256 = {
-    UInt256.fromBytes(bytes)
-  }
-
-  override protected def toValue(bytes: Array[Byte]): Transaction = {
-    import com.apex.common.Serializable.Reader
-    bytes.toInstance(Transaction.deserialize)
-  }
-}
-
-class BlkTxMappingStore(db: LevelDbStorage) extends DbStore[UInt256, BlkTxMapping](db, StoreType.BlkTxMapping) {
-  override protected def keySize: Int = UInt256.Size
-
-  override protected def toKey(bytes: Array[Byte]): UInt256 = {
-    UInt256.fromBytes(bytes)
-  }
-
-  override protected def toValue(bytes: Array[Byte]): BlkTxMapping = {
-    import com.apex.common.Serializable.Reader
-    bytes.toInstance(BlkTxMapping.deserialize)
-  }
-}
-
-class UTXOStore(db: LevelDbStorage) extends DbStore[UTXOKey, TransactionOutput](db, StoreType.UTXO) {
-  override protected def keySize: Int = UTXOKey.Size
-
-  override protected def toKey(bytes: Array[Byte]): UTXOKey = {
-    import com.apex.common.Serializable.Reader
-    bytes.toInstance(UTXOKey.deserialize)
-  }
-
-  override protected def toValue(bytes: Array[Byte]): TransactionOutput = {
-    import com.apex.common.Serializable.Reader
-    bytes.toInstance(TransactionOutput.deserialize)
-  }
-}
-
-class AccountStore(db: LevelDbStorage) extends DbStore[UInt160, Account](db, StoreType.Account) {
-  override protected def keySize: Int = UInt160.Size
-
-  override protected def toKey(bytes: Array[Byte]): UInt160 = {
-    UInt160.fromBytes(bytes)
-  }
-
-  override protected def toValue(bytes: Array[Byte]): Account = {
-    import com.apex.common.Serializable.Reader
-    bytes.toInstance(Account.deserialize)
-  }
-}
-
-case class HeadBlock(height: Int, id: UInt256) extends Serializable {
-  override def serialize(os: DataOutputStream): Unit = {
-    os.writeInt(height)
-    os.write(id)
-  }
-}
-
-object HeadBlock {
-  def deserialize(is: DataInputStream): HeadBlock = {
-    import com.apex.common.Serializable._
-    HeadBlock(
-      is.readInt(),
-      is.readObj(UInt256.deserialize)
-    )
-  }
-}
-
-class HeadBlockStore(db: LevelDbStorage) {
-  private val key = Array(StoreType.HeadBlock.id.toByte) ++ StoreType.HeadBlock.toString.getBytes
-
-  def get(): Option[HeadBlock] = {
-    db.get(key) match {
-      case Some(bytes) => Some(fromBytes(bytes))
-      case None => None
-    }
-  }
-
-  def set(blockHeader: BlockHeader, writeBatch: WriteBatch = null): Boolean = {
-    val value = HeadBlock(blockHeader.index, blockHeader.id).toBytes
-    if (writeBatch == null) {
-      db.set(key, value)
-    } else {
-      writeBatch.put(key, value)
-      true
-    }
-  }
-
-  private def fromBytes(bytes: Array[Byte]): HeadBlock = {
-    import com.apex.common.Serializable.Reader
-    bytes.toInstance(HeadBlock.deserialize)
-  }
-}

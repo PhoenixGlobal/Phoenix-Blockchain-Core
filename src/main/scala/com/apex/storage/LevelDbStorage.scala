@@ -72,7 +72,6 @@ class LevelDbStorage(private val db: DB) extends Storage[Array[Byte], Array[Byte
   }
 
   override def commit(): Unit = {
-
   }
 
   override def close(): Unit = {

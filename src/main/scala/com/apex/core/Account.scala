@@ -2,7 +2,7 @@ package com.apex.core
 
 import java.io.{ByteArrayOutputStream, DataInputStream, DataOutputStream}
 
-import com.apex.crypto.Ecdsa.Point
+import com.apex.common.Serializable.DataInputStreamExtension
 import com.apex.crypto.{Crypto, Fixed8, UInt160, UInt256}
 
 class Account(val active: Boolean,

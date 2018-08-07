@@ -8,9 +8,10 @@
 
 package com.apex.test
 
+import java.io.{ByteArrayOutputStream, DataOutputStream}
+
 import com.apex.core.Account
-import com.apex.crypto.Ecdsa.Point
-import com.apex.crypto.{Crypto, Fixed8, UInt160, UInt256}
+import com.apex.crypto.Fixed8
 import org.junit.Test
 
 @Test
