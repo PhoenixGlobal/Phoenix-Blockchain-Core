@@ -26,8 +26,8 @@ class Witness(val invocationScript: Array[Byte], val verificationScript: Array[B
 
   override def serialize(os: DataOutputStream): Unit = {
     import com.apex.common.Serializable._
-    os.writeBytes(invocationScript)
-    os.writeBytes(verificationScript)
+    os.writeByteArray(invocationScript)
+    os.writeByteArray(verificationScript)
   }
 }
 
@@ -35,8 +35,8 @@ object Witness {
   def deserialize(is: DataInputStream): Witness = {
     import com.apex.common.Serializable._
     new Witness(
-      invocationScript = is.readBytes,
-      verificationScript = is.readBytes
+      invocationScript = is.readByteArray,
+      verificationScript = is.readByteArray
     )
   }
 }

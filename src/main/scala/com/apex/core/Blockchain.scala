@@ -8,7 +8,6 @@ import com.apex.crypto.{Fixed8, MerkleTree, UInt160, UInt256}
 import com.apex.storage.LevelDbStorage
 import org.iq80.leveldb.{ReadOptions, WriteBatch}
 
-import scala.collection.mutable
 import scala.collection.mutable.{Map, Set}
 
 trait Blockchain extends Iterable[Block] with ApexLogging {
@@ -37,6 +36,8 @@ trait Blockchain extends Iterable[Block] with ApexLogging {
   def getBalance(address: UInt160): Option[collection.immutable.Map[UInt256, Long]]
 
   def getUTXOSet: UTXOSet
+
+  def getUTXObyAddress(address: UInt160): Option[Set[(UInt256, Int)]]
 }
 
 object Blockchain {
@@ -111,7 +112,7 @@ class LevelDBBlockchain extends Blockchain {
   }
 
   override def produceBlock(transactions: Seq[Transaction]): Option[Block] = {
-    def calcBalancesInBlock(balances: mutable.Map[UInt160, mutable.Map[UInt256, Fixed8]], output: TransactionOutput, spent: Boolean) = {
+    def calcBalancesInBlock(balances: Map[UInt160, Map[UInt256, Fixed8]], output: TransactionOutput, spent: Boolean) = {
       val amount = if (spent) -output.amount else output.amount
       balances.get(output.address) match {
         case Some(balance) => {
@@ -218,6 +219,16 @@ class LevelDBBlockchain extends Blockchain {
     new UTXOSet(utxoStore)
   }
 
+  override def getUTXObyAddress(address: UInt160): Option[Set[(UInt256, Int)]] = {
+    // return all the (TxID, outputIndex) in UTXO of the specified address
+    // maybe also search the mempool for 0-confirmation 
+    //
+    // todo: need replaced by WalletIndexer for full transaction history of some specified address, 
+    //       so need to search all the blocks, not only just the UTXO
+
+    None
+  }
+
   private def populate(): Unit = {
     headBlkStore.get match {
       case Some(headBlock) =>
@@ -246,6 +257,10 @@ class LevelDBBlockchain extends Blockchain {
 
   private def verifyTxs(txs: Seq[Transaction]): Boolean = {
     txs.isEmpty || txs(0).txType == TransactionType.Miner
+    txs.exists(!_.inputs
+      .map(i => UTXOKey(i.txId, i.index))
+      .exists(!utxoStore.contains(_))
+    )
   }
 }
 
@@ -297,6 +312,18 @@ object UTXOKey {
 }
 
 class UTXOSet(val utxoStore: UTXOStore) {
+  def contains(txId: UInt256, index: Int): Boolean = {
+    utxoStore.contains(UTXOKey(txId, index))
+  }
+
+  def contains(key: UTXOKey): Boolean = {
+    utxoStore.contains(key)
+  }
+
+  def get(txId: UInt256, index: Int): Option[TransactionOutput] = {
+    utxoStore.get(UTXOKey(txId, index))
+  }
+
   def get(key: UTXOKey): Option[TransactionOutput] = {
     utxoStore.get(key)
   }
@@ -307,23 +334,49 @@ class UTXOSet(val utxoStore: UTXOStore) {
 }
 
 trait Cache[K, V] {
+  def size(): Int
+
   def contains(key: K): Boolean
 
   def get(key: K): Option[V]
 
-  def set(key: K, value: V): Boolean
+  def set(key: K, value: V): Unit
 
   def delete(key: K): Unit
 }
 
-class LRUCache[K, V](val size: Int) extends Cache[K, V] {
-  override def contains(key: K): Boolean = ???
+class LRUCache[K, V](val capacity: Int) extends Cache[K, V] {
 
-  override def get(key: K): Option[V] = ???
+  class LRUMap[K, V] extends java.util.LinkedHashMap[K, V](capacity, 1.0f, true) {
+    override def removeEldestEntry(eldest: java.util.Map.Entry[K, V]): Boolean = {
+      size() > capacity
+    }
+  }
 
-  override def set(key: K, value: V): Boolean = ???
+  val container = new LRUMap[K, V]
 
-  override def delete(key: K): Unit = ???
+  override def size(): Int = container.size()
+
+  override def contains(key: K): Boolean = {
+    container.containsKey(key)
+  }
+
+  override def get(key: K): Option[V] = {
+    val value = container.get(key)
+    if (value == null) {
+      None
+    } else {
+      Some(value)
+    }
+  }
+
+  override def set(key: K, value: V): Unit = {
+    container.put(key, value)
+  }
+
+  override def delete(key: K): Unit = {
+    container.remove(key)
+  }
 }
 
 abstract class DbStore[K <: Serializable, V <: Serializable](val db: LevelDbStorage, val storeType: StoreType.Value) {
@@ -331,7 +384,7 @@ abstract class DbStore[K <: Serializable, V <: Serializable](val db: LevelDbStor
 
   def foreach(func: (K, V) => Unit): Unit = {
     db.find(Array(storeType.id.toByte), (k, v) => {
-      func(toKey(k), toValue(v))
+      func(toKey(k.drop(1)), toValue(v))
     })
   }
 

@@ -27,13 +27,13 @@ object Serializable {
   }
 
   implicit class DataOutputStreamExtension(val os: DataOutputStream) {
-    def writeBytes(bytes: Array[Byte]) = {
+    def writeByteArray(bytes: Array[Byte]) = {
       os.writeInt(bytes.length)
       os.write(bytes)
     }
 
     def writeString(str: String) = {
-      os.writeBytes(str.getBytes("UTF-8"))
+      os.writeByteArray(str.getBytes("UTF-8"))
     }
 
     def write[A <: Serializable](value: A) = {
@@ -55,7 +55,7 @@ object Serializable {
   }
 
   implicit class DataInputStreamExtension(val is: DataInputStream) {
-    def readBytes(): Array[Byte] = {
+    def readByteArray(): Array[Byte] = {
       val bytes = Array.fill(is.readInt())(0.toByte)
       is.read(bytes, 0, bytes.length)
       bytes
@@ -75,7 +75,7 @@ object Serializable {
     }
 
     def readString(): String = {
-      new String(is.readBytes, "UTF-8")
+      new String(is.readByteArray, "UTF-8")
     }
   }
 
