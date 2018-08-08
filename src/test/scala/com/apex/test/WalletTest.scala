@@ -8,7 +8,7 @@
 
 package com.apex.test
 
-import com.apex.crypto.{BinaryData}
+import com.apex.crypto.{BinaryData, Ecdsa}
 import org.junit.Test
 import com.apex.wallets.Wallet
 
@@ -21,17 +21,32 @@ class WalletTest {
     //new SecureRandom().nextBytes(data) 
     
     //20 bytes data
-    val data1 = BinaryData("f54a5851e9372b87810a8e60cdd2e7cfd80b6e31")
-    val address1 = Wallet.toAddress(data1)    
-    assert(address1 == "APEX1dQ3F4LTJ3J8VXDtfpe9LLSLLWkyWmBked") 
+    val address1 = Wallet.toAddress(BinaryData("0000000000000000000000000000000000000000"))
+
+    //20 bytes data
+    val address2 = Wallet.toAddress(BinaryData("654a5851e9372b87810a8e60cdd2e7cfd80b6e31"))
+
+    //20 bytes data
+    val address3 = Wallet.toAddress(BinaryData("ffffffffffffffffffffffffffffffffffffffff"))
+
+    var privKey = new Ecdsa.PrivateKey(BinaryData("18e14a7b6a307f426a94f8114701e7c8e774e7f9a47e2c2035db29a206321725"))
+    var pubKey = privKey.publicKey
+    var pubKeyHash = pubKey.hash160  // f54a5851e9372b87810a8e60cdd2e7cfd80b6e31
+    val address4 = Wallet.toAddress(pubKeyHash)
+
+    assert(address1 == "AP1xWDozWvuVah1W86DKtcWzdw1LLHreMGX")
+    assert(address2 == "APBC5XmSaD4vooWo3FNho1wGAUyBQo3WCTQ")
+    assert(address3 == "APRJ7CvHoe5xTWSeD7dfD6eGRZWbGomzDi4")
+
+    assert(address4 == "APQKUqPcJEUwRdwoxpoGQnkrRGstSXkgebk")
     
     //System.out.println(address)   
   }
   
   @Test
   def testToScriptHash = {     
-    val hash = Wallet.toScriptHash("APEX1dQ3F4LTJ3J8VXDtfpe9LLSLLWkyWmBked").get    
-    assert(hash.data sameElements BinaryData("f54a5851e9372b87810a8e60cdd2e7cfd80b6e31"))    
+    val hash = Wallet.toScriptHash("APBC5XmSaD4vooWo3FNho1wGAUyBQo3WCTQ").get
+    assert(hash.data sameElements BinaryData("654a5851e9372b87810a8e60cdd2e7cfd80b6e31"))
   }
   
   @Test
