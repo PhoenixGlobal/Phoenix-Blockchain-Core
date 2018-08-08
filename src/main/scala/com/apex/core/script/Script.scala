@@ -11,7 +11,7 @@ package com.apex.core.script
 import java.io.{ByteArrayInputStream, ByteArrayOutputStream, InputStream, OutputStream}
 import scala.annotation.tailrec
 import scala.collection.mutable.ArrayBuffer
-import com.apex.crypto.{BinaryData, Ecdsa}
+import com.apex.crypto.{BinaryData, Ecdsa, UInt160}
 import com.apex.common.Helper._
 import com.apex.core.Transaction
 
@@ -215,5 +215,7 @@ object Script {
   }
 
   def pay2pkh(pubKey: Ecdsa.PublicKey): Seq[ScriptOP] = pay2pkh(pubKey.hash160)
+
+  def pay2pkh(pubKey: UInt160): Seq[ScriptOP] = pay2pkh(pubKey.data)
 
 }

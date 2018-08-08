@@ -8,9 +8,10 @@
 
 package com.apex.wallets
 
-import com.apex.core.Blockchain
+import com.apex.core._
 import com.apex.crypto.{Base58Check, BinaryData, Fixed8, UInt160, UInt256}
 import com.apex.crypto.Ecdsa.PrivateKey
+import com.apex.core.script.{Script}
 
 import scala.collection.mutable.{ArrayBuffer, Set}
 //import java.security.SecureRandom
@@ -21,31 +22,76 @@ object Wallet {
 
   def getBalance(address: String, assetId: UInt256): Fixed8 = {
     var sum: Fixed8 = Fixed8.Zero
-    val utxo = Blockchain.Current.getUTXOByAddress(toScriptHash(address).get)
-    if (utxo != None) {
-      for (entry <- utxo.get) {
-        val tx = Blockchain.Current.getTransaction(entry._1).get
-        if (tx.outputs(entry._2).assetId == assetId) {
-          sum += tx.outputs(entry._2).amount
+    val utxoSet = Blockchain.Current.getUTXOByAddress(toScriptHash(address).get)
+    if (utxoSet != None) {
+      for (utxo <- utxoSet.get) {
+        val tx = Blockchain.Current.getTransaction(utxo._1).get
+        if (tx.outputs(utxo._2).assetId == assetId) {
+          sum += tx.outputs(utxo._2).amount
         }
       }
     }
     sum
   }
 
-  def findInputs(assetId: UInt256): Option[Set[(UInt256, Int)]] = {
-    val inputs = Set.empty[(UInt256, Int)]
-    for (key <- privKeys) {
-
+  def findPrivKey(pubKeyHash: UInt160): Option[PrivateKey] = {
+    // fixme: use map or db
+    for (pKey <- privKeys) {
+      if (pubKeyHash.compare(UInt160.fromBytes(pKey.publicKey.hash160)) == 0)
+        return Some(pKey)
     }
     None
-
   }
 
-  def makeTransaction(toAddress: String, assetId: UInt256, amount: Fixed8) = {
+  def findPrivKey(input: TransactionInput): Option[PrivateKey] = {
+    val tx = Blockchain.Current.getTransaction(input.txId).get
+    findPrivKey(tx.outputs(input.index).address)
+  }
 
+  def findInputs(assetId: UInt256): Set[(UInt256, Int)] = {
+    val inputs = Set.empty[(UInt256, Int)]
+    for (pKey <- privKeys) {
+      val utxoSet = Blockchain.Current.getUTXOByAddress(new UInt160(pKey.publicKey.hash160))
+      if (utxoSet != None) {
+       for (utxo <- utxoSet.get) {
+         val tx = Blockchain.Current.getTransaction(utxo._1).get
+         if (tx.outputs(utxo._2).assetId == assetId) {
+           inputs.add(utxo)
+         }
+       }
+      }
+    }
+    inputs
+  }
 
-
+  def makeTransaction(toAddress: String, assetId: UInt256, amount: Fixed8): Option[Transaction] = {
+    var curAmount: Fixed8 = Fixed8.Zero
+    val inputs: Set[TransactionInput] = Set.empty
+    val outputs: Set[TransactionOutput] = Set.empty
+    val allInputs = findInputs(assetId)
+    if (!allInputs.isEmpty) {
+      for (input <- allInputs) {
+        if (amount > curAmount) {
+          inputs.add(new TransactionInput(input._1, input._2, BinaryData("")))
+          curAmount = curAmount + Blockchain.Current.getTransaction(input._1).get.outputs(input._2).amount
+        }
+      }
+    }
+    outputs.add(new TransactionOutput(
+      toScriptHash(toAddress).get,
+      assetId,
+      amount,
+      Script.write(Script.pay2pkh(toScriptHash(toAddress).get))))
+    // TODO: outputs add change address
+    if (curAmount.value >= amount.value) {
+      val tx = new TransferTransaction(inputs.toSeq, outputs.toSeq, "123")
+      for (index <- 0 to (tx.inputs.length - 1)) {
+        tx.signInput(index, 0, 0, findPrivKey(tx.inputs(index)).get)
+      }
+      Some(tx)
+    }
+    else
+      None
   }
 
   def importPrivKeyFromWIF(wif: String) = {
