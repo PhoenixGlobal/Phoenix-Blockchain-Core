@@ -17,7 +17,7 @@ import scala.collection.mutable.{ArrayBuffer, Set}
 
 object Wallet {
 
-  var privKeys: ArrayBuffer[PrivateKey] = ArrayBuffer.empty
+  var privKeys = Set.empty[PrivateKey]
 
   def getBalance(address: String, assetId: UInt256): Fixed8 = {
     var sum: Fixed8 = Fixed8.Zero
@@ -33,6 +33,15 @@ object Wallet {
     sum
   }
 
+  def findInputs(assetId: UInt256): Option[Set[(UInt256, Int)]] = {
+    val inputs = Set.empty[(UInt256, Int)]
+    for (key <- privKeys) {
+
+    }
+    None
+
+  }
+
   def makeTransaction(toAddress: String, assetId: UInt256, amount: Fixed8) = {
 
 
@@ -42,7 +51,7 @@ object Wallet {
   def importPrivKeyFromWIF(wif: String) = {
     val key = getPrivKeyFromWIF(wif)
     if (key != None) {
-      privKeys.append(new PrivateKey(BinaryData(key.get), true))
+      privKeys.add(new PrivateKey(BinaryData(key.get), true))
     }
   }
   
@@ -74,20 +83,20 @@ object Wallet {
   def toAddress(scriptHash: Array[Byte]): String = {
     assert(scriptHash.length == 20)
      
-    // "0FBABD70" is for the "APEX" prefix
-    Base58Check.encode(BinaryData("0FBABD70"), scriptHash)      
+    // "0548" is for the "AP" prefix
+    Base58Check.encode(BinaryData("0548"), scriptHash)
   }
   
   def toAddress(scriptHash: UInt160): String = {
     toAddress(scriptHash.data)
   }
   
-  def toScriptHash(address: String): Option[UInt160] = {    
-    if (address.startsWith("APEX")) {
+  def toScriptHash(address: String): Option[UInt160] = {
+    if (address.startsWith("AP") && address.length == 35) {
       val decode = Base58Check.decode(address).getOrElse(Array[Byte]())
-      if (decode.length == 24) {
-        // 4 bytes prefix + 20 bytes data (+ 4 bytes checksum)
-        Some(UInt160.fromBytes(decode.slice(4, 24)))
+      if (decode.length == 22) {
+        // 2 bytes prefix + 20 bytes data (+ 4 bytes checksum)
+        Some(UInt160.fromBytes(decode.slice(2, 22)))
       } else {
         None
       }
