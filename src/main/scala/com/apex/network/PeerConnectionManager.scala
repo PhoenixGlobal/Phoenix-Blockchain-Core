@@ -87,7 +87,8 @@ class PeerConnectionManager(val settings: NetworkSettings,peerHandlerManagerRef:
       connection ! ResumeWriting
 
     case cc: ConnectionClosed =>
-      log.info("连接关闭 : " + remote + ": " + cc.getErrorCause + s" 状态  $stateName")
+      peerHandlerManagerRef ! Disconnected(remote)
+      log.info("链接关闭 : " + remote + ": " + cc.getErrorCause + s" in state $stateName")
       context stop self
 
     case CloseConnection =>

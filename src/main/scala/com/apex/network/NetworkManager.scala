@@ -92,7 +92,11 @@ class NetworkManager(settings: NetworkSettings,upnp: UPnP,peerHandlerManagerRef:
                           options = KeepAlive(true) :: Nil,
                           timeout = connTimeout,
                           pullMode = true)
-    
+    case DisconnectFrom(peer) =>
+      log.info(s"Disconnected from ${peer.socketAddress}")
+      peer.handlerRef ! CloseConnection
+      peerHandlerManagerRef ! Disconnected(peer.socketAddress)
+      
 //    case Blacklist(peer) =>
 //      peer.handlerRef ! PeerConnectionmanager.ReceivableMessages.Blacklist
 //      peerHandlerManagerRef ! Disconnected(peer.socketAddress)
