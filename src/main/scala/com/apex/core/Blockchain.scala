@@ -60,8 +60,8 @@ class LevelDBBlockchain extends Blockchain {
   private val headBlkStore = new HeadBlockStore(db)
   private val utxoStore = new UTXOStore(db)
 
-  private val genesisTxOutput = txOuput("f54a5851e9372b87810a8e60cdd2e7cfd80b6e31", UInt256.Zero, 10000, "76a914f54a5851e9372b87810a8e60cdd2e7cfd80b6e3188ac")
-  private val minerTxOutput = txOuput("f54a5851e9372b87810a8e60cdd2e7cfd80b6e31", UInt256.Zero, 10, "76a914f54a5851e9372b87810a8e60cdd2e7cfd80b6e3188ac")
+  private val genesisTxOutput = txOutput("f54a5851e9372b87810a8e60cdd2e7cfd80b6e31", UInt256.Zero, 10000, "76a914f54a5851e9372b87810a8e60cdd2e7cfd80b6e3188ac")
+  private val minerTxOutput = txOutput("f54a5851e9372b87810a8e60cdd2e7cfd80b6e31", UInt256.Zero, 10, "76a914f54a5851e9372b87810a8e60cdd2e7cfd80b6e3188ac")
 
   private val genesisBlockHeader: BlockHeader = BlockHeader.build(0, 0, UInt256.Zero, UInt256.Zero, genesisProducer)
   private val genesisBlock: Block = Block.build(genesisBlockHeader,
@@ -77,40 +77,33 @@ class LevelDBBlockchain extends Blockchain {
   override def getLatestHeader: BlockHeader = latestHeader
 
   override def getHeader(id: UInt256): Option[BlockHeader] = {
-    headerStore.get(id) match {
-      case Some(blk) => Some(blk)
-      case None => None
-    }
+    headerStore.get(id)
   }
 
   override def getHeader(index: Int): Option[BlockHeader] = {
     heightStore.get(index) match {
       case Some(id) => getHeader(id)
-      case _ => None
+      case None => None
     }
   }
 
   override def getBlock(id: UInt256): Option[Block] = {
-    headerStore.get(id) match {
-      case Some(header) => {
-        var txs = Seq.empty[Transaction]
-        val mapping = blkTxMappingStore.get(header.id)
-        if (!mapping.isEmpty) {
-          txs = mapping.get.txIds
-            .map(txStore.get(_))
-            .filterNot(_.isEmpty)
-            .map(_.get)
-        }
-        Some(Block.build(header, txs))
-      }
-      case None => None
+    def getTxs(blkTx: BlkTxMapping): Seq[Transaction] = {
+      blkTx.txIds.map(txStore.get).filterNot(_.isEmpty).map(_.get)
     }
+
+    def getBlk(header: BlockHeader): Block = {
+      val txs = blkTxMappingStore.get(header.id).map(getTxs).getOrElse(Seq.empty)
+      Block.build(header, txs)
+    }
+
+    headerStore.get(id).map(getBlk)
   }
 
   override def getBlock(index: Int): Option[Block] = {
     heightStore.get(index) match {
       case Some(id) => getBlock(id)
-      case _ => None
+      case None => None
     }
   }
 
@@ -160,21 +153,14 @@ class LevelDBBlockchain extends Blockchain {
         }
       })
       balances.foreach(p => {
-        accountStore.get(p._1) match {
-          case Some(account) => {
-            val merged = account.balances.toSeq ++ p._2.toSeq
-            val balances = merged
-              .groupBy(_._1)
-              .map(p => (p._1, Fixed8.sum(p._2.map(_._2).sum)))
-              .filter(_._2.value > 0)
-            val a = new Account(account.active, balances, account.version)
-            accountStore.set(p._1, a, batch)
-          }
-          case None => {
-            val a = new Account(true, p._2.filter(_._2.value > 0).toMap)
-            accountStore.set(p._1, a, batch)
-          }
-        }
+        val account = accountStore.get(p._1).map(a => {
+          val merged = a.balances.toSeq ++ p._2.toSeq
+          val balances = merged.groupBy(_._1)
+            .map(p => (p._1, Fixed8.sum(p._2.map(_._2).sum)))
+            .filter(_._2.value > 0)
+          new Account(a.active, balances, a.version)
+        }).getOrElse(new Account(true, p._2.filter(_._2.value > 0).toMap))
+        accountStore.set(p._1, account, batch)
       })
     })
     if (ret) {
@@ -208,16 +194,12 @@ class LevelDBBlockchain extends Blockchain {
     }
 
     def getOutput(input: TransactionInput): Option[TransactionOutput] = {
-      txStore.get(input.txId) match {
-        case Some(tx) => {
-          if (input.index >= 0 && input.index < tx.outputs.length) {
-            Some(tx.outputs(input.index))
-          } else {
-            None
-          }
-        }
-        case None => None
-      }
+      txStore.get(input.txId).map(tx =>
+        if (input.index >= 0 && input.index < tx.outputs.length) {
+          Some(tx.outputs(input.index))
+        } else {
+          None
+        }).getOrElse(None)
     }
 
     var isValid = true
@@ -225,34 +207,27 @@ class LevelDBBlockchain extends Blockchain {
     val inputTxs = Set.empty[(UInt256, Int)]
     for (i <- 0 to tx.inputs.length - 1 if isValid) {
       val input = tx.inputs(i)
-      if (inputTxs.contains(input.txId, input.index)) {
-        isValid = false
+      if (!inputTxs.contains(input.txId, input.index)) {
+        isValid = getOutput(input).map(output => {
+          inputAmount += output.amount
+          Script.execute(tx, i,
+            input.signatureScript,
+            output.pubKeyScript)
+        }).getOrElse(false)
       } else {
-        getOutput(input) match {
-          case Some(output) => {
-            inputAmount += output.amount
-            isValid = Script.execute(tx, i,
-              input.signatureScript,
-              output.pubKeyScript)
-          }
-          case None => isValid = false
-        }
+        isValid = false
       }
     }
     isValid && checkAmount(inputAmount, tx.outputs)
   }
 
   override def getBalance(address: UInt160): Option[collection.immutable.Map[UInt256, Long]] = {
-    accountStore.get(address) match {
-      case Some(account) => {
-        if (account.active) {
-          Some(account.balances.map(b => b._1 -> b._2.value))
-        } else {
-          None
-        }
-      }
-      case None => None
-    }
+    accountStore.get(address).map(account =>
+      if (account.active) {
+        Some(account.balances.map(b => b._1 -> b._2.value))
+      } else {
+        None
+      }).getOrElse(None)
   }
 
   override def getUTXOSet: UTXOSet = {
@@ -299,7 +274,7 @@ class LevelDBBlockchain extends Blockchain {
     }
   }
 
-  private def txOuput(address: String, assetId: UInt256, amount: BigDecimal, script: String): TransactionOutput = {
+  private def txOutput(address: String, assetId: UInt256, amount: BigDecimal, script: String): TransactionOutput = {
     TransactionOutput(
       UInt160.tryParse(address).get,
       assetId,
