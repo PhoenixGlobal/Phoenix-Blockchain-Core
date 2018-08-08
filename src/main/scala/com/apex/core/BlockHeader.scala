@@ -1,6 +1,6 @@
 package com.apex.core
 
-import java.io.{ByteArrayInputStream, ByteArrayOutputStream, DataInputStream, DataOutputStream}
+import java.io.{ByteArrayOutputStream, DataInputStream, DataOutputStream}
 
 import com.apex.crypto.{Crypto, UInt256}
 import play.api.libs.json.{JsValue, Json, Writes}
@@ -9,6 +9,7 @@ class BlockHeader(val index: Int,
                   val timeStamp: Long,
                   val merkleRoot: UInt256,
                   val prevBlock: UInt256,
+                  val producer: UInt256,
                   val version: Int = 0x01,
                   override protected var _id: UInt256 = null) extends Identifier[UInt256] {
 
@@ -41,6 +42,7 @@ class BlockHeader(val index: Int,
     os.writeLong(timeStamp)
     os.write(merkleRoot)
     os.write(prevBlock)
+    os.write(producer)
   }
 }
 
@@ -52,12 +54,13 @@ object BlockHeader {
       "timeStamp" -> o.timeStamp,
       "merkleRoot" -> o.merkleRoot.toString,
       "prevBlock" -> o.prevBlock.toString,
+      "producer" -> o.producer.toString,
       "version" -> o.version
     )
   }
 
-  def build(index: Int, timeStamp: Long, merkleRoot: UInt256, prevBlock: UInt256): BlockHeader = {
-    new BlockHeader(index, timeStamp, merkleRoot, prevBlock)
+  def build(index: Int, timeStamp: Long, merkleRoot: UInt256, prevBlock: UInt256, producer: UInt256): BlockHeader = {
+    new BlockHeader(index, timeStamp, merkleRoot, prevBlock, producer)
   }
 
   def deserialize(is: DataInputStream): BlockHeader = {
@@ -68,7 +71,9 @@ object BlockHeader {
       timeStamp = is.readLong,
       merkleRoot = is.readObj(UInt256.deserialize),
       prevBlock = is.readObj(UInt256.deserialize),
+      producer = is.readObj(UInt256.deserialize),
       version = version,
-      is.readObj(UInt256.deserialize))
+      is.readObj(UInt256.deserialize)
+    )
   }
 }

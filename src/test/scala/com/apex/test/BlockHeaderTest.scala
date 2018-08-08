@@ -19,8 +19,9 @@ class BlockHeaderTest {
   def testSerialize = {
     val prevBlock = SerializerTest.testHash256("prev")
     val merkleRoot = SerializerTest.testHash256("root")
+    val producer = SerializerTest.testHash256("producer")
     val timeStamp = DateTime.now.clicks
-    val a = new BlockHeader(0, timeStamp, merkleRoot, prevBlock)
+    val a = new BlockHeader(0, timeStamp, merkleRoot, prevBlock, producer)
     val o = new SerializerTest[BlockHeader](
       BlockHeader.deserialize,
       (x, _) => x.version.equals(a.version)
@@ -37,8 +38,9 @@ class BlockHeaderTest {
   def testToJson = {
     val prevBlock = SerializerTest.testHash256("prev")
     val merkleRoot = SerializerTest.testHash256("root")
+    val producer = SerializerTest.testHash256("producer")
     val timeStamp = DateTime.now.clicks
-    val a = new BlockHeader(0, timeStamp, merkleRoot, prevBlock)
+    val a = new BlockHeader(0, timeStamp, merkleRoot, prevBlock, producer)
     assert(Json.toJson(a).toString.equals(
       s"""{"id":"${a.id}","index":${a.index},"timeStamp":${a.timeStamp},"merkleRoot":"${a.merkleRoot}","prevBlock":"${a.prevBlock}","version":${a.version}}"""))
   }

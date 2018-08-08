@@ -4,7 +4,8 @@ import java.io.{DataInputStream, DataOutputStream}
 
 import akka.http.scaladsl.model.DateTime
 import com.apex.common.{ApexLogging, Serializable}
-import com.apex.crypto.{Fixed8, MerkleTree, UInt160, UInt256}
+import com.apex.core.script.Script
+import com.apex.crypto.{BinaryData, Fixed8, MerkleTree, UInt160, UInt256}
 import com.apex.storage.LevelDbStorage
 
 import scala.collection.mutable.{Map, Set}
@@ -47,19 +48,25 @@ object Blockchain {
 class LevelDBBlockchain extends Blockchain {
   private val db: LevelDbStorage = LevelDbStorage.open("test_db")
 
+  private val producer = UInt256.Zero // TODO: read from settings
+  private val genesisProducer = UInt256.Zero // TODO: read from settings
+
   private val headerStore = new HeaderStore(db)
   private val heightStore = new HeightStore(db)
   private val txStore = new TransactionStore(db)
   private val accountStore = new AccountStore(db)
-//  private val addressStore = new AddressStore(db)
+  //  private val addressStore = new AddressStore(db)
   private val blkTxMappingStore = new BlkTxMappingStore(db)
   private val headBlkStore = new HeadBlockStore(db)
   private val utxoStore = new UTXOStore(db)
 
-  private val genesisBlockHeader: BlockHeader = BlockHeader.build(0, 0, UInt256.Zero, UInt256.Zero)
-  private val genesisBlock: Block = Block.build(genesisBlockHeader, Seq.empty)
+  private val genesisTxOutput = txOuput("f54a5851e9372b87810a8e60cdd2e7cfd80b6e31", UInt256.Zero, 10000, "76a914f54a5851e9372b87810a8e60cdd2e7cfd80b6e3188ac")
+  private val minerTxOutput = txOuput("f54a5851e9372b87810a8e60cdd2e7cfd80b6e31", UInt256.Zero, 10, "76a914f54a5851e9372b87810a8e60cdd2e7cfd80b6e3188ac")
 
-  private val utxoSet: Set[(UInt256, Int)] = Set.empty
+  private val genesisBlockHeader: BlockHeader = BlockHeader.build(0, 0, UInt256.Zero, UInt256.Zero, genesisProducer)
+  private val genesisBlock: Block = Block.build(genesisBlockHeader,
+    Seq(new TransferTransaction(Seq.empty, Seq(genesisTxOutput), "CPX"))
+  )
 
   private var latestHeader: BlockHeader = genesisBlockHeader
 
@@ -123,11 +130,12 @@ class LevelDBBlockchain extends Blockchain {
       }
     }
 
-    val txs = transactions.filter(verifyTransaction(_))
-    val merkleRoot = MerkleTree.root(transactions.map(_.id))
+    val minerTx = new MinerTransaction(Seq(minerTxOutput))
+    val txs = Seq(minerTx) ++ transactions.filter(verifyTransaction)
+    val merkleRoot = MerkleTree.root(txs.map(_.id))
     val header = BlockHeader.build(
       latestHeader.index + 1, DateTime.now.clicks,
-      merkleRoot, latestHeader.id)
+      merkleRoot, latestHeader.id, producer)
     val block = Block.build(header, txs)
     val ret = db.batchWrite(batch => {
       headBlkStore.set(header, batch)
@@ -186,8 +194,8 @@ class LevelDBBlockchain extends Blockchain {
   }
 
   override def verifyBlock(block: Block): Boolean = {
-    if (verfyHeader(block.header)
-      && verifyTxs(block.transactions)) {
+    if (verifyHeader(block.header) &&
+      block.transactions.forall(verifyTransaction)) {
       true
     } else {
       false
@@ -195,11 +203,43 @@ class LevelDBBlockchain extends Blockchain {
   }
 
   override def verifyTransaction(tx: Transaction): Boolean = {
-    if (tx.inputs.groupBy(i => (i.txId, i.index)).exists(_._2.size > 0)) {
-      false
-    } else {
-      true
+    def checkAmount(inputAmount: Fixed8, outputs: Seq[TransactionOutput]): Boolean = {
+      inputAmount.value >= outputs.map(_.amount).sum.value
     }
+
+    def getOutput(input: TransactionInput): Option[TransactionOutput] = {
+      txStore.get(input.txId) match {
+        case Some(tx) => {
+          if (input.index >= 0 && input.index < tx.outputs.length) {
+            Some(tx.outputs(input.index))
+          } else {
+            None
+          }
+        }
+        case None => None
+      }
+    }
+
+    var isValid = true
+    var inputAmount = Fixed8.Zero
+    val inputTxs = Set.empty[(UInt256, Int)]
+    for (i <- 0 to tx.inputs.length - 1 if isValid) {
+      val input = tx.inputs(i)
+      if (inputTxs.contains(input.txId, input.index)) {
+        isValid = false
+      } else {
+        getOutput(input) match {
+          case Some(output) => {
+            inputAmount += output.amount
+            isValid = Script.execute(tx, i,
+              input.signatureScript,
+              output.pubKeyScript)
+          }
+          case None => isValid = false
+        }
+      }
+    }
+    isValid && checkAmount(inputAmount, tx.outputs)
   }
 
   override def getBalance(address: UInt160): Option[collection.immutable.Map[UInt256, Long]] = {
@@ -226,7 +266,7 @@ class LevelDBBlockchain extends Blockchain {
         utxoSet.add(UTXOKey.unapply(k).get)
       }
     })
-    if (utxoSet.isEmpty){
+    if (utxoSet.isEmpty) {
       None
     } else {
       Some(utxoSet)
@@ -249,7 +289,7 @@ class LevelDBBlockchain extends Blockchain {
     }
   }
 
-  private def verfyHeader(header: BlockHeader): Boolean = {
+  private def verifyHeader(header: BlockHeader): Boolean = {
     if (header.index != latestHeader.index + 1
       || header.timeStamp < latestHeader.timeStamp
       || !header.id.equals(latestHeader.id)) {
@@ -259,11 +299,12 @@ class LevelDBBlockchain extends Blockchain {
     }
   }
 
-  private def verifyTxs(txs: Seq[Transaction]): Boolean = {
-    txs.isEmpty || txs(0).txType == TransactionType.Miner
-    txs.exists(!_.inputs
-      .map(i => UTXOKey(i.txId, i.index))
-      .exists(!utxoStore.contains(_))
+  private def txOuput(address: String, assetId: UInt256, amount: BigDecimal, script: String): TransactionOutput = {
+    TransactionOutput(
+      UInt160.tryParse(address).get,
+      assetId,
+      Fixed8.fromDecimal(amount),
+      BinaryData(script)
     )
   }
 }

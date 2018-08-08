@@ -77,6 +77,10 @@ object Script {
 
   def removeSignatures(script: List[ScriptOP], sigs: List[BinaryData]): List[ScriptOP] = sigs.foldLeft(script)(removeSignature)
 
+  def execute(tx: Transaction, index: Int, scriptSig: BinaryData, scriptPubKey: BinaryData): Boolean = {
+    new Script.Runner(new Script.Context(tx, index)).verifyScripts(scriptSig, scriptPubKey)
+  }
+
   case class Context(tx: Transaction, inputIndex: Int  /*, amount: Satoshi */) {
     //require(inputIndex >= 0 && inputIndex < tx.txIn.length, "invalid input index")
   }
