@@ -8,10 +8,43 @@
 
 package com.apex.wallets
 
-import com.apex.crypto.{BinaryData, Base58Check, UInt160}
+import com.apex.core.Blockchain
+import com.apex.crypto.{Base58Check, BinaryData, Fixed8, UInt160, UInt256}
+import com.apex.crypto.Ecdsa.PrivateKey
+
+import scala.collection.mutable.{ArrayBuffer, Set}
 //import java.security.SecureRandom
 
 object Wallet {
+
+  var privKeys: ArrayBuffer[PrivateKey] = ArrayBuffer.empty
+
+  def getBalance(address: String, assetId: UInt256): Fixed8 = {
+    var sum: Fixed8 = Fixed8.Zero
+    val utxo = Blockchain.Current.getUTXOByAddress(toScriptHash(address).get)
+    if (utxo != None) {
+      for (entry <- utxo.get) {
+        val tx = Blockchain.Current.getTransaction(entry._1).get
+        if (tx.outputs(entry._2).assetId == assetId) {
+          sum += tx.outputs(entry._2).amount
+        }
+      }
+    }
+    sum
+  }
+
+  def makeTransaction(toAddress: String, assetId: UInt256, amount: Fixed8) = {
+
+
+
+  }
+
+  def importPrivKeyFromWIF(wif: String) = {
+    val key = getPrivKeyFromWIF(wif)
+    if (key != None) {
+      privKeys.append(new PrivateKey(BinaryData(key.get), true))
+    }
+  }
   
   def getPrivKeyFromWIF(wif: String): Option[Array[Byte]] = {
     val decode = Base58Check.decode(wif).getOrElse(Array[Byte]())
