@@ -276,7 +276,7 @@ class LevelDBBlockchain extends Blockchain {
 
   private def txOutput(address: String, assetId: UInt256, amount: BigDecimal, script: String): TransactionOutput = {
     TransactionOutput(
-      UInt160.tryParse(address).get,
+      UInt160.parse(address).get,
       assetId,
       Fixed8.fromDecimal(amount),
       BinaryData(script)

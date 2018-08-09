@@ -24,7 +24,7 @@ object UInt256 {
     new UInt256(bytes)
   }
 
-  def tryParse(str: String): Option[UInt256] = {
+  def parse(str: String): Option[UInt256] = {
     if (str == null || str.isEmpty) {
       None
     } else {

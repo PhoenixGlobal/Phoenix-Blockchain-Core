@@ -27,7 +27,7 @@ object UInt160 {
     new UInt160(bytes)
   }
 
-  def tryParse(str: String): Option[UInt160] = {
+  def parse(str: String): Option[UInt160] = {
     if (str == null || str.isEmpty) {
       None
     } else {
