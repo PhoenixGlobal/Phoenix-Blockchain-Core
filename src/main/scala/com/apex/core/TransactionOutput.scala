@@ -26,9 +26,9 @@ object TransactionOutput {
   implicit val transactionOutputWrites = new Writes[TransactionOutput] {
     override def writes(o: TransactionOutput): JsValue = {
       Json.obj(
-        "address" -> o.address.toString,
+        "address" -> o.address.toAddressString,
         "assetId" -> o.assetId.toString,
-        "amount" -> o.amount.value,
+        "amount" -> o.amount.toString,
         "pubKeyScript" -> o.pubKeyScript.toString,
         "version" -> o.version
       )
