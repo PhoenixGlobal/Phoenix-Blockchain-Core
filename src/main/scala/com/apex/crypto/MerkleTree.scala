@@ -19,12 +19,12 @@ class MerkleTreeNode(var hash: UInt256 = null, var parent: MerkleTreeNode = null
 }
 
 class MerkleTree(hashes: Seq[UInt256]) {
-  var root: MerkleTreeNode = null
+  var rootNode: MerkleTreeNode = null
   var depth: Int = 0
 
   if (hashes.length == 0) throw new IllegalArgumentException
-  root = MerkleTree.build(hashes.map(new MerkleTreeNode(_)))
-  var node = root
+  rootNode = MerkleTree.build(hashes.map(new MerkleTreeNode(_)))
+  var node = rootNode
   while (node != null) {
     node = node.left
     depth += 1
@@ -56,7 +56,7 @@ object MerkleTree {
     if (hashes.length == 1) {
       hashes(0)
     } else {
-      new MerkleTree(hashes).root.hash
+      new MerkleTree(hashes).rootNode.hash
     }
   }
 }
