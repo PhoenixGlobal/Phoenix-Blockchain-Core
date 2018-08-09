@@ -42,6 +42,6 @@ class BlockHeaderTest {
     val timeStamp = DateTime.now.clicks
     val a = new BlockHeader(0, timeStamp, merkleRoot, prevBlock, producer)
     assert(Json.toJson(a).toString.equals(
-      s"""{"id":"${a.id}","index":${a.index},"timeStamp":${a.timeStamp},"merkleRoot":"${a.merkleRoot}","prevBlock":"${a.prevBlock}","version":${a.version}}"""))
+      s"""{"id":"${a.id}","index":${a.index},"timeStamp":${a.timeStamp},"merkleRoot":"${a.merkleRoot}","prevBlock":"${a.prevBlock}","producer":"${a.producer}","version":${a.version}}"""))
   }
 }
