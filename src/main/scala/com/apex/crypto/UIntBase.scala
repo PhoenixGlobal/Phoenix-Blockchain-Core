@@ -10,8 +10,8 @@ package com.apex.crypto
 
 import java.io.{DataInputStream, DataOutputStream}
 import java.nio.ByteBuffer
-
 import com.apex.common.Serializable
+import org.bouncycastle.util.encoders.Hex
 
 abstract class UIntBase(val size: Int, val data: Array[Byte]) extends Serializable {
   if (data == null || data.length != size) {
@@ -27,7 +27,7 @@ abstract class UIntBase(val size: Int, val data: Array[Byte]) extends Serializab
 
   override def hashCode(): Int = ByteBuffer.wrap(data).getInt
 
-  override def toString: String = s"0x${data.reverseMap("%02X" format _).mkString}"
+  override def toString: String = Hex.toHexString(data)
 
   override def serialize(os: DataOutputStream): Unit = os.write(data)
 }

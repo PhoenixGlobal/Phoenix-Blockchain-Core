@@ -9,7 +9,7 @@
 package com.apex.crypto
 
 import java.io.DataInputStream
-import java.math.BigInteger
+import org.bouncycastle.util.encoders.Hex
 
 class UInt160(data: Array[Byte]) extends UIntBase(UInt160.Size, data) with Ordered[UInt160] {
   override def compare(that: UInt160): Int = UIntBase.compare(this, that)
@@ -19,7 +19,10 @@ object UInt160 {
   final val Size: Int = 20
   final val Zero: UInt160 = UInt160.fromBytes(Array.fill(Size)(0.toByte))
 
-  def fromBytes(bytes: Array[Byte]): UInt160 = new UInt160(bytes)
+  def fromBytes(bytes: Array[Byte]): UInt160 = {
+    require(bytes.length == 20)
+    new UInt160(bytes)
+  }
 
   def tryParse(str: String): Option[UInt160] = {
     if (str == null || str.isEmpty) {
@@ -29,8 +32,7 @@ object UInt160 {
       if (s.length != 40) {
         None;
       } else {
-        val data = new BigInteger(s, 16).toByteArray.reverse
-        Some(UInt160.fromBytes(data))
+        Some(UInt160.fromBytes(Hex.decode(s)))
       }
     }
   }
