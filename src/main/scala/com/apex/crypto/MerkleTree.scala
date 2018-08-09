@@ -37,8 +37,7 @@ object MerkleTree {
     if (leaves.length == 1) return leaves(0)
     val parents = new Array[MerkleTreeNode]((leaves.length + 1) / 2)
     for (i <- 0 to parents.length - 1) {
-      val hash = Crypto.hash256(parents(i).left.hash.data ++ parents(i).right.hash.data)
-      parents(i) = new MerkleTreeNode(new UInt256(hash))
+      parents(i) = new MerkleTreeNode()
       parents(i).left = leaves(i * 2)
       leaves(i * 2).parent = parents(i)
       if (i * 2 + 1 == leaves.length) {
@@ -47,6 +46,7 @@ object MerkleTree {
         parents(i).right = leaves(i * 2 + 1)
         leaves(i * 2 + 1).parent = parents(i)
       }
+      parents(i).hash = new UInt256(Crypto.hash256(parents(i).left.hash.data ++ parents(i).right.hash.data))
     }
     build(parents)
   }
