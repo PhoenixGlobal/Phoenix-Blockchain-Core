@@ -67,7 +67,9 @@ object Transaction {
     override def writes(o: Transaction): JsValue = {
       o.txType match {
         case TransactionType.Transfer =>
-          TransferTransaction.transactionWrites.writes(o.asInstanceOf)
+          TransferTransaction.transactionWrites.writes(o.asInstanceOf[TransferTransaction])
+        case TransactionType.Miner =>
+          MinerTransaction.transactionWrites.writes(o.asInstanceOf[MinerTransaction])
         case _ => throw new NotImplementedError()
       }
     }

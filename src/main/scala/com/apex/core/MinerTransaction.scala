@@ -13,8 +13,8 @@ class MinerTransaction(outputs: Seq[TransactionOutput], version: Int = 0x01, ove
 }
 
 object MinerTransaction {
-  implicit val transactionWrites = new Writes[TransferTransaction] {
-    override def writes(o: TransferTransaction): JsValue = Json.obj(
+  implicit val transactionWrites = new Writes[MinerTransaction] {
+    override def writes(o: MinerTransaction): JsValue = Json.obj(
       "id" -> o.id.toString,
       "type" -> o.txType.toString,
       "inputs" -> o.inputs,

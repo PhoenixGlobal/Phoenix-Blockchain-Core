@@ -7,6 +7,22 @@ import org.junit.{Assert, Test}
 
 @Test
 class Fixed8Test extends Assert {
+
+  @Test
+  def testToString = {
+    assert(new Fixed8(1).toString == "0.00000001")
+    assert(new Fixed8(10).toString == "0.00000010")
+    assert(new Fixed8(111).toString == "0.00000111")
+    assert(new Fixed8(100000000).toString == "1.00000000")
+    assert(new Fixed8(100000001).toString == "1.00000001")
+    assert(new Fixed8(100000101).toString == "1.00000101")
+    assert(new Fixed8(100000100).toString == "1.00000100")
+    assert(new Fixed8(1200000100).toString == "12.00000100")
+    assert(new Fixed8(12300000100L).toString == "123.00000100")
+    assert(new Fixed8(1234567800001100L).toString == "12345678.00001100")
+    assert(new Fixed8(1234567891200001100L).toString == "12345678912.00001100")
+  }
+
   @Test
   def testOperatorMinus = {
     assert((-Fixed8.MaxValue).value == -Long.MaxValue)

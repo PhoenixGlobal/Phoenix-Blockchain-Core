@@ -9,10 +9,13 @@
 package com.apex.crypto
 
 import java.io.DataInputStream
+import com.apex.wallets.Wallet
 import org.bouncycastle.util.encoders.Hex
 
 class UInt160(data: Array[Byte]) extends UIntBase(UInt160.Size, data) with Ordered[UInt160] {
   override def compare(that: UInt160): Int = UIntBase.compare(this, that)
+
+  def toAddressString(): String = Wallet.toAddress(data)
 }
 
 object UInt160 {
