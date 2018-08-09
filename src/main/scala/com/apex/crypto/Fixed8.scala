@@ -24,6 +24,12 @@ class Fixed8(val value: Long = 0) extends Serializable {
     }
   }
 
+  override def toString: String = {
+    val v: Long = value / Fixed8.One.value
+    var remain: Long = value % Fixed8.One.value + Fixed8.One.value
+    v.toString + "." + remain.toString.drop(1)
+  }
+
   def equals(that: Fixed8): Boolean = this == that
 
   override def equals(obj: scala.Any): Boolean = {
