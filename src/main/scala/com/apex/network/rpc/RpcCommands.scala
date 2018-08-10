@@ -19,7 +19,7 @@ import play.api.libs.functional.syntax._
 object Validators {
   def uint256Validator = Reads.StringReads.filter(JsonValidationError("invalid UInt256"))(UInt256.parse(_).isDefined)
 
-  def amountValidator = Reads.StringReads.filter(JsonValidationError("invalid amount"))(d => BigDecimal(d) > 0)
+  def amountValidator = Reads.StringReads.filter(JsonValidationError("invalid amount"))(d => BigDecimal(d).signum > 0)
 }
 
 case class GetBlockByHeightCmd(height: Int) {
