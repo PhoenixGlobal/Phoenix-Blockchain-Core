@@ -77,13 +77,20 @@ object Wallet {
         }
       }
     }
-    outputs.add(new TransactionOutput(
-      toScriptHash(toAddress).get,
-      assetId,
-      amount,
-      Script.write(Script.pay2pkh(toScriptHash(toAddress).get))))
-    // TODO: outputs add change address
     if (curAmount.value >= amount.value) {
+      outputs.add(new TransactionOutput(
+          toScriptHash(toAddress).get,
+          assetId,
+          amount,
+          Script.write(Script.pay2pkh(toScriptHash(toAddress).get))))
+      if (curAmount.value > amount.value) {
+        val changeAddress = privKeys.head.publicKey.toAddress
+        outputs.add(new TransactionOutput(
+            toScriptHash(changeAddress).get,
+            assetId,
+            curAmount - amount,
+            Script.write(Script.pay2pkh(toScriptHash(changeAddress).get))))
+      }
       val tx = new TransferTransaction(inputs.toSeq, outputs.toSeq, "123")
       for (index <- 0 to (tx.inputs.length - 1)) {
         tx.signInput(index, 0, 0, findPrivKey(tx.inputs(index)).get)

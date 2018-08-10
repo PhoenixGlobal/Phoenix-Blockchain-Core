@@ -40,6 +40,10 @@ class LocalNode extends ApexLogging {
   def getMemoryPool() : Seq[Transaction] = {
      memPool.values.toSeq
   }
+
+  def clearMemoryPool() = {
+    memPool.clear()
+  }
   
   def getTransaction(hash: UInt256) : Option[Transaction] = {
 
