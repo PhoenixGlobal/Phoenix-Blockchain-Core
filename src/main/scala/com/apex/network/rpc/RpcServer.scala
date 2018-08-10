@@ -13,10 +13,13 @@ import akka.http.scaladsl.Http
 import akka.http.scaladsl.model._
 import akka.http.scaladsl.server.Directives._
 import akka.stream.ActorMaterializer
+import com.apex.core.Blockchain
+import com.apex.network.LocalNode
+
 import scala.io.StdIn
 import scala.concurrent.duration.Duration
 import scala.concurrent.Await
-import play.api.libs.json.{JsValue, Json, JsSuccess, JsError}
+import play.api.libs.json.{JsError, JsSuccess, JsValue, Json}
 
 object RpcServer {
   
@@ -38,7 +41,7 @@ object RpcServer {
               }
               case e: JsError => {
                 println(e)
-                complete(HttpEntity(ContentTypes.`application/json`, "ffref"))
+                complete(HttpEntity(ContentTypes.`application/json`, Json.parse( """ {"result": "Error"}""").toString()))
               }
             }
           }
@@ -48,15 +51,23 @@ object RpcServer {
         post {
           entity(as[String]) { data =>
             val params: JsValue = Json.parse(data)
-            complete(HttpEntity(ContentTypes.`application/json`, params.toString()))
+            val block4 = Blockchain.Current.produceBlock(LocalNode.default.getMemoryPool())
+            complete(HttpEntity(ContentTypes.`application/json`, Json.parse( """ {"result": "OK"}""").toString))
           }
         }
       } ~
-      path("sendrawtransaction") {
+      path("send") {
         post {
           entity(as[String]) { data =>
-            val params: JsValue = Json.parse(data)
-            complete(HttpEntity(ContentTypes.`application/json`, params.toString()))
+            Json.parse(data).validate[SendCmd] match {
+              case cmd: JsSuccess[SendCmd] => {
+                complete(HttpEntity(ContentTypes.`application/json`, cmd.get.run.toString))
+              }
+              case e: JsError => {
+                println(e)
+                complete(HttpEntity(ContentTypes.`application/json`, Json.parse( """{"result": "Error"}""").toString()))
+              }
+            }
           }
         }
       } ~
