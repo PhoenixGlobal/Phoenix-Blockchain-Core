@@ -23,8 +23,13 @@ object Validators {
 
 case class GetBlockCmd(index: Int, hash: UInt256) {
   def run(): JsValue = {
-    val block = Blockchain.Current.getBlock(index).get
-    Json.toJson(block)
+    val block = Blockchain.Current.getBlock(index)
+    if (block != None) {
+      Json.toJson(block.get)
+    }
+    else {
+      Json.parse( """  {  "result": "Error"  }""")
+    }
   }
 }
 object GetBlockCmd {

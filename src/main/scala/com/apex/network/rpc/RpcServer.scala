@@ -50,7 +50,6 @@ object RpcServer {
       path("produceblock") {
         post {
           entity(as[String]) { data =>
-            val params: JsValue = Json.parse(data)
             val block4 = Blockchain.Current.produceBlock(LocalNode.default.getMemoryPool())
             complete(HttpEntity(ContentTypes.`application/json`, Json.parse( """ {"result": "OK"}""").toString))
           }
@@ -74,8 +73,8 @@ object RpcServer {
       path("getblockcount") {
         post {
           entity(as[String]) { data =>
-            val params: JsValue = Json.parse(data)
-            complete(HttpEntity(ContentTypes.`application/json`, params.toString()))
+            val count = Blockchain.Current.getLatestHeader.index + 1
+            complete(HttpEntity(ContentTypes.`application/json`, Json.parse(s"""{"result": "$count"}""").toString))
           }
         }
       }
