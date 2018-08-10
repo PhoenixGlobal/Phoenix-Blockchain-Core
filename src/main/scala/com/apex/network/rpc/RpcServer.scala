@@ -16,10 +16,7 @@ import akka.stream.ActorMaterializer
 import scala.io.StdIn
 import scala.concurrent.duration.Duration
 import scala.concurrent.Await
-import com.apex.core.Blockchain
-import com.apex.network.LocalNode
-import play.api.libs.json.{JsValue, Json, JsArray, JsObject}
-
+import play.api.libs.json.{JsValue, Json, JsSuccess, JsError}
 
 object RpcServer {
   
@@ -35,12 +32,15 @@ object RpcServer {
       path("getblock") {
         post {
           entity(as[String]) { data =>
-            val params: JsValue = Json.parse(data)
-
-            val block = Blockchain.Current.getBlock(1)
-            val j = Json.toJson(block)
-
-            complete(HttpEntity(ContentTypes.`application/json`, j.toString()))
+            Json.parse(data).validate[GetBlockCmd] match {
+              case cmd: JsSuccess[GetBlockCmd] => {
+                complete(HttpEntity(ContentTypes.`application/json`, cmd.get.run.toString))
+              }
+              case e: JsError => {
+                println(e)
+                complete(HttpEntity(ContentTypes.`application/json`, "ffref"))
+              }
+            }
           }
         }
       } ~
