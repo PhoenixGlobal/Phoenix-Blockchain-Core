@@ -27,6 +27,7 @@ object TransferTransaction {
       "type" -> o.txType.toString,
       "inputs" -> o.inputs,
       "outputs" -> o.outputs,
+      "note" -> o.note,
       "version" -> o.version
     )
   }

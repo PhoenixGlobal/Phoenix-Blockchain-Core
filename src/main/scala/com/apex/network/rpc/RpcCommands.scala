@@ -21,9 +21,9 @@ object Validators {
 
 }
 
-case class GetBlockCmd(index: Int, hash: UInt256) {
+case class GetBlockByHeightCmd(height: Int) {
   def run(): JsValue = {
-    val block = Blockchain.Current.getBlock(index)
+    val block = Blockchain.Current.getBlock(height)
     if (block != None) {
       Json.toJson(block.get)
     }
@@ -32,17 +32,38 @@ case class GetBlockCmd(index: Int, hash: UInt256) {
     }
   }
 }
-object GetBlockCmd {
-  implicit val testWrites = new Writes[GetBlockCmd] {
-    override def writes(o: GetBlockCmd): JsValue = Json.obj(
-      "index" -> o.index,
-      "hash" -> o.hash.toString
+object GetBlockByHeightCmd {
+  implicit val testWrites = new Writes[GetBlockByHeightCmd] {
+    override def writes(o: GetBlockByHeightCmd): JsValue = Json.obj(
+      "height" -> o.height
     )
   }
-  implicit val testReads: Reads[GetBlockCmd] = (
-    (JsPath \ "index").read[Int] and
-    (JsPath \ "hash").read[String](Validators.uint256Validator).map(c => UInt256.parse(c).get)
-    ) (GetBlockCmd.apply _)
+  implicit val testReads: Reads[GetBlockByHeightCmd] = (
+    (JsPath \ "height").read[Int]
+
+    ) map (GetBlockByHeightCmd.apply _)
+}
+
+case class GetBlockByIdCmd(id: UInt256) {
+  def run(): JsValue = {
+    val block = Blockchain.Current.getBlock(id)
+    if (block != None) {
+      Json.toJson(block.get)
+    }
+    else {
+      Json.parse( """  {  "result": "Error"  }""")
+    }
+  }
+}
+object GetBlockByIdCmd {
+  implicit val testWrites = new Writes[GetBlockByIdCmd] {
+    override def writes(o: GetBlockByIdCmd): JsValue = Json.obj(
+      "id" -> o.id.toString
+    )
+  }
+  implicit val testReads: Reads[GetBlockByIdCmd] = (
+      (__ \ "id").read[String](Validators.uint256Validator).map(c => UInt256.parse(c).get)
+    ) map (GetBlockByIdCmd.apply _)
 }
 
 
@@ -51,7 +72,8 @@ case class SendCmd(address: String, assetId: UInt256, value: String) {
     val tx = Wallet.makeTransaction(address, assetId, Fixed8.fromDecimal(BigDecimal(value)))
     if (tx != None) {
       LocalNode.default.addTransaction(tx.get)
-      Json.parse( """  { "result": "OK"  }""")
+      val txid = tx.get.id.toString
+      Json.parse( s"""  { "result": "OK", "txid":"$txid"  }""")
     }
     else {
       Json.parse( """  {  "result": "Error"  }""")

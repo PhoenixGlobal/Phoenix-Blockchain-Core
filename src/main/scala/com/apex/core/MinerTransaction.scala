@@ -3,12 +3,18 @@ package com.apex.core
 import java.io.{DataInputStream, DataOutputStream}
 
 import com.apex.crypto.UInt256
+import org.bouncycastle.util.encoders.Hex
 import play.api.libs.json.{JsValue, Json, Writes}
 
-class MinerTransaction(outputs: Seq[TransactionOutput], version: Int = 0x01, override protected var _id: UInt256 = null)
+class MinerTransaction(outputs: Seq[TransactionOutput],
+                       val nounce: Array[Byte],
+                       version: Int = 0x01,
+                       override protected var _id: UInt256 = null)
   extends Transaction(TransactionType.Miner, Seq.empty, outputs, version) {
 
   override protected def serializeExtraData(os: DataOutputStream): Unit = {
+    import com.apex.common.Serializable._
+    os.writeByteArray(nounce)
   }
 }
 
@@ -19,6 +25,7 @@ object MinerTransaction {
       "type" -> o.txType.toString,
       "inputs" -> o.inputs,
       "outputs" -> o.outputs,
+      "nounce" -> Hex.toHexString(o.nounce),
       "version" -> o.version
     )
   }
@@ -28,7 +35,8 @@ object MinerTransaction {
     val version = is.readInt
     val _ = is.readSeq(TransactionInput.deserialize)
     val outputs = is.readSeq(TransactionOutput.deserialize)
+    val nounce = is.readByteArray()
     val id = is.readObj(UInt256.deserialize)
-    new MinerTransaction(outputs, version, id)
+    new MinerTransaction(outputs, nounce, version, id)
   }
 }

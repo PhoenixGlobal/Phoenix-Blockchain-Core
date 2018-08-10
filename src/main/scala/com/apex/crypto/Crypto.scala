@@ -8,16 +8,20 @@
 
 package com.apex.crypto
 
-import java.security.MessageDigest
-import java.security.Security
+import java.security.{MessageDigest, Security, SecureRandom}
 import javax.crypto.Cipher
-import javax.crypto.spec.SecretKeySpec
-import javax.crypto.spec.IvParameterSpec
+import javax.crypto.spec.{SecretKeySpec, IvParameterSpec}
 import org.bouncycastle.crypto.digests.RIPEMD160Digest
 import org.bouncycastle.jce.provider.BouncyCastleProvider
 
 
 object Crypto {
+
+  def randomBytes(num: Int): Array[Byte] = {
+    val bytes = new Array[Byte](num)
+    new SecureRandom().nextBytes(bytes)
+    bytes
+  }
 
   def hash256(data: Array[Byte]): Array[Byte] = {
      return sha256(sha256(data))

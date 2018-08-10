@@ -5,7 +5,7 @@ import java.io.{DataInputStream, DataOutputStream}
 import akka.http.scaladsl.model.DateTime
 import com.apex.common.{ApexLogging, Serializable}
 import com.apex.core.script.Script
-import com.apex.crypto.{BinaryData, Fixed8, MerkleTree, UInt160, UInt256}
+import com.apex.crypto.{BinaryData, Fixed8, MerkleTree, UInt160, UInt256, Crypto}
 import com.apex.storage.LevelDbStorage
 import org.iq80.leveldb.WriteBatch
 import play.api.libs.json.Json
@@ -125,7 +125,7 @@ class LevelDBBlockchain extends Blockchain {
       }
     }
 
-    val minerTx = new MinerTransaction(Seq(minerTxOutput))
+    val minerTx = new MinerTransaction(Seq(minerTxOutput), Crypto.randomBytes(16))
     val txs = Seq(minerTx) ++ transactions.filter(verifyTransaction)
     val merkleRoot = MerkleTree.root(txs.map(_.id))
     val header = BlockHeader.build(

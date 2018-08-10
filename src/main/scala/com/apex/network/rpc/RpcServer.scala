@@ -35,13 +35,21 @@ object RpcServer {
       path("getblock") {
         post {
           entity(as[String]) { data =>
-            Json.parse(data).validate[GetBlockCmd] match {
-              case cmd: JsSuccess[GetBlockCmd] => {
+            Json.parse(data).validate[GetBlockByHeightCmd] match {
+              case cmd: JsSuccess[GetBlockByHeightCmd] => {
                 complete(HttpEntity(ContentTypes.`application/json`, cmd.get.run.toString))
               }
               case e: JsError => {
-                println(e)
-                complete(HttpEntity(ContentTypes.`application/json`, Json.parse( """ {"result": "Error"}""").toString()))
+
+                Json.parse(data).validate[GetBlockByIdCmd] match {
+                  case idCmd: JsSuccess[GetBlockByIdCmd] => {
+                    complete(HttpEntity(ContentTypes.`application/json`, idCmd.get.run.toString))
+                  }
+                  case idError: JsError => {
+                    println(idError)
+                    complete(HttpEntity(ContentTypes.`application/json`, Json.parse( """ {"result": "Error"}""").toString()))
+                  }
+                }
               }
             }
           }
