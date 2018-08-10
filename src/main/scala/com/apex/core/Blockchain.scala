@@ -273,12 +273,12 @@ class LevelDBBlockchain extends Blockchain {
       initDB(batch)
     }
 
-    def init(headBlock: HeadBlock) = {
-      headerStore.get(headBlock.id).getOrElse(db.batchWrite(initDB))
-    }
-
     def reInit() = {
       db.batchWrite(reInitDB)
+    }
+    
+    def init(headBlock: HeadBlock) = {
+      headerStore.get(headBlock.id).getOrElse(reInit)
     }
 
     latestHeader = headBlkStore.get.map(init).getOrElse(reInit)
