@@ -74,7 +74,7 @@ object RpcServer {
         post {
           entity(as[String]) { data =>
             val count = Blockchain.Current.getLatestHeader.index + 1
-            complete(HttpEntity(ContentTypes.`application/json`, Json.parse(s"""{"result": "$count"}""").toString))
+            complete(HttpEntity(ContentTypes.`application/json`, Json.parse(s"""{"blockcount": "$count"}""").toString))
           }
         }
       }
