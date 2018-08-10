@@ -7,6 +7,8 @@ import com.apex.common.{ApexLogging, Serializable}
 import com.apex.core.script.Script
 import com.apex.crypto.{BinaryData, Fixed8, MerkleTree, UInt160, UInt256}
 import com.apex.storage.LevelDbStorage
+import org.iq80.leveldb.WriteBatch
+import play.api.libs.json.Json
 
 import scala.collection.mutable.{Map, Set}
 
@@ -46,7 +48,7 @@ object Blockchain {
 }
 
 class LevelDBBlockchain extends Blockchain {
-  private val db: LevelDbStorage = LevelDbStorage.open("test_db")
+  private val db: LevelDbStorage = LevelDbStorage.open("main_net")
 
   private val producer = UInt256.Zero // TODO: read from settings
   private val genesisProducer = UInt256.Zero // TODO: read from settings
@@ -130,44 +132,47 @@ class LevelDBBlockchain extends Blockchain {
       latestHeader.index + 1, DateTime.now.clicks,
       merkleRoot, latestHeader.id, producer)
     val block = Block.build(header, txs)
-    val ret = db.batchWrite(batch => {
-      headBlkStore.set(header, batch)
-      headerStore.set(header.id, header, batch)
-      heightStore.set(header.index, header.id, batch)
-      val blkTxMapping = BlkTxMapping(block.id, txs.map(_.id))
-      blkTxMappingStore.set(block.id, blkTxMapping, batch)
-      val balances = Map.empty[UInt160, Map[UInt256, Fixed8]]
-      txs.foreach(tx => {
-        txStore.set(tx.id, tx, batch)
-        for (index <- 0 to tx.outputs.length - 1) {
-          val key = UTXOKey(tx.id, index)
-          val output = tx.outputs(index)
-          utxoStore.set(key, output, batch)
-          calcBalancesInBlock(balances, output, false)
-        }
-        for (i <- tx.inputs) {
-          val key = UTXOKey(i.txId, i.index)
-          utxoStore.delete(key, batch)
-          val output = getTransaction(i.txId).get.outputs(i.index)
-          calcBalancesInBlock(balances, output, true)
-        }
+    try {
+      db.batchWrite(batch => {
+        headBlkStore.set(header, batch)
+        headerStore.set(header.id, header, batch)
+        heightStore.set(header.index, header.id, batch)
+        val blkTxMapping = BlkTxMapping(block.id, txs.map(_.id))
+        blkTxMappingStore.set(block.id, blkTxMapping, batch)
+        val balances = Map.empty[UInt160, Map[UInt256, Fixed8]]
+        txs.foreach(tx => {
+          txStore.set(tx.id, tx, batch)
+          for (index <- 0 to tx.outputs.length - 1) {
+            val key = UTXOKey(tx.id, index)
+            val output = tx.outputs(index)
+            utxoStore.set(key, output, batch)
+            calcBalancesInBlock(balances, output, false)
+          }
+          for (i <- tx.inputs) {
+            val key = UTXOKey(i.txId, i.index)
+            utxoStore.delete(key, batch)
+            val output = getTransaction(i.txId).get.outputs(i.index)
+            calcBalancesInBlock(balances, output, true)
+          }
+        })
+        balances.foreach(p => {
+          val account = accountStore.get(p._1).map(a => {
+            val merged = a.balances.toSeq ++ p._2.toSeq
+            val balances = merged.groupBy(_._1)
+              .map(p => (p._1, Fixed8.sum(p._2.map(_._2).sum)))
+              .filter(_._2.value > 0)
+            new Account(a.active, balances, a.version)
+          }).getOrElse(new Account(true, p._2.filter(_._2.value > 0).toMap))
+          accountStore.set(p._1, account, batch)
+        })
       })
-      balances.foreach(p => {
-        val account = accountStore.get(p._1).map(a => {
-          val merged = a.balances.toSeq ++ p._2.toSeq
-          val balances = merged.groupBy(_._1)
-            .map(p => (p._1, Fixed8.sum(p._2.map(_._2).sum)))
-            .filter(_._2.value > 0)
-          new Account(a.active, balances, a.version)
-        }).getOrElse(new Account(true, p._2.filter(_._2.value > 0).toMap))
-        accountStore.set(p._1, account, batch)
-      })
-    })
-    if (ret) {
       latestHeader = header
       Some(block)
-    } else {
-      None
+    } catch {
+      case e: Throwable => {
+        log.error("produce block failed", e)
+        None
+      }
     }
   }
 
@@ -249,19 +254,34 @@ class LevelDBBlockchain extends Blockchain {
   }
 
   private def populate(): Unit = {
-    headBlkStore.get match {
-      case Some(headBlock) =>
-        headerStore.get(headBlock.id) match {
-          case Some(header) => latestHeader = header
-          case None => db.batchWrite(batch => {
-            headerStore.set(genesisBlockHeader.id, genesisBlockHeader, batch)
-            headBlkStore.set(genesisBlockHeader, batch)
-          })
-        }
-      case None => {
-        headBlkStore.set(genesisBlockHeader)
-      }
+    def initDB(batch: WriteBatch): BlockHeader = {
+      val blkTxMapping = BlkTxMapping(genesisBlock.id, genesisBlock.transactions.map(_.id))
+      headerStore.set(genesisBlock.id, genesisBlockHeader, batch)
+      heightStore.set(genesisBlock.height, genesisBlock.id, batch)
+      blkTxMappingStore.set(genesisBlock.id, blkTxMapping, batch)
+      headBlkStore.set(genesisBlockHeader, batch)
+      genesisBlockHeader
     }
+
+    def reInitDB(batch: WriteBatch): BlockHeader = {
+      headerStore.foreach((k, _) => headerStore.delete(k, batch))
+      heightStore.foreach((k, _) => heightStore.delete(k, batch))
+      blkTxMappingStore.foreach((k, _) => blkTxMappingStore.delete(k, batch))
+      accountStore.foreach((k, _) => accountStore.delete(k, batch))
+      utxoStore.foreach((k, _) => utxoStore.delete(k, batch))
+      headBlkStore.delete(batch)
+      initDB(batch)
+    }
+
+    def init(headBlock: HeadBlock) = {
+      headerStore.get(headBlock.id).getOrElse(db.batchWrite(initDB))
+    }
+
+    def reInit() = {
+      db.batchWrite(reInitDB)
+    }
+
+    latestHeader = headBlkStore.get.map(init).getOrElse(reInit)
   }
 
   private def verifyHeader(header: BlockHeader): Boolean = {

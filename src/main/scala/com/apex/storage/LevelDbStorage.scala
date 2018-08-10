@@ -78,16 +78,12 @@ class LevelDbStorage(private val db: DB) extends Storage[Array[Byte], Array[Byte
     db.close()
   }
 
-  def batchWrite(action: WriteBatch => Unit): Boolean = {
+  def batchWrite[R](action: WriteBatch => R): R = {
     val batch = db.createWriteBatch()
     try {
-      action(batch)
+      val ret = action(batch)
       db.write(batch)
-      true
-    } catch {
-      case e: Throwable =>
-        log.error("batchWrite failed", e)
-        false
+      ret
     } finally {
       batch.close()
     }

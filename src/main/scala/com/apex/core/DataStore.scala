@@ -156,6 +156,10 @@ class HeightStore(db: LevelDbStorage) {
     innerStore.set(IntKey(key), value, batch)
   }
 
+  def delete(key: Int, batch: WriteBatch = null):  Unit = {
+    innerStore.delete(IntKey(key), batch)
+  }
+
   def foreach(func: (Int, UInt256) => Unit): Unit = {
     innerStore.foreach((key, value) => {
       func(key.value, value)
@@ -253,12 +257,28 @@ case class HeadBlock(height: Int, id: UInt256) extends Serializable {
 }
 
 object HeadBlock {
+  final val Size = 4 + UInt256.Size
+
   def deserialize(is: DataInputStream): HeadBlock = {
     import com.apex.common.Serializable._
     HeadBlock(
       is.readInt(),
       is.readObj(UInt256.deserialize)
     )
+  }
+}
+
+case class UniqueKey(name: String) extends Serializable {
+  override def serialize(os: DataOutputStream): Unit = {
+    import com.apex.common.Serializable.DataOutputStreamExtension
+    os.writeString(name)
+  }
+}
+
+object UniqueKey {
+  def deserialize(is: DataInputStream): UniqueKey = {
+    import com.apex.common.Serializable.DataInputStreamExtension
+    UniqueKey(is.readString)
   }
 }
 
@@ -279,6 +299,14 @@ class HeadBlockStore(db: LevelDbStorage) {
     } else {
       writeBatch.put(key, value)
       true
+    }
+  }
+
+  def delete(writeBatch: WriteBatch = null): Unit = {
+    if (writeBatch == null) {
+      db.delete(key)
+    } else {
+      writeBatch.delete(key)
     }
   }
 

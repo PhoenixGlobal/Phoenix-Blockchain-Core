@@ -16,6 +16,10 @@ class Block(val header: BlockHeader,
     header.id
   }
 
+  def height(): Int = {
+    header.index
+  }
+
   def getTransaction(id: UInt256): Option[Transaction] = {
     txMp.get(id)
   }
