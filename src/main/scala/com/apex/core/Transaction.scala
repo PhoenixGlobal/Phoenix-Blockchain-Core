@@ -79,6 +79,8 @@ object Transaction {
     TransactionType(is.readByte) match {
       case TransactionType.Transfer =>
         return TransferTransaction.deserialize(is)
+      case TransactionType.Miner =>
+        return MinerTransaction.deserialize(is)
       case _ => throw new NotImplementedError
     }
   }

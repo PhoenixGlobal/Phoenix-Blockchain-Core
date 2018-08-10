@@ -19,6 +19,7 @@ import play.api.libs.functional.syntax._
 object Validators {
   def uint256Validator = Reads.StringReads.filter(JsonValidationError("invalid UInt256"))(UInt256.parse(_).isDefined)
 
+  def amountValidator = Reads.StringReads.filter(JsonValidationError("invalid amount"))(d => BigDecimal(d) > 0)
 }
 
 case class GetBlockByHeightCmd(height: Int) {
@@ -32,6 +33,7 @@ case class GetBlockByHeightCmd(height: Int) {
     }
   }
 }
+
 object GetBlockByHeightCmd {
   implicit val testWrites = new Writes[GetBlockByHeightCmd] {
     override def writes(o: GetBlockByHeightCmd): JsValue = Json.obj(
@@ -55,6 +57,7 @@ case class GetBlockByIdCmd(id: UInt256) {
     }
   }
 }
+
 object GetBlockByIdCmd {
   implicit val testWrites = new Writes[GetBlockByIdCmd] {
     override def writes(o: GetBlockByIdCmd): JsValue = Json.obj(
@@ -62,14 +65,14 @@ object GetBlockByIdCmd {
     )
   }
   implicit val testReads: Reads[GetBlockByIdCmd] = (
-      (__ \ "id").read[String](Validators.uint256Validator).map(c => UInt256.parse(c).get)
+    (__ \ "id").read[String](Validators.uint256Validator).map(c => UInt256.parse(c).get)
     ) map (GetBlockByIdCmd.apply _)
 }
 
 
-case class SendCmd(address: String, assetId: UInt256, value: String) {
+case class SendCmd(address: String, assetId: UInt256, amount: String) {
   def run(): JsValue = {
-    val tx = Wallet.makeTransaction(address, assetId, Fixed8.fromDecimal(BigDecimal(value)))
+    val tx = Wallet.makeTransaction(address, assetId, Fixed8.fromDecimal(BigDecimal(amount)))
     if (tx != None) {
       LocalNode.default.addTransaction(tx.get)
       val txid = tx.get.id.toString
@@ -80,18 +83,19 @@ case class SendCmd(address: String, assetId: UInt256, value: String) {
     }
   }
 }
+
 object SendCmd {
   implicit val testWrites = new Writes[SendCmd] {
     override def writes(o: SendCmd): JsValue = Json.obj(
       "address" -> o.address,
       "assetId" -> o.assetId.toString,
-      "value" -> o.value
+      "amount" -> o.amount
     )
   }
   implicit val testReads: Reads[SendCmd] = (
-      (JsPath \ "address").read[String] and
+    (JsPath \ "address").read[String] and
       (JsPath \ "assetId").read[String](Validators.uint256Validator).map(c => UInt256.parse(c).get) and
-      (JsPath \ "value").read[String]
+      (JsPath \ "amount").read[String](Validators.amountValidator)
     ) (SendCmd.apply _)
 }
 
