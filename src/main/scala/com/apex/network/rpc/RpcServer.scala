@@ -58,7 +58,8 @@ object RpcServer {
       path("produceblock") {
         post {
           entity(as[String]) { data =>
-            val block4 = Blockchain.Current.produceBlock(LocalNode.default.getMemoryPool())
+            Blockchain.Current.produceBlock(LocalNode.default.getMemoryPool())
+            LocalNode.default.clearMemoryPool()
             complete(HttpEntity(ContentTypes.`application/json`, Json.parse( """ {"result": "OK"}""").toString))
           }
         }

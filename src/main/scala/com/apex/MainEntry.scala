@@ -17,21 +17,16 @@ object MainEntry{
 
     val block1 = Blockchain.Current.produceBlock(Seq.empty)
 
-    val block2 = Blockchain.Current.produceBlock(Seq.empty)
+    Wallet.importPrivKeyFromWIF("Kx45GeUBSMPReYQwgXiKhG9FzNXrnCeutJp4yjTd5kKxCitadm3C")
+    //val tx = Wallet.makeTransaction("APQKUqPcJEUwRdwoxpoGQnkrRGstSXkgebk", UInt256.Zero, new Fixed8(230000L)).get
+
+    //LocalNode.default.addTransaction(tx)
+
+    val block2 = Blockchain.Current.produceBlock(LocalNode.default.getMemoryPool())
+    LocalNode.default.clearMemoryPool()
 
     val block3 = Blockchain.Current.produceBlock(Seq.empty)
 
-    Wallet.importPrivKeyFromWIF("Kx45GeUBSMPReYQwgXiKhG9FzNXrnCeutJp4yjTd5kKxCitadm3C")
-    val tx = Wallet.makeTransaction("APQKUqPcJEUwRdwoxpoGQnkrRGstSXkgebk", UInt256.Zero, new Fixed8(230000L)).get
-
-    LocalNode.default.addTransaction(tx)
-
-    val block4 = Blockchain.Current.produceBlock(LocalNode.default.getMemoryPool())
-
-    val block5 = Blockchain.Current.produceBlock(Seq.empty)
-
-    val block6 = Blockchain.Current.produceBlock(Seq.empty)
-    
     RpcServer.run()
 
 //    val block = new Block()
