@@ -9,9 +9,9 @@
 package com.apex.wallets
 
 import com.apex.core._
-import com.apex.crypto.{Base58Check, BinaryData, Fixed8, UInt160, UInt256}
+import com.apex.crypto.{Base58Check, BinaryData, Crypto, Fixed8, UInt160, UInt256}
 import com.apex.crypto.Ecdsa.PrivateKey
-import com.apex.core.script.{Script}
+import com.apex.core.script.Script
 
 import scala.collection.mutable.{ArrayBuffer, Set}
 //import java.security.SecureRandom
@@ -101,11 +101,18 @@ object Wallet {
       None
   }
 
-  def importPrivKeyFromWIF(wif: String) = {
+  def generateNewPrivKey() = {
+    privKeys.add(new PrivateKey(BinaryData(Crypto.randomBytes(32))))
+  }
+
+  def importPrivKeyFromWIF(wif: String): Boolean = {
     val key = getPrivKeyFromWIF(wif)
     if (key != None) {
       privKeys.add(new PrivateKey(BinaryData(key.get), true))
+      true
     }
+    else
+      false
   }
   
   def getPrivKeyFromWIF(wif: String): Option[Array[Byte]] = {

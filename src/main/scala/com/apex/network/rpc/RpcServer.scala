@@ -55,6 +55,22 @@ object RpcServer {
           }
         }
       } ~
+      path("getblocks") {
+        post {
+          entity(as[String]) { data =>
+            val count = Blockchain.Current.getLatestHeader.index
+            val blocks = new StringBuilder
+            blocks ++= "["
+            for (i <- 0 to count) {
+              blocks ++= (Json.toJson(Blockchain.Current.getBlock(i).get).toString)
+              if (i < count)
+                blocks ++= ","
+            }
+            blocks ++= "]"
+            complete(HttpEntity(ContentTypes.`application/json`, blocks.toString))
+          }
+        }
+      } ~
       path("produceblock") {
         post {
           entity(as[String]) { data =>
@@ -84,6 +100,21 @@ object RpcServer {
           entity(as[String]) { data =>
             val count = Blockchain.Current.getLatestHeader.index + 1
             complete(HttpEntity(ContentTypes.`application/json`, Json.parse(s"""{"blockcount": "$count"}""").toString))
+          }
+        }
+      } ~
+      path("importprivkey") {
+        post {
+          entity(as[String]) { data =>
+            Json.parse(data).validate[ImportPrivKeyCmd] match {
+              case cmd: JsSuccess[ImportPrivKeyCmd] => {
+                complete(HttpEntity(ContentTypes.`application/json`, cmd.get.run.toString))
+              }
+              case e: JsError => {
+                println(e)
+                complete(HttpEntity(ContentTypes.`application/json`, Json.parse( """{"result": "Error"}""").toString()))
+              }
+            }
           }
         }
       }

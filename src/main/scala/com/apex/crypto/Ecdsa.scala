@@ -85,7 +85,7 @@ object Ecdsa {
 
   object PrivateKey {
     def apply(data: BinaryData): PrivateKey = data.length match {
-      case 32 => new PrivateKey(Scalar(data), compressed = false)
+      case 32 => new PrivateKey(Scalar(data), compressed = true)
       case 33 if data.last == 1 => new PrivateKey(Scalar(data.take(32)), compressed = true)
     }
 

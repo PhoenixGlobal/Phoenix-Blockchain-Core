@@ -99,4 +99,24 @@ object SendCmd {
     ) (SendCmd.apply _)
 }
 
+case class ImportPrivKeyCmd(key: String) {
+  def run(): JsValue = {
+    if (Wallet.importPrivKeyFromWIF(key)) {
+      Json.parse( """  {  "result": "OK"  }""")
+    }
+    else {
+      Json.parse( """  {  "result": "Error"  }""")
+    }
+  }
+}
 
+object ImportPrivKeyCmd {
+  implicit val testWrites = new Writes[ImportPrivKeyCmd] {
+    override def writes(o: ImportPrivKeyCmd): JsValue = Json.obj(
+      "key" -> o.key
+    )
+  }
+  implicit val testReads: Reads[ImportPrivKeyCmd] = (
+    (__ \ "key").read[String]
+    ) map (ImportPrivKeyCmd.apply _)
+}
