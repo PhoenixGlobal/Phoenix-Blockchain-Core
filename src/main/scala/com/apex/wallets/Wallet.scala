@@ -18,7 +18,7 @@ import scala.collection.mutable.{ArrayBuffer, Set}
 
 object Wallet {
 
-  var privKeys = Set.empty[PrivateKey]
+  val privKeys = Set.empty[PrivateKey]
 
   def getBalance(address: String, assetId: UInt256): Fixed8 = {
     var sum: Fixed8 = Fixed8.Zero
@@ -30,6 +30,14 @@ object Wallet {
           sum += tx.outputs(utxo._2).amount
         }
       }
+    }
+    sum
+  }
+
+  def getBalance(assetId: UInt256): Fixed8 = {
+    var sum = Fixed8.Zero
+    for (pKey <- privKeys) {
+      sum += getBalance(pKey.publicKey.toAddress, assetId)
     }
     sum
   }

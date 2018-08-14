@@ -120,3 +120,21 @@ object ImportPrivKeyCmd {
     (__ \ "key").read[String]
     ) map (ImportPrivKeyCmd.apply _)
 }
+
+case class GetBalanceCmd(assetId: UInt256) {
+  def run(): JsValue = {
+    val balance = Wallet.getBalance(assetId).toString
+    Json.parse( s"""  {  "balance": $balance  }""")
+  }
+}
+
+object GetBalanceCmd {
+  implicit val testWrites = new Writes[GetBalanceCmd] {
+    override def writes(o: GetBalanceCmd): JsValue = Json.obj(
+      "assetId" -> o.assetId.toString
+    )
+  }
+  implicit val testReads: Reads[GetBalanceCmd] = (
+    (__ \ "assetId").read[String](Validators.uint256Validator).map(c => UInt256.parse(c).get)
+    ) map (GetBalanceCmd.apply _)
+}

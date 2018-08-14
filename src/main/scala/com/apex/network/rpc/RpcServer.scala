@@ -117,6 +117,21 @@ object RpcServer {
             }
           }
         }
+      } ~
+      path("getbalance") {
+        post {
+          entity(as[String]) { data =>
+            Json.parse(data).validate[GetBalanceCmd] match {
+              case cmd: JsSuccess[GetBalanceCmd] => {
+                complete(HttpEntity(ContentTypes.`application/json`, cmd.get.run.toString))
+              }
+              case e: JsError => {
+                println(e)
+                complete(HttpEntity(ContentTypes.`application/json`, Json.parse( """{"result": "Error"}""").toString()))
+              }
+            }
+          }
+        }
       }
 
     val bbindingFuture = Http().bindAndHandle(route, "localhost", 8080)
