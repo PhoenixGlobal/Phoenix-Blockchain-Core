@@ -5,7 +5,8 @@ import java.io.{DataInputStream, DataOutputStream}
 import akka.http.scaladsl.model.DateTime
 import com.apex.common.{ApexLogging, Serializable}
 import com.apex.core.script.Script
-import com.apex.crypto.{BinaryData, Fixed8, MerkleTree, UInt160, UInt256, Crypto}
+import com.apex.crypto.Ecdsa.PrivateKey
+import com.apex.crypto.{BinaryData, Crypto, Fixed8, MerkleTree, UInt160, UInt256}
 import com.apex.storage.LevelDbStorage
 import org.iq80.leveldb.WriteBatch
 import play.api.libs.json.Json
@@ -50,8 +51,11 @@ object Blockchain {
 class LevelDBBlockchain extends Blockchain {
   private val db: LevelDbStorage = LevelDbStorage.open("main_net")
 
-  private val producer = UInt256.Zero // TODO: read from settings
-  private val genesisProducer = UInt256.Zero // TODO: read from settings
+  private val producer = BinaryData("03b4534b44d1da47e4b4a504a210401a583f860468dec766f507251a057594e682") // TODO: read from settings
+  private val producerPrivKey = new PrivateKey(BinaryData("7a93d447bffe6d89e690f529a3a0bdff8ff6169172458e04849ef1d4eafd7f86"))
+
+  private val genesisProducer = BinaryData("03b4534b44d1da47e4b4a504a210401a583f860468dec766f507251a057594e682") // TODO: read from settings
+  private val genesisProducerPrivKey = new PrivateKey(BinaryData("7a93d447bffe6d89e690f529a3a0bdff8ff6169172458e04849ef1d4eafd7f86"))
 
   private val headerStore = new HeaderStore(db)
   private val heightStore = new HeightStore(db)
@@ -65,7 +69,8 @@ class LevelDBBlockchain extends Blockchain {
   private val genesisTxOutput = txOutput("f54a5851e9372b87810a8e60cdd2e7cfd80b6e31", UInt256.Zero, 10000, "76a914f54a5851e9372b87810a8e60cdd2e7cfd80b6e3188ac")
   private val minerTxOutput = txOutput("f54a5851e9372b87810a8e60cdd2e7cfd80b6e31", UInt256.Zero, 10, "76a914f54a5851e9372b87810a8e60cdd2e7cfd80b6e3188ac")
 
-  private val genesisBlockHeader: BlockHeader = BlockHeader.build(0, 0, UInt256.Zero, UInt256.Zero, genesisProducer)
+  private val genesisBlockHeader: BlockHeader = BlockHeader.build(0, 0,
+    UInt256.Zero, UInt256.Zero, genesisProducer, genesisProducerPrivKey)
   private val genesisBlock: Block = Block.build(genesisBlockHeader,
     Seq(new TransferTransaction(Seq.empty, Seq(genesisTxOutput), "CPX"))
   )
@@ -130,7 +135,7 @@ class LevelDBBlockchain extends Blockchain {
     val merkleRoot = MerkleTree.root(txs.map(_.id))
     val header = BlockHeader.build(
       latestHeader.index + 1, DateTime.now.clicks,
-      merkleRoot, latestHeader.id, producer)
+      merkleRoot, latestHeader.id, producer, producerPrivKey)
     val block = Block.build(header, txs)
     try {
       db.batchWrite(batch => {

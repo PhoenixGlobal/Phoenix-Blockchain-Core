@@ -99,6 +99,11 @@ object Ecdsa {
     // 32 or 33 bytes
     def toBin: BinaryData = if (compressed) value.toBin :+ 1.toByte else value.toBin
 
+    def toWIF: String = {
+      // always treat as compressed key, do NOT use uncompressed key
+      Wallet.privKeyToWIF(value.toBin)
+    }
+
     override def toString = toBin.toString
   }
 

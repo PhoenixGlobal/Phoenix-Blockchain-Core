@@ -24,11 +24,11 @@ object Crypto {
   }
 
   def hash256(data: Array[Byte]): Array[Byte] = {
-     return sha256(sha256(data))
+     sha256(sha256(data))
   }
 
   def hash160(data: Array[Byte]): Array[Byte] = {
-     return RIPEMD160(sha256(data))
+     RIPEMD160(sha256(data))
   }
 
   def RIPEMD160(data: Array[Byte]): Array[Byte] = {
@@ -36,16 +36,21 @@ object Crypto {
      messageDigest.update(data, 0, data.length)
      val out = Array.fill[Byte](messageDigest.getDigestSize())(0)
      messageDigest.doFinal(out, 0)
-     return out
+     out
   }
 
   def sha256(data: Array[Byte]): Array[Byte] = {
-     return MessageDigest.getInstance("SHA-256").digest(data)
+     MessageDigest.getInstance("SHA-256").digest(data)
   }
 
   def sign(message: Array[Byte], privateKey: Array[Byte]): Array[Byte] = {
      val sig: BinaryData = Ecdsa.encodeSignature(Ecdsa.sign(Ecdsa.sha256(BinaryData(message)), Ecdsa.PrivateKey(BinaryData(privateKey))))
-     return sig
+     sig
+  }
+
+  def sign(message: Array[Byte], privateKey: Ecdsa.PrivateKey): Array[Byte] = {
+    val sig: BinaryData = Ecdsa.encodeSignature(Ecdsa.sign(Ecdsa.sha256(BinaryData(message)), privateKey))
+    sig
   }
 
   def verifySignature(message: Array[Byte], signature: Array[Byte], pubKey: Array[Byte]): Boolean = {
@@ -68,11 +73,6 @@ object Crypto {
      val aes = Cipher.getInstance("AES/CBC/PKCS5PADDING", BouncyCastleProvider.PROVIDER_NAME)
      aes.init(Cipher.DECRYPT_MODE, secretKeySpec, new IvParameterSpec(iv))
      aes.doFinal(data)
-  } 
-
-
+  }
 }
 
-//object Crypto {
-//  final val Default: Crypto = new Crypto
-//}
