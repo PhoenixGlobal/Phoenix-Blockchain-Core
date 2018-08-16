@@ -20,6 +20,10 @@ class Block(val header: BlockHeader,
     header.index
   }
 
+  def timeStamp(): Long = {
+    header.timeStamp
+  }
+
   def getTransaction(id: UInt256): Option[Transaction] = {
     txMp.get(id)
   }

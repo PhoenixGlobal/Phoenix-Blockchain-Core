@@ -19,11 +19,11 @@ import net.ceedubs.ficus.readers.ValueReader
 
 case class GenesisConfig(produceInterval: Int,
                          acceptableTimeError: Int,
-                         initialWitness: Array[WitnessInfo])
+                         initialWitness: Array[Witness])
 
-case class WitnessInfo(name: String,
-                       pubkey: PublicKey,
-                       privkey: Option[PrivateKey])
+case class Witness(name: String,
+                   pubkey: PublicKey,
+                   privkey: Option[PrivateKey])
 
 object Genesis {
 

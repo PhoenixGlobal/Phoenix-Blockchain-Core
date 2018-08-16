@@ -12,12 +12,9 @@
 
 package com.apex.core
 
-import akka.actor.{ActorSystem, Cancellable, Scheduler}
-import java.time.{Duration, Instant}
-import java.util.concurrent.Callable
+import java.time.Instant
 
-import com.apex.common.ApexLogging
-import com.apex.consensus.WitnessInfo
+import com.apex.consensus.Witness
 import com.apex.crypto.Ecdsa.PublicKey
 
 trait ProduceState
@@ -32,7 +29,7 @@ case class Success(block: Option[Block]) extends ProduceState
 
 case class Failed(e: Throwable) extends ProduceState
 
-class BlockProducer(val witnesses: Array[WitnessInfo],
+class BlockProducer(val witnesses: Array[Witness],
                     val produceInterval: Int,
                     val acceptableTimeError: Int) {
 
@@ -68,13 +65,12 @@ class BlockProducer(val witnesses: Array[WitnessInfo],
 
   private def getDistanceAndProduceTime(curr: Long): (Long, Long) = {
     val next = nextProduceTime()
-    println((next, curr))
     if (curr < next) {
       (0, next)
     } else {
       val distance = (curr - next) / produceInterval
       val time = next + distance * produceInterval
-      (distance, time)
+      (distance + 1, time)
     }
   }
 
@@ -83,7 +79,7 @@ class BlockProducer(val witnesses: Array[WitnessInfo],
     (headTime / produceInterval + nextN) * produceInterval
   }
 
-  private def getWitness(relativeDistance: Long): WitnessInfo = {
+  private def getWitness(relativeDistance: Long): Witness = {
     val dis = Blockchain.Current.getDistance + relativeDistance
     val pos = dis % witnesses.length
     witnesses(pos.toInt)
