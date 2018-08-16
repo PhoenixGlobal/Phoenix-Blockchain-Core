@@ -8,7 +8,8 @@
 
 package com.apex.test
 
-import com.apex.crypto.{BinaryData, Ecdsa}
+import com.apex.crypto.Ecdsa.PrivateKey
+import com.apex.crypto.{BinaryData, Crypto, Ecdsa}
 import org.junit.Test
 import com.apex.wallets.Wallet
 
@@ -60,6 +61,34 @@ class WalletTest {
   def testGetPrivKeyFromWIF = {
     val privKey = Wallet.getPrivKeyFromWIF("KxFC1jmwwCoACiCAWZ3eXa96mBM6tb3TYzGmf6YwgdGWZgawvrtJ").get
     assert(privKey sameElements BinaryData("1e99423a4ed27608a15a2616a2b0e9e52ced330ac530edcc32c8ffc6a526aedd"))
+  }
+
+  @Test
+  def testKeyGen = {
+    println("======")
+    for (i <- 1 to 10) {
+      println(i)
+      val privateKey = new PrivateKey(BinaryData(Crypto.randomBytes(32)))
+      assert(privateKey.compressed == true)
+
+      print("priv key raw with 0x01: ")
+      println(privateKey.toString)   // 32 + 1
+
+      print("priv key WIF format:    ")
+      println(privateKey.toWIF)
+
+      print("pub key (compressed):   ")
+      println(privateKey.publicKey.toString)  // 1 + 32
+
+      print("pub key hash160:        ")
+      println(privateKey.publicKey.hash160.toString)
+
+      print("Address:                ")
+      println(privateKey.publicKey.toAddress)
+
+      println("======")
+    }
+    assert(true)
   }
   
 }
