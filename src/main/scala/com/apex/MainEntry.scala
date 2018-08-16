@@ -1,5 +1,6 @@
 package com.apex
 
+import com.apex.consensus.Genesis
 import com.apex.core.{Block, Blockchain, Transaction}
 import com.apex.crypto.{Fixed8, UInt256}
 import com.apex.network.LocalNode
@@ -15,17 +16,18 @@ object MainEntry{
 
   def main(args: Array[String]): Unit = {
 
-    val block1 = Blockchain.Current.produceBlock(Seq.empty)
+//    val block1 = Blockchain.Current.produceBlock(Seq.empty)
 
     Wallet.importPrivKeyFromWIF("Kx45GeUBSMPReYQwgXiKhG9FzNXrnCeutJp4yjTd5kKxCitadm3C")
     //val tx = Wallet.makeTransaction("APQKUqPcJEUwRdwoxpoGQnkrRGstSXkgebk", UInt256.Zero, new Fixed8(230000L)).get
 
     //LocalNode.default.addTransaction(tx)
-
-    val block2 = Blockchain.Current.produceBlock(LocalNode.default.getMemoryPool())
+//    val block2 = Blockchain.Current.produceBlock(LocalNode.default.getMemoryPool())
     LocalNode.default.clearMemoryPool()
 
-    val block3 = Blockchain.Current.produceBlock(Seq.empty)
+    val cancellable = LocalNode.default.beginProduce(Genesis.config)
+
+//    val block3 = Blockchain.Current.produceBlock(Seq.empty)
 
     RpcServer.run()
 
@@ -36,7 +38,7 @@ object MainEntry{
     System.out.println("Press RETURN to stop...")
     StdIn.readLine() // let it run until user presses return
     RpcServer.stop()
-    
+    cancellable.cancel()
     //System.out.println("main end...")    
 
   }

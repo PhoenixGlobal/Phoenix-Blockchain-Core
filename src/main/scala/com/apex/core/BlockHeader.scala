@@ -85,10 +85,10 @@ object BlockHeader {
   }
 
   def build(index: Int, timeStamp: Long, merkleRoot: UInt256, prevBlock: UInt256,
-            producer: BinaryData, privKey: PrivateKey): BlockHeader = {
+            producer: BinaryData, privateKey: PrivateKey): BlockHeader = {
     assert(producer.length == 33)
-    val header = new BlockHeader(index, timeStamp, merkleRoot, prevBlock, producer, BinaryData("0000"))
-    header.sign(privKey)
+    val header = new BlockHeader(index, timeStamp, merkleRoot, prevBlock, producer, BinaryData.empty)
+    header.sign(privateKey)
     header
   }
 

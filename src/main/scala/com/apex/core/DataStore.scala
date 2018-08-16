@@ -16,6 +16,7 @@ object StoreType extends Enumeration {
   val BlkTxMapping = Value(0x05)
   val Account = Value(0x06)
   val Address = Value(0x07)
+  val Producer = Value(0x08)
 }
 
 abstract class DataStore[K <: Serializable, V <: Serializable](val db: LevelDbStorage,
@@ -156,7 +157,7 @@ class HeightStore(db: LevelDbStorage) {
     innerStore.set(IntKey(key), value, batch)
   }
 
-  def delete(key: Int, batch: WriteBatch = null):  Unit = {
+  def delete(key: Int, batch: WriteBatch = null): Unit = {
     innerStore.delete(IntKey(key), batch)
   }
 
@@ -266,52 +267,81 @@ object HeadBlock {
       is.readObj(UInt256.deserialize)
     )
   }
+
+  def fromHeader(header: BlockHeader) = {
+    HeadBlock(header.index, header.id)
+  }
 }
 
-case class UniqueKey(name: String) extends Serializable {
+case class StoreTypeKey(val storeType: StoreType.Value) extends Serializable {
+  val bytes = Array(storeType.id.toByte) ++ storeType.toString.getBytes
+  val Size = bytes.length
+
   override def serialize(os: DataOutputStream): Unit = {
-    import com.apex.common.Serializable.DataOutputStreamExtension
-    os.writeString(name)
+    os.write(bytes)
   }
 }
 
-object UniqueKey {
-  def deserialize(is: DataInputStream): UniqueKey = {
-    import com.apex.common.Serializable.DataInputStreamExtension
-    UniqueKey(is.readString)
+object StoreTypeKey {
+  def deserialize(is: DataInputStream): StoreTypeKey = {
+    StoreTypeKey(StoreType(is.readByte))
   }
 }
 
-class HeadBlockStore(db: LevelDbStorage) {
-  private val key = Array(StoreType.HeadBlock.id.toByte) ++ StoreType.HeadBlock.toString.getBytes
+abstract class StateStore[V <: Serializable](db: LevelDbStorage, storeType: StoreType.Value) extends DataStore[StoreTypeKey, V](db, storeType) {
+  val key = StoreTypeKey(storeType)
 
-  def get(): Option[HeadBlock] = {
-    db.get(key) match {
-      case Some(bytes) => Some(fromBytes(bytes))
-      case None => None
-    }
+  def get(): Option[V] = {
+    get(key)
   }
 
-  def set(blockHeader: BlockHeader, writeBatch: WriteBatch = null): Boolean = {
-    val value = HeadBlock(blockHeader.index, blockHeader.id).toBytes
-    if (writeBatch == null) {
-      db.set(key, value)
-    } else {
-      writeBatch.put(key, value)
-      true
-    }
+  def set(value: V, writeBatch: WriteBatch): Boolean = {
+    set(key, value, writeBatch)
   }
 
-  def delete(writeBatch: WriteBatch = null): Unit = {
-    if (writeBatch == null) {
-      db.delete(key)
-    } else {
-      writeBatch.delete(key)
-    }
+  def delete(writeBatch: WriteBatch): Unit = {
+    delete(key, writeBatch)
+  }
+}
+
+class HeadBlockStore(db: LevelDbStorage) extends StateStore[HeadBlock](db, StoreType.HeadBlock) {
+  override protected def keySize: Int = key.bytes.length
+
+  override protected def toKey(bytes: Array[Byte]): StoreTypeKey = {
+    import com.apex.common.Serializable.Reader
+    bytes.toInstance(StoreTypeKey.deserialize)
   }
 
-  private def fromBytes(bytes: Array[Byte]): HeadBlock = {
+  override protected def toValue(bytes: Array[Byte]): HeadBlock = {
     import com.apex.common.Serializable.Reader
     bytes.toInstance(HeadBlock.deserialize)
+  }
+}
+
+case class ProducerState(val distance: Long) extends Serializable {
+  def plusDistance(n: Long) = this.copy(distance = this.distance + n)
+
+  override def serialize(os: DataOutputStream): Unit = {
+    os.writeLong(distance)
+  }
+}
+
+object ProducerState {
+  def deserialize(is: DataInputStream): ProducerState = {
+    ProducerState(is.readLong)
+  }
+}
+
+class ProducerStateStore(db: LevelDbStorage) extends StateStore[ProducerState](db, StoreType.Producer) {
+  override protected def keySize: Int = key.bytes.length
+
+  override protected def toKey(bytes: Array[Byte]): StoreTypeKey = {
+    import com.apex.common.Serializable.Reader
+    bytes.toInstance(StoreTypeKey.deserialize)
+  }
+
+  override protected def toValue(bytes: Array[Byte]): ProducerState = {
+    import com.apex.common.Serializable.Reader
+    bytes.toInstance(ProducerState.deserialize)
   }
 }

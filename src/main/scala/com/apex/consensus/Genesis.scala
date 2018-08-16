@@ -17,16 +17,17 @@ import net.ceedubs.ficus.Ficus._
 import net.ceedubs.ficus.readers.ArbitraryTypeReader._
 import net.ceedubs.ficus.readers.ValueReader
 
-case class GenesisConfig( blockInterval: Int,
-                          initialWitness: Array[WitnessInfo] )
+case class GenesisConfig(produceInterval: Int,
+                         acceptableTimeError: Int,
+                         initialWitness: Array[WitnessInfo])
 
-case class WitnessInfo( name: String,
-                        pubkey: PublicKey,
-                        privkey: Option[PrivateKey] )
+case class WitnessInfo(name: String,
+                       pubkey: PublicKey,
+                       privkey: Option[PrivateKey])
 
 object Genesis {
 
-  implicit val  publicKeyReader: ValueReader[PublicKey]  = (cfg, path) => new PublicKey(Point(cfg.getString(path)))
+  implicit val publicKeyReader: ValueReader[PublicKey] = (cfg, path) => new PublicKey(Point(cfg.getString(path)))
   implicit val privateKeyReader: ValueReader[PrivateKey] = (cfg, path) => new PrivateKey(BinaryData(cfg.getString(path)))
 
   private def parseConfig(): GenesisConfig = {

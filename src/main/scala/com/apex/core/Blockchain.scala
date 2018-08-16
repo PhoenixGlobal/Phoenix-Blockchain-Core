@@ -1,20 +1,24 @@
 package com.apex.core
 
-import java.io.{DataInputStream, DataOutputStream}
-
-import akka.http.scaladsl.model.DateTime
-import com.apex.common.{ApexLogging, Serializable}
+import com.apex.common.ApexLogging
 import com.apex.core.script.Script
 import com.apex.crypto.Ecdsa.PrivateKey
 import com.apex.crypto.{BinaryData, Crypto, Fixed8, MerkleTree, UInt160, UInt256}
 import com.apex.storage.LevelDbStorage
 import org.iq80.leveldb.WriteBatch
-import play.api.libs.json.Json
 
 import scala.collection.mutable.{Map, Set}
 
 trait Blockchain extends Iterable[Block] with ApexLogging {
   def getLatestHeader: BlockHeader
+
+  def getHeight(): Int
+
+  def getHeadTime(): Long
+
+  def headTimeSinceGenesis(): Long
+
+  def getDistance(): Long
 
   def getHeader(id: UInt256): Option[BlockHeader]
 
@@ -26,7 +30,8 @@ trait Blockchain extends Iterable[Block] with ApexLogging {
 
   def containsBlock(id: UInt256): Boolean
 
-  def produceBlock(transactions: Seq[Transaction]): Option[Block]
+  def produceBlock(producer: BinaryData, privateKey: PrivateKey, timeStamp: Long,
+                   distance: Long, transactions: Seq[Transaction]): Option[Block]
 
   def getTransaction(id: UInt256): Option[Transaction]
 
@@ -51,9 +56,6 @@ object Blockchain {
 class LevelDBBlockchain extends Blockchain {
   private val db: LevelDbStorage = LevelDbStorage.open("main_net")
 
-  private val producer = BinaryData("03b4534b44d1da47e4b4a504a210401a583f860468dec766f507251a057594e682") // TODO: read from settings
-  private val producerPrivKey = new PrivateKey(BinaryData("7a93d447bffe6d89e690f529a3a0bdff8ff6169172458e04849ef1d4eafd7f86"))
-
   private val genesisProducer = BinaryData("03b4534b44d1da47e4b4a504a210401a583f860468dec766f507251a057594e682") // TODO: read from settings
   private val genesisProducerPrivKey = new PrivateKey(BinaryData("7a93d447bffe6d89e690f529a3a0bdff8ff6169172458e04849ef1d4eafd7f86"))
 
@@ -65,6 +67,7 @@ class LevelDBBlockchain extends Blockchain {
   private val blkTxMappingStore = new BlkTxMappingStore(db)
   private val headBlkStore = new HeadBlockStore(db)
   private val utxoStore = new UTXOStore(db)
+  private val prodStateStore = new ProducerStateStore(db)
 
   private val genesisTxOutput = txOutput("f54a5851e9372b87810a8e60cdd2e7cfd80b6e31", UInt256.Zero, 10000, "76a914f54a5851e9372b87810a8e60cdd2e7cfd80b6e3188ac")
   private val minerTxOutput = txOutput("f54a5851e9372b87810a8e60cdd2e7cfd80b6e31", UInt256.Zero, 10, "76a914f54a5851e9372b87810a8e60cdd2e7cfd80b6e3188ac")
@@ -77,11 +80,31 @@ class LevelDBBlockchain extends Blockchain {
 
   private var latestHeader: BlockHeader = genesisBlockHeader
 
+  private var latestProdState: ProducerState = null
+
   populate()
 
   override def iterator: Iterator[Block] = new BlockchainIterator(this)
 
   override def getLatestHeader: BlockHeader = latestHeader
+
+  override def getHeight(): Int = {
+    latestHeader.index
+  }
+
+  override def getHeadTime(): Long = {
+    latestHeader.timeStamp
+  }
+
+  override def headTimeSinceGenesis(): Long = {
+    latestHeader.timeStamp - genesisBlockHeader.timeStamp
+  }
+
+  override def getDistance(): Long = {
+    val state = prodStateStore.get
+    assert(!state.isEmpty)
+    state.get.distance
+  }
 
   override def getHeader(id: UInt256): Option[BlockHeader] = {
     headerStore.get(id)
@@ -118,7 +141,8 @@ class LevelDBBlockchain extends Blockchain {
     headerStore.contains(id)
   }
 
-  override def produceBlock(transactions: Seq[Transaction]): Option[Block] = {
+  override def produceBlock(producer: BinaryData, privateKey: PrivateKey,
+                            timeStamp: Long, distance: Long, transactions: Seq[Transaction]): Option[Block] = {
     def calcBalancesInBlock(balances: Map[UInt160, Map[UInt256, Fixed8]], output: TransactionOutput, spent: Boolean) = {
       val amount = if (spent) -output.amount else output.amount
       balances.get(output.address) match {
@@ -134,14 +158,16 @@ class LevelDBBlockchain extends Blockchain {
     val txs = Seq(minerTx) ++ transactions.filter(verifyTransaction)
     val merkleRoot = MerkleTree.root(txs.map(_.id))
     val header = BlockHeader.build(
-      latestHeader.index + 1, DateTime.now.clicks,
-      merkleRoot, latestHeader.id, producer, producerPrivKey)
+      latestHeader.index + 1, timeStamp, merkleRoot,
+      latestHeader.id, producer, privateKey)
     val block = Block.build(header, txs)
     try {
+      latestProdState = latestProdState plusDistance distance
       db.batchWrite(batch => {
-        headBlkStore.set(header, batch)
         headerStore.set(header.id, header, batch)
         heightStore.set(header.index, header.id, batch)
+        headBlkStore.set(HeadBlock.fromHeader(header), batch)
+        prodStateStore.set(latestProdState, batch)
         val blkTxMapping = BlkTxMapping(block.id, txs.map(_.id))
         blkTxMappingStore.set(block.id, blkTxMapping, batch)
         val balances = Map.empty[UInt160, Map[UInt256, Fixed8]]
@@ -264,7 +290,8 @@ class LevelDBBlockchain extends Blockchain {
       headerStore.set(genesisBlock.id, genesisBlockHeader, batch)
       heightStore.set(genesisBlock.height, genesisBlock.id, batch)
       blkTxMappingStore.set(genesisBlock.id, blkTxMapping, batch)
-      headBlkStore.set(genesisBlockHeader, batch)
+      headBlkStore.set(HeadBlock.fromHeader(genesisBlockHeader), batch)
+      prodStateStore.set(ProducerState(1), batch)
       genesisBlockHeader
     }
 
@@ -274,6 +301,7 @@ class LevelDBBlockchain extends Blockchain {
       blkTxMappingStore.foreach((k, _) => blkTxMappingStore.delete(k, batch))
       accountStore.foreach((k, _) => accountStore.delete(k, batch))
       utxoStore.foreach((k, _) => utxoStore.delete(k, batch))
+      prodStateStore.delete(batch)
       headBlkStore.delete(batch)
       initDB(batch)
     }
@@ -281,12 +309,13 @@ class LevelDBBlockchain extends Blockchain {
     def reInit() = {
       db.batchWrite(reInitDB)
     }
-    
+
     def init(headBlock: HeadBlock) = {
       headerStore.get(headBlock.id).getOrElse(reInit)
     }
 
     latestHeader = headBlkStore.get.map(init).getOrElse(reInit)
+    latestProdState = prodStateStore.get.get
   }
 
   private def verifyHeader(header: BlockHeader): Boolean = {
