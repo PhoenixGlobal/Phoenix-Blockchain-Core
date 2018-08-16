@@ -9,7 +9,9 @@
 package com.apex.consensus
 
 import java.io.File
-import com.apex.crypto.Ecdsa.{Point, PublicKey}
+
+import com.apex.crypto.BinaryData
+import com.apex.crypto.Ecdsa.{Point, PrivateKey, PublicKey}
 import com.typesafe.config.{Config, ConfigFactory}
 import net.ceedubs.ficus.Ficus._
 import net.ceedubs.ficus.readers.ArbitraryTypeReader._
@@ -19,11 +21,13 @@ case class GenesisConfig( blockInterval: Int,
                           initialWitness: Array[WitnessInfo] )
 
 case class WitnessInfo( name: String,
-                        key: PublicKey)
+                        pubkey: PublicKey,
+                        privkey: Option[PrivateKey] )
 
 object Genesis {
 
-  implicit val publicKeyReader: ValueReader[PublicKey] = (cfg, path) => new PublicKey(Point(cfg.getString(path)))
+  implicit val  publicKeyReader: ValueReader[PublicKey]  = (cfg, path) => new PublicKey(Point(cfg.getString(path)))
+  implicit val privateKeyReader: ValueReader[PrivateKey] = (cfg, path) => new PrivateKey(BinaryData(cfg.getString(path)))
 
   private def parseConfig(): GenesisConfig = {
 
