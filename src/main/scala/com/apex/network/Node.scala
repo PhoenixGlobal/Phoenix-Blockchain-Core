@@ -41,13 +41,14 @@ class LocalNode(val peerManager: ActorRef) extends Actor with ApexLogging {
     override def run(): Unit = {
       while (!cancelled) {
         producer.produce(memPool.values.toSeq) match {
+          case NotSynced(_, _) => log.info(s"not synced")
           case NotYet(npt, ct) => log.debug(s"next produce time: $npt, current time: $ct")
           case TimeMissed(tpt, ct) => log.debug(s"missed, this produce time: $tpt, current time: $ct")
           case NotMyTurn(name, _) => log.info(s"not my turn, ($name)")
           case Failed(e) => log.error("error occurred when producing block", e)
           case Success(block) => block match {
             case Some(blk) => {
-              peerManager ! Message(MessageType.BlockProduced, blk.id.data)
+              peerManager ! MessagePack(MessageType.BlockProduced, blk.id.data)
               log.info(s"block (${blk.height}, ${blk.timeStamp}) produced")
             }
             case None => log.error("produce block failed")
@@ -116,43 +117,34 @@ class LocalNode(val peerManager: ActorRef) extends Actor with ApexLogging {
   }
 
   override def receive: Receive = {
-    case data: ByteString => {
-      println(data)
+    case message: Message => message match {
+      case VersionMessage(height) => {
+        if (height < Blockchain.Current.getHeight) {
+          sender() ! GetBlockMessage(height).pack
+        }
+      }
+      case GetBlockMessage(height) => {
+        Blockchain.Current.getBlock(height) match {
+          case Some(block) => sender() ! BlockMessage(block).pack
+          case None => log.error(s"get block($height) failed")
+        }
+      }
+      case BlockMessage(block) => {
+        if (!Blockchain.Current.tryInsertBlock(block)) {
+          sender() ! GetBlockMessage(block.height + 1).pack
+        } else {
+          log.error(s"insert block(${block.height}, ${block.id}) failed")
+        }
+      }
     }
-    case blk: Block => {
-      println(Json.toJson(blk))
-    }
-//    case BroadCastPeers(peers) => {
-//      connectedPeers = peers
-//    }
     case BeginProduce(config) => {
       beginProduce(config)
-    }
-    case BroadCastBlock(id) => {
-      peerManager ! GetBroadCastPeers
-    }
-    case NewBlock(id) => {
-      sender() ! GetBlock(id)
-    }
-    case GetBlock(id) => {
-      Blockchain.Current.getBlock(id) match {
-        case Some(block) => sender() ! block
-        case None => sender() ! GetBlockFailed
-      }
     }
     case unknown: Any => println(unknown)
   }
 }
 
 object LocalNode {
-
-  case class NewBlock(id: UInt256)
-
-  case class BroadCastBlock(id: UInt256)
-
-  case class GetBlock(id: UInt256)
-
-  case class GetBlockFailed()
 
   case class BeginProduce(config: GenesisConfig)
 

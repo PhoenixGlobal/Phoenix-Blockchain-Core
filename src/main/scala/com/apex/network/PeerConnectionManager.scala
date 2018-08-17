@@ -142,7 +142,7 @@ class PeerConnectionManager(val settings: NetworkSettings,
 
   //发送消息
   def workingCycleLocalInterface: Receive = {
-    case msg: Message =>
+    case msg: MessagePack =>
       println(msg.messageType.toString)
       connection ! Write(ByteString(Array(msg.messageType.id.toByte) ++ msg.data))
 
@@ -155,7 +155,7 @@ class PeerConnectionManager(val settings: NetworkSettings,
   //接收消息
   def workingCycleRemoteInterface: Receive = {
     case Received(data) =>
-      nodeRef ! data
+      nodeRef ! MessagePack.fromBytes(data.toArray)
   }
 
   private def reportStrangeInput: Receive = {
@@ -169,13 +169,13 @@ class PeerConnectionManager(val settings: NetworkSettings,
       processErrors(WorkingCycle.toString) orElse
       reportStrangeInput
 
-  override def preStart: Unit = {
-    peerHandlerManagerRef ! DoConnecting(remote, direction)
-    handshakeTimeoutCancellableOpt = Some(context.system.scheduler.scheduleOnce(settings.handshakeTimeout)
-    (self ! HandshakeTimeout))
-    connection ! Register(self, keepOpenOnPeerClosed = false, useResumeWriting = true)
-    connection ! ResumeReading
-  }
+//  override def preStart: Unit = {
+//    peerHandlerManagerRef ! DoConnecting(remote, direction)
+//    handshakeTimeoutCancellableOpt = Some(context.system.scheduler.scheduleOnce(settings.handshakeTimeout)
+//    (self ! HandshakeTimeout))
+//    connection ! Register(self, keepOpenOnPeerClosed = false, useResumeWriting = true)
+//    connection ! ResumeReading
+//  }
 
   override def receive: Receive = handshake
 

@@ -19,6 +19,8 @@ import com.apex.crypto.Ecdsa.PublicKey
 
 trait ProduceState
 
+case class NotSynced(nextProduceTime: Long, currTime: Long) extends ProduceState
+
 case class NotYet(nextProduceTime: Long, currTime: Long) extends ProduceState
 
 case class TimeMissed(thisProduceTime: Long, currTime: Long) extends ProduceState
@@ -33,33 +35,50 @@ class BlockProducer(val witnesses: Array[Witness],
                     val produceInterval: Int,
                     val acceptableTimeError: Int) {
 
+  private var canProduce = false
+
   def produce(txs: Seq[Transaction]): ProduceState = {
     try {
       val now: Long = Instant.now.toEpochMilli
-      val (distance, timeToProduce) = getDistanceAndProduceTime(now + acceptableTimeError)
-      if (distance == 0) {
-        NotYet(timeToProduce, now)
+
+      if (canProduce) {
+        tryProduce(txs, now)
       } else {
-        if ((now - timeToProduce).abs > acceptableTimeError) {
-          TimeMissed(timeToProduce, now)
+        val next = nextProduceTime()
+        if (next >= now) {
+          canProduce = true
+          tryProduce(txs, now)
         } else {
-          val witness = getWitness(distance)
-          if (witness.privkey.isEmpty) {
-            NotMyTurn(witness.name, witness.pubkey)
-          } else {
-            val block = Blockchain.Current.produceBlock(
-              witness.pubkey.toBin,
-              witness.privkey.get,
-              now + acceptableTimeError,
-              distance,
-              txs
-            )
-            Success(block)
-          }
+          NotSynced(next, now)
         }
       }
     } catch {
       case e: Throwable => Failed(e)
+    }
+  }
+
+  private def tryProduce(txs: Seq[Transaction], now: Long) = {
+    val (distance, timeToProduce) = getDistanceAndProduceTime(now + acceptableTimeError)
+    if (distance == 0) {
+      NotYet(timeToProduce, now)
+    } else {
+      if ((now - timeToProduce).abs > acceptableTimeError) {
+        TimeMissed(timeToProduce, now)
+      } else {
+        val witness = getWitness(distance)
+        if (witness.privkey.isEmpty) {
+          NotMyTurn(witness.name, witness.pubkey)
+        } else {
+          val block = Blockchain.Current.produceBlock(
+            witness.pubkey.toBin,
+            witness.privkey.get,
+            now + acceptableTimeError,
+            distance,
+            txs
+          )
+          Success(block)
+        }
+      }
     }
   }
 

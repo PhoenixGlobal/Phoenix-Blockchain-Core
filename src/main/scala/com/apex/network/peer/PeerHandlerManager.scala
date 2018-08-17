@@ -91,8 +91,19 @@ class PeerHandlerManager(settings: ApexSettings, timeProvider: NetworkTimeProvid
 //      val msg = Message[Unit](GetPeersSpec, Right(Unit), None)
 //      handler! msg
 
-    case Message(a, b) =>
-      connectedPeers.values.foreach(_.handlerRef ! Message(a, b))
+    case MessagePack(a, b, c) =>
+      c match {
+        case Some(address) => {
+          connectedPeers.get(address) match {
+            case Some(peer) => peer.handlerRef ! MessagePack(a, b)
+            case None => log.error(s"peer($address) not exists")
+          }
+        }
+        case None => {
+          connectedPeers.values.foreach(_.handlerRef ! MessagePack(a, b))
+        }
+      }
+
   }
 
 
