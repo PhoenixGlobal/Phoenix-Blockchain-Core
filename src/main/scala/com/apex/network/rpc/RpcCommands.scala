@@ -74,7 +74,7 @@ case class SendCmd(address: String, assetId: UInt256, amount: String) {
   def run(): JsValue = {
     val tx = Wallet.makeTransaction(address, assetId, Fixed8.fromDecimal(BigDecimal(amount)))
     if (tx != None) {
-      LocalNode.default.addTransaction(tx.get)
+//TODO:      LocalNode.default.addTransaction(tx.get)
       val txid = tx.get.id.toString
       Json.parse( s"""  { "result": "OK", "txid":"$txid"  }""")
     }

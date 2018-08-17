@@ -2,15 +2,16 @@ package com.apex
 
 import akka.actor.ActorSystem
 import com.apex.consensus.Genesis
-import com.apex.core.{Block, Blockchain, Transaction}
-import com.apex.crypto.{Fixed8, UInt256}
-import com.apex.network.LocalNode
-
-import scala.collection.mutable.StringBuilder
+import com.apex.core.settings.ApexSettings
+import com.apex.core.utils.NetworkTimeProvider
+import com.apex.main.HybridSettings
+import com.apex.network.peer.PeerHandlerManagerRef
 import com.apex.network.rpc.RpcServer
+import com.apex.network.upnp.UPnP
+import com.apex.network.{LocalNode, LocalNodeRef, NetworkManagerRef}
 import com.apex.wallets.Wallet
 
-import scala.concurrent.duration.Duration
+import scala.concurrent.ExecutionContext
 import scala.io.StdIn
 
 
@@ -25,8 +26,25 @@ object MainEntry {
 
     //LocalNode.default.addTransaction(tx)
     //    val block2 = Blockchain.Current.produceBlock(LocalNode.default.getMemoryPool())
-    val task = LocalNode.default.beginProduce(Genesis.config)
-//    producer.wait()
+    val settingsFilename = args.headOption.getOrElse("settings.conf")
+    val hybridSettings = HybridSettings.read(Some(settingsFilename))
+    val settings: ApexSettings = hybridSettings.apexSettings
+
+    implicit val actorSystem = ActorSystem(settings.network.agentName)
+    implicit val executionContext: ExecutionContext = actorSystem.dispatchers.lookup("apex.executionContext")
+
+    //p2p
+    val upnp = new UPnP(settings.network)
+
+    val timeProvider = new NetworkTimeProvider(settings.ntp)
+//    val node = LocalNode.launch(settings, timeProvider)
+
+    val peerManagerRef = PeerHandlerManagerRef(settings, timeProvider)
+    val localNodeRef = LocalNodeRef(peerManagerRef)
+    val networkControllerRef = NetworkManagerRef(settings.network, upnp, timeProvider, peerManagerRef, localNodeRef)
+    LocalNode.beginProduce(localNodeRef, Genesis.config)
+//    val task = node.beginProduce(Genesis.config)
+    //    producer.wait()
     //    val block3 = Blockchain.Current.produceBlock(Seq.empty)
 
     RpcServer.run()
@@ -38,6 +56,5 @@ object MainEntry {
     System.out.println("Press RETURN to stop...")
     StdIn.readLine() // let it run until user presses return
     RpcServer.stop() //System.out.println("main end...")
-    task.cancel()
   }
 }

@@ -1,7 +1,7 @@
 /*
  * Copyright  2018 APEX Technologies.Co.Ltd. All rights reserved.
  *
- * FileName: LocalNode.scala
+ * FileName: Node.scala
  *
  * @author: shan.huang@chinapex.com: 2018-7-25 下午1:06@version: 1.0
  */
@@ -10,18 +10,28 @@ package com.apex.network
 
 import java.time.{Duration, Instant}
 
-import akka.actor.ActorSystem
+import akka.actor.{Actor, ActorRef, ActorSystem, Props}
+import akka.util.ByteString
 import com.apex.common.ApexLogging
 import com.apex.consensus.GenesisConfig
 import com.apex.core._
+import com.apex.core.settings.ApexSettings
+import com.apex.core.utils.NetworkTimeProvider
 import com.apex.crypto.UInt256
+import com.apex.network.LocalNode._
+import com.apex.network.peer.PeerHandlerManager.ReceivableMessages.{BroadCastPeers, GetBroadCastPeers, GetConnectedPeers}
+import com.apex.network.peer.{PeerHandlerManager, PeerHandlerManagerRef}
+import play.api.libs.json.Json
 
 import scala.collection.mutable.Map
 
-class LocalNode() extends ApexLogging {
+class LocalNode(val peerManager: ActorRef) extends Actor with ApexLogging {
+
   private val memPool: Map[UInt256, Transaction] = Map.empty
 
   private val connectedMax: Int = 10
+
+  private var connectedPeers: Seq[ConnectedPeer] = Seq.empty
 
   class ProduceTask(val producer: BlockProducer, private var cancelled: Boolean = false) extends Runnable {
     def cancel(): Unit = {
@@ -36,7 +46,10 @@ class LocalNode() extends ApexLogging {
           case NotMyTurn(name, _) => log.info(s"not my turn, ($name)")
           case Failed(e) => log.error("error occurred when producing block", e)
           case Success(block) => block match {
-            case Some(blk) => log.info(s"block (${blk.height}, ${blk.timeStamp}) produced")
+            case Some(blk) => {
+              peerManager ! Message(MessageType.BlockProduced, blk.id.data)
+              log.info(s"block (${blk.height}, ${blk.timeStamp}) produced")
+            }
             case None => log.error("produce block failed")
           }
         }
@@ -49,7 +62,7 @@ class LocalNode() extends ApexLogging {
     }
   }
 
-  def beginProduce(config: GenesisConfig): ProduceTask = {
+  def beginProduce(config: GenesisConfig): Unit = {
     val actorSystem = ActorSystem()
     val scheduler = actorSystem.scheduler
     implicit val executor = actorSystem.dispatcher
@@ -61,7 +74,6 @@ class LocalNode() extends ApexLogging {
 
     val task = new ProduceTask(blockProducer)
     scheduler.scheduleOnce(Duration.ZERO, task)
-    task
   }
 
   // connectedPeers
@@ -102,8 +114,65 @@ class LocalNode() extends ApexLogging {
   def removeTransactionsInBlock(block: Block) = {
     //TODO
   }
+
+  override def receive: Receive = {
+    case data: ByteString => {
+      println(data)
+    }
+    case blk: Block => {
+      println(Json.toJson(blk))
+    }
+//    case BroadCastPeers(peers) => {
+//      connectedPeers = peers
+//    }
+    case BeginProduce(config) => {
+      beginProduce(config)
+    }
+    case BroadCastBlock(id) => {
+      peerManager ! GetBroadCastPeers
+    }
+    case NewBlock(id) => {
+      sender() ! GetBlock(id)
+    }
+    case GetBlock(id) => {
+      Blockchain.Current.getBlock(id) match {
+        case Some(block) => sender() ! block
+        case None => sender() ! GetBlockFailed
+      }
+    }
+    case unknown: Any => println(unknown)
+  }
 }
 
 object LocalNode {
-  final val default = new LocalNode()
+
+  case class NewBlock(id: UInt256)
+
+  case class BroadCastBlock(id: UInt256)
+
+  case class GetBlock(id: UInt256)
+
+  case class GetBlockFailed()
+
+  case class BeginProduce(config: GenesisConfig)
+
+  def beginProduce(localNodeRef: ActorRef, config: GenesisConfig): Unit = {
+    localNodeRef ! BeginProduce(config)
+  }
+
+  //  //  final val default = new LocalNode()
+  //  def launch(settings: ApexSettings, timeProvider: NetworkTimeProvider): LocalNode = {
+  //    new LocalNode(settings, timeProvider)
+  //  }
+}
+
+object LocalNodeRef {
+  def props(peerManager: ActorRef): Props = Props(new LocalNode(peerManager))
+
+  def apply(peerManager: ActorRef)
+           (implicit system: ActorSystem): ActorRef = system.actorOf(props(peerManager))
+
+  def apply(peerManager: ActorRef, name: String)
+           (implicit system: ActorSystem): ActorRef = system.actorOf(props(peerManager), name)
+
 }
