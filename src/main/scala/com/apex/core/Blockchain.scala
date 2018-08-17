@@ -33,6 +33,8 @@ trait Blockchain extends Iterable[Block] with ApexLogging {
   def produceBlock(producer: BinaryData, privateKey: PrivateKey, timeStamp: Long,
                    distance: Long, transactions: Seq[Transaction]): Option[Block]
 
+  def tryInsertBlock(block: Block): Boolean
+
   def getTransaction(id: UInt256): Option[Transaction]
 
   def containsTransaction(id: UInt256): Boolean
@@ -141,8 +143,7 @@ class LevelDBBlockchain extends Blockchain {
     headerStore.contains(id)
   }
 
-  override def produceBlock(producer: BinaryData, privateKey: PrivateKey,
-                            timeStamp: Long, distance: Long, transactions: Seq[Transaction]): Option[Block] = {
+  private def saveBlockToStores(block: Block): Boolean = {
     def calcBalancesInBlock(balances: Map[UInt160, Map[UInt256, Fixed8]], output: TransactionOutput, spent: Boolean) = {
       val amount = if (spent) -output.amount else output.amount
       balances.get(output.address) match {
@@ -153,25 +154,16 @@ class LevelDBBlockchain extends Blockchain {
           Map((output.assetId, amount)))
       }
     }
-
-    val minerTx = new MinerTransaction(Seq(minerTxOutput), Crypto.randomBytes(16))
-    val txs = Seq(minerTx) ++ transactions.filter(verifyTransaction)
-    val merkleRoot = MerkleTree.root(txs.map(_.id))
-    val header = BlockHeader.build(
-      latestHeader.index + 1, timeStamp, merkleRoot,
-      latestHeader.id, producer, privateKey)
-    val block = Block.build(header, txs)
     try {
-      latestProdState = latestProdState plusDistance distance
       db.batchWrite(batch => {
-        headerStore.set(header.id, header, batch)
-        heightStore.set(header.index, header.id, batch)
-        headBlkStore.set(HeadBlock.fromHeader(header), batch)
+        headerStore.set(block.header.id, block.header, batch)
+        heightStore.set(block.header.index, block.header.id, batch)
+        headBlkStore.set(HeadBlock.fromHeader(block.header), batch)
         prodStateStore.set(latestProdState, batch)
-        val blkTxMapping = BlkTxMapping(block.id, txs.map(_.id))
+        val blkTxMapping = BlkTxMapping(block.id, block.transactions.map(_.id))
         blkTxMappingStore.set(block.id, blkTxMapping, batch)
         val balances = Map.empty[UInt160, Map[UInt256, Fixed8]]
-        txs.foreach(tx => {
+        block.transactions.foreach(tx => {
           txStore.set(tx.id, tx, batch)
           for (index <- 0 to tx.outputs.length - 1) {
             val key = UTXOKey(tx.id, index)
@@ -197,14 +189,40 @@ class LevelDBBlockchain extends Blockchain {
           accountStore.set(p._1, account, batch)
         })
       })
-      latestHeader = header
-      Some(block)
+      latestHeader = block.header
+      true
     } catch {
       case e: Throwable => {
         log.error("produce block failed", e)
-        None
+        false
       }
     }
+  }
+
+  override def produceBlock(producer: BinaryData, privateKey: PrivateKey,
+                            timeStamp: Long, distance: Long, transactions: Seq[Transaction]): Option[Block] = {
+    val minerTx = new MinerTransaction(Seq(minerTxOutput), Crypto.randomBytes(16))
+    val txs = Seq(minerTx) ++ transactions.filter(verifyTransaction)
+    val merkleRoot = MerkleTree.root(txs.map(_.id))
+    val header = BlockHeader.build(
+      latestHeader.index + 1, timeStamp, merkleRoot,
+      latestHeader.id, producer, privateKey)
+    val block = Block.build(header, txs)
+
+    latestProdState = latestProdState plusDistance distance
+
+    if (tryInsertBlock(block))
+      Some(block)
+    else
+      None
+  }
+
+  override def tryInsertBlock(block: Block): Boolean = {
+    if (verifyBlock(block))
+      if (saveBlockToStores(block))
+        return true
+
+    return false
   }
 
   override def getTransaction(id: UInt256): Option[Transaction] = {
@@ -236,6 +254,11 @@ class LevelDBBlockchain extends Blockchain {
         } else {
           None
         }).getOrElse(None)
+    }
+
+    if (tx.txType == TransactionType.Miner) {
+      // TODO check miner and only one miner tx
+      return true
     }
 
     var isValid = true
@@ -319,13 +342,20 @@ class LevelDBBlockchain extends Blockchain {
   }
 
   private def verifyHeader(header: BlockHeader): Boolean = {
-    if (header.index != latestHeader.index + 1
-      || header.timeStamp < latestHeader.timeStamp
-      || !header.id.equals(latestHeader.id)) {
-      false
-    } else {
-      true
-    }
+    if (header.index != latestHeader.index + 1)
+      return false
+    if (header.timeStamp < latestHeader.timeStamp)
+      return false
+    if (header.id.equals(latestHeader.id))
+      return false
+    if (!header.prevBlock.equals(latestHeader.id))
+      return false
+    if (header.producer.length != 33)
+      return false
+    if (!header.verifySig())
+      return false
+
+    true
   }
 
   private def txOutput(address: String, assetId: UInt256, amount: BigDecimal, script: String): TransactionOutput = {
