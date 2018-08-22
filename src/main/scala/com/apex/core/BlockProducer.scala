@@ -13,6 +13,7 @@
 package com.apex.core
 
 import java.time.Instant
+import java.math.BigInteger
 
 import com.apex.consensus.Witness
 import com.apex.crypto.Ecdsa.PublicKey
@@ -103,4 +104,30 @@ class BlockProducer(val witnesses: Array[Witness],
     val pos = dis % witnesses.length
     witnesses(pos.toInt)
   }
+
+  def updateWitnessSchedule(nowSec: Long, witnesses: Array[Witness]): Array[Witness] = {
+    var newWitness = witnesses.clone()
+
+    val nowHi = new BigInteger(nowSec.toString).shiftLeft(32)
+    val param = new BigInteger("2685821657736338717")
+
+    for (i <- 0 to newWitness.size - 1) {
+      val ii = BigInteger.valueOf(i)
+      var k = ii.multiply(param).add(nowHi)
+      k = k.xor(k.shiftRight(12))
+      k = k.xor(k.shiftLeft(25))
+      k = k.xor(k.shiftRight(27))
+      k = k.multiply(param)
+
+      val jmax = newWitness.size - i;
+      val j = k.remainder(BigInteger.valueOf(jmax)).add(ii).intValue()
+
+      val a = newWitness(i)
+      val b = newWitness(j)
+      newWitness.update(i, b)
+      newWitness.update(j, a)
+    }
+    newWitness
+  }
+
 }
