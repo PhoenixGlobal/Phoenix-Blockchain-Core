@@ -11,17 +11,11 @@ package com.apex.network
 import java.time.{Duration, Instant}
 
 import akka.actor.{Actor, ActorRef, ActorSystem, Props}
-import akka.util.ByteString
 import com.apex.common.ApexLogging
-import com.apex.consensus.GenesisConfig
 import com.apex.core._
-import com.apex.core.settings.ApexSettings
-import com.apex.core.utils.NetworkTimeProvider
+import com.apex.core.settings.ConsesusConfig
 import com.apex.crypto.UInt256
 import com.apex.network.LocalNode._
-import com.apex.network.peer.PeerHandlerManager.ReceivableMessages.{BroadCastPeers, GetBroadCastPeers, GetConnectedPeers}
-import com.apex.network.peer.{PeerHandlerManager, PeerHandlerManagerRef}
-import play.api.libs.json.Json
 
 import scala.collection.mutable.Map
 
@@ -63,7 +57,7 @@ class LocalNode(val peerManager: ActorRef) extends Actor with ApexLogging {
     }
   }
 
-  def beginProduce(config: GenesisConfig): Unit = {
+  def beginProduce(config: ConsesusConfig): Unit = {
     val actorSystem = ActorSystem()
     val scheduler = actorSystem.scheduler
     implicit val executor = actorSystem.dispatcher
@@ -146,9 +140,9 @@ class LocalNode(val peerManager: ActorRef) extends Actor with ApexLogging {
 
 object LocalNode {
 
-  case class BeginProduce(config: GenesisConfig)
+  case class BeginProduce(config: ConsesusConfig)
 
-  def beginProduce(localNodeRef: ActorRef, config: GenesisConfig): Unit = {
+  def beginProduce(localNodeRef: ActorRef, config: ConsesusConfig): Unit = {
     localNodeRef ! BeginProduce(config)
   }
 

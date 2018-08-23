@@ -4,6 +4,7 @@ import java.net.InetAddress
 import java.util.concurrent.atomic.AtomicLong
 
 import com.apex.common.ApexLogging
+import com.apex.core.settings.NetworkTimeProviderSettings
 import org.apache.commons.net.ntp.NTPUDPClient
 
 import scala.concurrent.duration._
@@ -16,8 +17,6 @@ object NetworkTime {
   type Offset = Long
   type Time = Long
 }
-
-case class NetworkTimeProviderSettings(server: String, updateEvery: FiniteDuration, timeout: FiniteDuration)
 
 class NetworkTimeProvider(ntpSettings: NetworkTimeProviderSettings)(implicit ec: ExecutionContext)
   extends ApexLogging {

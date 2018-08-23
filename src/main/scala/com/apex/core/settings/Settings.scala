@@ -4,10 +4,8 @@ import java.io.File
 import java.net.InetSocketAddress
 
 import com.apex.common.ApexLogging
+import com.apex.crypto.Ecdsa.{PrivateKey, PublicKey}
 import com.typesafe.config.{Config, ConfigFactory}
-import net.ceedubs.ficus.Ficus._
-import net.ceedubs.ficus.readers.ArbitraryTypeReader._
-import com.apex.core.utils.NetworkTimeProviderSettings
 
 import scala.concurrent.duration._
 
@@ -27,14 +25,25 @@ case class NetworkSettings(nodeName: String,
                            agentName: String,
                            maxPacketSize: Int,
                            controllerTimeout: Option[FiniteDuration])
+
+case class NetworkTimeProviderSettings(server: String, updateEvery: FiniteDuration, timeout: FiniteDuration)
                                                       
 
 case class ApexSettings(dataDir: File,
                           logDir: File,
                           network: NetworkSettings,
-                          ntp: NetworkTimeProviderSettings
+                          ntp: NetworkTimeProviderSettings,
+                          genesisConfig: ConsesusConfig
                          )
 
+
+case class ConsesusConfig(produceInterval: Int,
+                          acceptableTimeError: Int,
+                          initialWitness: Array[Witness])
+
+case class Witness(name: String,
+                   pubkey: PublicKey,
+                   privkey: Option[PrivateKey])
 
 object ApexSettings extends ApexLogging with SettingsReaders {
 
@@ -66,11 +75,4 @@ object ApexSettings extends ApexLogging with SettingsReaders {
     config
   }
 
-  def read(userConfigPath: Option[String]): ApexSettings = {
-    fromConfig(readConfigFromPath(userConfigPath, configPath))
-  }
-
-  def fromConfig(config: Config): ApexSettings = {
-    config.as[ApexSettings](configPath)
-  }
 }

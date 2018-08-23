@@ -1,7 +1,6 @@
 package com.apex
 
 import akka.actor.ActorSystem
-import com.apex.consensus.Genesis
 import com.apex.core.settings.ApexSettings
 import com.apex.core.utils.NetworkTimeProvider
 import com.apex.main.HybridSettings
@@ -42,7 +41,7 @@ object MainEntry {
     val peerManagerRef = PeerHandlerManagerRef(settings, timeProvider)
     val localNodeRef = LocalNodeRef(peerManagerRef)
     val networkControllerRef = NetworkManagerRef(settings.network, upnp, timeProvider, peerManagerRef, localNodeRef)
-    LocalNode.beginProduce(localNodeRef, Genesis.config)
+    LocalNode.beginProduce(localNodeRef, settings.genesisConfig)
 //    val task = node.beginProduce(Genesis.config)
     //    producer.wait()
     //    val block3 = Blockchain.Current.produceBlock(Seq.empty)

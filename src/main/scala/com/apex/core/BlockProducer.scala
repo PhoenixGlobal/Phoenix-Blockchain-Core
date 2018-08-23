@@ -12,10 +12,10 @@
 
 package com.apex.core
 
-import java.time.Instant
 import java.math.BigInteger
+import java.time.Instant
 
-import com.apex.consensus.Witness
+import com.apex.core.settings.Witness
 import com.apex.crypto.Ecdsa.PublicKey
 
 trait ProduceState

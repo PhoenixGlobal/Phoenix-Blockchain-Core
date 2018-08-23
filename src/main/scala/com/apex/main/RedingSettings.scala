@@ -3,11 +3,13 @@ package com.apex.main
 import com.apex.common.ApexLogging
 import com.apex.core.settings.ApexSettings.readConfigFromPath
 import com.apex.core.settings._
+import com.apex.crypto.BinaryData
+import com.apex.crypto.Ecdsa.{Point, PrivateKey, PublicKey}
 import com.typesafe.config.Config
 import net.ceedubs.ficus.Ficus._
 import net.ceedubs.ficus.readers.ArbitraryTypeReader._
 import net.ceedubs.ficus.readers.ValueReader
-import scala.concurrent.duration._
+
 import scala.util.Random
 
 case class HybridSettings(apexSettings: ApexSettings)
@@ -20,9 +22,13 @@ object HybridSettings extends ApexLogging with SettingsReaders {
   implicit val networkSettingsValueReader: ValueReader[HybridSettings] =
     (cfg: Config, path: String) => fromConfig(cfg.getConfig(path))
 
+
+  implicit val publicKeyReader: ValueReader[PublicKey] = (cfg, path) => new PublicKey(Point(cfg.getString(path)))
+  implicit val privateKeyReader: ValueReader[PrivateKey] = (cfg, path) => new PrivateKey(BinaryData(cfg.getString(path)))
+
   private def fromConfig(config: Config): HybridSettings = {
     val apexSettings = config.as[ApexSettings]("apex")
-    
+
 //    val discover = GatewayDiscover()
 //    if (discover.isEmpty) {
 //      log.info("There are no UPnP gateway devices")
