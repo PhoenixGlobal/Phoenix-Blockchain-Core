@@ -4,6 +4,7 @@ import java.nio.file.{Path, Paths}
 import java.security.MessageDigest
 
 import akka.actor.ActorSystem
+import com.apex.common.ApexLogging
 import com.apex.core.settings.ApexSettings
 import com.apex.core.utils.NetworkTimeProvider
 import com.apex.main.HybridSettings
@@ -19,12 +20,13 @@ import scala.concurrent.ExecutionContext
 import scala.io.StdIn
 
 
-object MainEntry {
+object MainEntry extends ApexLogging{
 
   def main(args: Array[String]): Unit = {
 
-    parseArgs(args)
-
+    val ns = parseArgs(args)
+    val hybridSettings = getApexSettings(ns)
+    val settings: ApexSettings = hybridSettings.apexSettings
     //    val block1 = Blockchain.Current.produceBlock(Seq.empty)
 
     Wallet.importPrivKeyFromWIF("Kx45GeUBSMPReYQwgXiKhG9FzNXrnCeutJp4yjTd5kKxCitadm3C")
@@ -32,9 +34,6 @@ object MainEntry {
 
     //LocalNode.default.addTransaction(tx)
     //    val block2 = Blockchain.Current.produceBlock(LocalNode.default.getMemoryPool())
-    val settingsFilename = args.headOption.getOrElse("settings.conf")
-    val hybridSettings = HybridSettings.read(Some(settingsFilename))
-    val settings: ApexSettings = hybridSettings.apexSettings
 
     implicit val actorSystem = ActorSystem(settings.network.agentName)
     implicit val executionContext: ExecutionContext = actorSystem.dispatchers.lookup("apex.executionContext")
@@ -64,7 +63,7 @@ object MainEntry {
     RpcServer.stop() //System.out.println("main end...")
   }
 
-  private def parseArgs(args: Array[String]): Unit ={
+  private def parseArgs(args: Array[String]): Namespace ={
     val parser: ArgumentParser  = ArgumentParsers.newFor("MainEntry").build().defaultHelp(true)
       .description("check cli params")
     parser.addArgument("configFile").nargs("*").help("files for configuration")
@@ -78,7 +77,7 @@ object MainEntry {
         System.exit(1)
       }
     }
-    getApexSettings(ns)
+    ns
   }
 
   private def getApexSettings(ns: Namespace): HybridSettings = {
@@ -88,24 +87,11 @@ object MainEntry {
       val conf = files.toArray().head.toString
       getConfig(conf)
     }
-    else {
-      getConfig()
-    }
+    else getConfig()
+
   }
 
   private def getConfig(file: String = "settings.conf"): HybridSettings ={
-    val conf = HybridSettings.read(Some(file))
-    conf
-  }
-
-  private def tryWith(f: => Unit): Unit ={
-    try{
-      f
-    }
-
-    catch {
-      case e: Exception => {
-      }
-    }
+    HybridSettings.read(Some(file))
   }
 }
