@@ -1,5 +1,8 @@
 package com.apex
 
+import java.nio.file.{Path, Paths}
+import java.security.MessageDigest
+
 import akka.actor.ActorSystem
 import com.apex.core.settings.ApexSettings
 import com.apex.core.utils.NetworkTimeProvider
@@ -9,6 +12,8 @@ import com.apex.network.rpc.RpcServer
 import com.apex.network.upnp.UPnP
 import com.apex.network.{LocalNode, LocalNodeRef, NetworkManagerRef}
 import com.apex.wallets.Wallet
+import net.sourceforge.argparse4j.ArgumentParsers
+import net.sourceforge.argparse4j.inf.{ArgumentParser, ArgumentParserException, Namespace}
 
 import scala.concurrent.ExecutionContext
 import scala.io.StdIn
@@ -17,6 +22,8 @@ import scala.io.StdIn
 object MainEntry {
 
   def main(args: Array[String]): Unit = {
+
+    parseArgs(args)
 
     //    val block1 = Blockchain.Current.produceBlock(Seq.empty)
 
@@ -55,5 +62,50 @@ object MainEntry {
     System.out.println("Press RETURN to stop...")
     StdIn.readLine() // let it run until user presses return
     RpcServer.stop() //System.out.println("main end...")
+  }
+
+  private def parseArgs(args: Array[String]): Unit ={
+    val parser: ArgumentParser  = ArgumentParsers.newFor("MainEntry").build().defaultHelp(true)
+      .description("check cli params")
+    parser.addArgument("configFile").nargs("*").help("files for configuration")
+    var ns: Namespace = null
+    try{
+      ns = parser.parseArgs(args)
+    }
+    catch{
+      case e: ArgumentParserException => {
+        parser.handleError(e)
+        System.exit(1)
+      }
+    }
+    getApexSettings(ns)
+  }
+
+  private def getApexSettings(ns: Namespace): HybridSettings = {
+    val digest: MessageDigest = null
+    val files = ns.getList[String]("configFile")
+    if(files.size() > 0){
+      val conf = files.toArray().head.toString
+      getConfig(conf)
+    }
+    else {
+      getConfig()
+    }
+  }
+
+  private def getConfig(file: String = "settings.conf"): HybridSettings ={
+    val conf = HybridSettings.read(Some(file))
+    conf
+  }
+
+  private def tryWith(f: => Unit): Unit ={
+    try{
+      f
+    }
+
+    catch {
+      case e: Exception => {
+      }
+    }
   }
 }
