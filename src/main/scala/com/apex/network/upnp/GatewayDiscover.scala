@@ -1,25 +1,15 @@
 package com.apex.network.upnp
-import java.net.DatagramSocket
-import java.net.InetAddress
-import scala.collection.immutable.HashMap
-import java.net.InetSocketAddress
-import java.net.DatagramPacket
-import java.net.SocketTimeoutException
-import java.net.SocketException
+
 import java.io.IOException
+import java.net._
+import java.util.StringTokenizer
+
 import javax.xml.parsers.ParserConfigurationException
 import org.xml.sax.SAXException
-import java.net.UnknownHostException
-import scala.collection.JavaConversions._
-import java.net.NetworkInterface
-import java.net.Inet4Address
-import java.util.ArrayList
-import java.util.Enumeration
-import java.net.Inet6Address
-import java.util.StringTokenizer
-import util.control.Breaks._
-import scala.collection.parallel.immutable.ParMap
-import com.apex.network.upnp.GatewayDiscover.GatewayDeviceMap
+
+import scala.collection.immutable.HashMap
+import scala.collection.JavaConverters._
+
 object GatewayDiscover {
   
   val PORT = 1900;
@@ -138,10 +128,10 @@ object GatewayDiscover {
   }
 
   def getLocalInetAddresses(getIPv4: Boolean, getIPv6: Boolean, sortIPv4BeforeIPv6: Boolean): Seq[InetAddress] = {
-    def getAllNetworkInterfaces: Seq[NetworkInterface] = {
+   def getAllNetworkInterfaces: Seq[NetworkInterface] = {
       try {
         val n = NetworkInterface.getNetworkInterfaces
-        if (n == null) Nil else n.toSeq;
+        if (n == null) Nil else n.asScala.toSeq;
       } catch {
         case e : Exception => e.printStackTrace(); Nil
       }
@@ -154,9 +144,7 @@ object GatewayDiscover {
           return Nil;
         else {
           val a = card.getInetAddresses();
-          if (a == null) Nil
-          else
-            a.toList
+          if (a == null) Nil else a.asScala.toSeq
         }
       } catch {
           case e : Exception => e.printStackTrace(); Nil

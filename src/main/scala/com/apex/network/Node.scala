@@ -36,21 +36,21 @@ class LocalNode(val peerManager: ActorRef) extends Actor with ApexLogging {
       while (!cancelled) {
         producer.produce(memPool.values.toSeq) match {
           case NotSynced(_, _) => log.info(s"not synced")
-          case NotYet(npt, ct) => log.debug(s"next produce time: $npt, current time: $ct")
+          case NotYet(npt, ct) => log.debug(s"Not yet, next produce time: $npt, current time: $ct")
           case TimeMissed(tpt, ct) => log.debug(s"missed, this produce time: $tpt, current time: $ct")
           case NotMyTurn(name, _) => log.info(s"not my turn, ($name)")
           case Failed(e) => log.error("error occurred when producing block", e)
-          case Success(block) => block match {
+          case Success(block, producer, time) => block match {
             case Some(blk) => {
               peerManager ! MessagePack(MessageType.BlockProduced, blk.id.data)
-              log.info(s"block (${blk.height}, ${blk.timeStamp}) produced")
+              log.info(s"block (${blk.height}, ${blk.timeStamp}) produced by $producer on $time")
             }
             case None => log.error("produce block failed")
           }
         }
         if (!cancelled) {
-          var sleep = 1000 - Instant.now.toEpochMilli % 1000
-          sleep = if (sleep < 10) sleep + 1000 else sleep
+          var sleep = 500 - Instant.now.toEpochMilli % 500
+          sleep = if (sleep < 10) sleep + 500 else sleep
           Thread.sleep(sleep)
         }
       }
@@ -62,10 +62,7 @@ class LocalNode(val peerManager: ActorRef) extends Actor with ApexLogging {
     val scheduler = actorSystem.scheduler
     implicit val executor = actorSystem.dispatcher
 
-    val blockProducer = new BlockProducer(
-      config.initialWitness,
-      config.produceInterval,
-      config.acceptableTimeError)
+    val blockProducer = new BlockProducer(config)
 
     val task = new ProduceTask(blockProducer)
     scheduler.scheduleOnce(Duration.ZERO, task)
