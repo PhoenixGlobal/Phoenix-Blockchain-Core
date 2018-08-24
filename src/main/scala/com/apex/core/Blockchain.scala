@@ -56,25 +56,25 @@ object Blockchain {
 }
 
 class LevelDBBlockchain extends Blockchain {
-  private val db: LevelDbStorage = LevelDbStorage.open("main_net")
+  private val db: LevelDbStorage = LevelDbStorage.open("test_net")
 
   private val genesisProducer = BinaryData("03b4534b44d1da47e4b4a504a210401a583f860468dec766f507251a057594e682") // TODO: read from settings
   private val genesisProducerPrivKey = new PrivateKey(BinaryData("7a93d447bffe6d89e690f529a3a0bdff8ff6169172458e04849ef1d4eafd7f86"))
 
-  private val headerStore = new HeaderStore(db)
-  private val heightStore = new HeightStore(db)
-  private val txStore = new TransactionStore(db)
-  private val accountStore = new AccountStore(db)
+  private val headerStore = new HeaderStore(db, 10)
+  private val heightStore = new HeightStore(db, 10)
+  private val txStore = new TransactionStore(db, 10)
+  private val accountStore = new AccountStore(db, 10)
   //  private val addressStore = new AddressStore(db)
-  private val blkTxMappingStore = new BlkTxMappingStore(db)
+  private val blkTxMappingStore = new BlkTxMappingStore(db, 10)
   private val headBlkStore = new HeadBlockStore(db)
-  private val utxoStore = new UTXOStore(db)
+  private val utxoStore = new UTXOStore(db, 10)
   private val prodStateStore = new ProducerStateStore(db)
 
   private val genesisTxOutput = txOutput("f54a5851e9372b87810a8e60cdd2e7cfd80b6e31", UInt256.Zero, 10000, "76a914f54a5851e9372b87810a8e60cdd2e7cfd80b6e3188ac")
   private val minerTxOutput = txOutput("f54a5851e9372b87810a8e60cdd2e7cfd80b6e31", UInt256.Zero, 10, "76a914f54a5851e9372b87810a8e60cdd2e7cfd80b6e3188ac")
 
-  private val genesisBlockHeader: BlockHeader = BlockHeader.build(0, 0,
+  private val genesisBlockHeader: BlockHeader = BlockHeader.build(0, 1537790400000L,
     UInt256.Zero, UInt256.Zero, genesisProducer, genesisProducerPrivKey)
   private val genesisBlock: Block = Block.build(genesisBlockHeader,
     Seq(new TransferTransaction(Seq.empty, Seq(genesisTxOutput), "CPX"))
@@ -82,7 +82,7 @@ class LevelDBBlockchain extends Blockchain {
 
   private var latestHeader: BlockHeader = genesisBlockHeader
 
-  private var latestProdState: ProducerState = null
+  private var latestProdState: ProducerStatus = null
 
   populate()
 
@@ -314,7 +314,7 @@ class LevelDBBlockchain extends Blockchain {
       heightStore.set(genesisBlock.height, genesisBlock.id, batch)
       blkTxMappingStore.set(genesisBlock.id, blkTxMapping, batch)
       headBlkStore.set(HeadBlock.fromHeader(genesisBlockHeader), batch)
-      prodStateStore.set(ProducerState(1), batch)
+      prodStateStore.set(ProducerStatus(1), batch)
       genesisBlockHeader
     }
 
