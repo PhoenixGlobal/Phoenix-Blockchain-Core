@@ -15,7 +15,7 @@ package com.apex.core
 import java.math.BigInteger
 import java.time.Instant
 
-import com.apex.core.settings.Witness
+import com.apex.core.settings.{ConsesusConfig, Witness}
 import com.apex.crypto.Ecdsa.PublicKey
 
 trait ProduceState
@@ -28,13 +28,11 @@ case class TimeMissed(thisProduceTime: Long, currTime: Long) extends ProduceStat
 
 case class NotMyTurn(producer: String, pubKey: PublicKey) extends ProduceState
 
-case class Success(block: Option[Block]) extends ProduceState
+case class Success(block: Option[Block], producer: String, time: Long) extends ProduceState
 
 case class Failed(e: Throwable) extends ProduceState
 
-class BlockProducer(val witnesses: Array[Witness],
-                    val produceInterval: Int,
-                    val acceptableTimeError: Int) {
+class BlockProducer(config: ConsesusConfig) {
 
   private var canProduce = false
 
@@ -45,7 +43,7 @@ class BlockProducer(val witnesses: Array[Witness],
       if (canProduce) {
         tryProduce(txs, now)
       } else {
-        val next = nextProduceTime()
+        val next = nextBlockTime()
         if (next >= now) {
           canProduce = true
           tryProduce(txs, now)
@@ -59,50 +57,67 @@ class BlockProducer(val witnesses: Array[Witness],
   }
 
   private def tryProduce(txs: Seq[Transaction], now: Long) = {
-    val (distance, timeToProduce) = getDistanceAndProduceTime(now + acceptableTimeError)
-    if (distance == 0) {
-      NotYet(timeToProduce, now)
+    val next = nextBlockTime()
+    //val (distance, timeToProduce) = getDistanceAndProduceTime(now + config.acceptableTimeError)
+    if (now + config.acceptableTimeError < next) {    // if (distance == 0) {
+      NotYet(next, now)
     } else {
-      if ((now - timeToProduce).abs > acceptableTimeError) {
-        TimeMissed(timeToProduce, now)
+      if (nextProduceTime(now, next) > next) {
+        //println(s"some blocks skipped")
+      }
+      val witness = getWitness(nextProduceTime(now, next))
+      if (witness.privkey.isEmpty) {
+        NotMyTurn(witness.name, witness.pubkey)
       } else {
-        val witness = getWitness(distance)
-        if (witness.privkey.isEmpty) {
-          NotMyTurn(witness.name, witness.pubkey)
-        } else {
-          val block = Blockchain.Current.produceBlock(
-            witness.pubkey.toBin,
-            witness.privkey.get,
-            now + acceptableTimeError,
-            distance,
-            txs
-          )
-          Success(block)
-        }
+        var timeToProduce: Long = 0
+        if (next + config.acceptableTimeError < now)
+          timeToProduce = now
+        else
+          timeToProduce = next
+        val block = Blockchain.Current.produceBlock(
+              witness.pubkey.toBin,
+              witness.privkey.get,
+              nextProduceTime(now, next),
+              txs)
+        Success(block, witness.name, now)
       }
     }
   }
 
-  private def getDistanceAndProduceTime(curr: Long): (Long, Long) = {
-    val next = nextProduceTime()
-    if (curr < next) {
-      (0, next)
-    } else {
-      val distance = (curr - next) / produceInterval
-      val time = next + distance * produceInterval
-      (distance + 1, time)
+//  private def getDistanceAndProduceTime(curr: Long): (Long, Long) = {
+//    val next = nextProduceTime()
+//    if (curr < next) {
+//      (0, next)
+//    } else {
+//      val distance = (curr - next) / config.produceInterval
+//      val time = next + distance * config.produceInterval
+//      (distance + 1, time)
+//    }
+//  }
+
+  private def nextBlockTime(nextN: Int = 1): Long = {
+    val headTime = Blockchain.Current.getHeadTime
+    var slot = headTime / config.produceInterval
+    slot += nextN
+    slot * config.produceInterval   //   (headTime / produceInterval + nextN) * produceInterval
+  }
+
+  private def nextProduceTime(now: Long, next: Long): Long = {
+    if (now <= next) {
+      next
+    }
+    else {
+      val slot = now / config.produceInterval
+      slot * config.produceInterval
     }
   }
 
-  private def nextProduceTime(nextN: Int = 1): Long = {
-    val headTime = Blockchain.Current.getHeadTime
-    (headTime / produceInterval + nextN) * produceInterval
-  }
-
-  private def getWitness(relativeDistance: Long): Witness = {
-    val dis = Blockchain.Current.getDistance + relativeDistance
-    val pos = dis % witnesses.length
-    witnesses(pos.toInt)
+  // timeMs: time from 1970 in ms
+  private def getWitness(timeMs: Long): Witness = {
+    val slot = timeMs / config.produceInterval
+    var index = slot % (config.initialWitness.size * config.producerRepetitions)
+    index /= config.producerRepetitions
+    config.initialWitness(index.toInt)
   }
 
   def updateWitnessSchedule(nowSec: Long, witnesses: Array[Witness]): Array[Witness] = {

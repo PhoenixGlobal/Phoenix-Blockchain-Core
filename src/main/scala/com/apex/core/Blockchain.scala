@@ -31,7 +31,7 @@ trait Blockchain extends Iterable[Block] with ApexLogging {
   def containsBlock(id: UInt256): Boolean
 
   def produceBlock(producer: BinaryData, privateKey: PrivateKey, timeStamp: Long,
-                   distance: Long, transactions: Seq[Transaction]): Option[Block]
+                   transactions: Seq[Transaction]): Option[Block]
 
   def tryInsertBlock(block: Block): Boolean
 
@@ -82,7 +82,7 @@ class LevelDBBlockchain extends Blockchain {
 
   private var latestHeader: BlockHeader = genesisBlockHeader
 
-  private var latestProdState: ProducerState = null
+  //private var latestProdState: ProducerState = null
 
   populate()
 
@@ -159,7 +159,7 @@ class LevelDBBlockchain extends Blockchain {
         headerStore.set(block.header.id, block.header, batch)
         heightStore.set(block.header.index, block.header.id, batch)
         headBlkStore.set(HeadBlock.fromHeader(block.header), batch)
-        prodStateStore.set(latestProdState, batch)
+        //prodStateStore.set(latestProdState, batch)
         val blkTxMapping = BlkTxMapping(block.id, block.transactions.map(_.id))
         blkTxMappingStore.set(block.id, blkTxMapping, batch)
         val balances = Map.empty[UInt160, Map[UInt256, Fixed8]]
@@ -200,7 +200,7 @@ class LevelDBBlockchain extends Blockchain {
   }
 
   override def produceBlock(producer: BinaryData, privateKey: PrivateKey,
-                            timeStamp: Long, distance: Long, transactions: Seq[Transaction]): Option[Block] = {
+                            timeStamp: Long, transactions: Seq[Transaction]): Option[Block] = {
     val minerTx = new MinerTransaction(Seq(minerTxOutput), Crypto.randomBytes(16))
     val txs = Seq(minerTx) ++ transactions.filter(verifyTransaction)
     val merkleRoot = MerkleTree.root(txs.map(_.id))
@@ -209,7 +209,7 @@ class LevelDBBlockchain extends Blockchain {
       latestHeader.id, producer, privateKey)
     val block = Block.build(header, txs)
 
-    latestProdState = latestProdState plusDistance distance
+    //latestProdState = latestProdState plusDistance distance
 
     if (tryInsertBlock(block))
       Some(block)
@@ -338,7 +338,7 @@ class LevelDBBlockchain extends Blockchain {
     }
 
     latestHeader = headBlkStore.get.map(init).getOrElse(reInit)
-    latestProdState = prodStateStore.get.get
+    //latestProdState = prodStateStore.get.get
   }
 
   private def verifyHeader(header: BlockHeader): Boolean = {
@@ -346,6 +346,7 @@ class LevelDBBlockchain extends Blockchain {
       return false
     if (header.timeStamp < latestHeader.timeStamp)
       return false
+    // TODO: verify rule of timeStamp and producer
     if (header.id.equals(latestHeader.id))
       return false
     if (!header.prevBlock.equals(latestHeader.id))

@@ -39,6 +39,7 @@ case class ApexSettings(dataDir: File,
 
 case class ConsesusConfig(produceInterval: Int,
                           acceptableTimeError: Int,
+                          producerRepetitions: Int,
                           initialWitness: Array[Witness])
 
 case class Witness(name: String,
