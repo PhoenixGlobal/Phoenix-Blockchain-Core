@@ -102,6 +102,5 @@ object MainEntry extends ApexLogging{
 
   private def getConfig(file: String = "settings.conf"): ApexSettings ={
     ApexSettings.read(file)
-
   }
 }
