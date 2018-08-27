@@ -91,7 +91,11 @@ object MainEntry extends ApexLogging{
 
   }
 
-  private def getConfig(file: String = "settings.conf"): HybridSettings ={
+  private def getConfig(file: String = ""): HybridSettings ={
+    if(file.isEmpty){
+      val defaultConf = "src/main/resources/settings.conf"
+      return HybridSettings.read(Some(defaultConf))
+    }
     HybridSettings.read(Some(file))
   }
 }
