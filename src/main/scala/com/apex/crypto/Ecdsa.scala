@@ -101,7 +101,15 @@ object Ecdsa {
 
     def toWIF: String = {
       // always treat as compressed key, do NOT use uncompressed key
-      Wallet.privKeyToWIF(value.toBin)
+      val privateKey = value.toBin
+      assert(privateKey.length == 32)
+      var data = new Array[Byte](34)
+      // 0x80: mainnet
+      data(0) = 0x80.toByte
+      Array.copy(privateKey, 0, data, 1, 32)
+      // 0x01: compressed
+      data(33) = 0x01.toByte
+      Base58Check.encode(data)
     }
 
     override def toString = toBin.toString
@@ -162,6 +170,13 @@ object Ecdsa {
       case 65 if data.head == 6 || data.head == 7 => new PublicKey(Point(data), false)
       case 33 if data.head == 2 || data.head == 3 => new PublicKey(Point(data), true)
     }
+
+    def toAddress(scriptHash: Array[Byte]): String = {
+      assert(scriptHash.length == 20)
+
+      // "0548" is for the "AP" prefix
+      Base58Check.encode(BinaryData("0548"), scriptHash)
+    }
   }
 
   case class PublicKey(value: Point, compressed: Boolean = true) {
@@ -170,9 +185,9 @@ object Ecdsa {
     def hash160: BinaryData = Ecdsa.hash160(toBin)
 
     override def toString = toBin.toString
-    
-    def toAddress: String = { 
-      Wallet.toAddress(hash160)
+
+    def toAddress: String = {
+      PublicKey.toAddress(hash160)
     }
   }
 
@@ -276,30 +291,30 @@ object Ecdsa {
     verifySignature(data, encodeSignature(signature), publicKey)
 
   def verifySignature(data: BinaryData, signature: BinaryData, publicKey: PublicKey): Boolean = {
-      val (r, s) = decodeSignature(signature)
-      require(r.compareTo(one) >= 0, "r must be >= 1")
-      require(r.compareTo(curve.getN) < 0, "r must be < N")
-      require(s.compareTo(one) >= 0, "s must be >= 1")
-      require(s.compareTo(curve.getN) < 0, "s must be < N")
+    val (r, s) = decodeSignature(signature)
+    require(r.compareTo(one) >= 0, "r must be >= 1")
+    require(r.compareTo(curve.getN) < 0, "r must be < N")
+    require(s.compareTo(one) >= 0, "s must be >= 1")
+    require(s.compareTo(curve.getN) < 0, "s must be < N")
 
-      val signer = new ECDSASigner
-      val params = new ECPublicKeyParameters(publicKey.value, curve)
-      signer.init(false, params)
-      signer.verifySignature(data.toArray, r, s)    
+    val signer = new ECDSASigner
+    val params = new ECPublicKeyParameters(publicKey.value, curve)
+    signer.init(false, params)
+    signer.verifySignature(data.toArray, r, s)
   }
 
   def publicKeyFromPrivateKey(privateKey: BinaryData) = PrivateKey(privateKey).publicKey
 
   def sign(data: BinaryData, privateKey: PrivateKey): (BigInteger, BigInteger) = {
-      val signer = new ECDSASigner(new HMacDSAKCalculator(new SHA256Digest))
-      val privateKeyParameters = new ECPrivateKeyParameters(privateKey.value, curve)
-      signer.init(true, privateKeyParameters)
-      val Array(r, s) = signer.generateSignature(data.toArray)
+    val signer = new ECDSASigner(new HMacDSAKCalculator(new SHA256Digest))
+    val privateKeyParameters = new ECPrivateKeyParameters(privateKey.value, curve)
+    signer.init(true, privateKeyParameters)
+    val Array(r, s) = signer.generateSignature(data.toArray)
 
-      if (s.compareTo(halfCurveOrder) > 0) {
-        (r, curve.getN().subtract(s)) // if s > N/2 then s = N - s
-      } else {
-        (r, s)
-      }    
+    if (s.compareTo(halfCurveOrder) > 0) {
+      (r, curve.getN().subtract(s)) // if s > N/2 then s = N - s
+    } else {
+      (r, s)
+    }
   }
 }

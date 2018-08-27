@@ -45,6 +45,7 @@ dependencies{
     compile group: 'org.scala-lang.modules', name: 'scala-xml_2.12', version: '1.0.6'
     compile "com.typesafe.akka:akka-actor_2.12:2.5.12"
     compile "com.typesafe.akka:akka-http-core_2.12:10.1.0"
+    compile "com.typesafe.akka:akka-http-spray-json_2.12:10.1.0"
     compile "ch.megard:akka-http-cors_2.12:0.2.2"
     compile "com.google.guava:guava:14.0"
     compile group: 'org.rudogma', name: 'supertagged_2.12', version: '1.4'

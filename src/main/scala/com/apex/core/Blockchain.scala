@@ -2,6 +2,7 @@ package com.apex.core
 
 import com.apex.common.ApexLogging
 import com.apex.core.script.Script
+import com.apex.settings.ChainSettings
 import com.apex.crypto.Ecdsa.PrivateKey
 import com.apex.crypto.{BinaryData, Crypto, Fixed8, MerkleTree, UInt160, UInt256}
 import com.apex.storage.LevelDbStorage
@@ -51,12 +52,12 @@ trait Blockchain extends Iterable[Block] with ApexLogging {
 }
 
 object Blockchain {
-  final val Current: Blockchain = new LevelDBBlockchain()
-
+  //  final val Current: Blockchain = new LevelDBBlockchain()
+  def populate(settings: ChainSettings) = new LevelDBBlockchain(settings)
 }
 
-class LevelDBBlockchain extends Blockchain {
-  private val db: LevelDbStorage = LevelDbStorage.open("test_net")
+class LevelDBBlockchain(val settings: ChainSettings) extends Blockchain {
+  private val db: LevelDbStorage = LevelDbStorage.open(settings.dbDir)
 
   private val genesisProducer = BinaryData("03b4534b44d1da47e4b4a504a210401a583f860468dec766f507251a057594e682") // TODO: read from settings
   private val genesisProducerPrivKey = new PrivateKey(BinaryData("7a93d447bffe6d89e690f529a3a0bdff8ff6169172458e04849ef1d4eafd7f86"))
@@ -154,6 +155,7 @@ class LevelDBBlockchain extends Blockchain {
           Map((output.assetId, amount)))
       }
     }
+
     try {
       db.batchWrite(batch => {
         headerStore.set(block.header.id, block.header, batch)

@@ -1,6 +1,7 @@
 package com.apex.common
 
 import java.io.{ByteArrayInputStream, ByteArrayOutputStream, DataInputStream, DataOutputStream}
+import scala.util.Try
 
 trait Serializable {
   def serialize(os: DataOutputStream): Unit
@@ -85,4 +86,19 @@ object Serializable {
       new String(is.readByteArray, "UTF-8")
     }
   }
+}
+
+trait BytesSerializable extends java.io.Serializable {
+
+  type M >: this.type <: BytesSerializable
+
+  lazy val bytes: Array[Byte] = serializer.toBytes(this)
+
+  def serializer: Serializer[M]
+}
+
+trait Serializer[M] {
+  def toBytes(obj: M): Array[Byte]
+
+  def parseBytes(bytes: Array[Byte]): Try[M]
 }

@@ -9,6 +9,7 @@
 package com.apex.test
 
 import com.apex.core.TransactionOutput
+import com.apex.crypto.Ecdsa.PublicKey
 import com.apex.crypto.Fixed8
 import org.junit.Test
 import play.api.libs.json.Json
@@ -44,6 +45,6 @@ class TransactionOutputTest {
   @Test
   def testToJSON = {
     val a = TransactionOutput(SerializerTest.testHash160(), SerializerTest.testHash256(), Fixed8.One, "1234")
-    assert(Json.toJson(a).toString.equals(s"""{"address":"${a.address.toAddressString()}","assetId":"${a.assetId}","amount":"${a.amount.toString}","pubKeyScript":"${a.pubKeyScript.toString}","version":${a.version}}"""))
+    assert(Json.toJson(a).toString.equals(s"""{"address":"${PublicKey.toAddress(a.address.data)}","assetId":"${a.assetId}","amount":"${a.amount.toString}","pubKeyScript":"${a.pubKeyScript.toString}","version":${a.version}}"""))
   }
 }

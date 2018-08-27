@@ -8,13 +8,11 @@
 
 package com.apex.network.rpc
 
-import com.apex.core.Blockchain
-import com.apex.crypto.{Fixed8, UInt256}
-import com.apex.network.LocalNode
-import com.apex.wallets.Wallet
-import play.api.libs.json._
-import play.api.libs.json.Reads._
+import com.apex.core.Block
+import com.apex.crypto.UInt256
 import play.api.libs.functional.syntax._
+import play.api.libs.json.Reads._
+import play.api.libs.json._
 
 object Validators {
   def uint256Validator = Reads.StringReads.filter(JsonValidationError("invalid UInt256"))(UInt256.parse(_).isDefined)
@@ -22,17 +20,44 @@ object Validators {
   def amountValidator = Reads.StringReads.filter(JsonValidationError("invalid amount"))(d => BigDecimal(d).signum > 0)
 }
 
-case class GetBlockByHeightCmd(height: Int) {
-  def run(): JsValue = {
-    val block = Blockchain.Current.getBlock(height)
-    if (block != None) {
-      Json.toJson(block.get)
-    }
-    else {
-      Json.parse( """  {  "result": "Error"  }""")
-    }
+trait RPCCommand
+
+object GetBlocks extends RPCCommand
+
+case class GetBlocksResult(blocks: Seq[Block])
+
+object GetBlocksResult {
+  implicit val writes = new Writes[GetBlocksResult] {
+    override def writes(o: GetBlocksResult): JsValue = Json.obj(
+      "blocks" -> o.blocks
+    )
   }
 }
+
+object GetBlockCount extends RPCCommand
+
+case class GetBlockCountResult(count: Int)
+
+object GetBlockCountResult {
+  implicit val writes = new Writes[GetBlockCountResult] {
+    override def writes(o: GetBlockCountResult): JsValue = Json.obj(
+      "count" -> o.count
+    )
+  }
+}
+
+case class GetBlockByHeightCmd(height: Int) extends RPCCommand
+//{
+//  def run(): JsValue = {
+//    val block = Blockchain.Current.getBlock(height)
+//    if (block != None) {
+//      Json.toJson(block.get)
+//    }
+//    else {
+//      Json.parse( """  {  "result": "Error"  }""")
+//    }
+//  }
+//}
 
 object GetBlockByHeightCmd {
   implicit val testWrites = new Writes[GetBlockByHeightCmd] {
@@ -46,17 +71,18 @@ object GetBlockByHeightCmd {
     ) map (GetBlockByHeightCmd.apply _)
 }
 
-case class GetBlockByIdCmd(id: UInt256) {
-  def run(): JsValue = {
-    val block = Blockchain.Current.getBlock(id)
-    if (block != None) {
-      Json.toJson(block.get)
-    }
-    else {
-      Json.parse( """  {  "result": "Error"  }""")
-    }
-  }
-}
+case class GetBlockByIdCmd(id: UInt256) extends RPCCommand
+//{
+//  def run(): JsValue = {
+//    val block = Blockchain.Current.getBlock(id)
+//    if (block != None) {
+//      Json.toJson(block.get)
+//    }
+//    else {
+//      Json.parse( """  {  "result": "Error"  }""")
+//    }
+//  }
+//}
 
 object GetBlockByIdCmd {
   implicit val testWrites = new Writes[GetBlockByIdCmd] {
@@ -70,19 +96,20 @@ object GetBlockByIdCmd {
 }
 
 
-case class SendCmd(address: String, assetId: UInt256, amount: String) {
-  def run(): JsValue = {
-    val tx = Wallet.makeTransaction(address, assetId, Fixed8.fromDecimal(BigDecimal(amount)))
-    if (tx != None) {
-//TODO:      LocalNode.default.addTransaction(tx.get)
-      val txid = tx.get.id.toString
-      Json.parse( s"""  { "result": "OK", "txid":"$txid"  }""")
-    }
-    else {
-      Json.parse( """  {  "result": "Error"  }""")
-    }
-  }
-}
+case class SendCmd(address: String, assetId: UInt256, amount: String) extends RPCCommand
+//{
+//  def run(): JsValue = {
+//    val tx = Wallet.makeTransaction(address, assetId, Fixed8.fromDecimal(BigDecimal(amount)))
+//    if (tx != None) {
+////TODO:      LocalNode.default.addTransaction(tx.get)
+//      val txid = tx.get.id.toString
+//      Json.parse( s"""  { "result": "OK", "txid":"$txid"  }""")
+//    }
+//    else {
+//      Json.parse( """  {  "result": "Error"  }""")
+//    }
+//  }
+//}
 
 object SendCmd {
   implicit val testWrites = new Writes[SendCmd] {
@@ -99,16 +126,17 @@ object SendCmd {
     ) (SendCmd.apply _)
 }
 
-case class ImportPrivKeyCmd(key: String) {
-  def run(): JsValue = {
-    if (Wallet.importPrivKeyFromWIF(key)) {
-      Json.parse( """  {  "result": "OK"  }""")
-    }
-    else {
-      Json.parse( """  {  "result": "Error"  }""")
-    }
-  }
-}
+case class ImportPrivKeyCmd(key: String) extends RPCCommand
+//{
+//  def run(): JsValue = {
+//    if (Wallet.importPrivKeyFromWIF(key)) {
+//      Json.parse( """  {  "result": "OK"  }""")
+//    }
+//    else {
+//      Json.parse( """  {  "result": "Error"  }""")
+//    }
+//  }
+//}
 
 object ImportPrivKeyCmd {
   implicit val testWrites = new Writes[ImportPrivKeyCmd] {
@@ -121,12 +149,13 @@ object ImportPrivKeyCmd {
     ) map (ImportPrivKeyCmd.apply _)
 }
 
-case class GetBalanceCmd(assetId: UInt256) {
-  def run(): JsValue = {
-    val balance = Wallet.getBalance(assetId).toString
-    Json.parse( s"""  {  "balance": $balance  }""")
-  }
-}
+case class GetBalanceCmd(assetId: UInt256) extends RPCCommand
+//{
+//  def run(): JsValue = {
+//    val balance = Wallet.getBalance(assetId).toString
+//    Json.parse( s"""  {  "balance": $balance  }""")
+//  }
+//}
 
 object GetBalanceCmd {
   implicit val testWrites = new Writes[GetBalanceCmd] {

@@ -7,8 +7,8 @@ import akka.io.Tcp
 import akka.io.Tcp._
 import akka.util.{ByteString, CompactByteString}
 import com.apex.common.ApexLogging
-import com.apex.core.settings.NetworkSettings
-import com.apex.core.utils.{NetworkTimeProvider, Version}
+import com.apex.settings.NetworkSettings
+import com.apex.utils.{NetworkTimeProvider, Version}
 import com.apex.network.PeerConnectionManager.{AwaitingHandshake, WorkingCycle}
 
 import scala.concurrent.ExecutionContext

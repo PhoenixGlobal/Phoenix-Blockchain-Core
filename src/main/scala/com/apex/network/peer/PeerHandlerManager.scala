@@ -4,8 +4,8 @@ import java.net.InetSocketAddress
 
 import akka.actor.{Actor, ActorRef, ActorSystem, Props}
 import com.apex.common.ApexLogging
-import com.apex.core.settings.ApexSettings
-import com.apex.core.utils.NetworkTimeProvider
+import com.apex.settings.ApexSettings
+import com.apex.utils.NetworkTimeProvider
 import com.apex.network._
 
 import scala.collection.mutable

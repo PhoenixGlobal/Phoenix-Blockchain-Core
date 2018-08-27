@@ -8,8 +8,8 @@ import akka.io.Tcp._
 import akka.io.Tcp.SO.KeepAlive
 import akka.util.Timeout
 import com.apex.common.ApexLogging
-import com.apex.core.settings.NetworkSettings
-import com.apex.core.utils.NetworkTimeProvider
+import com.apex.settings.NetworkSettings
+import com.apex.utils.NetworkTimeProvider
 import com.apex.network.peer.PeerHandlerManager.ReceivableMessages.PeerHandler
 import com.apex.network.upnp.UPnP
 

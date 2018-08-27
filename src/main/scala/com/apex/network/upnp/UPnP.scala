@@ -7,7 +7,7 @@ import com.apex.common.ApexLogging
 import scala.util.Try
 
 import scala.collection.JavaConversions._
-import com.apex.core.settings.NetworkSettings
+import com.apex.settings.NetworkSettings
 
 class UPnP(settings: NetworkSettings) extends ApexLogging{
 

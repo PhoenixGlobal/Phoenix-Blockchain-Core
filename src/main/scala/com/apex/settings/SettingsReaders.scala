@@ -1,4 +1,4 @@
-package com.apex.core.settings
+package com.apex.settings
 
 import java.io.File
 import java.net.InetSocketAddress

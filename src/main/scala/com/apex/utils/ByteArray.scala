@@ -1,4 +1,4 @@
-package com.apex.core.utils
+package com.apex.utils
 
 object ByteArray {
 

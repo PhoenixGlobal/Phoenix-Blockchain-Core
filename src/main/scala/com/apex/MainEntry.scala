@@ -1,18 +1,28 @@
+/*
+ *
+ *
+ *
+ *
+ * Copyright  2018 APEX Technologies.Co.Ltd. All rights reserved.
+ *
+ * FileName: MainEntry.scala
+ *
+ * @author: ruixiao.xiao@chinapex.com: 18-8-27 下午7:56@version: 1.0
+ */
+
 package com.apex
 
-import java.nio.file.{Path, Paths}
-import java.security.MessageDigest
-
-import akka.actor.ActorSystem
+import akka.actor.{ActorRef, ActorSystem, Props}
+import akka.stream.ActorMaterializer
 import com.apex.common.ApexLogging
-import com.apex.core.settings.ApexSettings
-import com.apex.core.utils.NetworkTimeProvider
-import com.apex.main.HybridSettings
+import com.apex.consensus.ProducerRef
+import com.apex.core.Blockchain
 import com.apex.network.peer.PeerHandlerManagerRef
 import com.apex.network.rpc.RpcServer
 import com.apex.network.upnp.UPnP
-import com.apex.network.{LocalNode, LocalNodeRef, NetworkManagerRef}
-import com.apex.wallets.Wallet
+import com.apex.network.{NetworkManagerRef, Node, NodeRef}
+import com.apex.settings.ApexSettings
+import com.apex.utils.NetworkTimeProvider
 import net.sourceforge.argparse4j.ArgumentParsers
 import net.sourceforge.argparse4j.inf.{ArgumentParser, ArgumentParserException, Namespace}
 
@@ -25,18 +35,17 @@ object MainEntry extends ApexLogging{
   def main(args: Array[String]): Unit = {
 
     val ns = parseArgs(args)
-    val hybridSettings = getApexSettings(ns)
-    val settings: ApexSettings = hybridSettings.apexSettings
-    //    val block1 = Blockchain.Current.produceBlock(Seq.empty)
+    val settings = getApexSettings(ns)
+    val chain = Blockchain.populate(settings.chain)
 
-    Wallet.importPrivKeyFromWIF("Kx45GeUBSMPReYQwgXiKhG9FzNXrnCeutJp4yjTd5kKxCitadm3C")
+//    Wallet.importPrivKeyFromWIF("Kx45GeUBSMPReYQwgXiKhG9FzNXrnCeutJp4yjTd5kKxCitadm3C")
     //val tx = Wallet.makeTransaction("APQKUqPcJEUwRdwoxpoGQnkrRGstSXkgebk", UInt256.Zero, new Fixed8(230000L)).get
 
     //LocalNode.default.addTransaction(tx)
     //    val block2 = Blockchain.Current.produceBlock(LocalNode.default.getMemoryPool())
 
-    implicit val actorSystem = ActorSystem(settings.network.agentName)
-    implicit val executionContext: ExecutionContext = actorSystem.dispatchers.lookup("apex.executionContext")
+    implicit val system = ActorSystem("APEX-NETWORK")
+    implicit val executionContext: ExecutionContext = system.dispatcher
 
     //p2p
     val upnp = new UPnP(settings.network)
@@ -45,14 +54,15 @@ object MainEntry extends ApexLogging{
 //    val node = LocalNode.launch(settings, timeProvider)
 
     val peerManagerRef = PeerHandlerManagerRef(settings, timeProvider)
-    val localNodeRef = LocalNodeRef(peerManagerRef)
-    val networkControllerRef = NetworkManagerRef(settings.network, upnp, timeProvider, peerManagerRef, localNodeRef)
-    LocalNode.beginProduce(localNodeRef, settings.genesisConfig)
+    val nodeRef = NodeRef(chain, peerManagerRef)
+    val producer = ProducerRef(settings.consensus, chain, peerManagerRef)
+//    val rpcRef = RpcServerRef(settings.rpcSettings, nodeRef)
+    val networkControllerRef = NetworkManagerRef(settings.network, upnp, timeProvider, peerManagerRef, nodeRef)
+//    Node.beginProduce(nodeRef, settings.consensus)
 //    val task = node.beginProduce(Genesis.config)
+    RpcServer.run(settings.rpc, nodeRef)
     //    producer.wait()
     //    val block3 = Blockchain.Current.produceBlock(Seq.empty)
-
-    RpcServer.run()
 
     //    val block = new Block()
     //
@@ -60,7 +70,6 @@ object MainEntry extends ApexLogging{
     //    System.out.println(" #" + block.header.index)
     System.out.println("Press RETURN to stop...")
     StdIn.readLine() // let it run until user presses return
-    RpcServer.stop() //System.out.println("main end...")
   }
 
   private def parseArgs(args: Array[String]): Namespace ={
@@ -80,8 +89,8 @@ object MainEntry extends ApexLogging{
     ns
   }
 
-  private def getApexSettings(ns: Namespace): HybridSettings = {
-    val digest: MessageDigest = null
+  private def getApexSettings(ns: Namespace): ApexSettings = {
+//    val digest: MessageDigest = null
     val files = ns.getList[String]("configFile")
     if(files.size() > 0){
       val conf = files.toArray().head.toString
@@ -91,7 +100,8 @@ object MainEntry extends ApexLogging{
 
   }
 
-  private def getConfig(file: String = "settings.conf"): HybridSettings ={
-    HybridSettings.read(Some(file))
+  private def getConfig(file: String = "settings.conf"): ApexSettings ={
+    ApexSettings.read(file)
+
   }
 }

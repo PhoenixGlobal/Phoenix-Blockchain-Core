@@ -2,8 +2,9 @@ package com.apex.core
 
 import java.io.{ByteArrayInputStream, DataInputStream, DataOutputStream}
 
-import com.apex.common.{Serializable}
-import com.apex.crypto.{Fixed8, UInt160, UInt256, BinaryData}
+import com.apex.common.Serializable
+import com.apex.crypto.Ecdsa.PublicKey
+import com.apex.crypto.{BinaryData, Fixed8, UInt160, UInt256}
 import play.api.libs.json.{JsValue, Json, Writes}
 
 case class TransactionOutput(val address: UInt160,
@@ -26,7 +27,7 @@ object TransactionOutput {
   implicit val transactionOutputWrites = new Writes[TransactionOutput] {
     override def writes(o: TransactionOutput): JsValue = {
       Json.obj(
-        "address" -> o.address.toAddressString,
+        "address" -> PublicKey.toAddress(o.address.data),
         "assetId" -> o.assetId.toString,
         "amount" -> o.amount.toString,
         "pubKeyScript" -> o.pubKeyScript.toString,
