@@ -3,18 +3,37 @@ package com.apex.core
 import java.io.{ByteArrayInputStream, ByteArrayOutputStream, DataInputStream, DataOutputStream}
 
 import com.apex.common.Serializable
-import com.apex.crypto.{Crypto, Fixed8, UInt256, Ecdsa, BinaryData}
+import com.apex.crypto.{BinaryData, Crypto, Ecdsa, Fixed8, UInt160, UInt256}
 import play.api.libs.json.{JsValue, Json, Writes}
-import com.apex.core.script.{OP_PUSHDATA, Script}
 
-abstract class Transaction(val txType: TransactionType.Value,
-                           val inputs: Seq[TransactionInput],
-                           val outputs: Seq[TransactionOutput],
-                           val version: Int = 0x01)
+class Transaction(val txType: TransactionType.Value,
+                           val from: BinaryData,   // 33 bytes pub key
+                           val toPubKeyHash: UInt160,
+                           val toName: String,
+                           val amount: Fixed8,
+                           val assetId: UInt256,
+                           val nonce: Long,
+                           val data: BinaryData,
+                           var signature: BinaryData,
+                           //TODO: gas price and gas limit
+                           val version: Int = 0x01,
+                           override protected var _id: UInt256 = null)
   extends Identifier[UInt256] with Serializable {
 
   //TODO: read settings
   def fee: Fixed8 = Fixed8.Zero
+
+  def fromPubKeyHash() : UInt160 = {
+    UInt160.fromBytes(Ecdsa.PublicKey(from).hash160)
+  }
+
+  def fromAddress(): String = {
+    Ecdsa.PublicKey(from).toAddress
+  }
+
+  def toAddress(): String = {
+    Ecdsa.PublicKeyHash.toAddress(toPubKeyHash.data)
+  }
 
   override def serialize(os: DataOutputStream): Unit = {
     serializeExcludeId(os)
@@ -32,32 +51,54 @@ abstract class Transaction(val txType: TransactionType.Value,
     import com.apex.common.Serializable._
     os.writeByte(txType.toByte)
     os.writeInt(version)
-    os.writeSeq(inputs)
-    os.writeSeq(outputs)
-    serializeExtraData(os)
+    os.writeByteArray(from)
+    os.write(toPubKeyHash)
+    os.writeString(toName)
+    os.write(amount)
+    os.write(assetId)
+    os.writeLong(nonce)
+    os.writeByteArray(data)
+    os.writeByteArray(signature)
+
+    //serializeExtraData(os)
   }
 
-  protected def serializeExtraData(os: DataOutputStream): Unit
+  //protected def serializeExtraData(os: DataOutputStream): Unit
 
   def serializeForSign(os: DataOutputStream) = {
     import com.apex.common.Serializable._
     os.writeByte(txType.toByte)
     os.writeInt(version)
-    inputs.foreach(_.serializeForSign(os))
-    os.writeSeq(outputs)
-    serializeExtraData(os)
+    os.writeByteArray(from)
+    os.write(toPubKeyHash)
+    os.writeString(toName)
+    os.write(amount)
+    os.write(assetId)
+    os.writeLong(nonce)
+    os.writeByteArray(data)
+    // skip signature
+
+    //serializeExtraData(os)
   }
 
-  def dataForSigning(sigHashType: Int): Array[Byte] = {
+  def dataForSigning(): Array[Byte] = {
     val bs = new ByteArrayOutputStream()
     val os = new DataOutputStream(bs)
     serializeForSign(os)
     bs.toByteArray
   }
 
-  def signInput(inputIndex: Int, sigHashType: Int, signatureVersion: Int, privateKey: Ecdsa.PrivateKey) = {
-    val sig = Crypto.sign(dataForSigning(sigHashType), privateKey.toBin)
-    inputs(inputIndex).signatureScript = Script.write(OP_PUSHDATA(sig) :: OP_PUSHDATA(privateKey.publicKey) :: Nil)
+  //  def signInput(inputIndex: Int, sigHashType: Int, signatureVersion: Int, privateKey: Ecdsa.PrivateKey) = {
+  //    val sig = Crypto.sign(dataForSigning(sigHashType), privateKey.toBin)
+  //    inputs(inputIndex).signatureScript = Script.write(OP_PUSHDATA(sig) :: OP_PUSHDATA(privateKey.publicKey) :: Nil)
+  //  }
+
+  def sign(privateKey: Ecdsa.PrivateKey) = {
+    signature = Crypto.sign(dataForSigning(), privateKey.toBin)
+  }
+
+  def verifySignature(): Boolean = {
+    Crypto.verifySignature(dataForSigning(), signature, from)
   }
 
 }
@@ -65,23 +106,38 @@ abstract class Transaction(val txType: TransactionType.Value,
 object Transaction {
   implicit val transactionWrites = new Writes[Transaction] {
     override def writes(o: Transaction): JsValue = {
-      o.txType match {
-        case TransactionType.Transfer =>
-          TransferTransaction.transactionWrites.writes(o.asInstanceOf[TransferTransaction])
-        case TransactionType.Miner =>
-          MinerTransaction.transactionWrites.writes(o.asInstanceOf[MinerTransaction])
-        case _ => throw new NotImplementedError()
-      }
+      Json.obj(
+            "id" -> o.id.toString,
+            "type" -> o.txType.toString,
+            "from" -> Ecdsa.PublicKey(o.from).toAddress,
+            "to" ->  o.toAddress,
+            "toName" -> o.toName,
+            "amount" -> o.amount.toString,
+            "assetId" -> o.assetId.toString,
+            "nonce" -> o.nonce.toString,
+            "data" -> o.data.toString,
+            "signature" -> o.signature.toString,
+            "version" -> o.version
+          )
     }
   }
 
   def deserialize(is: DataInputStream): Transaction = {
-    TransactionType(is.readByte) match {
-      case TransactionType.Transfer =>
-        return TransferTransaction.deserialize(is)
-      case TransactionType.Miner =>
-        return MinerTransaction.deserialize(is)
-      case _ => throw new NotImplementedError
-    }
+    import com.apex.common.Serializable._
+
+    val txType = TransactionType(is.readByte)
+    val version = is.readInt
+    val from = is.readByteArray
+    val toPubKeyHash = UInt160.deserialize(is)
+    val toName = is.readString
+    val amount = Fixed8.deserialize(is)
+    val assetId = UInt256.deserialize(is)
+    val nonce = is.readLong
+    val data = is.readByteArray
+    val signature = is.readByteArray
+
+    val id = is.readObj(UInt256.deserialize)
+
+    new Transaction(txType, from, toPubKeyHash, toName, amount, assetId, nonce, data, signature, version, id)
   }
 }

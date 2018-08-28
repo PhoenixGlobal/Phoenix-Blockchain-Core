@@ -89,7 +89,31 @@ object Ecdsa {
       case 33 if data.last == 1 => new PrivateKey(Scalar(data.take(32)), compressed = true)
     }
 
-    def apply(data: BinaryData, compressed: Boolean): PrivateKey = new PrivateKey(Scalar(data.take(32)), compressed)
+    def toWIF(privateKey: Array[Byte]): String = {
+      // always treat as compressed key, do NOT use uncompressed key
+      assert(privateKey.length == 32)
+      var data = new Array[Byte](34)
+      // 0x80: mainnet
+      data(0) = 0x80.toByte
+      Array.copy(privateKey, 0, data, 1, 32)
+      // 0x01: compressed
+      data(33) = 0x01.toByte
+      Base58Check.encode(data)
+    }
+
+    def fromWIF(wif: String): Option[PrivateKey] = {
+      val decode = Base58Check.decode(wif).getOrElse(Array[Byte]())
+      if (decode.length == 34) {
+        // 1 bytes prefix + 32 bytes data + 1 byte 0x01 (+ 4 bytes checksum)
+        if (decode(33) == 0x01.toByte) {
+          Some(PrivateKey(decode.slice(1, 33)))
+        } else {
+          None
+        }
+      } else {
+        None
+      }
+    }
   }
 
   case class PrivateKey(value: Scalar, compressed: Boolean = true) {
@@ -101,15 +125,7 @@ object Ecdsa {
 
     def toWIF: String = {
       // always treat as compressed key, do NOT use uncompressed key
-      val privateKey = value.toBin
-      assert(privateKey.length == 32)
-      var data = new Array[Byte](34)
-      // 0x80: mainnet
-      data(0) = 0x80.toByte
-      Array.copy(privateKey, 0, data, 1, 32)
-      // 0x01: compressed
-      data(33) = 0x01.toByte
-      Base58Check.encode(data)
+      PrivateKey.toWIF(value.toBin)
     }
 
     override def toString = toBin.toString
@@ -170,13 +186,6 @@ object Ecdsa {
       case 65 if data.head == 6 || data.head == 7 => new PublicKey(Point(data), false)
       case 33 if data.head == 2 || data.head == 3 => new PublicKey(Point(data), true)
     }
-
-    def toAddress(scriptHash: Array[Byte]): String = {
-      assert(scriptHash.length == 20)
-
-      // "0548" is for the "AP" prefix
-      Base58Check.encode(BinaryData("0548"), scriptHash)
-    }
   }
 
   case class PublicKey(value: Point, compressed: Boolean = true) {
@@ -187,13 +196,36 @@ object Ecdsa {
     override def toString = toBin.toString
 
     def toAddress: String = {
-      PublicKey.toAddress(hash160)
+      PublicKeyHash.toAddress(hash160)
     }
   }
 
   implicit def publickey2point(pub: PublicKey): Point = pub.value
 
   implicit def publickey2bin(pub: PublicKey): BinaryData = pub.toBin
+
+  object PublicKeyHash {
+    def toAddress(hash: Array[Byte]): String = {
+      assert(hash.length == 20)
+
+      // "0548" is for the "AP" prefix
+      Base58Check.encode(BinaryData("0548"), hash)
+    }
+
+    def fromAddress(address: String): Option[UInt160] = {
+      if (address.startsWith("AP") && address.length == 35) {
+        val decode = Base58Check.decode(address).getOrElse(Array[Byte]())
+        if (decode.length == 22) {
+          // 2 bytes prefix + 20 bytes data (+ 4 bytes checksum)
+          Some(UInt160.fromBytes(decode.slice(2, 22)))
+        } else {
+          None
+        }
+      } else {
+        None
+      }
+    }
+  }
 
   def hash(digest: Digest)(input: Seq[Byte]): BinaryData = {
     digest.update(input.toArray, 0, input.length)

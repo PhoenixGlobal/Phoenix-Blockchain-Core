@@ -45,10 +45,6 @@ trait Blockchain extends Iterable[Block] with ApexLogging {
   def verifyTransaction(tx: Transaction): Boolean
 
   def getBalance(address: UInt160): Option[collection.immutable.Map[UInt256, Long]]
-
-  def getUTXOSet: UTXOSet
-
-  def getUTXOByAddress(address: UInt160): Option[Set[(UInt256, Int)]]
 }
 
 object Blockchain {
@@ -69,17 +65,21 @@ class LevelDBBlockchain(val settings: ChainSettings) extends Blockchain {
   //  private val addressStore = new AddressStore(db)
   private val blkTxMappingStore = new BlkTxMappingStore(db, 10)
   private val headBlkStore = new HeadBlockStore(db)
-  private val utxoStore = new UTXOStore(db, 10)
+  //private val utxoStore = new UTXOStore(db, 10)
+  // TODO:  pubkeyNameMappingStore
+  // TODO:  pubkeyNonceStore
   private val prodStateStore = new ProducerStateStore(db)
 
-  private val genesisTxOutput = txOutput("f54a5851e9372b87810a8e60cdd2e7cfd80b6e31", UInt256.Zero, 10000, "76a914f54a5851e9372b87810a8e60cdd2e7cfd80b6e3188ac")
-  private val minerTxOutput = txOutput("f54a5851e9372b87810a8e60cdd2e7cfd80b6e31", UInt256.Zero, 10, "76a914f54a5851e9372b87810a8e60cdd2e7cfd80b6e3188ac")
+  private val minerCoinFrom = BinaryData("000000000000000000000000000000000000000000000000000000000000000000")   // 33 bytes pub key
+  private val minerAddress = UInt160.parse("f54a5851e9372b87810a8e60cdd2e7cfd80b6e31").get
+  private val minerAward = Fixed8.Ten
+
+  private val genesisTx = new Transaction(TransactionType.Miner, minerCoinFrom,
+    minerAddress, "", minerAward, UInt256.Zero, 0, BinaryData.empty, BinaryData.empty)
 
   private val genesisBlockHeader: BlockHeader = BlockHeader.build(0, 1537790400000L,
     UInt256.Zero, UInt256.Zero, genesisProducer, genesisProducerPrivKey)
-  private val genesisBlock: Block = Block.build(genesisBlockHeader,
-    Seq(new TransferTransaction(Seq.empty, Seq(genesisTxOutput), "CPX"))
-  )
+  private val genesisBlock: Block = Block.build(genesisBlockHeader, Seq(genesisTx))
 
   private var latestHeader: BlockHeader = genesisBlockHeader
 
@@ -145,14 +145,14 @@ class LevelDBBlockchain(val settings: ChainSettings) extends Blockchain {
   }
 
   private def saveBlockToStores(block: Block): Boolean = {
-    def calcBalancesInBlock(balances: Map[UInt160, Map[UInt256, Fixed8]], output: TransactionOutput, spent: Boolean) = {
-      val amount = if (spent) -output.amount else output.amount
-      balances.get(output.address) match {
+    def calcBalancesInBlock(balances: Map[UInt160, Map[UInt256, Fixed8]], spent: Boolean,
+                            address: UInt160, amounts: Fixed8, assetId: UInt256) = {
+      val amount = if (spent) -amounts else amounts
+      balances.get(address) match {
         case Some(balance) => {
-          balance(output.assetId) += amount
+          balance(assetId) += amount
         }
-        case None => balances.put(output.address,
-          Map((output.assetId, amount)))
+        case None => balances.put(address, Map((assetId, amount)))
       }
     }
 
@@ -167,18 +167,8 @@ class LevelDBBlockchain(val settings: ChainSettings) extends Blockchain {
         val balances = Map.empty[UInt160, Map[UInt256, Fixed8]]
         block.transactions.foreach(tx => {
           txStore.set(tx.id, tx, batch)
-          for (index <- 0 to tx.outputs.length - 1) {
-            val key = UTXOKey(tx.id, index)
-            val output = tx.outputs(index)
-            utxoStore.set(key, output, batch)
-            calcBalancesInBlock(balances, output, false)
-          }
-          for (i <- tx.inputs) {
-            val key = UTXOKey(i.txId, i.index)
-            utxoStore.delete(key, batch)
-            val output = getTransaction(i.txId).get.outputs(i.index)
-            calcBalancesInBlock(balances, output, true)
-          }
+          calcBalancesInBlock(balances, true, tx.fromPubKeyHash, tx.amount, tx.assetId)
+          calcBalancesInBlock(balances, false, tx.toPubKeyHash, tx.amount, tx.assetId)
         })
         balances.foreach(p => {
           val account = accountStore.get(p._1).map(a => {
@@ -203,7 +193,8 @@ class LevelDBBlockchain(val settings: ChainSettings) extends Blockchain {
 
   override def produceBlock(producer: BinaryData, privateKey: PrivateKey,
                             timeStamp: Long, transactions: Seq[Transaction]): Option[Block] = {
-    val minerTx = new MinerTransaction(Seq(minerTxOutput), Crypto.randomBytes(16))
+    val minerTx = new Transaction(TransactionType.Miner, minerCoinFrom,
+      minerAddress, "", minerAward, UInt256.Zero, latestHeader.index + 1, BinaryData.empty, BinaryData.empty)
     val txs = Seq(minerTx) ++ transactions.filter(verifyTransaction)
     val merkleRoot = MerkleTree.root(txs.map(_.id))
     val header = BlockHeader.build(
@@ -245,17 +236,9 @@ class LevelDBBlockchain(val settings: ChainSettings) extends Blockchain {
   }
 
   override def verifyTransaction(tx: Transaction): Boolean = {
-    def checkAmount(inputAmount: Fixed8, outputs: Seq[TransactionOutput]): Boolean = {
-      inputAmount.value >= outputs.map(_.amount).sum.value
-    }
-
-    def getOutput(input: TransactionInput): Option[TransactionOutput] = {
-      txStore.get(input.txId).map(tx =>
-        if (input.index >= 0 && input.index < tx.outputs.length) {
-          Some(tx.outputs(input.index))
-        } else {
-          None
-        }).getOrElse(None)
+    def checkAmount(): Boolean = {
+      // TODO
+      true
     }
 
     if (tx.txType == TransactionType.Miner) {
@@ -263,23 +246,11 @@ class LevelDBBlockchain(val settings: ChainSettings) extends Blockchain {
       return true
     }
 
-    var isValid = true
-    var inputAmount = Fixed8.Zero
-    val inputTxs = Set.empty[(UInt256, Int)]
-    for (i <- 0 to tx.inputs.length - 1 if isValid) {
-      val input = tx.inputs(i)
-      if (!inputTxs.contains(input.txId, input.index)) {
-        isValid = getOutput(input).map(output => {
-          inputAmount += output.amount
-          Script.execute(tx, i,
-            input.signatureScript,
-            output.pubKeyScript)
-        }).getOrElse(false)
-      } else {
-        isValid = false
-      }
-    }
-    isValid && checkAmount(inputAmount, tx.outputs)
+    var isValid = tx.verifySignature()
+
+    // More TODO
+
+    isValid && checkAmount()
   }
 
   override def getBalance(address: UInt160): Option[collection.immutable.Map[UInt256, Long]] = {
@@ -289,24 +260,6 @@ class LevelDBBlockchain(val settings: ChainSettings) extends Blockchain {
       } else {
         None
       }).getOrElse(None)
-  }
-
-  override def getUTXOSet: UTXOSet = {
-    new UTXOSet(utxoStore)
-  }
-
-  override def getUTXOByAddress(address: UInt160): Option[Set[(UInt256, Int)]] = {
-    val utxoSet = Set.empty[(UInt256, Int)]
-    utxoStore.foreach((k, v) => {
-      if (v.address.equals(address)) {
-        utxoSet.add(UTXOKey.unapply(k).get)
-      }
-    })
-    if (utxoSet.isEmpty) {
-      None
-    } else {
-      Some(utxoSet)
-    }
   }
 
   private def populate(): Unit = {
@@ -325,7 +278,7 @@ class LevelDBBlockchain(val settings: ChainSettings) extends Blockchain {
       heightStore.foreach((k, _) => heightStore.delete(k, batch))
       blkTxMappingStore.foreach((k, _) => blkTxMappingStore.delete(k, batch))
       accountStore.foreach((k, _) => accountStore.delete(k, batch))
-      utxoStore.foreach((k, _) => utxoStore.delete(k, batch))
+      //utxoStore.foreach((k, _) => utxoStore.delete(k, batch))
       prodStateStore.delete(batch)
       headBlkStore.delete(batch)
       initDB(batch)
@@ -359,15 +312,6 @@ class LevelDBBlockchain(val settings: ChainSettings) extends Blockchain {
       return false
 
     true
-  }
-
-  private def txOutput(address: String, assetId: UInt256, amount: BigDecimal, script: String): TransactionOutput = {
-    TransactionOutput(
-      UInt160.parse(address).get,
-      assetId,
-      Fixed8.fromDecimal(amount),
-      BinaryData(script)
-    )
   }
 }
 
