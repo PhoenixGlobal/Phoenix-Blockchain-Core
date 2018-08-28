@@ -37,11 +37,11 @@ class BlkTxMappingStore(db: LevelDbStorage, capacity: Int)
     with UInt256Key
     with BlkTxMappingValue
 
-class UTXOStore(db: LevelDbStorage, capacity: Int)
-  extends StoreBase[UTXOKey, TransactionOutput](db, capacity)
-    with UTXOIndexPrefix
-    with UTXOKeyKey
-    with TxOutputValue
+//class UTXOStore(db: LevelDbStorage, capacity: Int)
+//  extends StoreBase[UTXOKey, TransactionOutput](db, capacity)
+//    with UTXOIndexPrefix
+//    with UTXOKeyKey
+//    with TxOutputValue
 
 class HeadBlockStore(db: LevelDbStorage)
   extends StateStore[HeadBlock](db)
@@ -148,9 +148,9 @@ trait UInt256Key extends KeyConverterProvider[UInt256] {
   override val keyConverter: Converter[UInt256] = new SerializableConverter(UInt256.deserialize)
 }
 
-trait UTXOKeyKey extends KeyConverterProvider[UTXOKey] {
-  override val keyConverter: Converter[UTXOKey] = new SerializableConverter(UTXOKey.deserialize)
-}
+//trait UTXOKeyKey extends KeyConverterProvider[UTXOKey] {
+//  override val keyConverter: Converter[UTXOKey] = new SerializableConverter(UTXOKey.deserialize)
+//}
 
 trait UInt256Value extends ValueConverterProvider[UInt256] {
   override val valConverter: Converter[UInt256] = new SerializableConverter(UInt256.deserialize)
@@ -172,9 +172,9 @@ trait BlkTxMappingValue extends ValueConverterProvider[BlkTxMapping] {
   override val valConverter: Converter[BlkTxMapping] = new SerializableConverter(BlkTxMapping.deserialize)
 }
 
-trait TxOutputValue extends ValueConverterProvider[TransactionOutput] {
-  override val valConverter: Converter[TransactionOutput] = new SerializableConverter(TransactionOutput.deserialize)
-}
+//trait TxOutputValue extends ValueConverterProvider[TransactionOutput] {
+//  override val valConverter: Converter[TransactionOutput] = new SerializableConverter(TransactionOutput.deserialize)
+//}
 
 trait ProducerStatusValue extends ValueConverterProvider[ProducerStatus] {
   override val valConverter: Converter[ProducerStatus] = new SerializableConverter(ProducerStatus.deserialize)
