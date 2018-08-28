@@ -317,7 +317,7 @@ abstract class StateStore[V <: Serializable](db: LevelDbStorage) {
 abstract class StoreBase[K, V](val db: LevelDbStorage, cacheCapacity: Int) {
   protected val cache: Cache[K, V] = new LRUCache(cacheCapacity)
 
-  def prefixBytes(): Array[Byte]
+  val prefixBytes: Array[Byte]
 
   val keyConverter: Converter[K]
 

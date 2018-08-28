@@ -1,8 +1,4 @@
 /*
- *
- *
- *
- *
  * Copyright  2018 APEX Technologies.Co.Ltd. All rights reserved.
  *
  * FileName: MainEntry.scala
