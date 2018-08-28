@@ -167,8 +167,8 @@ class LevelDBBlockchain(val settings: ChainSettings) extends Blockchain {
         val balances = Map.empty[UInt160, Map[UInt256, Fixed8]]
         block.transactions.foreach(tx => {
           txStore.set(tx.id, tx, batch)
-          calcBalancesInBlock(balances, true, tx.fromAddress, tx.amount, tx.assetId)
-          calcBalancesInBlock(balances, false, tx.toAddress, tx.amount, tx.assetId)
+          calcBalancesInBlock(balances, true, tx.fromPubKeyHash, tx.amount, tx.assetId)
+          calcBalancesInBlock(balances, false, tx.toPubKeyHash, tx.amount, tx.assetId)
         })
         balances.foreach(p => {
           val account = accountStore.get(p._1).map(a => {

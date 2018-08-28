@@ -8,7 +8,7 @@ import play.api.libs.json.{JsValue, Json, Writes}
 
 class Transaction(val txType: TransactionType.Value,
                            val from: BinaryData,   // 33 bytes pub key
-                           val toAddress: UInt160,
+                           val toPubKeyHash: UInt160,
                            val toName: String,
                            val amount: Fixed8,
                            val assetId: UInt256,
@@ -23,16 +23,16 @@ class Transaction(val txType: TransactionType.Value,
   //TODO: read settings
   def fee: Fixed8 = Fixed8.Zero
 
-  def fromAddress() : UInt160 = {
+  def fromPubKeyHash() : UInt160 = {
     UInt160.fromBytes(Ecdsa.PublicKey(from).hash160)
   }
 
-  def fromAddressString(): String = {
+  def fromAddress(): String = {
     Ecdsa.PublicKey(from).toAddress
   }
 
-  def toAddressString(): String = {
-    Ecdsa.PublicKey.toAddress(toAddress.data)
+  def toAddress(): String = {
+    Ecdsa.PublicKeyHash.toAddress(toPubKeyHash.data)
   }
 
   override def serialize(os: DataOutputStream): Unit = {
@@ -52,7 +52,7 @@ class Transaction(val txType: TransactionType.Value,
     os.writeByte(txType.toByte)
     os.writeInt(version)
     os.writeByteArray(from)
-    os.write(toAddress)
+    os.write(toPubKeyHash)
     os.writeString(toName)
     os.write(amount)
     os.write(assetId)
@@ -70,7 +70,7 @@ class Transaction(val txType: TransactionType.Value,
     os.writeByte(txType.toByte)
     os.writeInt(version)
     os.writeByteArray(from)
-    os.write(toAddress)
+    os.write(toPubKeyHash)
     os.writeString(toName)
     os.write(amount)
     os.write(assetId)
@@ -110,7 +110,7 @@ object Transaction {
             "id" -> o.id.toString,
             "type" -> o.txType.toString,
             "from" -> Ecdsa.PublicKey(o.from).toAddress,
-            "toAddress" ->  Ecdsa.PublicKey.toAddress(o.toAddress.data),
+            "to" ->  o.toAddress,
             "toName" -> o.toName,
             "amount" -> o.amount.toString,
             "assetId" -> o.assetId.toString,
@@ -128,7 +128,7 @@ object Transaction {
     val txType = TransactionType(is.readByte)
     val version = is.readInt
     val from = is.readByteArray
-    val toAddress = UInt160.deserialize(is)
+    val toPubKeyHash = UInt160.deserialize(is)
     val toName = is.readString
     val amount = Fixed8.deserialize(is)
     val assetId = UInt256.deserialize(is)
@@ -138,6 +138,6 @@ object Transaction {
 
     val id = is.readObj(UInt256.deserialize)
 
-    new Transaction(txType, from, toAddress, toName, amount, assetId, nonce, data, signature, version, id)
+    new Transaction(txType, from, toPubKeyHash, toName, amount, assetId, nonce, data, signature, version, id)
   }
 }
