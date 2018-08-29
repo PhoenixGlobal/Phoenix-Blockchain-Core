@@ -1,6 +1,6 @@
 package com.apex.core.hash
 
-import com.apex.core.utils.ByteArray
+import com.apex.utils.ByteArray
 
 import scala.util.Try
 

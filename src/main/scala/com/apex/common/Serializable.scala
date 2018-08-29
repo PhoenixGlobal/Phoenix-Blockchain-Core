@@ -1,6 +1,7 @@
 package com.apex.common
 
 import java.io.{ByteArrayInputStream, ByteArrayOutputStream, DataInputStream, DataOutputStream}
+import scala.util.Try
 
 trait Serializable {
   def serialize(os: DataOutputStream): Unit
@@ -29,13 +30,17 @@ object Serializable {
     def toInstances[A <: Serializable](deserializer: DataInputStream => A): Seq[A] = {
       val bs = new ByteArrayInputStream(bytes)
       val is = new DataInputStream(bs)
-      (1 to is.readInt) map (_ => deserializer(is))
+      (1 to is.readVarInt) map (_ => deserializer(is))
     }
   }
 
   implicit class DataOutputStreamExtension(val os: DataOutputStream) {
+    def writeVarInt(i: Int) = {
+      Helper.writeVarint(i, os)
+    }
+
     def writeByteArray(bytes: Array[Byte]) = {
-      os.writeInt(bytes.length)
+      os.writeVarInt(bytes.size)
       os.write(bytes)
     }
 
@@ -48,12 +53,12 @@ object Serializable {
     }
 
     def writeSeq[A <: Serializable](arr: Seq[A]) = {
-      os.writeInt(arr.length)
+      os.writeVarInt(arr.size)
       arr.foreach(_.serialize(os))
     }
 
     def writeMap[K <: Serializable, V <: Serializable](map: Map[K, V]) = {
-      os.writeInt(map.size)
+      os.writeVarInt(map.size)
       map.foreach(o => {
         o._1.serialize(os)
         o._2.serialize(os)
@@ -62,19 +67,23 @@ object Serializable {
   }
 
   implicit class DataInputStreamExtension(val is: DataInputStream) {
+    def readVarInt(): Int = {
+      Helper.varint(is).toInt
+    }
+
     def readByteArray(): Array[Byte] = {
-      val bytes = Array.fill(is.readInt())(0.toByte)
+      val bytes = Array.fill(is.readVarInt)(0.toByte)
       is.read(bytes, 0, bytes.length)
       bytes
     }
 
     def readSeq[A <: Serializable](deserializer: DataInputStream => A): Seq[A] = {
-      (1 to is.readInt) map (_ => deserializer(is))
+      (1 to is.readVarInt) map (_ => deserializer(is))
     }
 
     def readMap[K <: Serializable, V <: Serializable](kDeserializer: DataInputStream => K,
                                                       vDeserializer: DataInputStream => V): Map[K, V] = {
-      (1 to is.readInt) map (_ => kDeserializer(is) -> vDeserializer(is)) toMap
+      (1 to is.readVarInt) map (_ => kDeserializer(is) -> vDeserializer(is)) toMap
     }
 
     def readObj[A <: Serializable](deserializer: DataInputStream => A): A = {
@@ -85,4 +94,20 @@ object Serializable {
       new String(is.readByteArray, "UTF-8")
     }
   }
+
+}
+
+trait BytesSerializable extends java.io.Serializable {
+
+  type M >: this.type <: BytesSerializable
+
+  lazy val bytes: Array[Byte] = serializer.toBytes(this)
+
+  def serializer: Serializer[M]
+}
+
+trait Serializer[M] {
+  def toBytes(obj: M): Array[Byte]
+
+  def parseBytes(bytes: Array[Byte]): Try[M]
 }

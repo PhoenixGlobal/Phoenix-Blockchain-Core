@@ -8,28 +8,39 @@
 
 package com.apex.network.rpc
 
-import akka.actor.ActorSystem
+import akka.actor.{ActorRef, ActorSystem}
 import akka.http.scaladsl.Http
+import akka.http.scaladsl.marshalling.{Marshaller, ToEntityMarshaller}
 import akka.http.scaladsl.model._
 import akka.http.scaladsl.server.Directives._
+import akka.http.scaladsl.marshallers.sprayjson.SprayJsonSupport._
+import akka.http.scaladsl.server.StandardRoute
+import akka.pattern.ask
 import akka.stream.ActorMaterializer
-import com.apex.core.Blockchain
-import com.apex.network.LocalNode
+import akka.util.Timeout
+import spray.json.DefaultJsonProtocol._
+import com.apex.common.ApexLogging
+import com.apex.core.Block
+import com.apex.crypto.UInt256
+import com.apex.settings.RPCSettings
+import play.api.libs.json._
 
-import scala.io.StdIn
-import scala.concurrent.duration.Duration
-import scala.concurrent.Await
-import play.api.libs.json.{JsError, JsSuccess, JsValue, Json}
+import scala.concurrent.duration.{Duration, _}
+import scala.concurrent.{Await, ExecutionContext, Future}
 
-object RpcServer {
-  
-  implicit val apexSystem = ActorSystem("apex-system")
+object RpcServer extends ApexLogging {
+
+  implicit val system = ActorSystem("rpc")
   implicit val materializer = ActorMaterializer()
-   
+  implicit val timeout: Timeout = 5.seconds
   //def main(args: Array[String]) {
-  def run() {    
+  //  def run(node: Node) {
 
-    implicit val executionContext = apexSystem.dispatcher
+  private var bindingFuture: Future[Http.ServerBinding] = null
+
+
+  def run(rpcSettings: RPCSettings, nodeRef: ActorRef) = {
+    implicit val executionContext = system.dispatcher
 
     val route =
       path("getblock") {
@@ -37,16 +48,21 @@ object RpcServer {
           entity(as[String]) { data =>
             Json.parse(data).validate[GetBlockByHeightCmd] match {
               case cmd: JsSuccess[GetBlockByHeightCmd] => {
-                complete(HttpEntity(ContentTypes.`application/json`, cmd.get.run.toString))
+                val f = (nodeRef ? cmd)
+                  .mapTo[Option[Block]]
+                  .map(_.map(Json.toJson(_).toString).getOrElse(JsNull.toString))
+                complete(f)
               }
-              case e: JsError => {
-
+              case _: JsError => {
                 Json.parse(data).validate[GetBlockByIdCmd] match {
-                  case idCmd: JsSuccess[GetBlockByIdCmd] => {
-                    complete(HttpEntity(ContentTypes.`application/json`, idCmd.get.run.toString))
+                  case cmd: JsSuccess[GetBlockByIdCmd] => {
+                    val f = (nodeRef ? cmd)
+                      .mapTo[Option[Block]]
+                      .map(_.map(Json.toJson(_).toString).getOrElse(JsNull.toString))
+                    complete(f)
                   }
-                  case idError: JsError => {
-                    println(idError)
+                  case _: JsError => {
+                    //                    log.error("", idError)
                     complete(HttpEntity(ContentTypes.`application/json`, Json.parse( """ {"result": "Error"}""").toString()))
                   }
                 }
@@ -55,100 +71,95 @@ object RpcServer {
           }
         }
       } ~
-      path("getblocks") {
-        post {
-          entity(as[String]) { data =>
-            val count = Blockchain.Current.getLatestHeader.index
-            val blocks = new StringBuilder
-            blocks ++= "["
-            for (i <- 0 to count) {
-              blocks ++= (Json.toJson(Blockchain.Current.getBlock(i).get).toString)
-              if (i < count)
-                blocks ++= ","
+        path("getblocks") {
+          post {
+            entity(as[String]) { _ =>
+              val f = (nodeRef ? GetBlocks)
+                .mapTo[GetBlocksResult]
+                .map(Json.toJson(_).toString)
+              complete(f)
             }
-            blocks ++= "]"
-            complete(HttpEntity(ContentTypes.`application/json`, blocks.toString))
           }
-        }
-      } ~
-      path("produceblock") {
-        post {
-          entity(as[String]) { data =>
-//            Blockchain.Current.produceBlock(LocalNode.default.getMemoryPool())
-//            LocalNode.default.clearMemoryPool()
-            complete(HttpEntity(ContentTypes.`application/json`, Json.parse( """ {"result": "OK"}""").toString))
+        } ~
+        path("produceblock") {
+          post {
+            entity(as[String]) { _ =>
+              //            Blockchain.Current.produceBlock(LocalNode.default.getMemoryPool())
+              //            LocalNode.default.clearMemoryPool()
+              complete(HttpEntity(ContentTypes.`application/json`, Json.parse( """ {"result": "OK"}""").toString))
+            }
           }
-        }
-      } ~
-      path("send") {
-        post {
-          entity(as[String]) { data =>
-            Json.parse(data).validate[SendCmd] match {
-              case cmd: JsSuccess[SendCmd] => {
-                complete(HttpEntity(ContentTypes.`application/json`, cmd.get.run.toString))
-              }
-              case e: JsError => {
-                println(e)
-                complete(HttpEntity(ContentTypes.`application/json`, Json.parse( """{"result": "Error"}""").toString()))
+        } ~
+        path("send") {
+          post {
+            entity(as[String]) { data =>
+              Json.parse(data).validate[SendCmd] match {
+                case cmd: JsSuccess[SendCmd] => {
+                  val f = (nodeRef ? cmd.value)
+                    .mapTo[UInt256].map(_.toString)
+                  complete(f)
+                }
+                case e: JsError => {
+                  println(e)
+                  complete(HttpEntity(ContentTypes.`application/json`, Json.parse( """{"result": "Error"}""").toString()))
+                }
               }
             }
           }
-        }
-      } ~
-      path("getblockcount") {
-        post {
-          entity(as[String]) { data =>
-            val count = Blockchain.Current.getLatestHeader.index + 1
-            complete(HttpEntity(ContentTypes.`application/json`, Json.parse(s"""{"blockcount": "$count"}""").toString))
+        } ~
+        path("getblockcount") {
+          post {
+            entity(as[String]) { _ =>
+              val f = (nodeRef ? GetBlockCount).mapTo[GetBlockCountResult].map(Json.toJson(_).toString)
+              complete(f)
+            }
           }
-        }
-      } ~
-      path("importprivkey") {
-        post {
-          entity(as[String]) { data =>
-            Json.parse(data).validate[ImportPrivKeyCmd] match {
-              case cmd: JsSuccess[ImportPrivKeyCmd] => {
-                complete(HttpEntity(ContentTypes.`application/json`, cmd.get.run.toString))
-              }
-              case e: JsError => {
-                println(e)
-                complete(HttpEntity(ContentTypes.`application/json`, Json.parse( """{"result": "Error"}""").toString()))
+        } ~
+        path("importprivkey") {
+          post {
+            entity(as[String]) { data =>
+              Json.parse(data).validate[ImportPrivKeyCmd] match {
+                case cmd: JsSuccess[ImportPrivKeyCmd] => {
+                  complete(HttpEntity(ContentTypes.`application/json`, (nodeRef ! ImportPrivKeyCmd).toString))
+                }
+                case e: JsError => {
+                  println(e)
+                  complete(HttpEntity(ContentTypes.`application/json`, Json.parse( """{"result": "Error"}""").toString()))
+                }
               }
             }
           }
-        }
-      } ~
-      path("getbalance") {
-        post {
-          entity(as[String]) { data =>
-            Json.parse(data).validate[GetBalanceCmd] match {
-              case cmd: JsSuccess[GetBalanceCmd] => {
-                complete(HttpEntity(ContentTypes.`application/json`, cmd.get.run.toString))
-              }
-              case e: JsError => {
-                println(e)
-                complete(HttpEntity(ContentTypes.`application/json`, Json.parse( """{"result": "Error"}""").toString()))
+        } ~
+        path("getbalance") {
+          post {
+            entity(as[String]) { data =>
+              Json.parse(data).validate[GetBalanceCmd] match {
+                case cmd: JsSuccess[GetBalanceCmd] => {
+                  //                Json.toJson((nodeRef ! cmd.value).asInstanceOf[Int])
+                  complete(HttpEntity(ContentTypes.`application/json`, (nodeRef ! cmd.value).toString))
+                }
+                case e: JsError => {
+                  println(e)
+                  complete(HttpEntity(ContentTypes.`application/json`, Json.parse( """{"result": "Error"}""").toString()))
+                }
               }
             }
           }
         }
-      }
 
-    val bbindingFuture = Http().bindAndHandle(route, "localhost", 8080)
-
-    println(s"Server online at http://localhost:8080/\n")
-    //StdIn.readLine() // let it run until user presses return
-
-    //bindingFuture
-    //  .flatMap(_.unbind())  
-    //  .onComplete(_ => apexSystem.terminate())  
+    bindingFuture = Http().bindAndHandle(route, rpcSettings.host, rpcSettings.port)
+    println(s"Server online at http://${rpcSettings.host}:${rpcSettings.port}/\n")
+    //  StdIn.readLine() // let it run until user presses return
   }
-  
+
   def stop() = {
     println(s"RpcServer stop")
-    materializer.shutdown()
-    Await.result(apexSystem.terminate(), Duration.Inf)
+    if (bindingFuture != null) {
+      implicit val executionContext = system.dispatcher
+      bindingFuture.flatMap(_.unbind()).onComplete(_ => system.terminate())
+    }
   }
+
 }
 
 

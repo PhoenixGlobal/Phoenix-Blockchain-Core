@@ -2,7 +2,7 @@ package com.apex.network.peer
 
 import java.net.InetSocketAddress
 import com.apex.network.ConnectionType
-import com.apex.core.utils.NetworkTime
+import com.apex.utils.NetworkTime
 
 case class PeerInfo(lastSeen: Long, nodeName: Option[String] = None, connectionType: Option[ConnectionType] = None)
 

@@ -89,7 +89,28 @@ object Ecdsa {
       case 33 if data.last == 1 => new PrivateKey(Scalar(data.take(32)), compressed = true)
     }
 
-    def apply(data: BinaryData, compressed: Boolean): PrivateKey = new PrivateKey(Scalar(data.take(32)), compressed)
+    def toWIF(privateKey: Array[Byte]): String = {
+      // always treat as compressed key, do NOT use uncompressed key
+      assert(privateKey.length == 32)
+      var data = new Array[Byte](34)
+      // 0x80: mainnet
+      data(0) = 0x80.toByte
+      Array.copy(privateKey, 0, data, 1, 32)
+      // 0x01: compressed
+      data(33) = 0x01.toByte
+      Base58Check.encode(data)
+    }
+
+    def fromWIF(wif: String): Option[PrivateKey] = {
+      val decode = Base58Check.decode(wif).getOrElse(Array[Byte]())
+      if (decode.length == 34) {
+        // 1 bytes prefix + 32 bytes data + 1 byte 0x01 (+ 4 bytes checksum)
+        if (decode(33) == 0x01.toByte) {
+          return Some(PrivateKey(decode.slice(1, 33)))
+        }
+      }
+      return None
+    }
   }
 
   case class PrivateKey(value: Scalar, compressed: Boolean = true) {
@@ -101,7 +122,7 @@ object Ecdsa {
 
     def toWIF: String = {
       // always treat as compressed key, do NOT use uncompressed key
-      Wallet.privKeyToWIF(value.toBin)
+      PrivateKey.toWIF(value.toBin)
     }
 
     override def toString = toBin.toString
@@ -170,15 +191,38 @@ object Ecdsa {
     def hash160: BinaryData = Ecdsa.hash160(toBin)
 
     override def toString = toBin.toString
-    
-    def toAddress: String = { 
-      Wallet.toAddress(hash160)
+
+    def toAddress: String = {
+      PublicKeyHash.toAddress(hash160)
     }
   }
 
   implicit def publickey2point(pub: PublicKey): Point = pub.value
 
   implicit def publickey2bin(pub: PublicKey): BinaryData = pub.toBin
+
+  object PublicKeyHash {
+    def toAddress(hash: Array[Byte]): String = {
+      assert(hash.length == 20)
+
+      // "0548" is for the "AP" prefix
+      Base58Check.encode(BinaryData("0548"), hash)
+    }
+
+    def fromAddress(address: String): Option[UInt160] = {
+      if (address.startsWith("AP") && address.length == 35) {
+        val decode = Base58Check.decode(address).getOrElse(Array[Byte]())
+        if (decode.length == 22) {
+          // 2 bytes prefix + 20 bytes data (+ 4 bytes checksum)
+          Some(UInt160.fromBytes(decode.slice(2, 22)))
+        } else {
+          None
+        }
+      } else {
+        None
+      }
+    }
+  }
 
   def hash(digest: Digest)(input: Seq[Byte]): BinaryData = {
     digest.update(input.toArray, 0, input.length)
@@ -276,30 +320,30 @@ object Ecdsa {
     verifySignature(data, encodeSignature(signature), publicKey)
 
   def verifySignature(data: BinaryData, signature: BinaryData, publicKey: PublicKey): Boolean = {
-      val (r, s) = decodeSignature(signature)
-      require(r.compareTo(one) >= 0, "r must be >= 1")
-      require(r.compareTo(curve.getN) < 0, "r must be < N")
-      require(s.compareTo(one) >= 0, "s must be >= 1")
-      require(s.compareTo(curve.getN) < 0, "s must be < N")
+    val (r, s) = decodeSignature(signature)
+    require(r.compareTo(one) >= 0, "r must be >= 1")
+    require(r.compareTo(curve.getN) < 0, "r must be < N")
+    require(s.compareTo(one) >= 0, "s must be >= 1")
+    require(s.compareTo(curve.getN) < 0, "s must be < N")
 
-      val signer = new ECDSASigner
-      val params = new ECPublicKeyParameters(publicKey.value, curve)
-      signer.init(false, params)
-      signer.verifySignature(data.toArray, r, s)    
+    val signer = new ECDSASigner
+    val params = new ECPublicKeyParameters(publicKey.value, curve)
+    signer.init(false, params)
+    signer.verifySignature(data.toArray, r, s)
   }
 
   def publicKeyFromPrivateKey(privateKey: BinaryData) = PrivateKey(privateKey).publicKey
 
   def sign(data: BinaryData, privateKey: PrivateKey): (BigInteger, BigInteger) = {
-      val signer = new ECDSASigner(new HMacDSAKCalculator(new SHA256Digest))
-      val privateKeyParameters = new ECPrivateKeyParameters(privateKey.value, curve)
-      signer.init(true, privateKeyParameters)
-      val Array(r, s) = signer.generateSignature(data.toArray)
+    val signer = new ECDSASigner(new HMacDSAKCalculator(new SHA256Digest))
+    val privateKeyParameters = new ECPrivateKeyParameters(privateKey.value, curve)
+    signer.init(true, privateKeyParameters)
+    val Array(r, s) = signer.generateSignature(data.toArray)
 
-      if (s.compareTo(halfCurveOrder) > 0) {
-        (r, curve.getN().subtract(s)) // if s > N/2 then s = N - s
-      } else {
-        (r, s)
-      }    
+    if (s.compareTo(halfCurveOrder) > 0) {
+      (r, curve.getN().subtract(s)) // if s > N/2 then s = N - s
+    } else {
+      (r, s)
+    }
   }
 }

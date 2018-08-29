@@ -2,7 +2,7 @@ package com.apex.network
 
 import java.nio.ByteOrder
 import akka.util.ByteString
-import com.apex.core.settings.NetworkSettings
+import com.apex.settings.NetworkSettings
 import scala.annotation.tailrec
 
 

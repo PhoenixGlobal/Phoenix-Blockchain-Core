@@ -4,22 +4,17 @@ import java.net.InetSocketAddress
 
 import akka.actor.{Actor, ActorRef, ActorSystem, Props}
 import com.apex.common.ApexLogging
-import com.apex.core.settings.ApexSettings
-import com.apex.core.utils.NetworkTimeProvider
+import com.apex.settings.ApexSettings
+import com.apex.utils.NetworkTimeProvider
+import com.apex.network._
 
 import scala.collection.mutable
-import scala.util.Random
-import com.apex.network.Handshake
-import com.apex.network.{Incoming,Outgoing}
-import com.apex.network.message.GetPeersSpec
-import com.apex.network.message.Message
 
 class PeerHandlerManager(settings: ApexSettings, timeProvider: NetworkTimeProvider) extends Actor with ApexLogging {
 
   import PeerHandlerManager.ReceivableMessages._
-  import com.apex.network.NetworkManager.ReceivableMessages.ConnectTo
+  import com.apex.network.ConnectedPeer
   import com.apex.network.PeerConnectionManager.ReceivableMessages.{CloseConnection, StartInteraction}
-  import com.apex.network.{ConnectedPeer,ConnectionType}
   //握手成功
   private val connectedPeers = mutable.Map[InetSocketAddress, ConnectedPeer]()
 
@@ -47,8 +42,9 @@ class PeerHandlerManager(settings: ApexSettings, timeProvider: NetworkTimeProvid
 
   private def apiInterface: Receive = {
     case GetConnectedPeers =>
-      sender() ! (connectedPeers.values.map(_.handshake).toSeq: Seq[Handshake])
-
+      sender() ! (connectedPeers.values.toSeq)
+    case GetBroadCastPeers(data) =>
+      sender() ! BroadCastPeers(data, connectedPeers.values.toSeq)
     case GetAllPeers =>
       sender() ! peerDatabase.knownPeers()
 
@@ -90,10 +86,24 @@ class PeerHandlerManager(settings: ApexSettings, timeProvider: NetworkTimeProvid
       }
       
     case PeerHandler(handler) =>
-      log.info("连接成功后获取的PeerConnectionManager链接="+handler)
-      //获取远程hangler，测发送消息
-      val msg = Message[Unit](GetPeersSpec, Right(Unit), None)
-      handler! msg
+//      log.info("连接成功后获取的PeerConnectionManager链接="+handler)
+//      //获取远程hangler，测发送消息
+//      val msg = Message[Unit](GetPeersSpec, Right(Unit), None)
+//      handler! msg
+
+    case MessagePack(a, b, c) =>
+      c match {
+        case Some(address) => {
+          connectedPeers.get(address) match {
+            case Some(peer) => peer.handlerRef ! MessagePack(a, b)
+            case None => log.error(s"peer($address) not exists")
+          }
+        }
+        case None => {
+          connectedPeers.values.foreach(_.handlerRef ! MessagePack(a, b))
+        }
+      }
+
   }
 
 
@@ -130,7 +140,7 @@ class PeerHandlerManager(settings: ApexSettings, timeProvider: NetworkTimeProvid
 }
 
 object PeerHandlerManager {
-  import com.apex.network.{ConnectedPeer,ConnectionType}
+  import com.apex.network.{ConnectedPeer, ConnectionType}
   object ReceivableMessages {
     case class AddToBlacklist(remote: InetSocketAddress)
 
@@ -144,6 +154,8 @@ object PeerHandlerManager {
     case class Handshaked(peer: ConnectedPeer)
     case class PeerHandler(handlerRef: ActorRef)
     case class Disconnected(remote: InetSocketAddress)
+    case class GetBroadCastPeers(data: Array[Byte])
+    case class BroadCastPeers(data: Array[Byte], peers: Seq[ConnectedPeer])
   }
 }
 

@@ -103,7 +103,7 @@ object Script {
         val sigBytes1 = sigBytes.take(sigBytes.length - 1)
         if (sigBytes1.isEmpty) false
         else {
-          val result = com.apex.crypto.Crypto.verifySignature(context.tx.dataForSigning(1), sigBytes.toArray, pubKey.toArray)
+          val result = com.apex.crypto.Crypto.verifySignature(context.tx.dataForSigning(), sigBytes.toArray, pubKey.toArray)
           result
         }
       }

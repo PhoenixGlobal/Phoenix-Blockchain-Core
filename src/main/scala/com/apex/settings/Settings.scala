@@ -1,15 +1,19 @@
-package com.apex.core.settings
+package com.apex.settings
 
 import java.io.File
 import java.net.InetSocketAddress
 
 import com.apex.common.ApexLogging
+import com.apex.crypto.BinaryData
+import com.apex.crypto.Ecdsa.{Point, PrivateKey, PublicKey}
 import com.typesafe.config.{Config, ConfigFactory}
 import net.ceedubs.ficus.Ficus._
 import net.ceedubs.ficus.readers.ArbitraryTypeReader._
-import com.apex.core.utils.NetworkTimeProviderSettings
+import net.ceedubs.ficus.readers.ValueReader
 
 import scala.concurrent.duration._
+
+case class RPCSettings(host: String, port: Int)
 
 case class NetworkSettings(nodeName: String,
                            addedMaxDelay: Option[FiniteDuration],
@@ -27,18 +31,46 @@ case class NetworkSettings(nodeName: String,
                            agentName: String,
                            maxPacketSize: Int,
                            controllerTimeout: Option[FiniteDuration])
-                                                      
+
+case class NetworkTimeProviderSettings(server: String, updateEvery: FiniteDuration, timeout: FiniteDuration)
+
 
 case class ApexSettings(dataDir: File,
-                          logDir: File,
-                          network: NetworkSettings,
-                          ntp: NetworkTimeProviderSettings
-                         )
+                        logDir: File,
+                        network: NetworkSettings,
+                        ntp: NetworkTimeProviderSettings,
+                        consensus: ConsensusSettings,
+                        chain: ChainSettings,
+                        rpc: RPCSettings)
 
+case class GenesisSettings(timeStamp: Long)
 
-object ApexSettings extends ApexLogging with SettingsReaders {
+case class ChainSettings(dbDir: String, genesis: GenesisSettings)
 
+case class ConsensusSettings(produceInterval: Int,
+                             acceptableTimeError: Int,
+                             producerRepetitions: Int,
+                             initialWitness: Array[Witness])
+
+case class Witness(name: String,
+                   pubkey: PublicKey,
+                   privkey: Option[PrivateKey])
+
+object ApexSettings extends SettingsReaders with ApexLogging {
   protected val configPath: String = "apex"
+//
+//  implicit val valueReader: ValueReader[ApexSettings] =
+//    (cfg: Config, path: String) => cfg.as[ApexSettings](path)
+
+
+  implicit val publicKeyReader: ValueReader[PublicKey] = (cfg, path) => new PublicKey(Point(cfg.getString(path)))
+
+  implicit val privateKeyReader: ValueReader[PrivateKey] = (cfg, path) => new PrivateKey(BinaryData(cfg.getString(path)))
+
+  def read(configFilePath: String): ApexSettings = {
+    val conf = readConfigFromPath(Some(configFilePath), configPath)
+    conf.as[ApexSettings](configPath)
+  }
 
   def readConfigFromPath(userConfigPath: Option[String], configPath: String): Config = {
 
@@ -64,13 +96,5 @@ object ApexSettings extends ApexLogging with SettingsReaders {
     }
 
     config
-  }
-
-  def read(userConfigPath: Option[String]): ApexSettings = {
-    fromConfig(readConfigFromPath(userConfigPath, configPath))
-  }
-
-  def fromConfig(config: Config): ApexSettings = {
-    config.as[ApexSettings](configPath)
   }
 }

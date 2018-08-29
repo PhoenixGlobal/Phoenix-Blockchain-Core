@@ -1,7 +1,7 @@
 package com.apex.network.peer
 
 import java.net.InetSocketAddress
-import com.apex.core.utils.NetworkTime
+import com.apex.utils.NetworkTime
 import scala.collection.mutable
 import com.apex.common.ApexLogging
 
