@@ -8,15 +8,14 @@
 
 package com.apex
 
-import akka.actor.{ActorRef, ActorSystem, Props}
-import akka.stream.ActorMaterializer
+import akka.actor.ActorSystem
 import com.apex.common.ApexLogging
 import com.apex.consensus.ProducerRef
 import com.apex.core.Blockchain
 import com.apex.network.peer.PeerHandlerManagerRef
 import com.apex.network.rpc.RpcServer
 import com.apex.network.upnp.UPnP
-import com.apex.network.{NetworkManagerRef, Node, NodeRef}
+import com.apex.network.{NetworkManagerRef, NodeRef}
 import com.apex.settings.ApexSettings
 import com.apex.utils.NetworkTimeProvider
 import net.sourceforge.argparse4j.ArgumentParsers
