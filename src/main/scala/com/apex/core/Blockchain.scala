@@ -1,7 +1,6 @@
 package com.apex.core
 
 import com.apex.common.ApexLogging
-import com.apex.core.script.Script
 import com.apex.settings.ChainSettings
 import com.apex.crypto.Ecdsa.PrivateKey
 import com.apex.crypto.{BinaryData, Crypto, Fixed8, MerkleTree, UInt160, UInt256}
@@ -66,7 +65,7 @@ class LevelDBBlockchain(val settings: ChainSettings) extends Blockchain {
   private val blkTxMappingStore = new BlkTxMappingStore(db, 10)
   private val headBlkStore = new HeadBlockStore(db)
   //private val utxoStore = new UTXOStore(db, 10)
-  // TODO:  pubkeyNameMappingStore
+  private val nameToAccountStore = new NameToAccountStore(db, 10)
   // TODO:  pubkeyNonceStore
   private val prodStateStore = new ProducerStateStore(db)
 
@@ -176,8 +175,8 @@ class LevelDBBlockchain(val settings: ChainSettings) extends Blockchain {
             val balances = merged.groupBy(_._1)
               .map(p => (p._1, Fixed8.sum(p._2.map(_._2).sum)))
               .filter(_._2.value > 0)
-            new Account(a.active, balances, a.version)
-          }).getOrElse(new Account(true, p._2.filter(_._2.value > 0).toMap))
+            new Account(a.active, balances, a.nextNonce, a.version)
+          }).getOrElse(new Account(true, p._2.filter(_._2.value > 0).toMap, 0))
           accountStore.set(p._1, account, batch)
         })
       })
@@ -279,6 +278,7 @@ class LevelDBBlockchain(val settings: ChainSettings) extends Blockchain {
       blkTxMappingStore.foreach((k, _) => blkTxMappingStore.delete(k, batch))
       accountStore.foreach((k, _) => accountStore.delete(k, batch))
       //utxoStore.foreach((k, _) => utxoStore.delete(k, batch))
+      nameToAccountStore.foreach((k, _) => nameToAccountStore.delete(k, batch))
       prodStateStore.delete(batch)
       headBlkStore.delete(batch)
       initDB(batch)

@@ -37,6 +37,12 @@ class BlkTxMappingStore(db: LevelDbStorage, capacity: Int)
     with UInt256Key
     with BlkTxMappingValue
 
+class NameToAccountStore(db: LevelDbStorage, capacity: Int)
+  extends StoreBase[String, UInt160](db, capacity)
+    with NameToAccountIndexPrefix
+    with StringKey
+    with UInt160Value
+
 //class UTXOStore(db: LevelDbStorage, capacity: Int)
 //  extends StoreBase[UTXOKey, TransactionOutput](db, capacity)
 //    with UTXOIndexPrefix
@@ -69,6 +75,7 @@ object IndexType extends Enumeration {
   val BlockHeightToId = Value(0x00)
   val BlockIdToTxId = Value(0x01)
   val UTXO = Value(0x02)
+  val NameToAccount = Value(0x03)
 }
 
 object StateType extends Enumeration {
@@ -122,6 +129,10 @@ trait UTXOIndexPrefix extends IndexPrefix {
   override val indexType: IndexType.Value = IndexType.UTXO
 }
 
+trait NameToAccountIndexPrefix extends IndexPrefix {
+  override val indexType: IndexType.Value = IndexType.NameToAccount
+}
+
 trait HeadBlockStatePrefix extends StatePrefix {
   override val stateType: StateType.Value = StateType.HeadBlock
 }
@@ -140,6 +151,10 @@ trait IntKey extends KeyConverterProvider[Int] {
   override val keyConverter: Converter[Int] = new IntConverter
 }
 
+trait StringKey extends KeyConverterProvider[String] {
+  override val keyConverter: Converter[String] = new StringConverter
+}
+
 trait UInt160Key extends KeyConverterProvider[UInt160] {
   override val keyConverter: Converter[UInt160] = new SerializableConverter(UInt160.deserialize)
 }
@@ -151,6 +166,10 @@ trait UInt256Key extends KeyConverterProvider[UInt256] {
 //trait UTXOKeyKey extends KeyConverterProvider[UTXOKey] {
 //  override val keyConverter: Converter[UTXOKey] = new SerializableConverter(UTXOKey.deserialize)
 //}
+
+trait UInt160Value extends ValueConverterProvider[UInt160] {
+  override val valConverter: Converter[UInt160] = new SerializableConverter(UInt160.deserialize)
+}
 
 trait UInt256Value extends ValueConverterProvider[UInt256] {
   override val valConverter: Converter[UInt256] = new SerializableConverter(UInt256.deserialize)
@@ -191,6 +210,15 @@ class IntConverter extends Converter[Int] {
 
   override def toBytes(key: Int): Array[Byte] = {
     BigInt(key).toByteArray
+  }
+}
+
+class StringConverter extends Converter[String] {
+  override def fromBytes(bytes: Array[Byte]): String = {
+    new String(bytes, "UTF-8")
+  }
+  override def toBytes(key: String): Array[Byte] = {
+    key.getBytes("UTF-8")
   }
 }
 
