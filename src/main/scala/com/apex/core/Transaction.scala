@@ -49,15 +49,9 @@ class Transaction(val txType: TransactionType.Value,
 
   private def serializeExcludeId(os: DataOutputStream) = {
     import com.apex.common.Serializable._
-    os.writeByte(txType.toByte)
-    os.writeInt(version)
-    os.writeByteArray(from)
-    os.write(toPubKeyHash)
-    os.writeString(toName)
-    os.write(amount)
-    os.write(assetId)
-    os.writeLong(nonce)
-    os.writeByteArray(data)
+
+    serializeForSign(os)
+
     os.writeByteArray(signature)
 
     //serializeExtraData(os)

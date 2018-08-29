@@ -106,13 +106,10 @@ object Ecdsa {
       if (decode.length == 34) {
         // 1 bytes prefix + 32 bytes data + 1 byte 0x01 (+ 4 bytes checksum)
         if (decode(33) == 0x01.toByte) {
-          Some(PrivateKey(decode.slice(1, 33)))
-        } else {
-          None
+          return Some(PrivateKey(decode.slice(1, 33)))
         }
-      } else {
-        None
       }
+      return None
     }
   }
 

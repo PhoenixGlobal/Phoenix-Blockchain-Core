@@ -1,12 +1,12 @@
 package com.apex.core
 
 import java.io.{ByteArrayOutputStream, DataInputStream, DataOutputStream}
-
 import com.apex.common.Serializable.DataInputStreamExtension
 import com.apex.crypto.{Crypto, Fixed8, UInt160, UInt256}
 
 class Account(val active: Boolean,
               val balances: Map[UInt256, Fixed8],
+              val nextNonce: Long,
               val version: Int = 0x01,
               override protected var _id: UInt160 = null)
   extends Identifier[UInt160] {
@@ -32,6 +32,7 @@ class Account(val active: Boolean,
     os.writeInt(version)
     os.writeBoolean(active)
     os.writeMap(balances.filter(_._2 > Fixed8.Zero))
+    os.writeLong(nextNonce)
   }
 }
 
@@ -41,10 +42,12 @@ object Account {
     val version = is.readInt
     val active = is.readBoolean
     val balances = is.readMap(UInt256.deserialize, Fixed8.deserialize)
+    val nextNonce = is.readLong
     val id = is.readObj(UInt160.deserialize)
     new Account(
       active = active,
       balances = balances,
+      nextNonce = nextNonce,
       version = version,
       id
     )
