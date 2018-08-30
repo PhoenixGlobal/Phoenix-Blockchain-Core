@@ -103,7 +103,7 @@ object Transaction {
       Json.obj(
             "id" -> o.id.toString,
             "type" -> o.txType.toString,
-            "from" -> Ecdsa.PublicKey(o.from).toAddress,
+            "from" -> o.fromAddress,
             "to" ->  o.toAddress,
             "toName" -> o.toName,
             "amount" -> o.amount.toString,

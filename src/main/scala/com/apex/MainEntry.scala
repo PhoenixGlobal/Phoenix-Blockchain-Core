@@ -96,6 +96,10 @@ object MainEntry extends ApexLogging{
   }
 
   private def getConfig(file: String = "settings.conf"): ApexSettings ={
+    if(file.isEmpty){
+      val defaultConf = "src/main/resources/settings.conf"
+      return ApexSettings.read(defaultConf)
+    }
     ApexSettings.read(file)
   }
 }

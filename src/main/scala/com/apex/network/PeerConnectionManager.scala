@@ -7,6 +7,8 @@ import akka.io.Tcp
 import akka.io.Tcp._
 import akka.util.{ByteString, CompactByteString}
 import com.apex.common.ApexLogging
+
+import com.apex.core.Blockchain
 import com.apex.settings.NetworkSettings
 import com.apex.utils.{NetworkTimeProvider, Version}
 import com.apex.network.PeerConnectionManager.{AwaitingHandshake, WorkingCycle}
@@ -66,6 +68,15 @@ class PeerConnectionManager(val settings: NetworkSettings,
 
   private var chunksBuffer: ByteString = CompactByteString()
 
+  private def constructHandshakeMsg: Handshake = {
+    val chain = Blockchain.getLevelDBBlockchain
+    val header_num = chain.getHeight()
+    val chain_id = chain.getGenesisBlockChainId
+    Handshake(settings.agentName,
+            Version(settings.appVersion), settings.nodeName,
+            ownSocketAddress,chain_id,header_num.toString,  timeProvider.time())
+  }
+
   private def handshake: Receive =
     startInteraction orElse
       receivedData orElse
@@ -96,9 +107,7 @@ class PeerConnectionManager(val settings: NetworkSettings,
 
   private def startInteraction: Receive = {
     case StartInteraction =>
-      val hb = Handshake(settings.agentName,
-        Version(settings.appVersion), settings.nodeName,
-        ownSocketAddress, timeProvider.time()).bytes
+      val hb = constructHandshakeMsg.bytes
       connection ! Tcp.Write(ByteString(hb))
       log.info(s"发送握手到: $remote")
       handshakeSent = true
@@ -108,16 +117,35 @@ class PeerConnectionManager(val settings: NetworkSettings,
   private def receivedData: Receive = {
     case Received(data) =>
       HandshakeSerializer.parseBytes(data.toArray) match {
-        case Success(handshake) =>
-          receivedHandshake = Some(handshake)
-          log.info(s"获得握手: $remote")
-          connection ! ResumeReading
-          networkManager ! GetHandlerToPeerConnectionManager //握手成功后，向PeerConnectionManager发送远程handler
-          if (handshakeGot && handshakeSent) self ! HandshakeDone
+        case Success(handshake) => handleMsg(handshake)
         case Failure(t) =>
           log.info(s"解析握手时的错误", t)
           self ! CloseConnection
       }
+  }
+
+  private def handleMsg(handshakeMsg: Handshake): Unit ={
+    val localChain = Blockchain.getLevelDBBlockchain
+    if(localChain.getGenesisBlockChainId != handshakeMsg.chain_id){
+      log.error(f"Peer on a different chain. Closing connection")
+      self ! CloseConnection
+      return
+    }
+    if (localChain.getHeight() > handshakeMsg.header_num.toInt){
+      log.error(f"Peer on a lower chain. Closing connection")
+      self ! CloseConnection
+      return
+    }
+
+    recvHandshake(handshakeMsg)
+  }
+
+  private def recvHandshake(handshakeMsg: Handshake): Unit ={
+    receivedHandshake = Some(handshakeMsg)
+    log.info(s"获得握手: $remote")
+    connection ! ResumeReading
+    networkManager ! GetHandlerToPeerConnectionManager //握手成功后，向PeerConnectionManager发送远程handler
+    if (handshakeGot && handshakeSent) self ! HandshakeDone
   }
 
   private def handshakeTimeout: Receive = {

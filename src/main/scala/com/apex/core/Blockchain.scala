@@ -44,11 +44,20 @@ trait Blockchain extends Iterable[Block] with ApexLogging {
   def verifyTransaction(tx: Transaction): Boolean
 
   def getBalance(address: UInt160): Option[collection.immutable.Map[UInt256, Long]]
+
+  def getGenesisBlockChainId: String
 }
 
 object Blockchain {
+  var chain : LevelDBBlockchain = null
   //  final val Current: Blockchain = new LevelDBBlockchain()
-  def populate(settings: ChainSettings) = new LevelDBBlockchain(settings)
+  def populate(settings: ChainSettings): LevelDBBlockchain = {
+    val populateChain = new LevelDBBlockchain(settings)
+    chain = populateChain
+    populateChain
+  }
+
+  def getLevelDBBlockchain: LevelDBBlockchain = chain
 }
 
 class LevelDBBlockchain(val settings: ChainSettings) extends Blockchain {
@@ -72,7 +81,6 @@ class LevelDBBlockchain(val settings: ChainSettings) extends Blockchain {
   private val minerCoinFrom = BinaryData("000000000000000000000000000000000000000000000000000000000000000000")   // 33 bytes pub key
   private val minerAddress = UInt160.parse("f54a5851e9372b87810a8e60cdd2e7cfd80b6e31").get
   private val minerAward = Fixed8.Ten
-
   private val genesisTx = new Transaction(TransactionType.Miner, minerCoinFrom,
     minerAddress, "", minerAward, UInt256.Zero, 0, BinaryData.empty, BinaryData.empty)
 
@@ -85,6 +93,8 @@ class LevelDBBlockchain(val settings: ChainSettings) extends Blockchain {
   private var latestProdState: ProducerStatus = null
 
   populate()
+
+  override def getGenesisBlockChainId: String = genesisBlockHeader.timeStamp.toString
 
   override def iterator: Iterator[Block] = new BlockchainIterator(this)
 
@@ -155,6 +165,10 @@ class LevelDBBlockchain(val settings: ChainSettings) extends Blockchain {
       }
     }
 
+    def updateAccout(accounts: Map[UInt160, Account], tx: Transaction) = {
+      // TODO
+    }
+
     try {
       db.batchWrite(batch => {
         headerStore.set(block.header.id, block.header, batch)
@@ -163,11 +177,13 @@ class LevelDBBlockchain(val settings: ChainSettings) extends Blockchain {
         //prodStateStore.set(latestProdState, batch)
         val blkTxMapping = BlkTxMapping(block.id, block.transactions.map(_.id))
         blkTxMappingStore.set(block.id, blkTxMapping, batch)
+        val accounts = Map.empty[UInt160, Account]
         val balances = Map.empty[UInt160, Map[UInt256, Fixed8]]
         block.transactions.foreach(tx => {
           txStore.set(tx.id, tx, batch)
           calcBalancesInBlock(balances, true, tx.fromPubKeyHash, tx.amount, tx.assetId)
           calcBalancesInBlock(balances, false, tx.toPubKeyHash, tx.amount, tx.assetId)
+          updateAccout(accounts, tx)
         })
         balances.foreach(p => {
           val account = accountStore.get(p._1).map(a => {
@@ -175,10 +191,11 @@ class LevelDBBlockchain(val settings: ChainSettings) extends Blockchain {
             val balances = merged.groupBy(_._1)
               .map(p => (p._1, Fixed8.sum(p._2.map(_._2).sum)))
               .filter(_._2.value > 0)
-            new Account(a.active, balances, a.nextNonce, a.version)
-          }).getOrElse(new Account(true, p._2.filter(_._2.value > 0).toMap, 0))
+            new Account(a.active, a.name, balances, a.nextNonce, a.version)
+          }).getOrElse(new Account(true, "",  p._2.filter(_._2.value > 0).toMap, 0))
           accountStore.set(p._1, account, batch)
         })
+        // TODO accounts.foreach()
       })
       latestHeader = block.header
       true
@@ -225,13 +242,46 @@ class LevelDBBlockchain(val settings: ChainSettings) extends Blockchain {
     txStore.contains(id)
   }
 
+  private def verifyRegisterNames(transactions: Seq[Transaction]): Boolean = {
+    val newNames = Set.empty[String]
+    val registers = Set.empty[UInt160]
+    transactions.foreach(tx => {
+      if (tx.txType == TransactionType.RegisterName) {
+        val name = new String(tx.data, "UTF-8")
+        if (name.length != 10)   // TODO: read "10" from config file
+          return false
+        if (newNames.contains(name))
+          return false
+        if (registers.contains(tx.fromPubKeyHash()))
+          return false
+        newNames.add(name)
+        registers.add(tx.fromPubKeyHash())
+      }
+    })
+    // make sure name is not used
+    newNames.foreach(name =>  {
+      if (nameToAccountStore.get(name) != None)
+        return false
+    })
+    // make sure register never registed before
+    registers.foreach(register => {
+      val account = accountStore.get(register)
+      if (account != None && account.get.name != "") {
+          return false
+      }
+    })
+    true
+  }
+
   override def verifyBlock(block: Block): Boolean = {
-    if (verifyHeader(block.header) &&
-      block.transactions.forall(verifyTransaction)) {
-      true
-    } else {
-      false
-    }
+    if (!verifyHeader(block.header))
+      return false
+    if (!block.transactions.forall(verifyTransaction))
+      return false
+    if (!verifyRegisterNames(block.transactions))
+      return false
+
+    true
   }
 
   override def verifyTransaction(tx: Transaction): Boolean = {

@@ -84,8 +84,13 @@ class PeerHandlerManager(settings: ApexSettings, timeProvider: NetworkTimeProvid
           lastIdUsed += 1
         }
       }
-      
-    case PeerHandler(handler) =>
+    case PeerHandler(handler) =>{
+//      handler ! startSync()
+      //      log.info("连接成功后获取的PeerConnectionManager链接="+handler)
+      //      //获取远程hangler，测发送消息
+      //      val msg = Message[Unit](GetPeersSpec, Right(Unit), None)
+      //      handler! ms
+    }
 //      log.info("连接成功后获取的PeerConnectionManager链接="+handler)
 //      //获取远程hangler，测发送消息
 //      val msg = Message[Unit](GetPeersSpec, Right(Unit), None)
