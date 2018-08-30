@@ -44,11 +44,20 @@ trait Blockchain extends Iterable[Block] with ApexLogging {
   def verifyTransaction(tx: Transaction): Boolean
 
   def getBalance(address: UInt160): Option[collection.immutable.Map[UInt256, Long]]
+
+  def getGenesisBlockChainId: String
 }
 
 object Blockchain {
+  var chain : LevelDBBlockchain = null
   //  final val Current: Blockchain = new LevelDBBlockchain()
-  def populate(settings: ChainSettings) = new LevelDBBlockchain(settings)
+  def populate(settings: ChainSettings): LevelDBBlockchain = {
+    val populateChain = new LevelDBBlockchain(settings)
+    chain = populateChain
+    populateChain
+  }
+
+  def getLevelDBBlockchain: LevelDBBlockchain = chain
 }
 
 class LevelDBBlockchain(val settings: ChainSettings) extends Blockchain {
@@ -85,6 +94,8 @@ class LevelDBBlockchain(val settings: ChainSettings) extends Blockchain {
   private var latestProdState: ProducerStatus = null
 
   populate()
+
+  override def getGenesisBlockChainId: String = genesisBlockHeader.timeStamp.toString
 
   override def iterator: Iterator[Block] = new BlockchainIterator(this)
 
