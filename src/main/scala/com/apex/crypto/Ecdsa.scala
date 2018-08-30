@@ -214,13 +214,10 @@ object Ecdsa {
         val decode = Base58Check.decode(address).getOrElse(Array[Byte]())
         if (decode.length == 22) {
           // 2 bytes prefix + 20 bytes data (+ 4 bytes checksum)
-          Some(UInt160.fromBytes(decode.slice(2, 22)))
-        } else {
-          None
+          return Some(UInt160.fromBytes(decode.slice(2, 22)))
         }
-      } else {
-        None
       }
+      return None
     }
   }
 

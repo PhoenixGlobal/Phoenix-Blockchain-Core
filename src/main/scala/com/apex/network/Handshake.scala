@@ -13,10 +13,14 @@ case class Handshake(applicationName: String,
                      protocolVersion: Version,
                      nodeName: String,
                      declaredAddress: Option[InetSocketAddress],
+                     chain_id: String,
+                     header_num: String,
                      time: Long) extends BytesSerializable {
 
   require(Option(applicationName).isDefined)
   require(Option(protocolVersion).isDefined)
+
+
 
   override type M = Handshake
 
@@ -34,9 +38,14 @@ object HandshakeSerializer extends Serializer[Handshake] {
 
     val nodeNameBytes = obj.nodeName.getBytes
 
+    val chainIdBytes = obj.chain_id.getBytes
+
+    val header_num = obj.header_num.getBytes
+
     Array(anb.size.toByte) ++ anb ++
       obj.protocolVersion.bytes ++
-      Array(nodeNameBytes.size.toByte) ++ nodeNameBytes ++
+      Array(nodeNameBytes.size.toByte) ++ nodeNameBytes ++ Array(chainIdBytes.size.toByte) ++ chainIdBytes ++
+      Array(header_num.size.toByte) ++ header_num
       Ints.toByteArray(fab.length) ++ fab ++
       Longs.toByteArray(obj.time)
 
@@ -62,6 +71,18 @@ object HandshakeSerializer extends Serializer[Handshake] {
     val nodeName = new String(bytes.slice(position, position + nodeNameSize))
     position += nodeNameSize
 
+    val chainIdSize = bytes.slice(position, position + 1).head
+    position += 1
+
+    val chainId = new String(bytes.slice(position, position + chainIdSize))
+    position += chainIdSize
+
+    val headerNumSize = bytes.slice(position, position + 1).head
+    position += 1
+
+    val headerNum = new String(bytes.slice(position, position + headerNumSize))
+    position += headerNumSize
+
     val fas = Ints.fromByteArray(bytes.slice(position, position + 4))
     position += 4
 
@@ -77,6 +98,6 @@ object HandshakeSerializer extends Serializer[Handshake] {
 
     val time = Longs.fromByteArray(bytes.slice(position, position + 8))
 
-    Handshake(an, av, nodeName, isaOpt, time)
+    Handshake(an, av, nodeName, isaOpt,chainId, headerNum, time)
   }
 }

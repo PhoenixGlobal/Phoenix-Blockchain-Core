@@ -5,6 +5,7 @@ import com.apex.common.Serializable.DataInputStreamExtension
 import com.apex.crypto.{Crypto, Fixed8, UInt160, UInt256}
 
 class Account(val active: Boolean,
+              val name: String,
               val balances: Map[UInt256, Fixed8],
               val nextNonce: Long,
               val version: Int = 0x01,
@@ -31,6 +32,7 @@ class Account(val active: Boolean,
     import com.apex.common.Serializable._
     os.writeInt(version)
     os.writeBoolean(active)
+    os.writeString(name)
     os.writeMap(balances.filter(_._2 > Fixed8.Zero))
     os.writeLong(nextNonce)
   }
@@ -41,11 +43,13 @@ object Account {
     import com.apex.common.Serializable._
     val version = is.readInt
     val active = is.readBoolean
+    val name = is.readString
     val balances = is.readMap(UInt256.deserialize, Fixed8.deserialize)
     val nextNonce = is.readLong
     val id = is.readObj(UInt160.deserialize)
     new Account(
       active = active,
+      name = name,
       balances = balances,
       nextNonce = nextNonce,
       version = version,
