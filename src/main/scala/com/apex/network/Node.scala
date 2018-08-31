@@ -15,10 +15,10 @@ import com.apex.common.ApexLogging
 import com.apex.consensus._
 import com.apex.core._
 import com.apex.crypto.UInt256
-import com.apex.network.rpc.{GetBlockByHeightCmd, GetBlockByIdCmd, GetBlocks, RPCCommand}
+import com.apex.network.rpc.{GetBlockByHeightCmd, GetBlockByIdCmd, GetBlockCountCmd, GetBlocks, RPCCommand}
 import com.apex.settings.ConsensusSettings
 
-import scala.collection.mutable.Map
+import scala.collection.mutable.{ArrayBuffer, Map}
 
 class Node(val chain: Blockchain, val peerManager: ActorRef) extends Actor with ApexLogging {
 
@@ -64,7 +64,10 @@ class Node(val chain: Blockchain, val peerManager: ActorRef) extends Actor with 
   override def receive: Receive = {
     case message: Message => processMessage(message)
     case cmd: RPCCommand => processRPCCommand(cmd)
-    case unknown: Any => println(unknown)
+    case unknown: Any => {
+      println("Unknown msg:")
+      println(unknown)
+    }
   }
 
   private def processRPCCommand(cmd: RPCCommand) = {
@@ -74,6 +77,17 @@ class Node(val chain: Blockchain, val peerManager: ActorRef) extends Actor with 
       }
       case GetBlockByHeightCmd(height) => {
         sender() ! chain.getBlock(height)
+      }
+      case GetBlockCountCmd() => {
+        sender() ! chain.getHeight()
+      }
+      case GetBlocks() => {
+        val blockNum = chain.getHeight()
+        val blocks = ArrayBuffer.empty[Block]
+        for (i <- 0 to blockNum) {
+          blocks.append(chain.getBlock(i).get)
+        }
+        sender() ! blocks
       }
     }
   }

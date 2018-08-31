@@ -60,7 +60,7 @@ class ProduceTask(val producer: Producer,
           case NotSynced(_, _) => log.info(s"not synced")
           case NotYet(npt, ct) => log.debug(s"Not yet, next produce time: $npt, current time: $ct")
           case TimeMissed(tpt, ct) => log.debug(s"missed, this produce time: $tpt, current time: $ct")
-          case NotMyTurn(name, _) => log.info(s"not my turn, ($name)")
+          case NotMyTurn(name, _) => log.debug(s"not my turn, ($name)")
           case Failed(e) => log.error("error occurred when producing block", e)
           case Success(block, producer, time) => block match {
             case Some(blk) => {
@@ -128,7 +128,7 @@ class Producer(settings: ConsensusSettings,
           timeToProduce = next
         val txs = txPool.values.toSeq
         val block = chain.produceBlock(
-          witness.pubkey.toBin,
+          witness.pubkey,
           witness.privkey.get,
           nextProduceTime(now, next),
           txs)

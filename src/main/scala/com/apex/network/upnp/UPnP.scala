@@ -34,11 +34,14 @@ class UPnP(settings: NetworkSettings) extends ApexLogging{
   }.recover { case t: Throwable =>
     log.error("无法发现UPnP网关设备: " + t.toString)
   }
-  
-  if(Option(gateway.get.getSpecificPortMappingEntry(settings.bindAddress.getPort,"TCP"))!=None){
-    deletePort(settings.bindAddress.getPort)
+
+  if (gateway != None) {
+    if (Option(gateway.get.getSpecificPortMappingEntry(settings.bindAddress.getPort, "TCP")) != None) {
+      deletePort(settings.bindAddress.getPort)
+    }
+    addPort(settings.bindAddress.getPort)
   }
-  addPort(settings.bindAddress.getPort)
+
   def addPort(port: Int): Try[Unit] = Try {
     if (gateway.get.addPortMapping(port, port, localAddress.get.getHostAddress, "TCP", "Apex")) {
       log.info("映射端口 [" + localAddress.get.getHostAddress + "]:" + port)

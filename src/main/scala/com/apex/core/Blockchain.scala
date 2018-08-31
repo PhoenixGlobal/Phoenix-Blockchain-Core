@@ -2,7 +2,7 @@ package com.apex.core
 
 import com.apex.common.ApexLogging
 import com.apex.settings.ChainSettings
-import com.apex.crypto.Ecdsa.PrivateKey
+import com.apex.crypto.Ecdsa.{PrivateKey, PublicKey}
 import com.apex.crypto.{BinaryData, Crypto, Fixed8, MerkleTree, UInt160, UInt256}
 import com.apex.storage.LevelDbStorage
 import org.iq80.leveldb.WriteBatch
@@ -30,7 +30,7 @@ trait Blockchain extends Iterable[Block] with ApexLogging {
 
   def containsBlock(id: UInt256): Boolean
 
-  def produceBlock(producer: BinaryData, privateKey: PrivateKey, timeStamp: Long,
+  def produceBlock(producer: PublicKey, privateKey: PrivateKey, timeStamp: Long,
                    transactions: Seq[Transaction]): Option[Block]
 
   def tryInsertBlock(block: Block): Boolean
@@ -78,13 +78,15 @@ class LevelDBBlockchain(val settings: ChainSettings) extends Blockchain {
   // TODO:  pubkeyNonceStore
   private val prodStateStore = new ProducerStateStore(db)
 
-  private val minerCoinFrom = BinaryData("000000000000000000000000000000000000000000000000000000000000000000")   // 33 bytes pub key
-  private val minerAddress = UInt160.parse("f54a5851e9372b87810a8e60cdd2e7cfd80b6e31").get
+  // TODO: zero is not a valid pub key, need to work out other method
+  private val minerCoinFrom = BinaryData("03b4534b44d1da47e4b4a504a210401a583f860468dec766f507251a057594e682")   // 33 bytes pub key
   private val minerAward = Fixed8.Ten
-  private val genesisTx = new Transaction(TransactionType.Miner, minerCoinFrom,
-    minerAddress, "", minerAward, UInt256.Zero, 0, BinaryData.empty, BinaryData.empty)
 
-  private val genesisBlockHeader: BlockHeader = BlockHeader.build(0, 1537790400000L,
+  private val genesisMinerAddress = UInt160.parse("f54a5851e9372b87810a8e60cdd2e7cfd80b6e31").get
+  private val genesisTx = new Transaction(TransactionType.Miner, minerCoinFrom,
+    genesisMinerAddress, "", minerAward, UInt256.Zero, 0, BinaryData.empty, BinaryData.empty)
+
+  private val genesisBlockHeader: BlockHeader = BlockHeader.build(0, 1535699919500L,
     UInt256.Zero, UInt256.Zero, genesisProducer, genesisProducerPrivKey)
   private val genesisBlock: Block = Block.build(genesisBlockHeader, Seq(genesisTx))
 
@@ -207,10 +209,10 @@ class LevelDBBlockchain(val settings: ChainSettings) extends Blockchain {
     }
   }
 
-  override def produceBlock(producer: BinaryData, privateKey: PrivateKey,
+  override def produceBlock(producer: PublicKey, privateKey: PrivateKey,
                             timeStamp: Long, transactions: Seq[Transaction]): Option[Block] = {
     val minerTx = new Transaction(TransactionType.Miner, minerCoinFrom,
-      minerAddress, "", minerAward, UInt256.Zero, latestHeader.index + 1, BinaryData.empty, BinaryData.empty)
+      producer.pubKeyHash, "", minerAward, UInt256.Zero, latestHeader.index + 1, BinaryData.empty, BinaryData.empty)
     val txs = Seq(minerTx) ++ transactions.filter(verifyTransaction)
     val merkleRoot = MerkleTree.root(txs.map(_.id))
     val header = BlockHeader.build(

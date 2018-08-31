@@ -214,7 +214,7 @@ object Script {
     OP_DUP :: OP_HASH160 :: OP_PUSHDATA(pubKeyHash) :: OP_EQUALVERIFY :: OP_CHECKSIG :: Nil
   }
 
-  def pay2pkh(pubKey: Ecdsa.PublicKey): Seq[ScriptOP] = pay2pkh(pubKey.hash160)
+  def pay2pkh(pubKey: Ecdsa.PublicKey): Seq[ScriptOP] = pay2pkh(pubKey.pubKeyHash)
 
   def pay2pkh(pubKey: UInt160): Seq[ScriptOP] = pay2pkh(pubKey.data)
 

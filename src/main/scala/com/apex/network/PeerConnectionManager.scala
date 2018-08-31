@@ -7,7 +7,6 @@ import akka.io.Tcp
 import akka.io.Tcp._
 import akka.util.{ByteString, CompactByteString}
 import com.apex.common.ApexLogging
-
 import com.apex.core.Blockchain
 import com.apex.settings.NetworkSettings
 import com.apex.utils.{NetworkTimeProvider, Version}
