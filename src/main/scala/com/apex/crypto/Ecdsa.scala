@@ -188,12 +188,14 @@ object Ecdsa {
   case class PublicKey(value: Point, compressed: Boolean = true) {
     def toBin: BinaryData = value.toBin(compressed)
 
-    def hash160: BinaryData = Ecdsa.hash160(toBin)
+    //def hash160: BinaryData = Ecdsa.hash160(toBin)
+
+    def pubKeyHash: UInt160 = UInt160.fromBytes(Ecdsa.hash160(toBin))
 
     override def toString = toBin.toString
 
     def toAddress: String = {
-      PublicKeyHash.toAddress(hash160)
+      PublicKeyHash.toAddress(pubKeyHash.data)
     }
   }
 

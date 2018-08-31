@@ -29,7 +29,7 @@ class AddressTest {
 
     var privKey = new Ecdsa.PrivateKey(BinaryData("18e14a7b6a307f426a94f8114701e7c8e774e7f9a47e2c2035db29a206321725"))
     var pubKey = privKey.publicKey
-    var pubKeyHash = pubKey.hash160  // f54a5851e9372b87810a8e60cdd2e7cfd80b6e31
+    var pubKeyHash = pubKey.pubKeyHash.data  // f54a5851e9372b87810a8e60cdd2e7cfd80b6e31
     val address4 = Ecdsa.PublicKeyHash.toAddress(pubKeyHash)
 
     assert(address1 == "AP1xWDozWvuVah1W86DKtcWzdw1LLHreMGX")
@@ -70,7 +70,7 @@ class AddressTest {
       print("priv key raw with 0x01: ");  println(privateKey.toString)   // 32 + 1
       print("priv key WIF format:    ");  println(privateKey.toWIF)
       print("pub key (compressed):   ");  println(privateKey.publicKey.toString)  // 1 + 32
-      print("pub key hash160:        ");  println(privateKey.publicKey.hash160.toString)
+      print("pub key hash160:        ");  println(privateKey.publicKey.pubKeyHash.toString)
       print("Address:                ");  println(privateKey.publicKey.toAddress)
 
       println("======")

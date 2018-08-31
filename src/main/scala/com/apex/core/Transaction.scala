@@ -24,7 +24,7 @@ class Transaction(val txType: TransactionType.Value,
   def fee: Fixed8 = Fixed8.Zero
 
   def fromPubKeyHash() : UInt160 = {
-    UInt160.fromBytes(Ecdsa.PublicKey(from).hash160)
+    Ecdsa.PublicKey(from).pubKeyHash
   }
 
   def fromAddress(): String = {
