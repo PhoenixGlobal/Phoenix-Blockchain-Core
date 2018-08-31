@@ -14,6 +14,8 @@ import play.api.libs.functional.syntax._
 import play.api.libs.json.Reads._
 import play.api.libs.json._
 
+import scala.collection.mutable.ArrayBuffer
+
 object Validators {
   def uint256Validator = Reads.StringReads.filter(JsonValidationError("invalid UInt256"))(UInt256.parse(_).isDefined)
 
@@ -22,9 +24,9 @@ object Validators {
 
 trait RPCCommand
 
-object GetBlocks extends RPCCommand
+case class GetBlocks() extends RPCCommand
 
-case class GetBlocksResult(blocks: Seq[Block])
+case class GetBlocksResult(blocks: ArrayBuffer[Block])
 
 object GetBlocksResult {
   implicit val writes = new Writes[GetBlocksResult] {
@@ -34,7 +36,9 @@ object GetBlocksResult {
   }
 }
 
-object GetBlockCount extends RPCCommand
+case class GetBlockCountCmd() extends RPCCommand
+
+//object GetBlockCountCmd extends RPCCommand
 
 case class GetBlockCountResult(count: Int)
 

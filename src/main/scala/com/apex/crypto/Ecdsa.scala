@@ -179,8 +179,8 @@ object Ecdsa {
 
   object PublicKey {
     def apply(data: BinaryData): PublicKey = data.length match {
-      case 65 if data.head == 4 => new PublicKey(Point(data), false)
-      case 65 if data.head == 6 || data.head == 7 => new PublicKey(Point(data), false)
+      //case 65 if data.head == 4 => new PublicKey(Point(data), false)
+      //case 65 if data.head == 6 || data.head == 7 => new PublicKey(Point(data), false)
       case 33 if data.head == 2 || data.head == 3 => new PublicKey(Point(data), true)
     }
   }
@@ -188,12 +188,14 @@ object Ecdsa {
   case class PublicKey(value: Point, compressed: Boolean = true) {
     def toBin: BinaryData = value.toBin(compressed)
 
-    def hash160: BinaryData = Ecdsa.hash160(toBin)
+    //def hash160: BinaryData = Ecdsa.hash160(toBin)
+
+    def pubKeyHash: UInt160 = UInt160.fromBytes(Ecdsa.hash160(toBin))
 
     override def toString = toBin.toString
 
     def toAddress: String = {
-      PublicKeyHash.toAddress(hash160)
+      PublicKeyHash.toAddress(pubKeyHash.data)
     }
   }
 
@@ -260,22 +262,23 @@ object Ecdsa {
     encodeSignature(normalizeSignature(r, s))
   }
 
+  // we use only the 33 bytes compressed pub key, don not use uncompressed key
   def isPubKeyValid(key: Seq[Byte]): Boolean = key.length match {
-    case 65 if key(0) == 4 || key(0) == 6 || key(0) == 7 => true
+    //case 65 if key(0) == 4 || key(0) == 6 || key(0) == 7 => true
     case 33 if key(0) == 2 || key(0) == 3 => true
     case _ => false
   }
 
-  def isPubKeyCompressedOrUncompressed(key: Seq[Byte]): Boolean = key.length match {
-    case 65 if key(0) == 4 => true
-    case 33 if key(0) == 2 || key(0) == 3 => true
-    case _ => false
-  }
+  //  def isPubKeyCompressedOrUncompressed(key: Seq[Byte]): Boolean = key.length match {
+  //    case 65 if key(0) == 4 => true
+  //    case 33 if key(0) == 2 || key(0) == 3 => true
+  //    case _ => false
+  //  }
 
-  def isPubKeyCompressed(key: Seq[Byte]): Boolean = key.length match {
-    case 33 if key(0) == 2 || key(0) == 3 => true
-    case _ => false
-  }
+  //  def isPubKeyCompressed(key: Seq[Byte]): Boolean = key.length match {
+  //    case 33 if key(0) == 2 || key(0) == 3 => true
+  //    case _ => false
+  //  }
 
   def isPrivateKeyCompressed(key: PrivateKey): Boolean = key.compressed
 

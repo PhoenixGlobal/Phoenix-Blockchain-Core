@@ -25,6 +25,7 @@ import com.apex.crypto.UInt256
 import com.apex.settings.RPCSettings
 import play.api.libs.json._
 
+import scala.collection.mutable.ArrayBuffer
 import scala.concurrent.duration.{Duration, _}
 import scala.concurrent.{Await, ExecutionContext, Future}
 
@@ -48,7 +49,7 @@ object RpcServer extends ApexLogging {
           entity(as[String]) { data =>
             Json.parse(data).validate[GetBlockByHeightCmd] match {
               case cmd: JsSuccess[GetBlockByHeightCmd] => {
-                val f = (nodeRef ? cmd)
+                val f = (nodeRef ? cmd.get)
                   .mapTo[Option[Block]]
                   .map(_.map(Json.toJson(_).toString).getOrElse(JsNull.toString))
                 complete(f)
@@ -74,9 +75,18 @@ object RpcServer extends ApexLogging {
         path("getblocks") {
           post {
             entity(as[String]) { _ =>
-              val f = (nodeRef ? GetBlocks)
-                .mapTo[GetBlocksResult]
-                .map(Json.toJson(_).toString)
+              // FIXME
+              val f = (nodeRef ? GetBlocks).mapTo[ArrayBuffer[Block]].map(Json.toJson(_).toString)
+
+              complete(f)
+            }
+          }
+        } ~
+        path("getaccount") {   // todo
+          post {
+            entity(as[String]) { _ =>
+              val f = (nodeRef ? GetBlocks).mapTo[ArrayBuffer[Block]].map(Json.toJson(_).toString)
+
               complete(f)
             }
           }
@@ -110,7 +120,7 @@ object RpcServer extends ApexLogging {
         path("getblockcount") {
           post {
             entity(as[String]) { _ =>
-              val f = (nodeRef ? GetBlockCount).mapTo[GetBlockCountResult].map(Json.toJson(_).toString)
+              val f = (nodeRef ? GetBlockCountCmd()).mapTo[Int].map(GetBlockCountResult(_)).map(Json.toJson(_).toString)
               complete(f)
             }
           }
