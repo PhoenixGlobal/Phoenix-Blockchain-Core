@@ -16,6 +16,7 @@ import java.io.{ByteArrayInputStream, ByteArrayOutputStream, DataInputStream, Da
 
 import com.apex.crypto.Ecdsa.PublicKey
 import com.apex.crypto.UInt256
+import com.apex.exceptions.{InvalidOperationException, UnExpectedError}
 import com.apex.storage.LevelDbStorage
 
 import collection.mutable.{ListBuffer, Map, Seq, SortedMap}
@@ -266,6 +267,10 @@ class ForkBase(dir: String) {
     _head
   }
 
+  def get(id: UInt256): Option[ForkItem] = {
+    indexById.get(id)
+  }
+
   def add(item: ForkItem): Boolean = {
     if (indexById.contains(item.block.id)) {
       false
@@ -280,6 +285,27 @@ class ForkBase(dir: String) {
         removeConfirmed(headItem.confirmedHeight)
         true
       }
+    }
+  }
+
+  def switchTo(id: UInt256): Unit = {
+    val (originFork, newFork) = getForks(head(), indexById.get(id))
+
+    val items = Seq.empty[ForkItem]
+    db.batchWrite(batch => {
+      for (item <- originFork) {
+        val newItem = item.copy(master = false)
+        batch.put(newItem.block.id.toBytes, newItem.toBytes)
+        items :+ newItem
+      }
+      for (item <- newFork) {
+        val newItem = item.copy(master = true)
+        batch.put(newItem.block.id.toBytes, newItem.toBytes)
+        items :+ newItem
+      }
+    })
+    for (item <- items) {
+      indexById.put(item.block.id, item)
     }
   }
 
@@ -316,9 +342,46 @@ class ForkBase(dir: String) {
       createIndex(item)
       true
     } else {
-
       false
     }
+  }
+
+  private def getForks(x: Option[ForkItem], y: Option[ForkItem]): (Seq[ForkItem], Seq[ForkItem]) = {
+    if (x.isEmpty || y.isEmpty) {
+      throw new InvalidOperationException("")
+    } else {
+      var a = x.get
+      var b = y.get
+      if (a.block.id.equals(b.block.id)) {
+        (Seq(a), Seq(b))
+      } else {
+        val xs = Seq.empty[ForkItem]
+        val ys = Seq.empty[ForkItem]
+        while (a.block.index < b.block.index) {
+          xs :+ a
+          a = getPrev(a)
+        }
+        while (b.block.index < a.block.index) {
+          ys :+ b
+          b = getPrev(b)
+        }
+        while (!a.block.id.equals(b.block.id)) {
+          xs :+ a
+          ys :+ b
+          a = getPrev(a)
+          b = getPrev(b)
+        }
+        (xs, ys)
+      }
+    }
+  }
+
+  private def getPrev(item: ForkItem): ForkItem = {
+    val prev = get(item.block.prevBlock)
+    if (prev.isEmpty) {
+      throw new UnExpectedError
+    }
+    prev.get
   }
 
   private def createIndex(item: ForkItem): Unit = {
