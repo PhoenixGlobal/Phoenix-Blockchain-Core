@@ -9,7 +9,8 @@
 package com.apex.network.rpc
 
 import com.apex.core.Block
-import com.apex.crypto.UInt256
+import com.apex.crypto.{UInt160, UInt256}
+import com.apex.crypto.Ecdsa.PublicKeyHash
 import play.api.libs.functional.syntax._
 import play.api.libs.json.Reads._
 import play.api.libs.json._
@@ -20,6 +21,8 @@ object Validators {
   def uint256Validator = Reads.StringReads.filter(JsonValidationError("invalid UInt256"))(UInt256.parse(_).isDefined)
 
   def amountValidator = Reads.StringReads.filter(JsonValidationError("invalid amount"))(d => BigDecimal(d).signum > 0)
+
+  def addressValidator = Reads.StringReads.filter(JsonValidationError("invalid Address"))(PublicKeyHash.fromAddress(_).isDefined)
 }
 
 trait RPCCommand
@@ -48,6 +51,19 @@ object GetBlockCountResult {
       "count" -> o.count
     )
   }
+}
+
+case class GetAccountCmd(address: UInt160) extends RPCCommand
+
+object GetAccountCmd {
+  implicit val testWrites = new Writes[GetAccountCmd] {
+    override def writes(o: GetAccountCmd): JsValue = Json.obj(
+      "address" -> o.address.toString
+    )
+  }
+  implicit val testReads: Reads[GetAccountCmd] = (
+    (__ \ "address").read[String](Validators.addressValidator).map(c => PublicKeyHash.fromAddress(c).get)
+    ) map (GetAccountCmd.apply _)
 }
 
 case class GetBlockByHeightCmd(height: Int) extends RPCCommand

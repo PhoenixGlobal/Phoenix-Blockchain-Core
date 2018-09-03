@@ -15,7 +15,7 @@ import com.apex.common.ApexLogging
 import com.apex.consensus._
 import com.apex.core._
 import com.apex.crypto.UInt256
-import com.apex.network.rpc.{GetBlockByHeightCmd, GetBlockByIdCmd, GetBlockCountCmd, GetBlocks, RPCCommand}
+import com.apex.network.rpc.{GetBlockByHeightCmd, GetBlockByIdCmd, GetBlockCountCmd, GetBlocks, GetAccountCmd, RPCCommand}
 import com.apex.settings.ConsensusSettings
 
 import scala.collection.mutable.{ArrayBuffer, Map}
@@ -88,6 +88,9 @@ class Node(val chain: Blockchain, val peerManager: ActorRef) extends Actor with 
           blocks.append(chain.getBlock(i).get)
         }
         sender() ! blocks
+      }
+      case GetAccountCmd(address) => {
+        sender() ! chain.getAccount(address)
       }
     }
   }
