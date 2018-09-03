@@ -8,17 +8,12 @@
 
 package com.apex.network
 
-import java.time.{Duration, Instant}
-
 import akka.actor.{Actor, ActorRef, ActorSystem, Props}
 import com.apex.common.ApexLogging
-import com.apex.consensus._
 import com.apex.core._
-import com.apex.crypto.UInt256
-import com.apex.network.rpc.{GetBlockByHeightCmd, GetBlockByIdCmd, GetBlockCountCmd, GetBlocks, RPCCommand}
-import com.apex.settings.ConsensusSettings
+import com.apex.network.rpc._
 
-import scala.collection.mutable.{ArrayBuffer, Map}
+import scala.collection.mutable.ArrayBuffer
 
 class Node(val chain: Blockchain, val peerManager: ActorRef) extends Actor with ApexLogging {
 
@@ -88,6 +83,9 @@ class Node(val chain: Blockchain, val peerManager: ActorRef) extends Actor with 
           blocks.append(chain.getBlock(i).get)
         }
         sender() ! blocks
+      }
+      case GetAccountCmd(address) => {
+        sender() ! chain.getAccount(address)
       }
     }
   }

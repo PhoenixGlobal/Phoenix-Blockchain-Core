@@ -20,7 +20,7 @@ import akka.stream.ActorMaterializer
 import akka.util.Timeout
 import spray.json.DefaultJsonProtocol._
 import com.apex.common.ApexLogging
-import com.apex.core.Block
+import com.apex.core.{Account, Block}
 import com.apex.crypto.UInt256
 import com.apex.settings.RPCSettings
 import play.api.libs.json._
@@ -81,12 +81,21 @@ object RpcServer extends ApexLogging {
             }
           }
         } ~
-        path("getaccount") {   // todo
+        path("getaccount") {
           post {
-            entity(as[String]) { _ =>
-              val f = (nodeRef ? GetBlocks).mapTo[ArrayBuffer[Block]].map(Json.toJson(_).toString)
-
-              complete(f)
+            entity(as[String]) { data =>
+              Json.parse(data).validate[GetAccountCmd] match {
+                case cmd: JsSuccess[GetAccountCmd] => {
+                  val f = (nodeRef ? cmd.value)
+                    .mapTo[Option[Account]]
+                    .map(_.map(Json.toJson(_).toString).getOrElse(JsNull.toString))
+                  complete(f)
+                }
+                case e: JsError => {
+                  println(e)
+                  complete(HttpEntity(ContentTypes.`application/json`, Json.parse( """{"result": "Error"}""").toString()))
+                }
+              }
             }
           }
         } ~
