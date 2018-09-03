@@ -45,6 +45,8 @@ trait Blockchain extends Iterable[Block] with ApexLogging {
 
   def getBalance(address: UInt160): Option[collection.immutable.Map[UInt256, Long]]
 
+  def getAccount(address: UInt160): Option[Account]
+
   def getGenesisBlockChainId: String
 }
 
@@ -311,6 +313,10 @@ class LevelDBBlockchain(val settings: ChainSettings) extends Blockchain {
       } else {
         None
       }).getOrElse(None)
+  }
+
+  override def getAccount(address: UInt160): Option[Account] = {
+    accountStore.get(address)
   }
 
   private def populate(): Unit = {

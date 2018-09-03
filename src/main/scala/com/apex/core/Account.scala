@@ -1,8 +1,8 @@
 package com.apex.core
 
 import java.io.{ByteArrayOutputStream, DataInputStream, DataOutputStream}
-import com.apex.common.Serializable.DataInputStreamExtension
 import com.apex.crypto.{Crypto, Fixed8, UInt160, UInt256}
+import play.api.libs.json.{JsValue, Json, Writes}
 
 class Account(val active: Boolean,
               val name: String,
@@ -55,5 +55,18 @@ object Account {
       version = version,
       id
     )
+  }
+
+  implicit val accountWrites = new Writes[Account] {
+    override def writes(o: Account): JsValue = {
+      Json.obj(
+        "active" -> o.active,
+        "id" -> o.id.toString,
+        "name" -> o.name,
+        "balances" -> o.balances.map(p => (p._1.toString -> p._2.toString)),
+        "nextNonce" -> o.nextNonce,
+        "version" -> o.version
+      )
+    }
   }
 }
