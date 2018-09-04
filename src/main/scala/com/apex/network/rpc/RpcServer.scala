@@ -40,7 +40,7 @@ object RpcServer extends ApexLogging {
   private var bindingFuture: Future[Http.ServerBinding] = null
 
 
-  def run(rpcSettings: RPCSettings, nodeRef: ActorRef) = {
+  def run(rpcSettings: RPCSettings, nodeRef: ActorRef, producerRef: ActorRef) = {
     implicit val executionContext = system.dispatcher
 
     val route =
@@ -77,6 +77,7 @@ object RpcServer extends ApexLogging {
             entity(as[String]) { _ =>
               // FIXME
               val f = (nodeRef ? GetBlocks).mapTo[ArrayBuffer[Block]].map(Json.toJson(_).toString)
+
               complete(f)
             }
           }
@@ -115,6 +116,22 @@ object RpcServer extends ApexLogging {
                 case cmd: JsSuccess[SendCmd] => {
                   val f = (nodeRef ? cmd.value)
                     .mapTo[UInt256].map(_.toString)
+                  complete(f)
+                }
+                case e: JsError => {
+                  println(e)
+                  complete(HttpEntity(ContentTypes.`application/json`, Json.parse( """{"result": "Error"}""").toString()))
+                }
+              }
+            }
+          }
+        } ~
+        path("sendrawtransaction") {
+          post {
+            entity(as[String]) { data =>
+              Json.parse(data).validate[SendRawTransactionCmd] match {
+                case cmd: JsSuccess[SendRawTransactionCmd] => {
+                  val f = (producerRef ? cmd.value).mapTo[Boolean].map(Json.toJson(_).toString)
                   complete(f)
                 }
                 case e: JsError => {

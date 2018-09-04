@@ -9,8 +9,9 @@
 package com.apex.network.rpc
 
 import com.apex.core.Block
-import com.apex.crypto.{UInt160, UInt256}
+import com.apex.crypto.{BinaryData, UInt160, UInt256}
 import com.apex.crypto.Ecdsa.PublicKeyHash
+import org.bouncycastle.util.encoders.Hex
 import play.api.libs.functional.syntax._
 import play.api.libs.json.Reads._
 import play.api.libs.json._
@@ -23,6 +24,9 @@ object Validators {
   def amountValidator = Reads.StringReads.filter(JsonValidationError("invalid amount"))(d => BigDecimal(d).signum > 0)
 
   def addressValidator = Reads.StringReads.filter(JsonValidationError("invalid Address"))(PublicKeyHash.fromAddress(_).isDefined)
+
+  // TODO
+  def HexValidator = Reads.StringReads.filter(JsonValidationError("invalid Address"))(d => true)
 }
 
 trait RPCCommand
@@ -64,6 +68,19 @@ object GetAccountCmd {
   implicit val testReads: Reads[GetAccountCmd] = (
     (__ \ "address").read[String](Validators.addressValidator).map(c => PublicKeyHash.fromAddress(c).get)
     ) map (GetAccountCmd.apply _)
+}
+
+case class SendRawTransactionCmd(rawTx: BinaryData) extends RPCCommand
+
+object SendRawTransactionCmd {
+  implicit val testWrites = new Writes[SendRawTransactionCmd] {
+    override def writes(o: SendRawTransactionCmd): JsValue = Json.obj(
+      "rawTx" -> o.rawTx.toString
+    )
+  }
+  implicit val testReads: Reads[SendRawTransactionCmd] = (
+    (__ \ "rawTx").read[String](Validators.HexValidator).map(c => BinaryData(c))
+    ) map (SendRawTransactionCmd.apply _)
 }
 
 case class GetBlockByHeightCmd(height: Int) extends RPCCommand

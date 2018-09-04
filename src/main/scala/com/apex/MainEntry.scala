@@ -55,7 +55,7 @@ object MainEntry extends ApexLogging{
     val networkControllerRef = NetworkManagerRef(settings.network, upnp, timeProvider, peerManagerRef, nodeRef)
 //    Node.beginProduce(nodeRef, settings.consensus)
 //    val task = node.beginProduce(Genesis.config)
-    RpcServer.run(settings.rpc, nodeRef)
+    RpcServer.run(settings.rpc, nodeRef, producer)
     //    producer.wait()
     //    val block3 = Blockchain.Current.produceBlock(Seq.empty)
 
