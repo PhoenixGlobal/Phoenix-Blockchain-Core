@@ -14,12 +14,13 @@ package com.apex.consensus
 
 import java.math.BigInteger
 import java.time.{Duration, Instant}
-
+import java.io.{ByteArrayInputStream, ByteArrayOutputStream, DataInputStream, DataOutputStream}
 import akka.actor.{Actor, ActorRef, ActorSystem, Props}
 import com.apex.common.ApexLogging
 import com.apex.core._
 import com.apex.crypto.Ecdsa.PublicKey
 import com.apex.crypto.UInt256
+import com.apex.network.rpc.SendRawTransactionCmd
 import com.apex.network.{MessagePack, MessageType, Node}
 import com.apex.settings.{ConsensusSettings, Witness}
 
@@ -81,7 +82,7 @@ class Producer(settings: ConsensusSettings,
 
   implicit val executionContext: ExecutionContext = system.dispatcher
 
-  private val txPool: Map[UInt256, Transaction] = Map.empty
+  private val txPool: scala.collection.mutable.Map[UInt256, Transaction] = scala.collection.mutable.Map.empty
 
   private var canProduce = false
 
@@ -199,6 +200,17 @@ class Producer(settings: ConsensusSettings,
   }
 
   override def receive: Receive = {
+    case SendRawTransactionCmd(rawTx) => {
+      val is = new DataInputStream(new ByteArrayInputStream(rawTx))
+      val tx = Transaction.deserialize(is)
+      if (tx.verifySignature()) {
+        txPool += (tx.id -> tx)
+        sender() ! true
+      }
+      else {
+        sender() ! false
+      }
+    }
     case a: Any => {
       log.info(s"${sender().toString}, ${a.toString}")
     }
