@@ -28,7 +28,6 @@ import scala.io.StdIn
 object MainEntry extends ApexLogging{
 
   def main(args: Array[String]): Unit = {
-
     val ns = parseArgs(args)
     val settings = getApexSettings(ns)
     val chain = Blockchain.populate(settings.chain, settings.consensus)

@@ -115,7 +115,8 @@ class LevelDBBlockchain(chainSettings: ChainSettings, consensusSettings: Consens
   }
 
   override def getHeadTime(): Long = {
-    latestHeader.timeStamp
+//    latestHeader.timeStamp
+    forkBase.head.map(_.block.timeStamp).getOrElse(0)
   }
 
   override def headTimeSinceGenesis(): Long = {
@@ -387,6 +388,7 @@ class LevelDBBlockchain(chainSettings: ChainSettings, consensusSettings: Consens
   }
 
   private def onConfirmed(block: Block): Unit = {
+    log.info(s"confirm block ${block.height} (${block.id})")
     if (block.height != 0) {
       saveBlockToStores(block)
     }
