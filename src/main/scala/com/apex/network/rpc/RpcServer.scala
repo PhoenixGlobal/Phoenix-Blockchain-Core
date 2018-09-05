@@ -75,9 +75,7 @@ object RpcServer extends ApexLogging {
         path("getblocks") {
           post {
             entity(as[String]) { _ =>
-              // FIXME
-              val f = (nodeRef ? GetBlocks).mapTo[ArrayBuffer[Block]].map(Json.toJson(_).toString)
-
+              val f = (nodeRef ? GetBlocksCmd()).mapTo[ArrayBuffer[Block]].map(Json.toJson(_).toString)
               complete(f)
             }
           }

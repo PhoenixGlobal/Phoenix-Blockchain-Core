@@ -31,21 +31,9 @@ object Validators {
 
 trait RPCCommand
 
-case class GetBlocks() extends RPCCommand
-
-case class GetBlocksResult(blocks: ArrayBuffer[Block])
-
-object GetBlocksResult {
-  implicit val writes = new Writes[GetBlocksResult] {
-    override def writes(o: GetBlocksResult): JsValue = Json.obj(
-      "blocks" -> o.blocks
-    )
-  }
-}
+case class GetBlocksCmd() extends RPCCommand
 
 case class GetBlockCountCmd() extends RPCCommand
-
-//object GetBlockCountCmd extends RPCCommand
 
 case class GetBlockCountResult(count: Int)
 
