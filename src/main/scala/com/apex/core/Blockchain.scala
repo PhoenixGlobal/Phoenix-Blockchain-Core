@@ -18,6 +18,8 @@ trait Blockchain extends Iterable[Block] with ApexLogging {
 
   def getHeadTime(): Long
 
+  def getForkHeadBlock(): Block
+
   def headTimeSinceGenesis(): Long
 
   def getDistance(): Long
@@ -117,6 +119,10 @@ class LevelDBBlockchain(chainSettings: ChainSettings, consensusSettings: Consens
   override def getHeadTime(): Long = {
 //    latestHeader.timeStamp
     forkBase.head.map(_.block.timeStamp).getOrElse(0)
+  }
+
+  override def getForkHeadBlock(): Block = {
+    forkBase.head().get.block
   }
 
   override def headTimeSinceGenesis(): Long = {
