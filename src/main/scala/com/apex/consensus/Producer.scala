@@ -15,13 +15,14 @@ package com.apex.consensus
 import java.math.BigInteger
 import java.time.{Duration, Instant}
 import java.io.{ByteArrayInputStream, ByteArrayOutputStream, DataInputStream, DataOutputStream}
+
 import akka.actor.{Actor, ActorRef, ActorSystem, Props}
 import com.apex.common.ApexLogging
 import com.apex.core._
 import com.apex.crypto.Ecdsa.PublicKey
 import com.apex.crypto.UInt256
 import com.apex.network.rpc.SendRawTransactionCmd
-import com.apex.network.{MessagePack, MessageType, Node}
+import com.apex.network.{BlockMessage, MessagePack, MessageType, Node}
 import com.apex.settings.{ConsensusSettings, Witness}
 
 import scala.collection.mutable.Map
@@ -65,7 +66,7 @@ class ProduceTask(val producer: Producer,
           case Failed(e) => log.error("error occurred when producing block", e)
           case Success(block, producer, time) => block match {
             case Some(blk) => {
-              peerManager ! MessagePack(MessageType.BlockProduced, blk.id.data)
+              peerManager ! BlockMessage(blk)
               log.info(s"block (${blk.height}, ${blk.timeStamp}) produced by $producer on $time")
             }
             case None => log.error("produce block failed")
@@ -84,7 +85,7 @@ class Producer(settings: ConsensusSettings,
 
   private val txPool: scala.collection.mutable.Map[UInt256, Transaction] = scala.collection.mutable.Map.empty
 
-  private var canProduce = true
+  private var canProduce = false
 
   private val task = new ProduceTask(this, peerManager)
   system.scheduler.scheduleOnce(Duration.ZERO, task)

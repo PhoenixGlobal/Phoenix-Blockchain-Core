@@ -15,6 +15,7 @@ class PeerHandlerManager(settings: ApexSettings, timeProvider: NetworkTimeProvid
   import PeerHandlerManager.ReceivableMessages._
   import com.apex.network.ConnectedPeer
   import com.apex.network.PeerConnectionManager.ReceivableMessages.{CloseConnection, StartInteraction}
+
   //握手成功
   private val connectedPeers = mutable.Map[InetSocketAddress, ConnectedPeer]()
 
@@ -84,19 +85,21 @@ class PeerHandlerManager(settings: ApexSettings, timeProvider: NetworkTimeProvid
           lastIdUsed += 1
         }
       }
-      
-    case PeerHandler(handler) =>{
-//      handler ! startSync()
+
+    case PeerHandler(handler) => {
+      //      handler ! startSync()
       //      log.info("连接成功后获取的PeerConnectionManager链接="+handler)
       //      //获取远程hangler，测发送消息
       //      val msg = Message[Unit](GetPeersSpec, Right(Unit), None)
       //      handler! ms
     }
-//      log.info("连接成功后获取的PeerConnectionManager链接="+handler)
-//      //获取远程hangler，测发送消息
-//      val msg = Message[Unit](GetPeersSpec, Right(Unit), None)
-//      handler! msg
-
+    //      log.info("连接成功后获取的PeerConnectionManager链接="+handler)
+    //      //获取远程hangler，测发送消息
+    //      val msg = Message[Unit](GetPeersSpec, Right(Unit), None)
+    //      handler! msg
+    case msg: BlockMessage => {
+      connectedPeers.values.foreach(_.handlerRef ! msg.pack())
+    }
     case MessagePack(a, b, c) =>
       c match {
         case Some(address) => {
@@ -127,7 +130,7 @@ class PeerHandlerManager(settings: ApexSettings, timeProvider: NetworkTimeProvid
             peerDatabase.remove(peer.socketAddress)
           }
           connectedPeers += peer.socketAddress -> peer
-          log.info("更新本节点连接的节点="+connectedPeers)
+          log.info("更新本节点连接的节点=" + connectedPeers)
         }
       }
   }
@@ -146,23 +149,35 @@ class PeerHandlerManager(settings: ApexSettings, timeProvider: NetworkTimeProvid
 }
 
 object PeerHandlerManager {
+
   import com.apex.network.{ConnectedPeer, ConnectionType}
+
   object ReceivableMessages {
+
     case class AddToBlacklist(remote: InetSocketAddress)
 
     case class AddOrUpdatePeer(address: InetSocketAddress, peerName: Option[String], direction: Option[ConnectionType])
 
     case object GetConnectedPeers
+
     case object GetAllPeers
+
     case object GetBlacklistedPeers
 
     case class DoConnecting(remote: InetSocketAddress, direction: ConnectionType)
+
     case class Handshaked(peer: ConnectedPeer)
+
     case class PeerHandler(handlerRef: ActorRef)
+
     case class Disconnected(remote: InetSocketAddress)
+
     case class GetBroadCastPeers(data: Array[Byte])
+
     case class BroadCastPeers(data: Array[Byte], peers: Seq[ConnectedPeer])
+
   }
+
 }
 
 object PeerHandlerManagerRef {

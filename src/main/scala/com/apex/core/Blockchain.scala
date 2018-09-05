@@ -195,6 +195,7 @@ class LevelDBBlockchain(chainSettings: ChainSettings, consensusSettings: Consens
   }
 
   override def tryInsertBlock(block: Block): Boolean = {
+    log.info(s"received block ${block.height}")
     if (verifyBlock(block)) {
       forkBase.add(block)
     } else {
