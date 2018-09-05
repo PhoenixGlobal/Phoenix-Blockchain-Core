@@ -43,9 +43,9 @@ case class ApexSettings(dataDir: File,
                         chain: ChainSettings,
                         rpc: RPCSettings)
 
-case class GenesisSettings(timeStamp: Long)
+case class GenesisSettings(timeStamp: Long, publicKey: String, privateKey: String)
 
-case class ChainSettings(dbDir: String, genesis: GenesisSettings)
+case class ChainSettings(dbDir: String, forkDir: String, miner: String, genesis: GenesisSettings)
 
 case class ConsensusSettings(produceInterval: Int,
                              acceptableTimeError: Int,

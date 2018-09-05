@@ -84,7 +84,7 @@ class Producer(settings: ConsensusSettings,
 
   private val txPool: scala.collection.mutable.Map[UInt256, Transaction] = scala.collection.mutable.Map.empty
 
-  private var canProduce = false
+  private var canProduce = true
 
   private val task = new ProduceTask(this, peerManager)
   system.scheduler.scheduleOnce(Duration.ZERO, task)

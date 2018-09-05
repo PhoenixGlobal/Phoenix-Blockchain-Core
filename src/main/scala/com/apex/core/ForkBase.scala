@@ -17,6 +17,7 @@ import java.io.{ByteArrayInputStream, ByteArrayOutputStream, DataInputStream, Da
 import com.apex.crypto.Ecdsa.PublicKey
 import com.apex.crypto.UInt256
 import com.apex.exceptions.{InvalidOperationException, UnExpectedError}
+import com.apex.settings.Witness
 import com.apex.storage.LevelDbStorage
 
 import collection.mutable.{ListBuffer, Map, Seq, SortedMap}
@@ -207,7 +208,7 @@ object SortedMultiMap {
   def empty[A, B, C]()(implicit ord1: Ordering[A], ord2: Ordering[B]): SortedMultiMap2[A, B, C] = new SortedMultiMap2[A, B, C]
 }
 
-case class ForkItem(block: BlockHeader, master: Boolean, lastProducerHeight: Map[PublicKey, Int]) {
+case class ForkItem(block: Block, lastProducerHeight: mutable.Map[PublicKey, Int], master: Boolean = true) {
   private var _confirmedHeight: Int = -1
 
   def confirmedHeight: Int = {
@@ -238,17 +239,17 @@ object ForkItem {
     import com.apex.common.Serializable._
     val bs = new ByteArrayInputStream(bytes)
     val is = new DataInputStream(bs)
-    val header = is.readObj(BlockHeader.deserialize)
+    val block = is.readObj(Block.deserialize)
     val master = is.readBoolean
     val lastProducerHeight = Map.empty[PublicKey, Int]
     for (_ <- 1 to is.readVarInt) {
       lastProducerHeight += PublicKey(is.readByteArray) -> is.readVarInt
     }
-    ForkItem(header, master, lastProducerHeight)
+    ForkItem(block, lastProducerHeight, master)
   }
 }
 
-class ForkBase(dir: String) {
+class ForkBase(dir: String, witnesses: Array[Witness], onConfirmed: Block => Unit) {
   private var _head: Option[ForkItem] = None
 
   val indexById = Map.empty[UInt256, ForkItem]
@@ -271,21 +272,34 @@ class ForkBase(dir: String) {
     indexById.get(id)
   }
 
-  def add(item: ForkItem): Boolean = {
-    if (indexById.contains(item.block.id)) {
-      false
+  def add(block: Block): Boolean = {
+    val lph = mutable.Map.empty[PublicKey, Int]
+    if (_head.isEmpty) {
+      for (witness <- witnesses) {
+        lph.put(witness.pubkey, 0)
+      }
+      lph.put(PublicKey(block.header.producer), block.header.index)
+      add(ForkItem(block, lph))
     } else {
-      if (!indexById.contains(item.block.prevBlock)) {
-        false
+      if (!indexById.contains(block.id) && indexById.contains(block.header.prevBlock)) {
+        val h = _head.get
+        for (p <- h.lastProducerHeight) {
+          lph.put(p._1, p._2)
+        }
+        lph.put(PublicKey(block.header.producer), block.header.index)
+        add(ForkItem(block, lph))
       } else {
-        insert(item)
-        val id = indexByConfirmedHeight.head._3
-        val headItem = indexById(id)
-        _head = Some(headItem)
-        removeConfirmed(headItem.confirmedHeight)
-        true
+        println(s"${block.height}")
+        false
       }
     }
+  }
+
+  def add(item: ForkItem): Boolean = {
+    insert(item)
+    _head = indexById.get(indexByConfirmedHeight.head._3)
+    removeConfirmed(_head.get.confirmedHeight)
+    true
   }
 
   def switchTo(id: UInt256): Unit = {
@@ -318,7 +332,11 @@ class ForkBase(dir: String) {
     }
     items.foreach(item => {
       if (item.master) {
-        db.delete(item.block.id.toBytes)
+        onConfirmed(item.block)
+        db.batchWrite(batch => {
+          batch.delete(item.block.id.toBytes)
+          deleteIndex(item)
+        })
       } else {
         removeFork(item.block.id)
       }
@@ -357,11 +375,11 @@ class ForkBase(dir: String) {
       } else {
         val xs = Seq.empty[ForkItem]
         val ys = Seq.empty[ForkItem]
-        while (a.block.index < b.block.index) {
+        while (a.block.header.index < b.block.header.index) {
           xs :+ a
           a = getPrev(a)
         }
-        while (b.block.index < a.block.index) {
+        while (b.block.header.index < a.block.header.index) {
           ys :+ b
           b = getPrev(b)
         }
@@ -377,7 +395,7 @@ class ForkBase(dir: String) {
   }
 
   private def getPrev(item: ForkItem): ForkItem = {
-    val prev = get(item.block.prevBlock)
+    val prev = get(item.block.header.prevBlock)
     if (prev.isEmpty) {
       throw new UnExpectedError
     }
@@ -387,16 +405,16 @@ class ForkBase(dir: String) {
   private def createIndex(item: ForkItem): Unit = {
     val blk = item.block
     indexById.put(blk.id, item)
-    indexByPrev.put(blk.prevBlock, blk.id)
-    indexByHeight.put(blk.index, item.master, blk.id)
-    indexByConfirmedHeight.put(item.confirmedHeight, blk.index, blk.id)
+    indexByPrev.put(blk.header.prevBlock, blk.id)
+    indexByHeight.put(blk.header.index, item.master, blk.id)
+    indexByConfirmedHeight.put(item.confirmedHeight, blk.header.index, blk.id)
   }
 
   private def deleteIndex(item: ForkItem): Unit = {
     val blk = item.block
     indexById.remove(blk.id)
-    indexByPrev.remove(blk.prevBlock)
-    indexByHeight.remove(blk.index, item.master)
-    indexByConfirmedHeight.remove(item.confirmedHeight, blk.index)
+    indexByPrev.remove(blk.header.prevBlock)
+    indexByHeight.remove(blk.header.index, item.master)
+    indexByConfirmedHeight.remove(item.confirmedHeight, blk.header.index)
   }
 }
