@@ -31,21 +31,9 @@ object Validators {
 
 trait RPCCommand
 
-case class GetBlocks() extends RPCCommand
-
-case class GetBlocksResult(blocks: ArrayBuffer[Block])
-
-object GetBlocksResult {
-  implicit val writes = new Writes[GetBlocksResult] {
-    override def writes(o: GetBlocksResult): JsValue = Json.obj(
-      "blocks" -> o.blocks
-    )
-  }
-}
+case class GetBlocksCmd() extends RPCCommand
 
 case class GetBlockCountCmd() extends RPCCommand
-
-//object GetBlockCountCmd extends RPCCommand
 
 case class GetBlockCountResult(count: Int)
 
@@ -132,75 +120,3 @@ object GetBlockByIdCmd {
     ) map (GetBlockByIdCmd.apply _)
 }
 
-
-case class SendCmd(address: String, assetId: UInt256, amount: String) extends RPCCommand
-//{
-//  def run(): JsValue = {
-//    val tx = Wallet.makeTransaction(address, assetId, Fixed8.fromDecimal(BigDecimal(amount)))
-//    if (tx != None) {
-////TODO:      LocalNode.default.addTransaction(tx.get)
-//      val txid = tx.get.id.toString
-//      Json.parse( s"""  { "result": "OK", "txid":"$txid"  }""")
-//    }
-//    else {
-//      Json.parse( """  {  "result": "Error"  }""")
-//    }
-//  }
-//}
-
-object SendCmd {
-  implicit val testWrites = new Writes[SendCmd] {
-    override def writes(o: SendCmd): JsValue = Json.obj(
-      "address" -> o.address,
-      "assetId" -> o.assetId.toString,
-      "amount" -> o.amount
-    )
-  }
-  implicit val testReads: Reads[SendCmd] = (
-    (JsPath \ "address").read[String] and
-      (JsPath \ "assetId").read[String](Validators.uint256Validator).map(c => UInt256.parse(c).get) and
-      (JsPath \ "amount").read[String](Validators.amountValidator)
-    ) (SendCmd.apply _)
-}
-
-case class ImportPrivKeyCmd(key: String) extends RPCCommand
-//{
-//  def run(): JsValue = {
-//    if (Wallet.importPrivKeyFromWIF(key)) {
-//      Json.parse( """  {  "result": "OK"  }""")
-//    }
-//    else {
-//      Json.parse( """  {  "result": "Error"  }""")
-//    }
-//  }
-//}
-
-object ImportPrivKeyCmd {
-  implicit val testWrites = new Writes[ImportPrivKeyCmd] {
-    override def writes(o: ImportPrivKeyCmd): JsValue = Json.obj(
-      "key" -> o.key
-    )
-  }
-  implicit val testReads: Reads[ImportPrivKeyCmd] = (
-    (__ \ "key").read[String]
-    ) map (ImportPrivKeyCmd.apply _)
-}
-
-case class GetBalanceCmd(assetId: UInt256) extends RPCCommand
-//{
-//  def run(): JsValue = {
-//    val balance = Wallet.getBalance(assetId).toString
-//    Json.parse( s"""  {  "balance": $balance  }""")
-//  }
-//}
-
-object GetBalanceCmd {
-  implicit val testWrites = new Writes[GetBalanceCmd] {
-    override def writes(o: GetBalanceCmd): JsValue = Json.obj(
-      "assetId" -> o.assetId.toString
-    )
-  }
-  implicit val testReads: Reads[GetBalanceCmd] = (
-    (__ \ "assetId").read[String](Validators.uint256Validator).map(c => UInt256.parse(c).get)
-    ) map (GetBalanceCmd.apply _)
-}
