@@ -150,7 +150,7 @@ class Producer(settings: ConsensusSettings,
   //  }
 
   private def nextBlockTime(nextN: Int = 1): Long = {
-    val headTime = chain.getHeadTime
+    val headTime = chain.getForkHeadBlock().header.timeStamp
     var slot = headTime / settings.produceInterval
     slot += nextN
     slot * settings.produceInterval //   (headTime / produceInterval + nextN) * produceInterval
