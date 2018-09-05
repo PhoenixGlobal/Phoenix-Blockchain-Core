@@ -20,6 +20,10 @@ class Block(val header: BlockHeader,
     header.index
   }
 
+  def prev(): UInt256 = {
+    header.prevBlock
+  }
+
   def timeStamp(): Long = {
     header.timeStamp
   }

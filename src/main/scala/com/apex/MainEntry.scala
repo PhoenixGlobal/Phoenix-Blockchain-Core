@@ -28,10 +28,9 @@ import scala.io.StdIn
 object MainEntry extends ApexLogging{
 
   def main(args: Array[String]): Unit = {
-
     val ns = parseArgs(args)
     val settings = getApexSettings(ns)
-    val chain = Blockchain.populate(settings.chain)
+    val chain = Blockchain.populate(settings.chain, settings.consensus)
 
 //    Wallet.importPrivKeyFromWIF("Kx45GeUBSMPReYQwgXiKhG9FzNXrnCeutJp4yjTd5kKxCitadm3C")
     //val tx = Wallet.makeTransaction("APQKUqPcJEUwRdwoxpoGQnkrRGstSXkgebk", UInt256.Zero, new Fixed8(230000L)).get

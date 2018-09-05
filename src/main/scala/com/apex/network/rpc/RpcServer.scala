@@ -75,9 +75,7 @@ object RpcServer extends ApexLogging {
         path("getblocks") {
           post {
             entity(as[String]) { _ =>
-              // FIXME
-              val f = (nodeRef ? GetBlocks).mapTo[ArrayBuffer[Block]].map(Json.toJson(_).toString)
-
+              val f = (nodeRef ? GetBlocksCmd()).mapTo[ArrayBuffer[Block]].map(Json.toJson(_).toString)
               complete(f)
             }
           }
@@ -90,32 +88,6 @@ object RpcServer extends ApexLogging {
                   val f = (nodeRef ? cmd.value)
                     .mapTo[Option[Account]]
                     .map(_.map(Json.toJson(_).toString).getOrElse(JsNull.toString))
-                  complete(f)
-                }
-                case e: JsError => {
-                  println(e)
-                  complete(HttpEntity(ContentTypes.`application/json`, Json.parse( """{"result": "Error"}""").toString()))
-                }
-              }
-            }
-          }
-        } ~
-        path("produceblock") {
-          post {
-            entity(as[String]) { _ =>
-              //            Blockchain.Current.produceBlock(LocalNode.default.getMemoryPool())
-              //            LocalNode.default.clearMemoryPool()
-              complete(HttpEntity(ContentTypes.`application/json`, Json.parse( """ {"result": "OK"}""").toString))
-            }
-          }
-        } ~
-        path("send") {
-          post {
-            entity(as[String]) { data =>
-              Json.parse(data).validate[SendCmd] match {
-                case cmd: JsSuccess[SendCmd] => {
-                  val f = (nodeRef ? cmd.value)
-                    .mapTo[UInt256].map(_.toString)
                   complete(f)
                 }
                 case e: JsError => {
@@ -147,37 +119,6 @@ object RpcServer extends ApexLogging {
             entity(as[String]) { _ =>
               val f = (nodeRef ? GetBlockCountCmd()).mapTo[Int].map(GetBlockCountResult(_)).map(Json.toJson(_).toString)
               complete(f)
-            }
-          }
-        } ~
-        path("importprivkey") {
-          post {
-            entity(as[String]) { data =>
-              Json.parse(data).validate[ImportPrivKeyCmd] match {
-                case cmd: JsSuccess[ImportPrivKeyCmd] => {
-                  complete(HttpEntity(ContentTypes.`application/json`, (nodeRef ! ImportPrivKeyCmd).toString))
-                }
-                case e: JsError => {
-                  println(e)
-                  complete(HttpEntity(ContentTypes.`application/json`, Json.parse( """{"result": "Error"}""").toString()))
-                }
-              }
-            }
-          }
-        } ~
-        path("getbalance") {
-          post {
-            entity(as[String]) { data =>
-              Json.parse(data).validate[GetBalanceCmd] match {
-                case cmd: JsSuccess[GetBalanceCmd] => {
-                  //                Json.toJson((nodeRef ! cmd.value).asInstanceOf[Int])
-                  complete(HttpEntity(ContentTypes.`application/json`, (nodeRef ! cmd.value).toString))
-                }
-                case e: JsError => {
-                  println(e)
-                  complete(HttpEntity(ContentTypes.`application/json`, Json.parse( """{"result": "Error"}""").toString()))
-                }
-              }
             }
           }
         }

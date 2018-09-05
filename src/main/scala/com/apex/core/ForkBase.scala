@@ -14,9 +14,11 @@ package com.apex.core
 
 import java.io.{ByteArrayInputStream, ByteArrayOutputStream, DataInputStream, DataOutputStream}
 
+import com.apex.common.ApexLogging
 import com.apex.crypto.Ecdsa.PublicKey
 import com.apex.crypto.UInt256
 import com.apex.exceptions.{InvalidOperationException, UnExpectedError}
+import com.apex.settings.Witness
 import com.apex.storage.LevelDbStorage
 
 import collection.mutable.{ListBuffer, Map, Seq, SortedMap}
@@ -24,6 +26,8 @@ import scala.collection.mutable
 
 class MultiMap[K, V] extends mutable.Iterable[(K, V)] {
   private val container = Map.empty[K, ListBuffer[V]]
+
+  override def size: Int = container.values.map(_.size).sum
 
   def contains(k: K) = {
     container.contains(k)
@@ -75,7 +79,6 @@ class MultiMap[K, V] extends mutable.Iterable[(K, V)] {
       }
     }
   }
-
 }
 
 object MultiMap {
@@ -84,6 +87,8 @@ object MultiMap {
 
 class SortedMultiMap1[K, V](implicit ord: Ordering[K]) extends Iterable[(K, V)] {
   private val container = SortedMap.empty[K, ListBuffer[V]]
+
+  override def size: Int = container.values.map(_.size).sum
 
   def contains(k: K) = {
     container.contains(k)
@@ -106,11 +111,9 @@ class SortedMultiMap1[K, V](implicit ord: Ordering[K]) extends Iterable[(K, V)] 
 
   override def head: (K, V) = iterator.next()
 
-  override def iterator: Iterator[(K, V)] = {
-    new SortedMultiMapIterator(container)
-  }
+  override def iterator: Iterator[(K, V)] = new SortedMultiMap1Iterator(container)
 
-  class SortedMultiMapIterator(val map: SortedMap[K, ListBuffer[V]]) extends Iterator[(K, V)] {
+  class SortedMultiMap1Iterator(val map: SortedMap[K, ListBuffer[V]]) extends Iterator[(K, V)] {
     private val it = map.iterator
 
     private var it2: Option[Iterator[V]] = None
@@ -136,11 +139,12 @@ class SortedMultiMap1[K, V](implicit ord: Ordering[K]) extends Iterable[(K, V)] 
       }
     }
   }
-
 }
 
 class SortedMultiMap2[K1, K2, V](implicit ord1: Ordering[K1], ord2: Ordering[K2]) extends Iterable[(K1, K2, V)] {
   private val container = SortedMap.empty[K1, SortedMultiMap1[K2, V]]
+
+  override def size: Int = container.values.map(_.size).sum
 
   def contains(k1: K1, k2: K2) = {
     container.contains(k1) && container(k1).contains(k2)
@@ -159,7 +163,11 @@ class SortedMultiMap2[K1, K2, V](implicit ord1: Ordering[K1], ord2: Ordering[K2]
 
   def remove(k1: K1, k2: K2): Option[Seq[V]] = {
     if (container.contains(k1)) {
-      container(k1).remove(k2)
+      val v = container(k1).remove(k2)
+      if (container(k1).size == 0) {
+        container.remove(k1)
+      }
+      v
     } else {
       None
     }
@@ -167,11 +175,9 @@ class SortedMultiMap2[K1, K2, V](implicit ord1: Ordering[K1], ord2: Ordering[K2]
 
   override def head: (K1, K2, V) = iterator.next()
 
-  override def iterator: Iterator[(K1, K2, V)] = {
-    new SortedMultiMapIterator(container)
-  }
+  override def iterator: Iterator[(K1, K2, V)] = new SortedMultiMap2Iterator(container)
 
-  class SortedMultiMapIterator[K1, K2, V](val map: SortedMap[K1, SortedMultiMap1[K2, V]]) extends Iterator[(K1, K2, V)] {
+  class SortedMultiMap2Iterator[K1, K2, V](val map: SortedMap[K1, SortedMultiMap1[K2, V]]) extends Iterator[(K1, K2, V)] {
     private val it = map.iterator
 
     private var it2: Option[Iterator[(K2, V)]] = None
@@ -207,13 +213,14 @@ object SortedMultiMap {
   def empty[A, B, C]()(implicit ord1: Ordering[A], ord2: Ordering[B]): SortedMultiMap2[A, B, C] = new SortedMultiMap2[A, B, C]
 }
 
-case class ForkItem(block: BlockHeader, master: Boolean, lastProducerHeight: Map[PublicKey, Int]) {
+case class ForkItem(block: Block, lastProducerHeight: mutable.Map[PublicKey, Int], master: Boolean = true) {
   private var _confirmedHeight: Int = -1
 
   def confirmedHeight: Int = {
     if (_confirmedHeight == -1) {
       val index = lastProducerHeight.size * 2 / 3
-      _confirmedHeight = lastProducerHeight.values.toSeq.reverse(index)
+      val lastHeights = lastProducerHeight.values.toSeq.sorted(Ordering[Int].reverse)
+      _confirmedHeight = lastHeights(index)
     }
     _confirmedHeight
   }
@@ -238,17 +245,17 @@ object ForkItem {
     import com.apex.common.Serializable._
     val bs = new ByteArrayInputStream(bytes)
     val is = new DataInputStream(bs)
-    val header = is.readObj(BlockHeader.deserialize)
+    val block = is.readObj(Block.deserialize)
     val master = is.readBoolean
     val lastProducerHeight = Map.empty[PublicKey, Int]
     for (_ <- 1 to is.readVarInt) {
       lastProducerHeight += PublicKey(is.readByteArray) -> is.readVarInt
     }
-    ForkItem(header, master, lastProducerHeight)
+    ForkItem(block, lastProducerHeight, master)
   }
 }
 
-class ForkBase(dir: String) {
+class ForkBase(dir: String, witnesses: Array[Witness], onConfirmed: Block => Unit) extends ApexLogging {
   private var _head: Option[ForkItem] = None
 
   val indexById = Map.empty[UInt256, ForkItem]
@@ -271,37 +278,54 @@ class ForkBase(dir: String) {
     indexById.get(id)
   }
 
-  def add(item: ForkItem): Boolean = {
-    if (indexById.contains(item.block.id)) {
-      false
+  def add(block: Block): Boolean = {
+    def addItem(lph: Map[PublicKey, Int]) = {
+      val pub = PublicKey(block.header.producer)
+      if (lph.contains(pub)) {
+        lph.put(pub, block.height)
+      }
+      add(ForkItem(block, lph))
+    }
+
+    val lph = mutable.Map.empty[PublicKey, Int]
+    if (_head.isEmpty) {
+      for (witness <- witnesses) {
+        lph.put(witness.pubkey, 0)
+      }
+      addItem(lph)
     } else {
-      if (!indexById.contains(item.block.prevBlock)) {
-        false
+      if (!indexById.contains(block.id) && indexById.contains(block.header.prevBlock)) {
+        for (p <- _head.get.lastProducerHeight) {
+          lph.put(p._1, p._2)
+        }
+        addItem(lph)
       } else {
-        insert(item)
-        val id = indexByConfirmedHeight.head._3
-        val headItem = indexById(id)
-        _head = Some(headItem)
-        removeConfirmed(headItem.confirmedHeight)
-        true
+        false
       }
     }
+  }
+
+  def add(item: ForkItem): Boolean = {
+    insert(item)
+    _head = indexById.get(indexByConfirmedHeight.head._3)
+    removeConfirmed(_head.get.confirmedHeight)
+    true
   }
 
   def switchTo(id: UInt256): Unit = {
     val (originFork, newFork) = getForks(head(), indexById.get(id))
 
-    val items = Seq.empty[ForkItem]
+    val items = ListBuffer.empty[ForkItem]
     db.batchWrite(batch => {
       for (item <- originFork) {
         val newItem = item.copy(master = false)
         batch.put(newItem.block.id.toBytes, newItem.toBytes)
-        items :+ newItem
+        items.append(newItem)
       }
       for (item <- newFork) {
         val newItem = item.copy(master = true)
         batch.put(newItem.block.id.toBytes, newItem.toBytes)
-        items :+ newItem
+        items.append(newItem)
       }
     })
     for (item <- items) {
@@ -310,15 +334,20 @@ class ForkBase(dir: String) {
   }
 
   private def removeConfirmed(height: Int) = {
-    val items = Seq.empty[ForkItem]
+    val items = ListBuffer.empty[ForkItem]
     for (p <- indexByHeight if p._1 < height) {
-      if (indexById.contains(p._3)) {
-        items :+ indexById(p._3)
+      val item = indexById.get(p._3)
+      if (!item.isEmpty) {
+        items.append(item.get)
       }
     }
     items.foreach(item => {
       if (item.master) {
-        db.delete(item.block.id.toBytes)
+        onConfirmed(item.block)
+        db.batchWrite(batch => {
+          batch.delete(item.block.id.toBytes)
+          deleteIndex(item)
+        })
       } else {
         removeFork(item.block.id)
       }
@@ -326,6 +355,7 @@ class ForkBase(dir: String) {
   }
 
   private def removeFork(id: UInt256) = {
+    log.info(s"remove fork: ${id}")
     val items = indexByPrev.get(id)
       .map(indexById.get)
       .filterNot(_.isEmpty)
@@ -355,19 +385,19 @@ class ForkBase(dir: String) {
       if (a.block.id.equals(b.block.id)) {
         (Seq(a), Seq(b))
       } else {
-        val xs = Seq.empty[ForkItem]
-        val ys = Seq.empty[ForkItem]
-        while (a.block.index < b.block.index) {
-          xs :+ a
+        val xs = ListBuffer.empty[ForkItem]
+        val ys = ListBuffer.empty[ForkItem]
+        while (a.block.header.index < b.block.header.index) {
+          xs.append(a)
           a = getPrev(a)
         }
-        while (b.block.index < a.block.index) {
-          ys :+ b
+        while (b.block.header.index < a.block.header.index) {
+          ys.append(b)
           b = getPrev(b)
         }
         while (!a.block.id.equals(b.block.id)) {
-          xs :+ a
-          ys :+ b
+          xs.append(a)
+          ys.append(b)
           a = getPrev(a)
           b = getPrev(b)
         }
@@ -377,7 +407,7 @@ class ForkBase(dir: String) {
   }
 
   private def getPrev(item: ForkItem): ForkItem = {
-    val prev = get(item.block.prevBlock)
+    val prev = get(item.block.header.prevBlock)
     if (prev.isEmpty) {
       throw new UnExpectedError
     }
@@ -387,16 +417,16 @@ class ForkBase(dir: String) {
   private def createIndex(item: ForkItem): Unit = {
     val blk = item.block
     indexById.put(blk.id, item)
-    indexByPrev.put(blk.prevBlock, blk.id)
-    indexByHeight.put(blk.index, item.master, blk.id)
-    indexByConfirmedHeight.put(item.confirmedHeight, blk.index, blk.id)
+    indexByPrev.put(blk.prev, blk.id)
+    indexByHeight.put(blk.height, item.master, blk.id)
+    indexByConfirmedHeight.put(item.confirmedHeight, blk.height, blk.id)
   }
 
   private def deleteIndex(item: ForkItem): Unit = {
     val blk = item.block
     indexById.remove(blk.id)
-    indexByPrev.remove(blk.prevBlock)
-    indexByHeight.remove(blk.index, item.master)
-    indexByConfirmedHeight.remove(item.confirmedHeight, blk.index)
+    indexByPrev.remove(blk.prev)
+    indexByHeight.remove(blk.height, item.master)
+    indexByConfirmedHeight.remove(item.confirmedHeight, blk.height)
   }
 }

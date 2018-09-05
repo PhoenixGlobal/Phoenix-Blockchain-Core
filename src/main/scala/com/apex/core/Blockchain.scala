@@ -1,7 +1,9 @@
 package com.apex.core
 
+import java.nio.file.Path
+
 import com.apex.common.ApexLogging
-import com.apex.settings.ChainSettings
+import com.apex.settings.{ChainSettings, ConsensusSettings}
 import com.apex.crypto.Ecdsa.{PrivateKey, PublicKey}
 import com.apex.crypto.{BinaryData, Crypto, Fixed8, MerkleTree, UInt160, UInt256}
 import com.apex.storage.LevelDbStorage
@@ -15,6 +17,8 @@ trait Blockchain extends Iterable[Block] with ApexLogging {
   def getHeight(): Int
 
   def getHeadTime(): Long
+
+  def getForkHeadBlock(): Block
 
   def headTimeSinceGenesis(): Long
 
@@ -51,10 +55,11 @@ trait Blockchain extends Iterable[Block] with ApexLogging {
 }
 
 object Blockchain {
-  var chain : LevelDBBlockchain = null
+  var chain: LevelDBBlockchain = null
+
   //  final val Current: Blockchain = new LevelDBBlockchain()
-  def populate(settings: ChainSettings): LevelDBBlockchain = {
-    val populateChain = new LevelDBBlockchain(settings)
+  def populate(chainSettings: ChainSettings, consensusSettings: ConsensusSettings): LevelDBBlockchain = {
+    val populateChain = new LevelDBBlockchain(chainSettings, consensusSettings)
     chain = populateChain
     populateChain
   }
@@ -62,11 +67,11 @@ object Blockchain {
   def getLevelDBBlockchain: LevelDBBlockchain = chain
 }
 
-class LevelDBBlockchain(val settings: ChainSettings) extends Blockchain {
-  private val db: LevelDbStorage = LevelDbStorage.open(settings.dbDir)
+class LevelDBBlockchain(chainSettings: ChainSettings, consensusSettings: ConsensusSettings) extends Blockchain {
+  private val db: LevelDbStorage = LevelDbStorage.open(chainSettings.dbDir)
 
-  private val genesisProducer = BinaryData("03b4534b44d1da47e4b4a504a210401a583f860468dec766f507251a057594e682") // TODO: read from settings
-  private val genesisProducerPrivKey = new PrivateKey(BinaryData("7a93d447bffe6d89e690f529a3a0bdff8ff6169172458e04849ef1d4eafd7f86"))
+  private val genesisProducer = BinaryData(chainSettings.genesis.publicKey) // TODO: read from settings
+  private val genesisProducerPrivKey = new PrivateKey(BinaryData(chainSettings.genesis.privateKey))
 
   private val headerStore = new HeaderStore(db, 10)
   private val heightStore = new HeightStore(db, 10)
@@ -80,16 +85,19 @@ class LevelDBBlockchain(val settings: ChainSettings) extends Blockchain {
   // TODO:  pubkeyNonceStore
   private val prodStateStore = new ProducerStateStore(db)
 
+  private val forkBase = new ForkBase(chainSettings.forkDir, consensusSettings.initialWitness, onConfirmed)
+
   // TODO: zero is not a valid pub key, need to work out other method
-  private val minerCoinFrom = BinaryData("03b4534b44d1da47e4b4a504a210401a583f860468dec766f507251a057594e682")   // 33 bytes pub key
+  private val minerCoinFrom = BinaryData(chainSettings.miner) // 33 bytes pub key
   private val minerAward = Fixed8.Ten
 
   private val genesisMinerAddress = UInt160.parse("f54a5851e9372b87810a8e60cdd2e7cfd80b6e31").get
   private val genesisTx = new Transaction(TransactionType.Miner, minerCoinFrom,
     genesisMinerAddress, "", minerAward, UInt256.Zero, 0, BinaryData.empty, BinaryData.empty)
 
-  private val genesisBlockHeader: BlockHeader = BlockHeader.build(0, 1535699919500L,
-    UInt256.Zero, UInt256.Zero, genesisProducer, genesisProducerPrivKey)
+  private val genesisBlockHeader: BlockHeader = BlockHeader.build(0,
+    chainSettings.genesis.timeStamp, UInt256.Zero, UInt256.Zero,
+    genesisProducer, genesisProducerPrivKey)
   private val genesisBlock: Block = Block.build(genesisBlockHeader, Seq(genesisTx))
 
   private var latestHeader: BlockHeader = genesisBlockHeader
@@ -98,7 +106,7 @@ class LevelDBBlockchain(val settings: ChainSettings) extends Blockchain {
 
   populate()
 
-  override def getGenesisBlockChainId: String = genesisBlockHeader.timeStamp.toString
+  override def getGenesisBlockChainId: String = genesisBlockHeader.id.toString
 
   override def iterator: Iterator[Block] = new BlockchainIterator(this)
 
@@ -109,7 +117,12 @@ class LevelDBBlockchain(val settings: ChainSettings) extends Blockchain {
   }
 
   override def getHeadTime(): Long = {
-    latestHeader.timeStamp
+//    latestHeader.timeStamp
+    forkBase.head.map(_.block.timeStamp).getOrElse(0)
+  }
+
+  override def getForkHeadBlock(): Block = {
+    forkBase.head().get.block
   }
 
   override def headTimeSinceGenesis(): Long = {
@@ -157,6 +170,47 @@ class LevelDBBlockchain(val settings: ChainSettings) extends Blockchain {
     headerStore.contains(id)
   }
 
+  override def produceBlock(producer: PublicKey, privateKey: PrivateKey,
+                            timeStamp: Long, transactions: Seq[Transaction]): Option[Block] = {
+    val minerTx = new Transaction(TransactionType.Miner, minerCoinFrom,
+      producer.pubKeyHash, "", minerAward, UInt256.Zero, latestHeader.index + 1, BinaryData.empty, BinaryData.empty)
+    val txs = Seq(minerTx) ++ transactions.filter(verifyTransaction)
+    val merkleRoot = MerkleTree.root(txs.map(_.id))
+    val forkHead = forkBase.head.get
+    val header = BlockHeader.build(
+      forkHead.block.height + 1, timeStamp, merkleRoot,
+      forkHead.block.id, producer, privateKey)
+    val block = Block.build(header, txs)
+    if (forkBase.add(block)) {
+      Some(block)
+    } else {
+      None
+    }
+    //latestProdState = latestProdState plusDistance distance
+
+    //    if (tryInsertBlock(block))
+    //      Some(block)
+    //    else
+    //      None
+  }
+
+  override def tryInsertBlock(block: Block): Boolean = {
+    log.info(s"received block ${block.height}")
+    if (verifyBlock(block)) {
+      forkBase.add(block)
+    } else {
+      false
+    }
+  }
+
+  override def getTransaction(id: UInt256): Option[Transaction] = {
+    txStore.get(id)
+  }
+
+  override def containsTransaction(id: UInt256): Boolean = {
+    txStore.contains(id)
+  }
+
   private def saveBlockToStores(block: Block): Boolean = {
     def calcBalancesInBlock(balances: Map[UInt160, Map[UInt256, Fixed8]], spent: Boolean,
                             address: UInt160, amounts: Fixed8, assetId: UInt256) = {
@@ -196,7 +250,7 @@ class LevelDBBlockchain(val settings: ChainSettings) extends Blockchain {
               .map(p => (p._1, Fixed8.sum(p._2.map(_._2).sum)))
               .filter(_._2.value > 0)
             new Account(a.active, a.name, balances, a.nextNonce, a.version)
-          }).getOrElse(new Account(true, "",  p._2.filter(_._2.value > 0).toMap, 0))
+          }).getOrElse(new Account(true, "", p._2.filter(_._2.value > 0).toMap, 0))
           accountStore.set(p._1, account, batch)
         })
         // TODO accounts.foreach()
@@ -211,48 +265,13 @@ class LevelDBBlockchain(val settings: ChainSettings) extends Blockchain {
     }
   }
 
-  override def produceBlock(producer: PublicKey, privateKey: PrivateKey,
-                            timeStamp: Long, transactions: Seq[Transaction]): Option[Block] = {
-    val minerTx = new Transaction(TransactionType.Miner, minerCoinFrom,
-      producer.pubKeyHash, "", minerAward, UInt256.Zero, latestHeader.index + 1, BinaryData.empty, BinaryData.empty)
-    val txs = Seq(minerTx) ++ transactions.filter(verifyTransaction)
-    val merkleRoot = MerkleTree.root(txs.map(_.id))
-    val header = BlockHeader.build(
-      latestHeader.index + 1, timeStamp, merkleRoot,
-      latestHeader.id, producer, privateKey)
-    val block = Block.build(header, txs)
-
-    //latestProdState = latestProdState plusDistance distance
-
-    if (tryInsertBlock(block))
-      Some(block)
-    else
-      None
-  }
-
-  override def tryInsertBlock(block: Block): Boolean = {
-    if (verifyBlock(block))
-      if (saveBlockToStores(block))
-        return true
-
-    return false
-  }
-
-  override def getTransaction(id: UInt256): Option[Transaction] = {
-    txStore.get(id)
-  }
-
-  override def containsTransaction(id: UInt256): Boolean = {
-    txStore.contains(id)
-  }
-
   private def verifyRegisterNames(transactions: Seq[Transaction]): Boolean = {
     val newNames = Set.empty[String]
     val registers = Set.empty[UInt160]
     transactions.foreach(tx => {
       if (tx.txType == TransactionType.RegisterName) {
         val name = new String(tx.data, "UTF-8")
-        if (name.length != 10)   // TODO: read "10" from config file
+        if (name.length != 10) // TODO: read "10" from config file
           return false
         if (newNames.contains(name))
           return false
@@ -263,7 +282,7 @@ class LevelDBBlockchain(val settings: ChainSettings) extends Blockchain {
       }
     })
     // make sure name is not used
-    newNames.foreach(name =>  {
+    newNames.foreach(name => {
       if (nameToAccountStore.get(name) != None)
         return false
     })
@@ -271,7 +290,7 @@ class LevelDBBlockchain(val settings: ChainSettings) extends Blockchain {
     registers.foreach(register => {
       val account = accountStore.get(register)
       if (account != None && account.get.name != "") {
-          return false
+        return false
       }
     })
     true
@@ -351,6 +370,9 @@ class LevelDBBlockchain(val settings: ChainSettings) extends Blockchain {
     }
 
     latestHeader = headBlkStore.get.map(init).getOrElse(reInit)
+    if (forkBase.head().isEmpty) {
+      forkBase.add(genesisBlock)
+    }
     //latestProdState = prodStateStore.get.get
   }
 
@@ -370,6 +392,13 @@ class LevelDBBlockchain(val settings: ChainSettings) extends Blockchain {
       return false
 
     true
+  }
+
+  private def onConfirmed(block: Block): Unit = {
+    log.info(s"confirm block ${block.height} (${block.id})")
+    if (block.height != 0) {
+      saveBlockToStores(block)
+    }
   }
 }
 
