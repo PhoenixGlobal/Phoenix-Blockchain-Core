@@ -2,5 +2,6 @@
 logs
 out
 build
+test_net
 /bin/
 /.gradle/

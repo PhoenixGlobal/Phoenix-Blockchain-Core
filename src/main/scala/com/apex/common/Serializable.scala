@@ -1,6 +1,10 @@
 package com.apex.common
 
 import java.io.{ByteArrayInputStream, ByteArrayOutputStream, DataInputStream, DataOutputStream}
+
+import com.fasterxml.jackson.databind.{ObjectMapper, SerializationFeature}
+import javax.swing.text.AbstractDocument.Content
+
 import scala.util.Try
 
 trait Serializable {
@@ -10,6 +14,16 @@ trait Serializable {
 }
 
 object Serializable {
+
+  var mapper: ObjectMapper = new ObjectMapper()
+  mapper.configure(SerializationFeature.FAIL_ON_EMPTY_BEANS, false)
+
+  def JsonMapperTo(any: Any ): String = mapper.writeValueAsString(any)
+
+  def JsonMapperFrom[T](content: String, valueType: Class[T] ): T = {
+    mapper.readValue(content, valueType)
+  }
+
 
   implicit class Writer(val obj: Serializable) {
     def toBytes: Array[Byte] = {
