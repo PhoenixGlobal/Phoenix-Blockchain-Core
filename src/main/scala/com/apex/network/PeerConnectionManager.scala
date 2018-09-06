@@ -196,13 +196,13 @@ class PeerConnectionManager(val settings: NetworkSettings,
       processErrors(WorkingCycle.toString) orElse
       reportStrangeInput
 
-//  override def preStart: Unit = {
-//    peerHandlerManagerRef ! DoConnecting(remote, direction)
-//    handshakeTimeoutCancellableOpt = Some(context.system.scheduler.scheduleOnce(settings.handshakeTimeout)
-//    (self ! HandshakeTimeout))
-//    connection ! Register(self, keepOpenOnPeerClosed = false, useResumeWriting = true)
-//    connection ! ResumeReading
-//  }
+  override def preStart: Unit = {
+    peerHandlerManagerRef ! DoConnecting(remote, direction)
+    handshakeTimeoutCancellableOpt = Some(context.system.scheduler.scheduleOnce(settings.handshakeTimeout)
+    (self ! HandshakeTimeout))
+    connection ! Register(self, keepOpenOnPeerClosed = false, useResumeWriting = true)
+    connection ! ResumeReading
+  }
 
   override def receive: Receive = handshake
 
