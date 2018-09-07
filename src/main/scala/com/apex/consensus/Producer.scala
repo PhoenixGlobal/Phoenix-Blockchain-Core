@@ -67,7 +67,7 @@ class ProduceTask(val producer: Producer,
           case Success(block, producer, time) => block match {
             case Some(blk) => {
               peerManager ! BlockMessage(blk)
-              log.info(s"block (${blk.height}, ${blk.timeStamp}) produced by $producer on $time")
+//              log.info(s"block (${blk.height}, ${blk.timeStamp}) produced by $producer on $time")
             }
             case None => log.error("produce block failed")
           }

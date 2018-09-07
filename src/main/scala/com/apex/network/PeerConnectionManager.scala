@@ -170,7 +170,6 @@ class PeerConnectionManager(val settings: NetworkSettings,
   //发送消息
   def workingCycleLocalInterface: Receive = {
     case msg: MessagePack =>
-      println(msg.messageType.toString)
       connection ! Write(ByteString(Array(msg.messageType.id.toByte) ++ msg.data))
 
     //    case Blacklist =>

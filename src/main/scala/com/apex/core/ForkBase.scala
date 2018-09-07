@@ -215,7 +215,7 @@ object SortedMultiMap {
   def empty[A, B, C]()(implicit ord1: Ordering[A], ord2: Ordering[B]): SortedMultiMap2[A, B, C] = new SortedMultiMap2[A, B, C]
 }
 
-case class ForkItem(block: Block, lastProducerHeight: mutable.Map[PublicKey, Int], master: Boolean = true) {
+case class ForkItem(block: Block, lastProducerHeight: mutable.Map[PublicKey, Int], master: Boolean = false) {
   private var _confirmedHeight: Int = -1
 
   def confirmedHeight: Int = {
@@ -311,12 +311,15 @@ class ForkBase(dir: String, witnesses: Array[Witness],
 
   def add(item: ForkItem): Boolean = {
     if (insert(item)) {
-      removeConfirmed(_head.get.confirmedHeight)
-      val head = indexById.get(indexByConfirmedHeight.head._3)
-      if (!head.get.block.prev.equals(_head.get.block.id)) {
-        switch(_head.get, head.get)
+      val oldHead = _head
+      _head = indexById.get(indexByConfirmedHeight.head._3)
+      val item = _head.get
+      removeConfirmed(item.confirmedHeight)
+      if (oldHead.isEmpty || item.block.prev.equals(oldHead.get.block.id)) {
+        indexById.put(item.block.id, item.copy(master = true))
+      } else if (!item.block.id.equals(oldHead.get.block.id)) {
+        switch(oldHead.get, item)
       }
-      _head = head
       true
     } else {
       false

@@ -190,7 +190,6 @@ class LevelDBBlockchain(chainSettings: ChainSettings, consensusSettings: Consens
     } else {
       None
     }
-
   }
 
   override def tryInsertBlock(block: Block): Boolean = {
@@ -402,8 +401,9 @@ class LevelDBBlockchain(chainSettings: ChainSettings, consensusSettings: Consens
   }
 
   private def onSwitch(from: Seq[ForkItem], to: Seq[ForkItem]): Unit = {
-    log.info("switch")
+    log.info(s"old chain: ${from.map(_.block.id.toString.substring(0, 6)).mkString(" -> ")}")
+    log.info(s"new chain: ${to.map(_.block.id.toString.substring(0, 6)).mkString(" -> ")}")
+    //TODO: db undo
   }
 }
-
 
