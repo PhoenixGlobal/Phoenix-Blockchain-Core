@@ -40,12 +40,12 @@ object HandshakeSerializer extends Serializer[Handshake] {
 
     val chainIdBytes = obj.chainId.getBytes
 
-    val header_num = obj.headerNum.getBytes
+    val headerNnum = obj.headerNum.getBytes
 
     Array(anb.size.toByte) ++ anb ++
       obj.protocolVersion.bytes ++
       Array(nodeNameBytes.size.toByte) ++ nodeNameBytes ++ Array(chainIdBytes.size.toByte) ++ chainIdBytes ++
-      Array(header_num.size.toByte) ++ header_num ++
+      Array(headerNnum.size.toByte) ++ headerNnum ++
       Ints.toByteArray(fab.length) ++ fab ++
       Longs.toByteArray(obj.time)
 
