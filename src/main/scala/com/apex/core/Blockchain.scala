@@ -85,7 +85,11 @@ class LevelDBBlockchain(chainSettings: ChainSettings, consensusSettings: Consens
   // TODO:  pubkeyNonceStore
   private val prodStateStore = new ProducerStateStore(db)
 
-  private val forkBase = new ForkBase(chainSettings.forkDir, consensusSettings.initialWitness, onConfirmed)
+  private val forkBase = new ForkBase(
+    chainSettings.forkDir,
+    consensusSettings.initialWitness,
+    onConfirmed,
+    onSwitch)
 
   // TODO: zero is not a valid pub key, need to work out other method
   private val minerCoinFrom = BinaryData(chainSettings.miner) // 33 bytes pub key
@@ -181,7 +185,7 @@ class LevelDBBlockchain(chainSettings: ChainSettings, consensusSettings: Consens
       forkHead.block.height + 1, timeStamp, merkleRoot,
       forkHead.block.id, producer, privateKey)
     val block = Block.build(header, txs)
-    if (tryInsertBlock(block)) {
+    if (forkBase.add(block)) {
       Some(block)
     } else {
       None
@@ -190,12 +194,13 @@ class LevelDBBlockchain(chainSettings: ChainSettings, consensusSettings: Consens
   }
 
   override def tryInsertBlock(block: Block): Boolean = {
-    log.info(s"received block ${block.height}")
-    if (verifyBlock(block)) {
-      forkBase.add(block)
-    } else {
-      false
-    }
+    forkBase.add(block)
+//    log.info(s"received block ${block.height}")
+//    if (verifyBlock(block)) {
+//      forkBase.add(block)
+//    } else {
+//      false
+//    }
   }
 
   override def getTransaction(id: UInt256): Option[Transaction] = {
@@ -394,6 +399,10 @@ class LevelDBBlockchain(chainSettings: ChainSettings, consensusSettings: Consens
     if (block.height != 0) {
       saveBlockToStores(block)
     }
+  }
+
+  private def onSwitch(from: Seq[ForkItem], to: Seq[ForkItem]): Unit = {
+    log.info("switch")
   }
 }
 

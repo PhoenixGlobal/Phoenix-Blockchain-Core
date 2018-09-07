@@ -79,6 +79,7 @@ class MultiMap[K, V] extends mutable.Iterable[(K, V)] {
       }
     }
   }
+
 }
 
 object MultiMap {
@@ -139,6 +140,7 @@ class SortedMultiMap1[K, V](implicit ord: Ordering[K]) extends Iterable[(K, V)] 
       }
     }
   }
+
 }
 
 class SortedMultiMap2[K1, K2, V](implicit ord1: Ordering[K1], ord2: Ordering[K2]) extends Iterable[(K1, K2, V)] {
@@ -255,7 +257,9 @@ object ForkItem {
   }
 }
 
-class ForkBase(dir: String, witnesses: Array[Witness], onConfirmed: Block => Unit) extends ApexLogging {
+class ForkBase(dir: String, witnesses: Array[Witness],
+               onConfirmed: Block => Unit,
+               onSwitch: (Seq[ForkItem], Seq[ForkItem]) => Unit) extends ApexLogging {
   private var _head: Option[ForkItem] = None
 
   val indexById = Map.empty[UInt256, ForkItem]
@@ -306,14 +310,21 @@ class ForkBase(dir: String, witnesses: Array[Witness], onConfirmed: Block => Uni
   }
 
   def add(item: ForkItem): Boolean = {
-    insert(item)
-    _head = indexById.get(indexByConfirmedHeight.head._3)
-    removeConfirmed(_head.get.confirmedHeight)
-    true
+    if (insert(item)) {
+      removeConfirmed(_head.get.confirmedHeight)
+      val head = indexById.get(indexByConfirmedHeight.head._3)
+      if (!head.get.block.prev.equals(_head.get.block.id)) {
+        switch(_head.get, head.get)
+      }
+      _head = head
+      true
+    } else {
+      false
+    }
   }
 
-  def switchTo(id: UInt256): Unit = {
-    val (originFork, newFork) = getForks(head(), indexById.get(id))
+  def switch(from: ForkItem, to: ForkItem): Unit = {
+    val (originFork, newFork) = getForks(from, to)
 
     val items = ListBuffer.empty[ForkItem]
     db.batchWrite(batch => {
@@ -331,6 +342,7 @@ class ForkBase(dir: String, witnesses: Array[Witness], onConfirmed: Block => Uni
     for (item <- items) {
       indexById.put(item.block.id, item)
     }
+    onSwitch(originFork, newFork)
   }
 
   private def removeConfirmed(height: Int) = {
@@ -376,33 +388,29 @@ class ForkBase(dir: String, witnesses: Array[Witness], onConfirmed: Block => Uni
     }
   }
 
-  private def getForks(x: Option[ForkItem], y: Option[ForkItem]): (Seq[ForkItem], Seq[ForkItem]) = {
-    if (x.isEmpty || y.isEmpty) {
-      throw new InvalidOperationException("")
+  private def getForks(x: ForkItem, y: ForkItem): (Seq[ForkItem], Seq[ForkItem]) = {
+    var a = x
+    var b = y
+    if (a.block.id.equals(b.block.id)) {
+      (Seq(a), Seq(b))
     } else {
-      var a = x.get
-      var b = y.get
-      if (a.block.id.equals(b.block.id)) {
-        (Seq(a), Seq(b))
-      } else {
-        val xs = ListBuffer.empty[ForkItem]
-        val ys = ListBuffer.empty[ForkItem]
-        while (a.block.header.index < b.block.header.index) {
-          xs.append(a)
-          a = getPrev(a)
-        }
-        while (b.block.header.index < a.block.header.index) {
-          ys.append(b)
-          b = getPrev(b)
-        }
-        while (!a.block.id.equals(b.block.id)) {
-          xs.append(a)
-          ys.append(b)
-          a = getPrev(a)
-          b = getPrev(b)
-        }
-        (xs, ys)
+      val xs = ListBuffer.empty[ForkItem]
+      val ys = ListBuffer.empty[ForkItem]
+      while (a.block.header.index < b.block.header.index) {
+        xs.append(a)
+        a = getPrev(a)
       }
+      while (b.block.header.index < a.block.header.index) {
+        ys.append(b)
+        b = getPrev(b)
+      }
+      while (!a.block.id.equals(b.block.id)) {
+        xs.append(a)
+        ys.append(b)
+        a = getPrev(a)
+        b = getPrev(b)
+      }
+      (xs, ys)
     }
   }
 
