@@ -45,7 +45,7 @@ object HandshakeSerializer extends Serializer[Handshake] {
     Array(anb.size.toByte) ++ anb ++
       obj.protocolVersion.bytes ++
       Array(nodeNameBytes.size.toByte) ++ nodeNameBytes ++ Array(chainIdBytes.size.toByte) ++ chainIdBytes ++
-      Array(header_num.size.toByte) ++ header_num
+      Array(header_num.size.toByte) ++ header_num ++
       Ints.toByteArray(fab.length) ++ fab ++
       Longs.toByteArray(obj.time)
 
