@@ -181,6 +181,7 @@ class PeerConnectionManager(val settings: NetworkSettings,
   //接收消息
   def workingCycleRemoteInterface: Receive = {
     case Received(data) =>
+      connection ! ResumeReading
       nodeRef ! MessagePack.fromBytes(data.toArray)
   }
 
