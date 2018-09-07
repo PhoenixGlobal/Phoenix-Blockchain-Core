@@ -7,7 +7,7 @@ import com.apex.crypto.{BinaryData, Crypto, Ecdsa, Fixed8, UInt160, UInt256}
 import play.api.libs.json.{JsValue, Json, Writes}
 
 class Transaction(val txType: TransactionType.Value,
-                           val from: BinaryData,   // 33 bytes pub key
+                           val from: Ecdsa.PublicKey,   // 33 bytes pub key
                            val toPubKeyHash: UInt160,
                            val toName: String,
                            val amount: Fixed8,
@@ -24,11 +24,11 @@ class Transaction(val txType: TransactionType.Value,
   def fee: Fixed8 = Fixed8.Zero
 
   def fromPubKeyHash() : UInt160 = {
-    Ecdsa.PublicKey(from).pubKeyHash
+    from.pubKeyHash
   }
 
   def fromAddress(): String = {
-    Ecdsa.PublicKey(from).toAddress
+    from.toAddress
   }
 
   def toAddress(): String = {
@@ -63,7 +63,7 @@ class Transaction(val txType: TransactionType.Value,
     import com.apex.common.Serializable._
     os.writeByte(txType.toByte)
     os.writeInt(version)
-    os.writeByteArray(from)
+    os.write(from)
     os.write(toPubKeyHash)
     os.writeString(toName)
     os.write(amount)
@@ -92,7 +92,7 @@ class Transaction(val txType: TransactionType.Value,
   }
 
   def verifySignature(): Boolean = {
-    Crypto.verifySignature(dataForSigning(), signature, from)
+    Crypto.verifySignature(dataForSigning(), signature, from.toBin)
   }
 
 }
@@ -121,7 +121,7 @@ object Transaction {
 
     val txType = TransactionType(is.readByte)
     val version = is.readInt
-    val from = is.readByteArray
+    val from = Ecdsa.PublicKey.deserialize(is)
     val toPubKeyHash = UInt160.deserialize(is)
     val toName = is.readString
     val amount = Fixed8.deserialize(is)

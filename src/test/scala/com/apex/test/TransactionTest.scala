@@ -26,7 +26,7 @@ class TransactionTest {
     var privKey = new Ecdsa.PrivateKey(BinaryData("d39d51a8d40336b0c73af180308fe0e4ee357e45a59e8afeebf6895ddf78aa2f"))
 
     val tx = new Transaction(TransactionType.Transfer,
-                    BinaryData("0345ffbf8dc9d8ff15785e2c228ac48d98d29b834c2e98fb8cfe6e71474d7f6322"),
+                    Ecdsa.PublicKey(BinaryData("0345ffbf8dc9d8ff15785e2c228ac48d98d29b834c2e98fb8cfe6e71474d7f6322")),
                     Ecdsa.PublicKeyHash.fromAddress("APGMmPKLYdtTNhiEkDGU6De8gNCk3bTsME9").get,
                     "bob",
                     Fixed8.Ten,
@@ -43,7 +43,7 @@ class TransactionTest {
       Transaction.deserialize,
       (x, _) => x.id == tx.id
         && x.txType == tx.txType
-        && x.from.sameElements(tx.from)
+        && x.from.toBin.sameElements(tx.from.toBin)
         && x.toPubKeyHash.data.sameElements(tx.toPubKeyHash.data)
         && x.toName == tx.toName
         && x.amount.value == tx.amount.value

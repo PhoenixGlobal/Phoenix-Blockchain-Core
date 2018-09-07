@@ -59,7 +59,7 @@ class ProduceTask(val producer: Producer,
 
       if (!cancelled) {
         producer.produce() match {
-          case NotSynced(_, _) => log.info(s"not synced")
+          case NotSynced(_, _) => log.debug(s"not synced")
           case NotYet(npt, ct) => log.debug(s"Not yet, next produce time: $npt, current time: $ct")
           case TimeMissed(tpt, ct) => log.debug(s"missed, this produce time: $tpt, current time: $ct")
           case NotMyTurn(name, _) => log.debug(s"not my turn, ($name)")
@@ -67,7 +67,7 @@ class ProduceTask(val producer: Producer,
           case Success(block, producer, time) => block match {
             case Some(blk) => {
               peerManager ! BlockMessage(blk)
-              log.info(s"block (${blk.height}, ${blk.timeStamp}) produced by $producer on $time")
+//              log.info(s"block (${blk.height}, ${blk.timeStamp}) produced by $producer on $time")
             }
             case None => log.error("produce block failed")
           }

@@ -70,7 +70,7 @@ object Blockchain {
 class LevelDBBlockchain(chainSettings: ChainSettings, consensusSettings: ConsensusSettings) extends Blockchain {
   private val db: LevelDbStorage = LevelDbStorage.open(chainSettings.dbDir)
 
-  private val genesisProducer = BinaryData(chainSettings.genesis.publicKey) // TODO: read from settings
+  private val genesisProducer = PublicKey(BinaryData(chainSettings.genesis.publicKey)) // TODO: read from settings
   private val genesisProducerPrivKey = new PrivateKey(BinaryData(chainSettings.genesis.privateKey))
 
   private val headerStore = new HeaderStore(db, 10)
@@ -85,10 +85,14 @@ class LevelDBBlockchain(chainSettings: ChainSettings, consensusSettings: Consens
   // TODO:  pubkeyNonceStore
   private val prodStateStore = new ProducerStateStore(db)
 
-  private val forkBase = new ForkBase(chainSettings.forkDir, consensusSettings.initialWitness, onConfirmed)
+  private val forkBase = new ForkBase(
+    chainSettings.forkDir,
+    consensusSettings.initialWitness,
+    onConfirmed,
+    onSwitch)
 
   // TODO: zero is not a valid pub key, need to work out other method
-  private val minerCoinFrom = BinaryData(chainSettings.miner) // 33 bytes pub key
+  private val minerCoinFrom = PublicKey(BinaryData(chainSettings.miner)) // 33 bytes pub key
   private val minerAward = Fixed8.Ten
 
   private val genesisMinerAddress = UInt160.parse("f54a5851e9372b87810a8e60cdd2e7cfd80b6e31").get
@@ -181,21 +185,21 @@ class LevelDBBlockchain(chainSettings: ChainSettings, consensusSettings: Consens
       forkHead.block.height + 1, timeStamp, merkleRoot,
       forkHead.block.id, producer, privateKey)
     val block = Block.build(header, txs)
-    if (tryInsertBlock(block)) {
+    if (forkBase.add(block)) {
       Some(block)
     } else {
       None
     }
-
   }
 
   override def tryInsertBlock(block: Block): Boolean = {
-    log.info(s"received block ${block.height}")
-    if (verifyBlock(block)) {
-      forkBase.add(block)
-    } else {
-      false
-    }
+    forkBase.add(block)
+//    log.info(s"received block ${block.height}")
+//    if (verifyBlock(block)) {
+//      forkBase.add(block)
+//    } else {
+//      false
+//    }
   }
 
   override def getTransaction(id: UInt256): Option[Transaction] = {
@@ -381,8 +385,6 @@ class LevelDBBlockchain(chainSettings: ChainSettings, consensusSettings: Consens
       false
     else if (!header.prevBlock.equals(latestHeader.id))
       false
-    else if (header.producer.length != 33)
-      false
     else if (!header.verifySig())
       false
     else
@@ -395,6 +397,11 @@ class LevelDBBlockchain(chainSettings: ChainSettings, consensusSettings: Consens
       saveBlockToStores(block)
     }
   }
-}
 
+  private def onSwitch(from: Seq[ForkItem], to: Seq[ForkItem]): Unit = {
+    log.info(s"old chain: ${from.map(_.block.id.toString.substring(0, 6)).mkString(" -> ")}")
+    log.info(s"new chain: ${to.map(_.block.id.toString.substring(0, 6)).mkString(" -> ")}")
+    //TODO: db undo
+  }
+}
 

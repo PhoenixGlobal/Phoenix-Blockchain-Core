@@ -109,10 +109,11 @@ class Node(val chain: Blockchain, val peerManager: ActorRef) extends Actor with 
         }
       }
       case BlockMessage(block) => {
-        if (!chain.tryInsertBlock(block)) {
+        if (chain.tryInsertBlock(block)) {
+          log.info(s"received block #${block.height} (${block.id})")
 //          sender() ! GetBlockMessage(block.height + 1).pack
         } else {
-          log.error(s"insert block(${block.height}, ${block.id}) failed")
+          log.error(s"receive block #${block.height}, (${block.id}) failed")
         }
       }
     }
