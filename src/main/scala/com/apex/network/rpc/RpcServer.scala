@@ -34,11 +34,8 @@ object RpcServer extends ApexLogging {
   implicit val system = ActorSystem("rpc")
   implicit val materializer = ActorMaterializer()
   implicit val timeout: Timeout = 5.seconds
-  //def main(args: Array[String]) {
-  //  def run(node: Node) {
 
   private var bindingFuture: Future[Http.ServerBinding] = null
-
 
   def run(rpcSettings: RPCSettings, nodeRef: ActorRef, producerRef: ActorRef) = {
     implicit val executionContext = system.dispatcher

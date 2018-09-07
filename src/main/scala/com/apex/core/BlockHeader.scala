@@ -2,7 +2,7 @@ package com.apex.core
 
 import java.io.{ByteArrayInputStream, ByteArrayOutputStream, DataInputStream, DataOutputStream}
 
-import com.apex.crypto.Ecdsa.PrivateKey
+import com.apex.crypto.Ecdsa.{PrivateKey, PublicKey}
 import com.apex.crypto.{BinaryData, Crypto, UInt256}
 import play.api.libs.json.{JsValue, Json, Writes}
 
@@ -10,7 +10,7 @@ class BlockHeader(val index: Int,
                   val timeStamp: Long,
                   val merkleRoot: UInt256,
                   val prevBlock: UInt256,
-                  val producer: BinaryData,   // 33 bytes pub key
+                  val producer: PublicKey,   // 33 bytes pub key
                   var producerSig: BinaryData,
                   val version: Int = 0x01,
                   override protected var _id: UInt256 = null) extends Identifier[UInt256] {
@@ -45,7 +45,7 @@ class BlockHeader(val index: Int,
     os.writeLong(timeStamp)
     os.write(merkleRoot)
     os.write(prevBlock)
-    os.writeByteArray(producer)
+    os.write(producer)
     // skip the producerSig
   }
 
@@ -67,7 +67,7 @@ class BlockHeader(val index: Int,
   }
 
   def verifySig(): Boolean = {
-    Crypto.verifySignature(getSigTargetData, producerSig, producer)
+    Crypto.verifySignature(getSigTargetData, producerSig, producer.toBin)
   }
 }
 
@@ -86,7 +86,7 @@ object BlockHeader {
   }
 
   def build(index: Int, timeStamp: Long, merkleRoot: UInt256, prevBlock: UInt256,
-    producer: BinaryData, privateKey: PrivateKey): BlockHeader = {
+    producer: PublicKey, privateKey: PrivateKey): BlockHeader = {
     assert(producer.length == 33)
     val header = new BlockHeader(index, timeStamp, merkleRoot, prevBlock, producer, BinaryData.empty)
     header.sign(privateKey)
@@ -101,7 +101,7 @@ object BlockHeader {
       timeStamp = is.readLong,
       merkleRoot = is.readObj(UInt256.deserialize),
       prevBlock = is.readObj(UInt256.deserialize),
-      producer = is.readByteArray,
+      producer = is.readObj(PublicKey.deserialize),
       producerSig = is.readByteArray,
       version = version,
       is.readObj(UInt256.deserialize)

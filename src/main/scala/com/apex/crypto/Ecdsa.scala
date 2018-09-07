@@ -183,9 +183,13 @@ object Ecdsa {
       //case 65 if data.head == 6 || data.head == 7 => new PublicKey(Point(data), false)
       case 33 if data.head == 2 || data.head == 3 => new PublicKey(Point(data), true)
     }
+    def deserialize(is: DataInputStream): PublicKey = {
+      import com.apex.common.Serializable._
+      PublicKey(is.readByteArray)
+    }
   }
 
-  case class PublicKey(value: Point, compressed: Boolean = true) {
+  case class PublicKey(value: Point, compressed: Boolean = true) extends com.apex.common.Serializable {
     def toBin: BinaryData = value.toBin(compressed)
 
     //def hash160: BinaryData = Ecdsa.hash160(toBin)
@@ -196,6 +200,11 @@ object Ecdsa {
 
     def toAddress: String = {
       PublicKeyHash.toAddress(pubKeyHash.data)
+    }
+
+    override def serialize(os: DataOutputStream): Unit = {
+      import com.apex.common.Serializable._
+      os.writeByteArray(toBin)
     }
   }
 

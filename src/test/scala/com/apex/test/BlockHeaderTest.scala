@@ -11,7 +11,7 @@ package com.apex.test
 import akka.http.scaladsl.model.DateTime
 import com.apex.core.BlockHeader
 import com.apex.crypto.BinaryData
-import com.apex.crypto.Ecdsa.PrivateKey
+import com.apex.crypto.Ecdsa.{PrivateKey, PublicKey}
 import org.junit.Test
 import play.api.libs.json.Json
 
@@ -21,10 +21,13 @@ class BlockHeaderTest {
   def testSerialize = {
     val prevBlock = SerializerTest.testHash256("prev")
     val merkleRoot = SerializerTest.testHash256("root")
-    val producer = BinaryData("03b4534b44d1da47e4b4a504a210401a583f860468dec766f507251a057594e682") // TODO: read from settings
+    val producer = PublicKey("03b4534b44d1da47e4b4a504a210401a583f860468dec766f507251a057594e682") // TODO: read from settings
     val producerPrivKey = new PrivateKey(BinaryData("7a93d447bffe6d89e690f529a3a0bdff8ff6169172458e04849ef1d4eafd7f86"))
     val timeStamp = DateTime.now.clicks
     val a = new BlockHeader(0, timeStamp, merkleRoot, prevBlock, producer, BinaryData("0000"))
+    a.sign(producerPrivKey)
+    assert(a.verifySig() == true)
+
     val o = new SerializerTest[BlockHeader](
       BlockHeader.deserialize,
       (x, _) => x.version.equals(a.version)
@@ -41,7 +44,7 @@ class BlockHeaderTest {
   def testToJson = {
     val prevBlock = SerializerTest.testHash256("prev")
     val merkleRoot = SerializerTest.testHash256("root")
-    val producer = BinaryData("03b4534b44d1da47e4b4a504a210401a583f860468dec766f507251a057594e682") // TODO: read from settings
+    val producer = PublicKey("03b4534b44d1da47e4b4a504a210401a583f860468dec766f507251a057594e682") // TODO: read from settings
     val producerPrivKey = new PrivateKey(BinaryData("7a93d447bffe6d89e690f529a3a0bdff8ff6169172458e04849ef1d4eafd7f86"))
     val timeStamp = DateTime.now.clicks
     val a = new BlockHeader(0, timeStamp, merkleRoot, prevBlock, producer, BinaryData("0000"))

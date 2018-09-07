@@ -284,7 +284,7 @@ class ForkBase(dir: String, witnesses: Array[Witness],
 
   def add(block: Block): Boolean = {
     def addItem(lph: Map[PublicKey, Int]) = {
-      val pub = PublicKey(block.header.producer)
+      val pub = block.header.producer
       if (lph.contains(pub)) {
         lph.put(pub, block.height)
       }

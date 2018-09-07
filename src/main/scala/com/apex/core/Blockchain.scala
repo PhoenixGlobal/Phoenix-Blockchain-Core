@@ -70,7 +70,7 @@ object Blockchain {
 class LevelDBBlockchain(chainSettings: ChainSettings, consensusSettings: ConsensusSettings) extends Blockchain {
   private val db: LevelDbStorage = LevelDbStorage.open(chainSettings.dbDir)
 
-  private val genesisProducer = BinaryData(chainSettings.genesis.publicKey) // TODO: read from settings
+  private val genesisProducer = PublicKey(BinaryData(chainSettings.genesis.publicKey)) // TODO: read from settings
   private val genesisProducerPrivKey = new PrivateKey(BinaryData(chainSettings.genesis.privateKey))
 
   private val headerStore = new HeaderStore(db, 10)
@@ -92,7 +92,7 @@ class LevelDBBlockchain(chainSettings: ChainSettings, consensusSettings: Consens
     onSwitch)
 
   // TODO: zero is not a valid pub key, need to work out other method
-  private val minerCoinFrom = BinaryData(chainSettings.miner) // 33 bytes pub key
+  private val minerCoinFrom = PublicKey(BinaryData(chainSettings.miner)) // 33 bytes pub key
   private val minerAward = Fixed8.Ten
 
   private val genesisMinerAddress = UInt160.parse("f54a5851e9372b87810a8e60cdd2e7cfd80b6e31").get
@@ -384,8 +384,6 @@ class LevelDBBlockchain(chainSettings: ChainSettings, consensusSettings: Consens
     else if (header.id.equals(latestHeader.id))
       false
     else if (!header.prevBlock.equals(latestHeader.id))
-      false
-    else if (header.producer.length != 33)
       false
     else if (!header.verifySig())
       false
