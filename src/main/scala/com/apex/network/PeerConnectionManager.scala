@@ -69,11 +69,11 @@ class PeerConnectionManager(val settings: NetworkSettings,
 
   private def constructHandshakeMsg: Handshake = {
     val chain = Blockchain.getLevelDBBlockchain
-    val header_num = chain.getHeight()
-    val chain_id = chain.getGenesisBlockChainId
+    val headerNum = chain.getHeight()
+    val chainId = chain.getGenesisBlockChainId
     Handshake(settings.agentName,
             Version(settings.appVersion), settings.nodeName,
-            ownSocketAddress,chain_id,header_num.toString,  timeProvider.time())
+            ownSocketAddress,chainId,headerNum.toString,  timeProvider.time())
   }
 
   private def handshake: Receive =
@@ -125,12 +125,12 @@ class PeerConnectionManager(val settings: NetworkSettings,
 
   private def handleMsg(handshakeMsg: Handshake): Unit ={
     val localChain = Blockchain.getLevelDBBlockchain
-    if(localChain.getGenesisBlockChainId != handshakeMsg.chain_id){
+    if(localChain.getGenesisBlockChainId != handshakeMsg.chainId){
       log.error(f"Peer on a different chain. Closing connection")
       self ! CloseConnection
       return
     }
-    if (localChain.getHeight() > handshakeMsg.header_num.toInt){
+    if (localChain.getHeight() > handshakeMsg.headerNum.toInt){
       log.error(f"Peer on a lower chain. Closing connection")
       self ! CloseConnection
       return

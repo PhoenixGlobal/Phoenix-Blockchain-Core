@@ -13,8 +13,8 @@ case class Handshake(applicationName: String,
                      protocolVersion: Version,
                      nodeName: String,
                      declaredAddress: Option[InetSocketAddress],
-                     chain_id: String,
-                     header_num: String,
+                     chainId: String,
+                     headerNum: String,
                      time: Long) extends BytesSerializable {
 
   require(Option(applicationName).isDefined)
@@ -38,9 +38,9 @@ object HandshakeSerializer extends Serializer[Handshake] {
 
     val nodeNameBytes = obj.nodeName.getBytes
 
-    val chainIdBytes = obj.chain_id.getBytes
+    val chainIdBytes = obj.chainId.getBytes
 
-    val header_num = obj.header_num.getBytes
+    val header_num = obj.headerNum.getBytes
 
     Array(anb.size.toByte) ++ anb ++
       obj.protocolVersion.bytes ++
