@@ -22,7 +22,7 @@ import com.apex.core._
 import com.apex.crypto.Ecdsa.PublicKey
 import com.apex.crypto.UInt256
 import com.apex.network.rpc.SendRawTransactionCmd
-import com.apex.network.{BlockMessage, MessagePack, MessageType, Node}
+import com.apex.network._
 import com.apex.settings.{ConsensusSettings, Witness}
 
 import scala.collection.mutable.Map
@@ -66,8 +66,9 @@ class ProduceTask(val producer: Producer,
           case Failed(e) => log.error("error occurred when producing block", e)
           case Success(block, producer, time) => block match {
             case Some(blk) => {
-              peerManager ! BlockMessage(blk)
-//              log.info(s"block (${blk.height}, ${blk.timeStamp}) produced by $producer on $time")
+              log.info(s"block (${blk.height}, ${blk.timeStamp}) produced by $producer on $time")
+              //peerManager ! BlockMessage(blk)
+              peerManager ! InventoryMessage(new Inventory(InventoryType.Block, Seq(blk.id())))
             }
             case None => log.error("produce block failed")
           }

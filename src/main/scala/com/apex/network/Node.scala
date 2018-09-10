@@ -116,6 +116,36 @@ class Node(val chain: Blockchain, val peerManager: ActorRef) extends Actor with 
           log.error(s"receive block #${block.height}, (${block.id}) failed")
         }
       }
+      case InventoryMessage(inv) => {
+        log.info(s"received Inventory")
+        if (inv.invType == InventoryType.Block) {
+          inv.hashs.foreach(h => {
+            if (chain.getBlock(h) == None) {
+              log.info(s"send GetDataMessage")
+              sender() ! GetDataMessage(new Inventory(InventoryType.Block, Seq(h))).pack
+            }
+          })
+        }
+      }
+      case GetDataMessage(inv) => {
+        log.info(s"received GetDataMessage")
+        if (inv.invType == InventoryType.Block) {
+          inv.hashs.foreach(h => {
+            var block = chain.getBlock(h)
+            if (block != None) {
+              log.info(s"send Block ${block.head.height()}")
+              sender() ! BlockMessage(block.get).pack
+            }
+            else {
+              block = chain.getBlockInForkBase(h)
+              if (block != None) {
+                log.info(s"send Block ${block.head.height()}")
+                sender() ! BlockMessage(block.get).pack
+              }
+            }
+          })
+        }
+      }
     }
   }
 }

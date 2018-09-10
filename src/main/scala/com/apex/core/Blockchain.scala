@@ -32,6 +32,8 @@ trait Blockchain extends Iterable[Block] with ApexLogging {
 
   def getBlock(id: UInt256): Option[Block]
 
+  def getBlockInForkBase(id: UInt256): Option[Block]
+
   def containsBlock(id: UInt256): Boolean
 
   def produceBlock(producer: PublicKey, privateKey: PrivateKey, timeStamp: Long,
@@ -168,6 +170,11 @@ class LevelDBBlockchain(chainSettings: ChainSettings, consensusSettings: Consens
       case Some(id) => getBlock(id)
       case None => None
     }
+  }
+
+  override def getBlockInForkBase(id: UInt256): Option[Block] = {
+    //todo
+    Some(forkBase.get(id).get.block)
   }
 
   override def containsBlock(id: UInt256): Boolean = {
