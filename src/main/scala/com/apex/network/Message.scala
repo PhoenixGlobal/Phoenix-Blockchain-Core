@@ -12,15 +12,19 @@
 
 package com.apex.network
 
+import java.io.{DataInputStream, DataOutputStream, ByteArrayInputStream}
 import java.net.{InetAddress, InetSocketAddress}
 
 import com.apex.core.Block
+import com.apex.crypto.UInt256
 
 object MessageType extends Enumeration {
   val Version = Value(0)
   val BlockProduced = Value(1)
   val GetBlock = Value(2)
   val Block = Value(3)
+  val Inventory = Value(4)
+  val Getdata = Value(5)
 }
 
 trait PackMessage {
@@ -49,6 +53,51 @@ case class BlockMessage(block: Block) extends Message(MessageType.Block) {
   }
 }
 
+case class InventoryMessage(inv: Inventory) extends Message(MessageType.Inventory) {
+  override def pack(): MessagePack = {
+    MessagePack(messageType, inv.toBytes)
+  }
+}
+
+case class GetDataMessage(inv: Inventory) extends Message(MessageType.Getdata) {
+  override def pack(): MessagePack = {
+    MessagePack(messageType, inv.toBytes)
+  }
+}
+
+object InventoryType extends Enumeration {
+  val Block = Value(0x00)
+  val Tx = Value(0x01)
+
+  implicit class Extension(val value: InventoryType.Value) {
+    def toByte: Byte = value.id.toByte
+  }
+}
+
+class Inventory(val invType: InventoryType.Value,
+                val hashs: Seq[UInt256]) extends com.apex.common.Serializable {
+  def serialize(os: DataOutputStream) = {
+    import com.apex.common.Serializable._
+    os.writeByte(invType.toByte)
+    os.writeSeq(hashs)
+  }
+}
+
+object Inventory {
+  def deserialize(is: DataInputStream): Inventory = {
+    import com.apex.common.Serializable._
+    val invType = InventoryType(is.readByte())
+    val hashs = is.readSeq(UInt256.deserialize)
+    new Inventory(invType, hashs)
+  }
+
+  def fromBytes(data: Array[Byte]): Inventory = {
+    val bs = new ByteArrayInputStream(data)
+    val is = new DataInputStream(bs)
+    deserialize(is)
+  }
+}
+
 object MessagePack {
   def fromBytes(bytes: Array[Byte], addr: InetSocketAddress = null): Message = {
     val messageType = MessageType(bytes(0))
@@ -62,6 +111,12 @@ object MessagePack {
       }
       case MessageType.Block => {
         BlockMessage(Block.fromBytes(data))
+      }
+      case MessageType.Inventory => {
+        InventoryMessage(Inventory.fromBytes(data))
+      }
+      case MessageType.Getdata => {
+        GetDataMessage(Inventory.fromBytes(data))
       }
     }
   }
