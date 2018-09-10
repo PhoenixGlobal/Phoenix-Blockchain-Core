@@ -269,10 +269,18 @@ class ForkBase(dir: String, witnesses: Array[Witness],
 
   val db = LevelDbStorage.open(dir)
 
-  db.scan((_, v) => {
-    val item = ForkItem.fromBytes(v)
-    createIndex(item)
-  })
+  init()
+
+  def init() = {
+    db.scan((_, v) => {
+      val item = ForkItem.fromBytes(v)
+      createIndex(item)
+    })
+    if (indexByConfirmedHeight.isEmpty)
+      _head = None
+    else
+      _head = indexById.get(indexByConfirmedHeight.head._3)
+  }
 
   def head(): Option[ForkItem] = {
     _head
