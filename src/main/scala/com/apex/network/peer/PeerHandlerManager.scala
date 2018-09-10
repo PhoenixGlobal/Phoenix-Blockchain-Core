@@ -103,6 +103,12 @@ class PeerHandlerManager(settings: ApexSettings, timeProvider: NetworkTimeProvid
         log.info(s"send block #${msg.block.height} (${msg.block.id}) to ${peer.toString}")
       })
     }
+    case msg: InventoryMessage => {
+      connectedPeers.values.foreach(peer => {
+        peer.handlerRef ! msg.pack()
+        log.info(s"send INV to ${peer.toString}")
+      })
+    }
     case MessagePack(a, b, c) =>
       c match {
         case Some(address) => {
