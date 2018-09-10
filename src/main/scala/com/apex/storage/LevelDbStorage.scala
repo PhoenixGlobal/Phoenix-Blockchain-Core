@@ -89,6 +89,16 @@ class LevelDbStorage(private val db: DB) extends Storage[Array[Byte], Array[Byte
     }
   }
 
+  def last(): Option[Entry[Array[Byte], Array[Byte]]] = {
+    val it = db.iterator()
+    it.seekToLast()
+    if (it.hasNext) {
+      Some(it.peekNext())
+    } else {
+      None
+    }
+  }
+
   private def seekThenApply(seekAction: DBIterator => Unit, func: Entry[Array[Byte], Array[Byte]] => Boolean): Unit = {
     val iterator = db.iterator
     try {

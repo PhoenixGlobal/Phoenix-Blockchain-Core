@@ -355,7 +355,7 @@ class ForkBase(dir: String, witnesses: Array[Witness],
       _head = indexById.get(indexByConfirmedHeight.head._3)
     }
   }
-  
+
   private def removeConfirmed(height: Int) = {
     val items = ListBuffer.empty[ForkItem]
     for (p <- indexByHeight if p._1 < height) {

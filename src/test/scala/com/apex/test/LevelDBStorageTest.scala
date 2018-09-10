@@ -120,4 +120,22 @@ class LevelDBStorageTest {
     }
     storage.close()
   }
+
+  @Test
+  def testLastEmpty(): Unit = {
+    val storage = LevelDbStorage.open("last_test_empty_db")
+    assert(storage.last().isEmpty)
+  }
+
+  @Test
+  def testLast(): Unit = {
+    val storage = LevelDbStorage.open("last_test_db")
+    for (i <- 0 to 10) {
+      storage.set(BigInt(i).toByteArray, s"test$i".getBytes)
+    }
+
+    val last = storage.last.get
+    assert(BigInt(last.getKey).toInt == 10)
+    assert(new String(last.getValue).equals("test10"))
+  }
 }
