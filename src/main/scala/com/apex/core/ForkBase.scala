@@ -262,25 +262,14 @@ class ForkBase(dir: String, witnesses: Array[Witness],
                onSwitch: (Seq[ForkItem], Seq[ForkItem]) => Unit) extends ApexLogging {
   private var _head: Option[ForkItem] = None
 
-  val indexById = Map.empty[UInt256, ForkItem]
-  val indexByPrev = MultiMap.empty[UInt256, UInt256]
-  val indexByHeight = SortedMultiMap.empty[Int, Boolean, UInt256]()(implicitly[Ordering[Int]], implicitly[Ordering[Boolean]].reverse)
-  val indexByConfirmedHeight = SortedMultiMap.empty[Int, Int, UInt256]()(implicitly[Ordering[Int]].reverse, implicitly[Ordering[Int]].reverse)
+  private val indexById = Map.empty[UInt256, ForkItem]
+  private val indexByPrev = MultiMap.empty[UInt256, UInt256]
+  private val indexByHeight = SortedMultiMap.empty[Int, Boolean, UInt256]()(implicitly[Ordering[Int]], implicitly[Ordering[Boolean]].reverse)
+  private val indexByConfirmedHeight = SortedMultiMap.empty[Int, Int, UInt256]()(implicitly[Ordering[Int]].reverse, implicitly[Ordering[Int]].reverse)
 
-  val db = LevelDbStorage.open(dir)
+  private val db = LevelDbStorage.open(dir)
 
   init()
-
-  def init() = {
-    db.scan((_, v) => {
-      val item = ForkItem.fromBytes(v)
-      createIndex(item)
-    })
-    if (indexByConfirmedHeight.isEmpty)
-      _head = None
-    else
-      _head = indexById.get(indexByConfirmedHeight.head._3)
-  }
 
   def head(): Option[ForkItem] = {
     _head
@@ -356,6 +345,17 @@ class ForkBase(dir: String, witnesses: Array[Witness],
     onSwitch(originFork, newFork)
   }
 
+  private def init() = {
+    db.scan((_, v) => {
+      val item = ForkItem.fromBytes(v)
+      createIndex(item)
+    })
+
+    if (!indexByConfirmedHeight.isEmpty) {
+      _head = indexById.get(indexByConfirmedHeight.head._3)
+    }
+  }
+  
   private def removeConfirmed(height: Int) = {
     val items = ListBuffer.empty[ForkItem]
     for (p <- indexByHeight if p._1 < height) {
