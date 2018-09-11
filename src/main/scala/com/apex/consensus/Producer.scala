@@ -67,8 +67,8 @@ class ProduceTask(val producer: Producer,
           case Success(block, producer, time) => block match {
             case Some(blk) => {
               log.info(s"block (${blk.height}, ${blk.timeStamp}) produced by $producer on $time")
-              //peerManager ! BlockMessage(blk)
-              peerManager ! InventoryMessage(new Inventory(InventoryType.Block, Seq(blk.id())))
+              peerManager ! BlockMessage(blk)
+              //peerManager ! InventoryMessage(new Inventory(InventoryType.Block, Seq(blk.id())))
             }
             case None => log.error("produce block failed")
           }
@@ -152,7 +152,7 @@ class Producer(settings: ConsensusSettings,
   //  }
 
   private def nextBlockTime(nextN: Int = 1): Long = {
-    val headTime = chain.getForkHeadBlock().header.timeStamp
+    val headTime = chain.getLatestHeader.timeStamp
     var slot = headTime / settings.produceInterval
     slot += nextN
     slot * settings.produceInterval //   (headTime / produceInterval + nextN) * produceInterval

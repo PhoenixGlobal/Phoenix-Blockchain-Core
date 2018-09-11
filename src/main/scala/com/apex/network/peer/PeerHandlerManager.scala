@@ -98,12 +98,14 @@ class PeerHandlerManager(settings: ApexSettings, timeProvider: NetworkTimeProvid
     //      val msg = Message[Unit](GetPeersSpec, Right(Unit), None)
     //      handler! msg
     case msg: BlockMessage => {
+      log.info("broadcasting BlockMessage")
       connectedPeers.values.foreach(peer => {
         peer.handlerRef ! msg.pack()
         log.info(s"send block #${msg.block.height} (${msg.block.id}) to ${peer.toString}")
       })
     }
     case msg: InventoryMessage => {
+      log.info("broadcasting InventoryMessage")
       connectedPeers.values.foreach(peer => {
         peer.handlerRef ! msg.pack()
         log.info(s"send INV to ${peer.toString}")

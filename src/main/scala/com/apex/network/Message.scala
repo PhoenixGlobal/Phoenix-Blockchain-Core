@@ -21,7 +21,7 @@ import com.apex.crypto.UInt256
 object MessageType extends Enumeration {
   val Version = Value(0)
   val BlockProduced = Value(1)
-  val GetBlock = Value(2)
+  val GetBlocks = Value(2)
   val Block = Value(3)
   val Inventory = Value(4)
   val Getdata = Value(5)
@@ -41,9 +41,9 @@ case class VersionMessage(height: Int) extends Message(MessageType.Version) {
   }
 }
 
-case class GetBlockMessage(height: Int) extends Message(MessageType.GetBlock) {
+case class GetBlocksMessage(blockHashs: GetBlocksPayload) extends Message(MessageType.GetBlocks) {
   override def pack(): MessagePack = {
-    MessagePack(messageType, BigInt(height).toByteArray)
+    MessagePack(messageType, blockHashs.toBytes)
   }
 }
 
@@ -98,6 +98,29 @@ object Inventory {
   }
 }
 
+class GetBlocksPayload(val hashStart: Seq[UInt256],
+                       val hashStop: UInt256) extends com.apex.common.Serializable {
+  def serialize(os: DataOutputStream) = {
+    import com.apex.common.Serializable._
+    os.writeSeq(hashStart)
+    os.write(hashStop)
+  }
+}
+
+object GetBlocksPayload {
+  def deserialize(is: DataInputStream): GetBlocksPayload = {
+    import com.apex.common.Serializable._
+    val hashStart = is.readSeq(UInt256.deserialize)
+    val hashStop = is.readObj(UInt256.deserialize)
+    new GetBlocksPayload(hashStart, hashStop)
+  }
+  def fromBytes(data: Array[Byte]): GetBlocksPayload = {
+    val bs = new ByteArrayInputStream(data)
+    val is = new DataInputStream(bs)
+    deserialize(is)
+  }
+}
+
 object MessagePack {
   def fromBytes(bytes: Array[Byte], addr: InetSocketAddress = null): Message = {
     val messageType = MessageType(bytes(0))
@@ -106,8 +129,8 @@ object MessagePack {
       case MessageType.Version => {
         VersionMessage(BigInt(data).toInt)
       }
-      case MessageType.GetBlock => {
-        GetBlockMessage(BigInt(data).toInt)
+      case MessageType.GetBlocks => {
+        GetBlocksMessage(GetBlocksPayload.fromBytes(data))
       }
       case MessageType.Block => {
         BlockMessage(Block.fromBytes(data))

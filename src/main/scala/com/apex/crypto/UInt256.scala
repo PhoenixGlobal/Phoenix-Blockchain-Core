@@ -19,6 +19,8 @@ object UInt256 {
   final val Size: Int = 32
   final val Zero: UInt256 = UInt256.fromBytes(Array.fill(Size)(0.toByte))
 
+  implicit val deserializer: DataInputStream => UInt256 = deserialize
+
   def fromBytes(bytes: Array[Byte]): UInt256 = {
     require(bytes.length == 32)
     new UInt256(bytes)
