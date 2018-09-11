@@ -18,8 +18,6 @@ trait Blockchain extends Iterable[Block] with ApexLogging {
 
   def getHeadTime(): Long
 
-  def getForkHeadBlock(): Block
-
   def headTimeSinceGenesis(): Long
 
   def getDistance(): Long
@@ -27,6 +25,8 @@ trait Blockchain extends Iterable[Block] with ApexLogging {
   def getHeader(id: UInt256): Option[BlockHeader]
 
   def getHeader(index: Int): Option[BlockHeader]
+
+  def getNextBlockId(id: UInt256): Option[UInt256]
 
   def getBlock(height: Int): Option[Block]
 
@@ -116,8 +116,6 @@ class LevelDBBlockchain(chainSettings: ChainSettings, consensusSettings: Consens
 
   override def iterator: Iterator[Block] = new BlockchainIterator(this)
 
-  override def getLatestHeader: BlockHeader = latestHeader
-
   override def getHeight(): Int = {
     latestHeader.index
   }
@@ -127,8 +125,12 @@ class LevelDBBlockchain(chainSettings: ChainSettings, consensusSettings: Consens
     forkBase.head.map(_.block.timeStamp).getOrElse(0)
   }
 
-  override def getForkHeadBlock(): Block = {
-    forkBase.head().get.block
+  override def getLatestHeader(): BlockHeader = {
+    val forkHead = forkBase.head()
+    if (forkHead.isDefined)
+      forkHead.get.block.header
+    else
+      latestHeader
   }
 
   override def headTimeSinceGenesis(): Long = {
@@ -152,6 +154,20 @@ class LevelDBBlockchain(chainSettings: ChainSettings, consensusSettings: Consens
     }
   }
 
+  override def getNextBlockId(id: UInt256): Option[UInt256] = {
+    var target: Option[UInt256] = None
+    val block = getBlock(id)
+    if (block.isDefined) {
+      val nextBlock = getBlock(block.get.height() + 1)
+      if (nextBlock.isDefined)
+        target = Some(nextBlock.get.id())
+    }
+    if (target == None) {
+      target = forkBase.getNext(id)
+    }
+    target
+  }
+
   override def getBlock(id: UInt256): Option[Block] = {
     def getTxs(blkTx: BlkTxMapping): Seq[Transaction] = {
       blkTx.txIds.map(txStore.get).filterNot(_.isEmpty).map(_.get)
@@ -173,8 +189,11 @@ class LevelDBBlockchain(chainSettings: ChainSettings, consensusSettings: Consens
   }
 
   override def getBlockInForkBase(id: UInt256): Option[Block] = {
-    //todo
-    Some(forkBase.get(id).get.block)
+    val forkItem = forkBase.get(id)
+    if (forkItem.isEmpty)
+      None
+    else
+      Some(forkItem.get.block)
   }
 
   override def containsBlock(id: UInt256): Boolean = {
@@ -232,6 +251,10 @@ class LevelDBBlockchain(chainSettings: ChainSettings, consensusSettings: Consens
     def updateAccout(accounts: Map[UInt160, Account], tx: Transaction) = {
       // TODO
     }
+
+    //temp check
+    require(latestHeader.id.equals(block.prev))
+    require(block.header.index == latestHeader.index + 1)
 
     try {
       db.batchWrite(batch => {

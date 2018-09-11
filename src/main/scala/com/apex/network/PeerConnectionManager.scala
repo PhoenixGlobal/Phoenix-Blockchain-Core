@@ -131,9 +131,9 @@ class PeerConnectionManager(val settings: NetworkSettings,
       return
     }
     if (localChain.getHeight() > handshakeMsg.headerNum.toInt){
-      log.error(f"Peer on a lower chain. Closing connection")
-      self ! CloseConnection
-      return
+      //log.error(f"Peer on a lower chain. Closing connection")
+      //self ! CloseConnection
+      //return
     }
 
     recvHandshake(handshakeMsg)
