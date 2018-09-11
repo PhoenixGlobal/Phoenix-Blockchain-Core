@@ -111,7 +111,7 @@ class Node(val chain: Blockchain, val peerManager: ActorRef) extends Actor with 
       case BlockMessage(block) => {
         if (chain.tryInsertBlock(block)) {
           log.info(s"received block #${block.height} (${block.id})")
-//          sender() ! GetBlockMessage(block.height + 1).pack
+          peerManager ! InventoryMessage(new Inventory(InventoryType.Block, Seq(block.id())))
         } else {
           log.error(s"receive block #${block.height}, (${block.id}) failed")
         }
@@ -121,8 +121,10 @@ class Node(val chain: Blockchain, val peerManager: ActorRef) extends Actor with 
         if (inv.invType == InventoryType.Block) {
           inv.hashs.foreach(h => {
             if (chain.getBlock(h) == None) {
-              log.info(s"send GetDataMessage")
-              sender() ! GetDataMessage(new Inventory(InventoryType.Block, Seq(h))).pack
+              if (chain.getBlockInForkBase(h) == None) {
+                log.info(s"send GetDataMessage")
+                sender() ! GetDataMessage(new Inventory(InventoryType.Block, Seq(h))).pack
+              }
             }
           })
         }
@@ -132,16 +134,15 @@ class Node(val chain: Blockchain, val peerManager: ActorRef) extends Actor with 
         if (inv.invType == InventoryType.Block) {
           inv.hashs.foreach(h => {
             var block = chain.getBlock(h)
+            if (block == None) {
+              block = chain.getBlockInForkBase(h)
+            }
             if (block != None) {
               log.info(s"send Block ${block.head.height()}")
               sender() ! BlockMessage(block.get).pack
             }
             else {
-              block = chain.getBlockInForkBase(h)
-              if (block != None) {
-                log.info(s"send Block ${block.head.height()}")
-                sender() ! BlockMessage(block.get).pack
-              }
+              log.error("received GetDataMessage but block not found")
             }
           })
         }

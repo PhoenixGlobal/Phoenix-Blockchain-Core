@@ -173,8 +173,11 @@ class LevelDBBlockchain(chainSettings: ChainSettings, consensusSettings: Consens
   }
 
   override def getBlockInForkBase(id: UInt256): Option[Block] = {
-    //todo
-    Some(forkBase.get(id).get.block)
+    val forkItem = forkBase.get(id)
+    if (forkItem.isEmpty)
+      None
+    else
+      Some(forkItem.get.block)
   }
 
   override def containsBlock(id: UInt256): Boolean = {
@@ -232,6 +235,10 @@ class LevelDBBlockchain(chainSettings: ChainSettings, consensusSettings: Consens
     def updateAccout(accounts: Map[UInt160, Account], tx: Transaction) = {
       // TODO
     }
+
+    //temp check
+    require(latestHeader.id.equals(block.prev))
+    require(block.header.index == latestHeader.index + 1)
 
     try {
       db.batchWrite(batch => {
