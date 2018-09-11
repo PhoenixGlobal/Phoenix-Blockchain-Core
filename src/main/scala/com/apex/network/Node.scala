@@ -99,47 +99,69 @@ class Node(val chain: Blockchain, val peerManager: ActorRef) extends Actor with 
     message match {
       case VersionMessage(height) => {
         if (height < chain.getHeight) {
-          sender() ! GetBlockMessage(height).pack
+          //sender() ! GetBlockMessage(height).pack
         }
       }
-      case GetBlockMessage(height) => {
-        chain.getBlock(height) match {
-          case Some(block) => sender() ! BlockMessage(block).pack
-          case None => log.error(s"get block($height) failed")
+      case GetBlocksMessage(blockHashs) => {
+        log.info("received GetBlocksMessage")
+        val hashs = ArrayBuffer.empty[UInt256]
+
+        val hash = blockHashs.hashStart(0)
+        hashs.append(hash)
+        var next = chain.getNextBlockId(hash)
+        while (next.isDefined) {
+          hashs.append(next.get)
+          next = chain.getNextBlockId(next.get)
         }
+        log.info("send InventoryMessage")
+        sender() ! InventoryMessage(new Inventory(InventoryType.Block, hashs.toSeq)).pack()
       }
       case BlockMessage(block) => {
+        log.info(s"received block #${block.height} (${block.id})")
         if (chain.tryInsertBlock(block)) {
-          log.info(s"received block #${block.height} (${block.id})")
+          log.info(s"insert block #${block.height} (${block.id}) success")
           peerManager ! InventoryMessage(new Inventory(InventoryType.Block, Seq(block.id())))
         } else {
-          log.error(s"receive block #${block.height}, (${block.id}) failed")
+          log.error(s"failed insert block #${block.height}, (${block.id}) to db")
+          if (block.height() > chain.getLatestHeader.index) {
+            log.info(s"send GetBlocksMessage")
+            sender() ! GetBlocksMessage(new GetBlocksPayload(Seq(chain.getLatestHeader.id), UInt256.Zero)).pack
+          }
         }
       }
       case InventoryMessage(inv) => {
         log.info(s"received Inventory")
         if (inv.invType == InventoryType.Block) {
+          val newBlocks = ArrayBuffer.empty[UInt256]
           inv.hashs.foreach(h => {
             if (chain.getBlock(h) == None) {
               if (chain.getBlockInForkBase(h) == None) {
-                log.info(s"send GetDataMessage")
-                sender() ! GetDataMessage(new Inventory(InventoryType.Block, Seq(h))).pack
+                newBlocks.append(h)
               }
             }
           })
+          if (newBlocks.size > 0) {
+            log.info(s"send GetDataMessage $newBlocks")
+            sender() ! GetDataMessage(new Inventory(InventoryType.Block, newBlocks.toSeq)).pack
+          }
         }
       }
       case GetDataMessage(inv) => {
         log.info(s"received GetDataMessage")
         if (inv.invType == InventoryType.Block) {
+          val sendMax: Int = 5
+          var sentNum: Int = 0
           inv.hashs.foreach(h => {
             var block = chain.getBlock(h)
             if (block == None) {
               block = chain.getBlockInForkBase(h)
             }
             if (block != None) {
-              log.info(s"send Block ${block.head.height()}")
-              sender() ! BlockMessage(block.get).pack
+              if (sentNum < sendMax) {
+                log.info(s"send Block ${block.head.height()}")
+                sender() ! BlockMessage(block.get).pack
+                sentNum += 1
+              }
             }
             else {
               log.error("received GetDataMessage but block not found")

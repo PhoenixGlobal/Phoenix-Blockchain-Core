@@ -290,6 +290,23 @@ class ForkBase(dir: String, witnesses: Array[Witness],
     indexById.get(id)
   }
 
+  //TODO
+  def getNext(id: UInt256): Option[UInt256] = {
+    //val next = indexByPrev.get(id)
+    var target: Option[UInt256] = None
+    var current: Option[ForkItem] = _head
+    while (current.isDefined) {
+      if (current.get.block.prev().equals(id)) {
+        target = Some(current.get.block.id)
+        current = None
+      }
+      else {
+        current = get(current.get.block.prev())
+      }
+    }
+    target
+  }
+
   def add(block: Block): Boolean = {
     def addItem(lph: Map[PublicKey, Int]) = {
       val pub = block.header.producer
