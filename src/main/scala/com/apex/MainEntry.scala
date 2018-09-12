@@ -32,12 +32,6 @@ object MainEntry extends ApexLogging{
     val settings = getApexSettings(ns)
     val chain = Blockchain.populate(settings.chain, settings.consensus)
 
-//    Wallet.importPrivKeyFromWIF("Kx45GeUBSMPReYQwgXiKhG9FzNXrnCeutJp4yjTd5kKxCitadm3C")
-    //val tx = Wallet.makeTransaction("APQKUqPcJEUwRdwoxpoGQnkrRGstSXkgebk", UInt256.Zero, new Fixed8(230000L)).get
-
-    //LocalNode.default.addTransaction(tx)
-    //    val block2 = Blockchain.Current.produceBlock(LocalNode.default.getMemoryPool())
-
     implicit val system = ActorSystem("APEX-NETWORK")
     implicit val executionContext: ExecutionContext = system.dispatcher
 
@@ -45,23 +39,15 @@ object MainEntry extends ApexLogging{
     val upnp = new UPnP(settings.network)
 
     val timeProvider = new NetworkTimeProvider(settings.ntp)
-//    val node = LocalNode.launch(settings, timeProvider)
 
-    val peerManagerRef = PeerHandlerManagerRef(settings, timeProvider)
-    val nodeRef = NodeRef(chain, peerManagerRef)
-    val producer = ProducerRef(settings.consensus, chain, peerManagerRef)
+    val peerHandlerManagerRef = PeerHandlerManagerRef(settings, timeProvider)
+    val nodeRef = NodeRef(chain, peerHandlerManagerRef)
+    val producer = ProducerRef(settings.consensus, chain, peerHandlerManagerRef)
 //    val rpcRef = RpcServerRef(settings.rpcSettings, nodeRef)
-    val networkControllerRef = NetworkManagerRef(settings.network, upnp, timeProvider, peerManagerRef, nodeRef)
-//    Node.beginProduce(nodeRef, settings.consensus)
-//    val task = node.beginProduce(Genesis.config)
-    RpcServer.run(settings.rpc, nodeRef, producer)
-    //    producer.wait()
-    //    val block3 = Blockchain.Current.produceBlock(Seq.empty)
+    val networkControllerRef = NetworkManagerRef(settings.network, upnp, timeProvider, peerHandlerManagerRef, nodeRef)
 
-    //    val block = new Block()
-    //
-    //    System.out.print("Hello BlockChain: " + block.getClass.toString)
-    //    System.out.println(" #" + block.header.index)
+    RpcServer.run(settings.rpc, nodeRef, producer)
+
     System.out.println("Press RETURN to stop...")
     StdIn.readLine() // let it run until user presses return
   }
@@ -84,7 +70,7 @@ object MainEntry extends ApexLogging{
   }
 
   private def getApexSettings(ns: Namespace): ApexSettings = {
-//    val digest: MessageDigest = null
+    //val digest: MessageDigest = null
     val files = ns.getList[String]("configFile")
     if(files.size() > 0){
       val conf = files.toArray().head.toString

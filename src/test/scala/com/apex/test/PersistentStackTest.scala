@@ -14,7 +14,7 @@ package com.apex.test
 
 import java.io.{ByteArrayInputStream, DataInputStream, DataOutputStream}
 
-import com.apex.storage.PersistentStack
+import com.apex.storage.{LevelDbStorage, PersistentStack}
 import org.junit.{AfterClass, BeforeClass, Test}
 
 import scala.collection.mutable.ListBuffer
@@ -73,6 +73,8 @@ case class TestItem(val value: String) extends com.apex.common.Serializable {
 }
 
 object TestItem {
+  implicit val deserializer: Array[Byte] => TestItem = fromBytes
+
   def fromBytes(bytes: Array[Byte]): TestItem = {
     import com.apex.common.Serializable._
     val bs = new ByteArrayInputStream(bytes)
@@ -82,22 +84,23 @@ object TestItem {
 }
 
 object PersistentStackTest {
-  private final val stacks = ListBuffer.empty[PersistentStack[TestItem]]
+  private final val dirs = ListBuffer.empty[String]
 
-  def newStack(dir: String) = {
-    stacks.append(new PersistentStack[TestItem](dir, TestItem.fromBytes))
-    stacks.last
+  def newStack(dir: String): PersistentStack[TestItem] = {
+    val db = LevelDbStorage.open(dir)
+    val stack = new PersistentStack[TestItem](db)
+    dirs.append(dir)
+    stack
   }
 
   @AfterClass
   def cleanUp: Unit = {
-    stacks.foreach(cleanUp)
+    dirs.foreach(cleanUp)
   }
 
-  private def cleanUp(stack: PersistentStack[TestItem]): Unit = {
+  private def cleanUp(dir: String): Unit = {
     try {
-      stack.close
-      Directory(stack.dir).deleteRecursively()
+      Directory(dir).deleteRecursively()
     } catch {
       case e: Throwable => println(e.getMessage)
     }

@@ -89,6 +89,10 @@ class LevelDbStorage(private val db: DB) extends Storage[Array[Byte], Array[Byte
     }
   }
 
+  def beginBatch: WriteBatch = {
+    db.createWriteBatch
+  }
+
   def last(): Option[Entry[Array[Byte], Array[Byte]]] = {
     val it = db.iterator()
     it.seekToLast()
@@ -119,6 +123,6 @@ object LevelDbStorage {
     val options = new Options
     options.createIfMissing(createIfMissing)
     val db = factory.open(new File(path), options)
-    return new LevelDbStorage(db)
+    new LevelDbStorage(db)
   }
 }
