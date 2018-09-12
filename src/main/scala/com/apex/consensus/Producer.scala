@@ -113,8 +113,7 @@ class Producer(settings: ConsensusSettings,
 
   private def tryProduce(now: Long) = {
     val next = nextBlockTime()
-    //val (distance, timeToProduce) = getDistanceAndProduceTime(now + config.acceptableTimeError)
-    if (now + settings.acceptableTimeError < next) { // if (distance == 0) {
+    if (now + settings.acceptableTimeError < next) {
       NotYet(next, now)
     } else {
       if (nextProduceTime(now, next) > next) {
@@ -124,12 +123,12 @@ class Producer(settings: ConsensusSettings,
       if (witness.privkey.isEmpty) {
         NotMyTurn(witness.name, witness.pubkey)
       } else {
-        var timeToProduce: Long = 0
-        if (next + settings.acceptableTimeError < now)
-          timeToProduce = now
-        else
-          timeToProduce = next
         val txs = txPool.values.toSeq
+
+        /*
+         * the timestamp in every block header
+         * should be divided evenly with no remainder by settings.produceInterval
+         */
         val block = chain.produceBlock(
           witness.pubkey,
           witness.privkey.get,
@@ -140,24 +139,16 @@ class Producer(settings: ConsensusSettings,
     }
   }
 
-  //  private def getDistanceAndProduceTime(curr: Long): (Long, Long) = {
-  //    val next = nextProduceTime()
-  //    if (curr < next) {
-  //      (0, next)
-  //    } else {
-  //      val distance = (curr - next) / config.produceInterval
-  //      val time = next + distance * config.produceInterval
-  //      (distance + 1, time)
-  //    }
-  //  }
-
+  // the nextBlockTime is the expected time of next block based on current latest block
   private def nextBlockTime(nextN: Int = 1): Long = {
     val headTime = chain.getLatestHeader.timeStamp
     var slot = headTime / settings.produceInterval
     slot += nextN
-    slot * settings.produceInterval //   (headTime / produceInterval + nextN) * produceInterval
+    slot * settings.produceInterval
   }
 
+  // the nextProduceTime() maybe > nextBlockTime() in case some producer didn't produce,
+  // then there are missing gaps in the blocks
   private def nextProduceTime(now: Long, next: Long): Long = {
     if (now <= next) {
       next
@@ -168,7 +159,7 @@ class Producer(settings: ConsensusSettings,
     }
   }
 
-  // timeMs: time from 1970 in ms
+  // "timeMs": time from 1970 in ms, should be divided evenly with no remainder by settings.produceInterval
   private def getWitness(timeMs: Long): Witness = {
     val slot = timeMs / settings.produceInterval
     var index = slot % (settings.initialWitness.size * settings.producerRepetitions)
