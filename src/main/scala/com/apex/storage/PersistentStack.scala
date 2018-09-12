@@ -14,8 +14,8 @@ package com.apex.storage
 
 import com.apex.common.Serializable
 
-class PersistentStack[A <: Serializable](val dir: String, deserializer: Array[Byte] => A) {
-  private val db = LevelDbStorage.open(dir)
+class PersistentStack[A <: Serializable](db: LevelDbStorage)
+                                        (implicit deserializer: Array[Byte] => A) {
 
   private var topIdx: Int = 0
 
@@ -44,8 +44,6 @@ class PersistentStack[A <: Serializable](val dir: String, deserializer: Array[By
       topIdx += 1
     }
   }
-
-  def close = db.close()
 
   private def init() = {
     val last = db.last()

@@ -1,34 +1,36 @@
 package com.apex.core
 
-import java.io.{DataInputStream, DataOutputStream}
+import java.io.{ByteArrayInputStream, DataInputStream, DataOutputStream}
 
 import com.apex.common.{Cache, LRUCache, Serializable}
 import com.apex.crypto.{UInt160, UInt256}
-import com.apex.storage.LevelDbStorage
+import com.apex.storage.{LevelDbStorage, PersistentStack}
 import org.iq80.leveldb.{ReadOptions, WriteBatch}
+
+import scala.collection.mutable.ListBuffer
 
 class HeaderStore(db: LevelDbStorage, capacity: Int)
   extends StoreBase[UInt256, BlockHeader](db, capacity)
-    with HeaderPrefix 
-    with UInt256Key 
+    with HeaderPrefix
+    with UInt256Key
     with BlockHeaderValue
 
 class TransactionStore(db: LevelDbStorage, capacity: Int)
   extends StoreBase[UInt256, Transaction](db, capacity)
-    with TxPrefix 
-    with UInt256Key 
+    with TxPrefix
+    with UInt256Key
     with TransactionValue
 
 class AccountStore(db: LevelDbStorage, capacity: Int)
   extends StoreBase[UInt160, Account](db, capacity)
-    with AccountPrefix 
-    with UInt160Key 
+    with AccountPrefix
+    with UInt160Key
     with AccountValue
 
 class HeightStore(db: LevelDbStorage, capacity: Int)
   extends StoreBase[Int, UInt256](db, capacity)
-    with HeightToIdIndexPrefix 
-    with IntKey 
+    with HeightToIdIndexPrefix
+    with IntKey
     with UInt256Value
 
 class BlkTxMappingStore(db: LevelDbStorage, capacity: Int)
@@ -69,6 +71,7 @@ object DataType extends Enumeration {
   val BlockHeader = Value(0x00)
   val Transaction = Value(0x01)
   val Account = Value(0x02)
+  val Session = Value(0x03)
 }
 
 object IndexType extends Enumeration {
@@ -217,6 +220,7 @@ class StringConverter extends Converter[String] {
   override def fromBytes(bytes: Array[Byte]): String = {
     new String(bytes, "UTF-8")
   }
+
   override def toBytes(key: String): Array[Byte] = {
     key.getBytes("UTF-8")
   }
@@ -345,6 +349,8 @@ abstract class StateStore[V <: Serializable](db: LevelDbStorage) {
 abstract class StoreBase[K, V](val db: LevelDbStorage, cacheCapacity: Int) {
   protected val cache: Cache[K, V] = new LRUCache(cacheCapacity)
 
+  private var session: Option[Session] = None
+
   val prefixBytes: Array[Byte]
 
   val keyConverter: Converter[K]
@@ -384,8 +390,8 @@ abstract class StoreBase[K, V](val db: LevelDbStorage, cacheCapacity: Int) {
     }
   }
 
-
   def set(key: K, value: V, writeBatch: WriteBatch = null): Boolean = {
+    session.map(_.setAction(key, value, writeBatch))
     if (setBackStore(key, value, writeBatch)) {
       cache.set(key, value)
       true
@@ -395,8 +401,21 @@ abstract class StoreBase[K, V](val db: LevelDbStorage, cacheCapacity: Int) {
   }
 
   def delete(key: K, writeBatch: WriteBatch = null): Unit = {
+    session.map(_.deleteAction(key, writeBatch))
     deleteBackStore(key, writeBatch)
     cache.delete(key)
+  }
+
+  def beginTransaction(): Session = {
+    session.getOrElse(new Session(this))
+  }
+
+  def commit(): Unit = {
+    session.map(_.commit())
+  }
+
+  def rollBack(): Unit = {
+    session.map(_.rollBack())
   }
 
   protected def genKey(key: K): Array[Byte] = {
@@ -425,6 +444,104 @@ abstract class StoreBase[K, V](val db: LevelDbStorage, cacheCapacity: Int) {
       batch.delete(genKey(key))
     } else {
       db.delete(genKey(key))
+    }
+  }
+
+  import collection.mutable.Map
+
+  class SessionItem(val insert: Map[K, V] = Map.empty[K, V],
+                    val update: Map[K, V] = Map.empty[K, V],
+                    val delete: Map[K, V] = Map.empty[K, V])
+    extends Serializable {
+    override def serialize(os: DataOutputStream): Unit = {
+//      import com.apex.common.Serializable._
+//      os.writeMap(insert.toMap)
+//      os.writeMap(update.toMap)
+//      os.writeMap(delete.toMap)
+    }
+  }
+
+  class Session(store: StoreBase[K, V]) {
+
+    private val sessionId = Array(StoreType.Data.id.toByte, DataType.Session.id.toByte) ++ store.prefixBytes
+
+    private val item = new SessionItem
+
+    init()
+
+    def setAction(k: K, v: V, batch: WriteBatch): WriteBatch = {
+      var modified = true
+      if (item.insert.contains(k) || item.update.contains(k)) {
+        modified = false
+      } else if (item.delete.contains(k)) {
+        item.update.put(k, item.delete(k))
+        item.delete.remove(k)
+      } else {
+        store.get(k) match {
+          case Some(old) => {
+            item.update.put(k, old)
+          }
+          case None => {
+            item.insert.put(k, v)
+          }
+        }
+      }
+      persist(modified, batch)
+    }
+
+    def deleteAction(k: K, batch: WriteBatch): WriteBatch = {
+      var modified = true
+      if (item.insert.contains(k)) {
+        item.insert.remove(k)
+      } else if (item.update.contains(k)) {
+        item.delete.put(k, item.update(k))
+        item.update.remove(k)
+      } else if (!item.delete.contains(k)) {
+        val old = store.get(k)
+        if (old.isDefined) {
+          item.delete.put(k, old.get)
+        }
+      } else {
+        modified = false
+      }
+      persist(modified, batch)
+    }
+
+    def commit(): Unit = {
+      store.db.delete(sessionId)
+    }
+
+    def rollBack(): Unit = {
+      store.db.batchWrite(batch => {
+        item.insert.foreach(p => store.delete(p._1, batch))
+        item.update.foreach(p => store.set(p._1, p._2, batch))
+        item.delete.foreach(p => store.set(p._1, p._2, batch))
+        batch.delete(sessionId)
+      })
+    }
+
+    private def persist(modified: Boolean, batch: WriteBatch): WriteBatch = {
+      if (modified) {
+        if (batch != null) {
+          batch.put(sessionId, item.toBytes)
+        } else {
+          val batch = store.db.beginBatch
+          batch.put(sessionId, item.toBytes)
+          batch
+        }
+      } else {
+        batch
+      }
+    }
+
+    private def init(): Unit = {
+      import com.apex.common.Serializable._
+      val value = store.db.get(sessionId)
+      if (value.isDefined) {
+        val bs = new ByteArrayInputStream(value.get)
+        val is = new DataInputStream(bs)
+        // TODO: deserialize SessionItem
+      }
     }
   }
 }
