@@ -8,25 +8,16 @@
 
 package com.apex.network
 
-import java.time.{Duration, Instant}
-
 import akka.actor.{Actor, ActorRef, ActorSystem, Props}
 import com.apex.common.ApexLogging
-import com.apex.consensus._
 import com.apex.core._
 import com.apex.crypto.UInt256
 import com.apex.network.rpc.{GetBlockByHeightCmd, GetBlockByIdCmd, GetBlockCountCmd, GetBlocksCmd, GetAccountCmd, RPCCommand}
-import com.apex.settings.ConsensusSettings
+
 
 import scala.collection.mutable.{ArrayBuffer, Map}
 
-class Node(val chain: Blockchain, val peerManager: ActorRef) extends Actor with ApexLogging {
-
-  // connectedPeers
-  // unconnectedPeers
-  // badPeers
-
-  //def AcceptPeers() = {  }
+class Node(val chain: Blockchain, val peerHandlerManager: ActorRef) extends Actor with ApexLogging {
 
 //  def addTransaction(tx: Transaction): Boolean = {
 //    //lock (Blockchain.Default.PersistLock)
@@ -120,7 +111,7 @@ class Node(val chain: Blockchain, val peerManager: ActorRef) extends Actor with 
         log.info(s"received block #${block.height} (${block.id})")
         if (chain.tryInsertBlock(block)) {
           log.info(s"insert block #${block.height} (${block.id}) success")
-          peerManager ! InventoryMessage(new Inventory(InventoryType.Block, Seq(block.id())))
+          peerHandlerManager ! InventoryMessage(new Inventory(InventoryType.Block, Seq(block.id())))
         } else {
           log.error(s"failed insert block #${block.height}, (${block.id}) to db")
           if (block.height() > chain.getLatestHeader.index) {
@@ -174,12 +165,12 @@ class Node(val chain: Blockchain, val peerManager: ActorRef) extends Actor with 
 }
 
 object NodeRef {
-  def props(chain: Blockchain, peerManager: ActorRef): Props = Props(new Node(chain, peerManager))
+  def props(chain: Blockchain, peerHandlerManager: ActorRef): Props = Props(new Node(chain, peerHandlerManager))
 
-  def apply(chain: Blockchain, peerManager: ActorRef)
-           (implicit system: ActorSystem): ActorRef = system.actorOf(props(chain, peerManager))
+  def apply(chain: Blockchain, peerHandlerManager: ActorRef)
+           (implicit system: ActorSystem): ActorRef = system.actorOf(props(chain, peerHandlerManager))
 
-  def apply(chain: Blockchain, peerManager: ActorRef, name: String)
-           (implicit system: ActorSystem): ActorRef = system.actorOf(props(chain, peerManager), name)
+  def apply(chain: Blockchain, peerHandlerManager: ActorRef, name: String)
+           (implicit system: ActorSystem): ActorRef = system.actorOf(props(chain, peerHandlerManager), name)
 
 }
