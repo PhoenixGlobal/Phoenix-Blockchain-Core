@@ -24,8 +24,6 @@ import com.apex.crypto.UInt256
 import com.apex.network.rpc.SendRawTransactionCmd
 import com.apex.network._
 import com.apex.settings.{ConsensusSettings, Witness}
-
-import scala.collection.mutable.Map
 import scala.concurrent.ExecutionContext
 
 trait ProduceState
@@ -43,7 +41,7 @@ case class Success(block: Option[Block], producer: String, time: Long) extends P
 case class Failed(e: Throwable) extends ProduceState
 
 class ProduceTask(val producer: Producer,
-                  val peerManager: ActorRef,
+                  val peerHandlerManager: ActorRef,
                   private var cancelled: Boolean = false)
   extends Runnable with ApexLogging {
 
@@ -67,8 +65,8 @@ class ProduceTask(val producer: Producer,
           case Success(block, producer, time) => block match {
             case Some(blk) => {
               log.info(s"block (${blk.height}, ${blk.timeStamp}) produced by $producer on $time")
-              peerManager ! BlockMessage(blk)
-              //peerManager ! InventoryMessage(new Inventory(InventoryType.Block, Seq(blk.id())))
+              peerHandlerManager ! BlockMessage(blk)
+              //peerHandlerManager ! InventoryMessage(new InventoryPayload(InventoryType.Block, Seq(blk.id())))
             }
             case None => log.error("produce block failed")
           }
@@ -79,7 +77,7 @@ class ProduceTask(val producer: Producer,
 }
 
 class Producer(settings: ConsensusSettings,
-               chain: Blockchain, peerManager: ActorRef)
+               chain: Blockchain, peerHandlerManager: ActorRef)
               (implicit system: ActorSystem) extends Actor with ApexLogging {
 
   implicit val executionContext: ExecutionContext = system.dispatcher
@@ -88,7 +86,7 @@ class Producer(settings: ConsensusSettings,
 
   private var canProduce = false
 
-  private val task = new ProduceTask(this, peerManager)
+  private val task = new ProduceTask(this, peerHandlerManager)
   system.scheduler.scheduleOnce(Duration.ZERO, task)
 
   def produce(): ProduceState = {
@@ -212,20 +210,20 @@ class Producer(settings: ConsensusSettings,
 
 object ProducerRef {
   def props(settings: ConsensusSettings,
-            chain: Blockchain, peerManager: ActorRef)
+            chain: Blockchain, peerHandlerManager: ActorRef)
            (implicit system: ActorSystem): Props = {
-    Props(new Producer(settings, chain, peerManager))
+    Props(new Producer(settings, chain, peerHandlerManager))
   }
 
   def apply(settings: ConsensusSettings,
-            chain: Blockchain, peerManager: ActorRef)
+            chain: Blockchain, peerHandlerManager: ActorRef)
            (implicit system: ActorSystem): ActorRef = {
-    system.actorOf(props(settings, chain, peerManager))
+    system.actorOf(props(settings, chain, peerHandlerManager))
   }
 
   def apply(settings: ConsensusSettings,
-            chain: Blockchain, peerManager: ActorRef, name: String)
+            chain: Blockchain, peerHandlerManager: ActorRef, name: String)
            (implicit system: ActorSystem): ActorRef = {
-    system.actorOf(props(settings, chain, peerManager), name)
+    system.actorOf(props(settings, chain, peerHandlerManager), name)
   }
 }

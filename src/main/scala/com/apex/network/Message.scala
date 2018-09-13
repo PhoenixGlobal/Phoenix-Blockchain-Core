@@ -23,8 +23,9 @@ object MessageType extends Enumeration {
   val BlockProduced = Value(1)
   val GetBlocks = Value(2)
   val Block = Value(3)
-  val Inventory = Value(4)
-  val Getdata = Value(5)
+  val Blocks = Value(4)
+  val Inventory = Value(5)
+  val Getdata = Value(6)
 }
 
 trait PackMessage {
@@ -53,13 +54,19 @@ case class BlockMessage(block: Block) extends Message(MessageType.Block) {
   }
 }
 
-case class InventoryMessage(inv: Inventory) extends Message(MessageType.Inventory) {
+case class BlocksMessage(blocks: BlocksPayload) extends Message(MessageType.Blocks) {
+  override def pack(): MessagePack = {
+    MessagePack(messageType, blocks.toBytes)
+  }
+}
+
+case class InventoryMessage(inv: InventoryPayload) extends Message(MessageType.Inventory) {
   override def pack(): MessagePack = {
     MessagePack(messageType, inv.toBytes)
   }
 }
 
-case class GetDataMessage(inv: Inventory) extends Message(MessageType.Getdata) {
+case class GetDataMessage(inv: InventoryPayload) extends Message(MessageType.Getdata) {
   override def pack(): MessagePack = {
     MessagePack(messageType, inv.toBytes)
   }
@@ -74,7 +81,7 @@ object InventoryType extends Enumeration {
   }
 }
 
-class Inventory(val invType: InventoryType.Value,
+class InventoryPayload(val invType: InventoryType.Value,
                 val hashs: Seq[UInt256]) extends com.apex.common.Serializable {
   def serialize(os: DataOutputStream) = {
     import com.apex.common.Serializable._
@@ -83,15 +90,35 @@ class Inventory(val invType: InventoryType.Value,
   }
 }
 
-object Inventory {
-  def deserialize(is: DataInputStream): Inventory = {
+object InventoryPayload {
+  def deserialize(is: DataInputStream): InventoryPayload = {
     import com.apex.common.Serializable._
     val invType = InventoryType(is.readByte())
     val hashs = is.readSeq(UInt256.deserialize)
-    new Inventory(invType, hashs)
+    new InventoryPayload(invType, hashs)
   }
 
-  def fromBytes(data: Array[Byte]): Inventory = {
+  def fromBytes(data: Array[Byte]): InventoryPayload = {
+    val bs = new ByteArrayInputStream(data)
+    val is = new DataInputStream(bs)
+    deserialize(is)
+  }
+}
+
+class BlocksPayload(val blocks: Seq[Block]) extends com.apex.common.Serializable {
+  def serialize(os: DataOutputStream) = {
+    import com.apex.common.Serializable._
+    os.writeSeq(blocks)
+  }
+}
+
+object BlocksPayload {
+  def deserialize(is: DataInputStream): BlocksPayload = {
+    import com.apex.common.Serializable._
+    val blocks = is.readSeq(Block.deserialize)
+    new BlocksPayload(blocks)
+  }
+  def fromBytes(data: Array[Byte]): BlocksPayload = {
     val bs = new ByteArrayInputStream(data)
     val is = new DataInputStream(bs)
     deserialize(is)
@@ -135,11 +162,14 @@ object MessagePack {
       case MessageType.Block => {
         BlockMessage(Block.fromBytes(data))
       }
+      case MessageType.Blocks => {
+        BlocksMessage(BlocksPayload.fromBytes(data))
+      }
       case MessageType.Inventory => {
-        InventoryMessage(Inventory.fromBytes(data))
+        InventoryMessage(InventoryPayload.fromBytes(data))
       }
       case MessageType.Getdata => {
-        GetDataMessage(Inventory.fromBytes(data))
+        GetDataMessage(InventoryPayload.fromBytes(data))
       }
     }
   }

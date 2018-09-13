@@ -88,7 +88,7 @@ class NetworkManager(settings: NetworkSettings, upnp: UPnP,
         pullMode = true)
     case DisconnectFrom(peer) =>
       log.info(s"Disconnected from ${peer.socketAddress}")
-      peer.handlerRef ! CloseConnection
+      peer.connectionRef ! CloseConnection
       peerHandlerManagerRef ! Disconnected(peer.socketAddress)
 
     //    case Blacklist(peer) =>

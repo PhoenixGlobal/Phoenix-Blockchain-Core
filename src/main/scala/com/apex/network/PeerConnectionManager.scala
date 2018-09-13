@@ -12,6 +12,7 @@ import com.apex.settings.NetworkSettings
 import com.apex.utils.{NetworkTimeProvider, Version}
 import com.apex.network.PeerConnectionManager.{AwaitingHandshake, WorkingCycle}
 
+import scala.collection.mutable.ArrayBuffer
 import scala.concurrent.ExecutionContext
 import scala.util.{Failure, Success}
 
@@ -22,7 +23,7 @@ case object Incoming extends ConnectionType
 case object Outgoing extends ConnectionType
 
 case class ConnectedPeer(socketAddress: InetSocketAddress,
-                         handlerRef: ActorRef,
+                         connectionRef: ActorRef,
                          direction: ConnectionType,
                          handshake: Handshake) {
 
@@ -46,7 +47,9 @@ class PeerConnectionManager(val settings: NetworkSettings,
                             connection: ActorRef,
                             direction: ConnectionType,
                             ownSocketAddress: Option[InetSocketAddress],
-                            remote: InetSocketAddress, networkManager: ActorRef, timeProvider: NetworkTimeProvider)(implicit ec: ExecutionContext)
+                            remote: InetSocketAddress,
+                            networkManager: ActorRef,
+                            timeProvider: NetworkTimeProvider)(implicit ec: ExecutionContext)
   extends Actor with DataBuffering with ApexLogging {
 
   import PeerConnectionManager.ReceivableMessages._
@@ -57,7 +60,6 @@ class PeerConnectionManager(val settings: NetworkSettings,
   private var receivedHandshake: Option[Handshake] = None
 
   private var selfPeer: Option[ConnectedPeer] = None
-
 
   private def handshakeGot = receivedHandshake.isDefined
 
@@ -167,10 +169,38 @@ class PeerConnectionManager(val settings: NetworkSettings,
       context become workingCycle
   }
 
+  private val msgBuffer = ArrayBuffer.empty[MessagePack]
+  private var waitForAck: Boolean = false
+
+  private def acknowledge(): Unit = {
+    if (msgBuffer.size > 0) {
+      val msg = msgBuffer.remove(0)
+      connection ! Write(ByteString(Array(msg.messageType.id.toByte) ++ msg.data), Ack)
+      waitForAck = true
+    }
+    else
+      waitForAck = false
+  }
+
   //发送消息
   def workingCycleLocalInterface: Receive = {
     case msg: MessagePack =>
-      connection ! Write(ByteString(Array(msg.messageType.id.toByte) ++ msg.data))
+      //log.info("PeerConnectionManager try send Message")
+      if (waitForAck) {
+        msgBuffer.append(msg)
+        log.info(s"msgBuffer size ${msgBuffer.size}")
+      }
+      else {
+        connection ! Write(ByteString(Array(msg.messageType.id.toByte) ++ msg.data), Ack)
+        waitForAck = true
+      }
+
+      //context.become({
+      //  case Ack            ⇒ acknowledge()
+      //}, discardOld = false)
+
+    case Ack =>
+      acknowledge()
 
     //    case Blacklist =>
     //      log.info(s"加入黑名单 " + remote)
@@ -182,6 +212,7 @@ class PeerConnectionManager(val settings: NetworkSettings,
   def workingCycleRemoteInterface: Receive = {
     case Received(data) =>
       connection ! ResumeReading
+      //log.info(s"PeerConnectionManager recv Message")
       nodeRef ! MessagePack.fromBytes(data.toArray)
   }
 
@@ -211,7 +242,6 @@ class PeerConnectionManager(val settings: NetworkSettings,
 }
 
 object PeerConnectionManager {
-
 
   sealed trait CommunicationState
 

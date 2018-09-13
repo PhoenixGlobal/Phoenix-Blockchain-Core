@@ -94,34 +94,53 @@ class Node(val chain: Blockchain, val peerHandlerManager: ActorRef) extends Acto
         }
       }
       case GetBlocksMessage(blockHashs) => {
-        log.info("received GetBlocksMessage")
+        //log.info("received GetBlocksMessage")
         val hashs = ArrayBuffer.empty[UInt256]
-
         val hash = blockHashs.hashStart(0)
-        hashs.append(hash)
-        var next = chain.getNextBlockId(hash)
-        while (next.isDefined) {
-          hashs.append(next.get)
-          next = chain.getNextBlockId(next.get)
+        if (hash.equals(UInt256.Zero)) {
+          sender() ! InventoryMessage(new InventoryPayload(InventoryType.Block, Seq(chain.getLatestHeader.id))).pack()
         }
-        log.info("send InventoryMessage")
-        sender() ! InventoryMessage(new Inventory(InventoryType.Block, hashs.toSeq)).pack()
+        else {
+          hashs.append(hash)
+          var next = chain.getNextBlockId(hash)
+          while (next.isDefined) {
+            hashs.append(next.get)
+            next = chain.getNextBlockId(next.get)
+          }
+          //log.info("send InventoryMessage")
+          sender() ! InventoryMessage(new InventoryPayload(InventoryType.Block, hashs.toSeq)).pack()
+        }
       }
       case BlockMessage(block) => {
-        log.info(s"received block #${block.height} (${block.id})")
+        //log.info(s"received a block #${block.height} (${block.id})")
         if (chain.tryInsertBlock(block)) {
           log.info(s"insert block #${block.height} (${block.id}) success")
-          peerHandlerManager ! InventoryMessage(new Inventory(InventoryType.Block, Seq(block.id())))
+          peerHandlerManager ! InventoryMessage(new InventoryPayload(InventoryType.Block, Seq(block.id())))
         } else {
           log.error(s"failed insert block #${block.height}, (${block.id}) to db")
           if (block.height() > chain.getLatestHeader.index) {
+            // out of sync, try to get more blocks
             log.info(s"send GetBlocksMessage")
             sender() ! GetBlocksMessage(new GetBlocksPayload(Seq(chain.getLatestHeader.id), UInt256.Zero)).pack
           }
         }
       }
+      case BlocksMessage(blocksPayload) => {
+        log.info(s"received ${blocksPayload.blocks.size} blocks")
+        blocksPayload.blocks.foreach(block => {
+          if (chain.tryInsertBlock(block)) {
+            log.info(s"insert block #${block.height} (${block.id}) success")
+            // no need to send INV during sync
+            //peerHandlerManager ! InventoryMessage(new Inventory(InventoryType.Block, Seq(block.id())))
+          } else {
+            log.error(s"failed insert block #${block.height}, (${block.id}) to db")
+          }
+        })
+        // try to get more blocks if have any
+        sender() ! GetBlocksMessage(new GetBlocksPayload(Seq(chain.getLatestHeader.id), UInt256.Zero)).pack
+      }
       case InventoryMessage(inv) => {
-        log.info(s"received Inventory")
+        //log.info(s"received Inventory")
         if (inv.invType == InventoryType.Block) {
           val newBlocks = ArrayBuffer.empty[UInt256]
           inv.hashs.foreach(h => {
@@ -133,31 +152,35 @@ class Node(val chain: Blockchain, val peerHandlerManager: ActorRef) extends Acto
           })
           if (newBlocks.size > 0) {
             log.info(s"send GetDataMessage $newBlocks")
-            sender() ! GetDataMessage(new Inventory(InventoryType.Block, newBlocks.toSeq)).pack
+            sender() ! GetDataMessage(new InventoryPayload(InventoryType.Block, newBlocks.toSeq)).pack
           }
         }
       }
       case GetDataMessage(inv) => {
-        log.info(s"received GetDataMessage")
+        //log.info(s"received GetDataMessage")
         if (inv.invType == InventoryType.Block) {
-          val sendMax: Int = 5
-          var sentNum: Int = 0
+          val sendBlockNumMax: Int = 10
+          var sentBlockNum: Int = 0
+          val blocks = ArrayBuffer.empty[Block]
           inv.hashs.foreach(h => {
             var block = chain.getBlock(h)
             if (block == None) {
               block = chain.getBlockInForkBase(h)
             }
             if (block != None) {
-              if (sentNum < sendMax) {
-                log.info(s"send Block ${block.head.height()}")
-                sender() ! BlockMessage(block.get).pack
-                sentNum += 1
+              if (sentBlockNum < sendBlockNumMax) {
+                //sender() ! BlockMessage(block.get).pack
+                blocks.append(block.get)
+                sentBlockNum += 1
               }
             }
             else {
               log.error("received GetDataMessage but block not found")
             }
           })
+          if (blocks.size > 0) {
+            sender() ! BlocksMessage(new BlocksPayload(blocks.toSeq)).pack
+          }
         }
       }
     }
