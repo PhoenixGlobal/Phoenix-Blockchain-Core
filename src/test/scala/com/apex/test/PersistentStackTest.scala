@@ -85,16 +85,19 @@ object TestItem {
 
 object PersistentStackTest {
   private final val dirs = ListBuffer.empty[String]
+  private final val dbs = ListBuffer.empty[LevelDbStorage]
 
   def newStack(dir: String): PersistentStack[TestItem] = {
     val db = LevelDbStorage.open(dir)
     val stack = new PersistentStack[TestItem](db)
     dirs.append(dir)
+    dbs.append(db)
     stack
   }
 
   @AfterClass
   def cleanUp: Unit = {
+    dbs.foreach(_.close())
     dirs.foreach(cleanUp)
   }
 

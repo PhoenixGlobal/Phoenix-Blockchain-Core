@@ -1,6 +1,6 @@
 package com.apex.core
 
-import java.io.{ByteArrayInputStream, DataInputStream, DataOutputStream}
+import java.io.{ByteArrayInputStream, ByteArrayOutputStream, DataInputStream, DataOutputStream}
 
 import com.apex.common.{Cache, LRUCache, Serializable}
 import com.apex.crypto.{UInt160, UInt256}
@@ -145,9 +145,22 @@ trait ProducerStatePrefix extends StatePrefix {
 }
 
 trait Converter[A] {
-  def toBytes(key: A): Array[Byte]
+  def toBytes(key: A): Array[Byte] = {
+    val bs = new ByteArrayOutputStream()
+    val os = new DataOutputStream(bs)
+    serializer(key, os)
+    bs.toByteArray
+  }
 
-  def fromBytes(bytes: Array[Byte]): A
+  def fromBytes(bytes: Array[Byte]): A = {
+    val bs = new ByteArrayInputStream(bytes)
+    val is = new DataInputStream(bs)
+    deserializer(is)
+  }
+
+  def deserializer(is: DataInputStream): A
+
+  def serializer(key: A, os: DataOutputStream): Unit
 }
 
 trait IntKey extends KeyConverterProvider[Int] {
@@ -207,33 +220,36 @@ trait HeadBlockValue extends ValueConverterProvider[HeadBlock] {
 }
 
 class IntConverter extends Converter[Int] {
-  override def fromBytes(bytes: Array[Byte]): Int = {
-    BigInt(bytes).toInt
+  override def deserializer(is: DataInputStream): Int = {
+    import com.apex.common.Serializable._
+    is.readVarInt
   }
 
-  override def toBytes(key: Int): Array[Byte] = {
-    BigInt(key).toByteArray
+  override def serializer(key: Int, os: DataOutputStream): Unit = {
+    import com.apex.common.Serializable._
+    os.writeVarInt(key)
   }
 }
 
 class StringConverter extends Converter[String] {
-  override def fromBytes(bytes: Array[Byte]): String = {
-    new String(bytes, "UTF-8")
+  override def deserializer(is: DataInputStream): String = {
+    import com.apex.common.Serializable._
+    is.readString
   }
 
-  override def toBytes(key: String): Array[Byte] = {
-    key.getBytes("UTF-8")
+  override def serializer(key: String, os: DataOutputStream): Unit = {
+    import com.apex.common.Serializable._
+    os.writeString(key)
   }
 }
 
 class SerializableConverter[A <: Serializable](f: DataInputStream => A) extends Converter[A] {
-  override def fromBytes(bytes: Array[Byte]): A = {
-    import com.apex.common.Serializable._
-    bytes.toInstance(f)
+  override def deserializer(is: DataInputStream): A = {
+    f(is)
   }
 
-  override def toBytes(key: A): Array[Byte] = {
-    key.toBytes
+  override def serializer(key: A, os: DataOutputStream): Unit = {
+    key.serialize(os)
   }
 }
 
@@ -391,8 +407,8 @@ abstract class StoreBase[K, V](val db: LevelDbStorage, cacheCapacity: Int) {
   }
 
   def set(key: K, value: V, writeBatch: WriteBatch = null): Boolean = {
-    session.map(_.setAction(key, value, writeBatch))
-    if (setBackStore(key, value, writeBatch)) {
+    val batch = session.map(_.onSet(key, value, writeBatch)).getOrElse(null)
+    if (setBackStore(key, value, batch)) {
       cache.set(key, value)
       true
     } else {
@@ -401,17 +417,19 @@ abstract class StoreBase[K, V](val db: LevelDbStorage, cacheCapacity: Int) {
   }
 
   def delete(key: K, writeBatch: WriteBatch = null): Unit = {
-    session.map(_.deleteAction(key, writeBatch))
-    deleteBackStore(key, writeBatch)
+    val batch = session.map(_.onDelete(key, writeBatch)).getOrElse(null)
+    deleteBackStore(key, batch)
     cache.delete(key)
   }
 
-  def beginTransaction(): Session = {
-    session.getOrElse(new Session(this))
+  def beginTransaction(): Unit = {
+    if (session.isEmpty) {
+      session = Some(new Session(this))
+    }
   }
 
   def commit(): Unit = {
-    session.map(_.commit())
+    session.map(_.close())
   }
 
   def rollBack(): Unit = {
@@ -454,10 +472,53 @@ abstract class StoreBase[K, V](val db: LevelDbStorage, cacheCapacity: Int) {
                     val delete: Map[K, V] = Map.empty[K, V])
     extends Serializable {
     override def serialize(os: DataOutputStream): Unit = {
-//      import com.apex.common.Serializable._
-//      os.writeMap(insert.toMap)
-//      os.writeMap(update.toMap)
-//      os.writeMap(delete.toMap)
+      import com.apex.common.Serializable._
+      os.writeMap(insert.toMap)(keyConverter.serializer, valConverter.serializer)
+      os.writeMap(update.toMap)(keyConverter.serializer, valConverter.serializer)
+      os.writeMap(delete.toMap)(keyConverter.serializer, valConverter.serializer)
+    }
+
+    def fill(bytes: Array[Byte]): Unit = {
+      import com.apex.common.Serializable._
+      val bs = new ByteArrayInputStream(bytes)
+      val is = new DataInputStream(bs)
+      is.readMap(keyConverter.deserializer, valConverter.deserializer).foreach(fillInsert)
+      is.readMap(keyConverter.deserializer, valConverter.deserializer).foreach(fillUpdate)
+      is.readMap(keyConverter.deserializer, valConverter.deserializer).foreach(fillDelete)
+    }
+
+    def clear(): Unit = {
+      insert.clear()
+      update.clear()
+      delete.clear()
+    }
+
+    private def fillInsert(kv: (K, V)): Unit = {
+      insert.put(kv._1, kv._2)
+    }
+
+    private def fillUpdate(kv: (K, V)): Unit = {
+      update.put(kv._1, kv._2)
+    }
+
+    private def fillDelete(kv: (K, V)): Unit = {
+      delete.put(kv._1, kv._2)
+    }
+  }
+
+  object SessionItem {
+    def fromBytes(bytes: Array[Byte]): SessionItem = {
+      import com.apex.common.Serializable._
+      val bs = new ByteArrayInputStream(bytes)
+      val is = new DataInputStream(bs)
+      val insert = is.readMap(keyConverter.deserializer, valConverter.deserializer)
+      val update = is.readMap(keyConverter.deserializer, valConverter.deserializer)
+      val delete = is.readMap(keyConverter.deserializer, valConverter.deserializer)
+      val item = new SessionItem()
+      insert.foreach(p => item.insert.put(p._1, p._2))
+      update.foreach(p => item.update.put(p._1, p._2))
+      delete.foreach(p => item.delete.put(p._1, p._2))
+      item
     }
   }
 
@@ -469,7 +530,7 @@ abstract class StoreBase[K, V](val db: LevelDbStorage, cacheCapacity: Int) {
 
     init()
 
-    def setAction(k: K, v: V, batch: WriteBatch): WriteBatch = {
+    def onSet(k: K, v: V, batch: WriteBatch): WriteBatch = {
       var modified = true
       if (item.insert.contains(k) || item.update.contains(k)) {
         modified = false
@@ -486,29 +547,39 @@ abstract class StoreBase[K, V](val db: LevelDbStorage, cacheCapacity: Int) {
           }
         }
       }
-      persist(modified, batch)
+      if (modified){
+        persist(batch)
+      } else {
+        batch
+      }
     }
 
-    def deleteAction(k: K, batch: WriteBatch): WriteBatch = {
-      var modified = true
+    def onDelete(k: K, batch: WriteBatch): WriteBatch = {
+      var modified = false
       if (item.insert.contains(k)) {
         item.insert.remove(k)
+        modified = true
       } else if (item.update.contains(k)) {
         item.delete.put(k, item.update(k))
         item.update.remove(k)
+        modified = true
       } else if (!item.delete.contains(k)) {
         val old = store.get(k)
         if (old.isDefined) {
           item.delete.put(k, old.get)
+          modified = true
         }
-      } else {
-        modified = false
       }
-      persist(modified, batch)
+      if (modified) {
+        persist(batch)
+      } else {
+        batch
+      }
     }
 
-    def commit(): Unit = {
+    def close(): Unit = {
       store.db.delete(sessionId)
+      item.clear
     }
 
     def rollBack(): Unit = {
@@ -516,32 +587,26 @@ abstract class StoreBase[K, V](val db: LevelDbStorage, cacheCapacity: Int) {
         item.insert.foreach(p => store.delete(p._1, batch))
         item.update.foreach(p => store.set(p._1, p._2, batch))
         item.delete.foreach(p => store.set(p._1, p._2, batch))
-        batch.delete(sessionId)
+        close()
       })
     }
 
-    private def persist(modified: Boolean, batch: WriteBatch): WriteBatch = {
-      if (modified) {
-        if (batch != null) {
-          batch.put(sessionId, item.toBytes)
-        } else {
-          val batch = store.db.beginBatch
-          batch.put(sessionId, item.toBytes)
-          batch
-        }
+    private def persist(batch: WriteBatch): WriteBatch = {
+      if (batch != null) {
+        batch.put(sessionId, item.toBytes)
       } else {
+        val batch = store.db.beginBatch
+        batch.put(sessionId, item.toBytes)
         batch
       }
     }
 
     private def init(): Unit = {
-      import com.apex.common.Serializable._
       val value = store.db.get(sessionId)
       if (value.isDefined) {
-        val bs = new ByteArrayInputStream(value.get)
-        val is = new DataInputStream(bs)
-        // TODO: deserialize SessionItem
+        item.fill(value.get)
       }
     }
   }
+
 }

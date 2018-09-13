@@ -18,9 +18,9 @@ object Serializable {
   var mapper: ObjectMapper = new ObjectMapper()
   mapper.configure(SerializationFeature.FAIL_ON_EMPTY_BEANS, false)
 
-  def JsonMapperTo(any: Any ): String = mapper.writeValueAsString(any)
+  def JsonMapperTo(any: Any): String = mapper.writeValueAsString(any)
 
-  def JsonMapperFrom[T](content: String, valueType: Class[T] ): T = {
+  def JsonMapperFrom[T](content: String, valueType: Class[T]): T = {
     mapper.readValue(content, valueType)
   }
 
@@ -78,6 +78,14 @@ object Serializable {
         o._2.serialize(os)
       })
     }
+
+    def writeMap[K, V](map: Map[K, V])(implicit kSerializer: (K, DataOutputStream) => Unit, vSerializer: (V, DataOutputStream) => Unit): Unit = {
+      os.writeVarInt(map.size)
+      map.foreach(o => {
+        kSerializer(o._1, os)
+        vSerializer(o._2, os)
+      })
+    }
   }
 
   implicit class DataInputStreamExtension(val is: DataInputStream) {
@@ -91,16 +99,16 @@ object Serializable {
       bytes
     }
 
-    def readSeq[A <: Serializable](deserializer: DataInputStream => A): Seq[A] = {
+    def readSeq[A](deserializer: DataInputStream => A): Seq[A] = {
       (1 to is.readVarInt) map (_ => deserializer(is))
     }
 
-    def readMap[K <: Serializable, V <: Serializable](kDeserializer: DataInputStream => K,
-                                                      vDeserializer: DataInputStream => V): Map[K, V] = {
+    def readMap[K, V](kDeserializer: DataInputStream => K,
+                      vDeserializer: DataInputStream => V): Map[K, V] = {
       (1 to is.readVarInt) map (_ => kDeserializer(is) -> vDeserializer(is)) toMap
     }
 
-    def readObj[A <: Serializable](deserializer: DataInputStream => A): A = {
+    def readObj[A](deserializer: DataInputStream => A): A = {
       deserializer(is)
     }
 
@@ -108,7 +116,6 @@ object Serializable {
       new String(is.readByteArray, "UTF-8")
     }
   }
-
 }
 
 trait BytesSerializable extends java.io.Serializable {
