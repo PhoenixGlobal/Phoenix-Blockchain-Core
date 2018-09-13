@@ -4,6 +4,7 @@ import java.net.InetSocketAddress
 
 import akka.actor.{Actor, ActorRef, ActorSystem, Props}
 import com.apex.common.ApexLogging
+import com.apex.crypto.UInt256
 import com.apex.settings.ApexSettings
 import com.apex.utils.NetworkTimeProvider
 import com.apex.network._
@@ -98,34 +99,32 @@ class PeerHandlerManager(settings: ApexSettings, timeProvider: NetworkTimeProvid
     //      val msg = Message[Unit](GetPeersSpec, Right(Unit), None)
     //      handler! msg
     case msg: BlockMessage => {
-      log.info("broadcasting BlockMessage")
+      //log.info("broadcasting BlockMessage")
       connectedPeers.values.foreach(peer => {
-        peer.handlerRef ! msg.pack()
-        log.info(s"send block #${msg.block.height} (${msg.block.id}) to ${peer.toString}")
+        //log.info(s"send block #${msg.block.height} (${msg.block.id}) to ${peer.toString}")
+        peer.connectionRef ! msg.pack()
       })
     }
     case msg: InventoryMessage => {
-      log.info("broadcasting InventoryMessage")
+      //log.info("broadcasting InventoryMessage")
       connectedPeers.values.foreach(peer => {
-        peer.handlerRef ! msg.pack()
-        log.info(s"send INV to ${peer.toString}")
+        //log.info(s"send INV to ${peer.toString}")
+        peer.connectionRef ! msg.pack()
       })
     }
     case MessagePack(a, b, c) =>
       c match {
         case Some(address) => {
           connectedPeers.get(address) match {
-            case Some(peer) => peer.handlerRef ! MessagePack(a, b)
+            case Some(peer) => peer.connectionRef ! MessagePack(a, b)
             case None => log.error(s"peer($address) not exists")
           }
         }
         case None => {
-          connectedPeers.values.foreach(_.handlerRef ! MessagePack(a, b))
+          connectedPeers.values.foreach(_.connectionRef ! MessagePack(a, b))
         }
       }
-
   }
-
 
   private def handshaked: Receive = {
     case Handshaked(peer) =>
@@ -133,7 +132,7 @@ class PeerHandlerManager(settings: ApexSettings, timeProvider: NetworkTimeProvid
         log.info(s"从黑名单中得到握手 ${peer.socketAddress}")
       } else {
         if (peer.direction == Outgoing && isSelf(peer.socketAddress, peer.handshake.declaredAddress)) {
-          peer.handlerRef ! CloseConnection
+          peer.connectionRef ! CloseConnection
         } else {
           if (peer.publicPeer) {
             self ! AddOrUpdatePeer(peer.socketAddress, Some(peer.handshake.nodeName), Some(peer.direction))
@@ -142,6 +141,8 @@ class PeerHandlerManager(settings: ApexSettings, timeProvider: NetworkTimeProvid
           }
           connectedPeers += peer.socketAddress -> peer
           log.info("更新本节点连接的节点=" + connectedPeers)
+          // Once connected, try get the peer's latest block to sync
+          peer.connectionRef ! GetBlocksMessage(new GetBlocksPayload(Seq(UInt256.Zero), UInt256.Zero)).pack
         }
       }
   }

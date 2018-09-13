@@ -20,8 +20,6 @@ case class Handshake(applicationName: String,
   require(Option(applicationName).isDefined)
   require(Option(protocolVersion).isDefined)
 
-
-
   override type M = Handshake
 
   override def serializer: Serializer[Handshake] = HandshakeSerializer
@@ -44,11 +42,11 @@ object HandshakeSerializer extends Serializer[Handshake] {
 
     Array(anb.size.toByte) ++ anb ++
       obj.protocolVersion.bytes ++
-      Array(nodeNameBytes.size.toByte) ++ nodeNameBytes ++ Array(chainIdBytes.size.toByte) ++ chainIdBytes ++
+      Array(nodeNameBytes.size.toByte) ++ nodeNameBytes ++
+      Array(chainIdBytes.size.toByte) ++ chainIdBytes ++
       Array(headerNnum.size.toByte) ++ headerNnum ++
       Ints.toByteArray(fab.length) ++ fab ++
       Longs.toByteArray(obj.time)
-
   }
 
   override def parseBytes(bytes: Array[Byte]): Try[Handshake] = Try {

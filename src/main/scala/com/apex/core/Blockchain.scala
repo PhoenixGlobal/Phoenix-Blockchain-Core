@@ -255,6 +255,7 @@ class LevelDBBlockchain(chainSettings: ChainSettings, consensusSettings: Consens
     //temp check
     require(latestHeader.id.equals(block.prev))
     require(block.header.index == latestHeader.index + 1)
+    require(block.header.verifySig())
 
     try {
       db.batchWrite(batch => {
