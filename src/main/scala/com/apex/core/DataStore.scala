@@ -382,13 +382,7 @@ abstract class StoreBase[K, V](val db: LevelDbStorage, cacheCapacity: Int) {
   }
 
   def contains(key: K): Boolean = {
-    cache.contains(key) match {
-      case true => true
-      case false => getFromBackStore(key) match {
-        case Some(_) => true
-        case None => false
-      }
-    }
+    cache.contains(key) || backContains(key)
   }
 
   def get(key: K): Option[V] = {
@@ -407,7 +401,7 @@ abstract class StoreBase[K, V](val db: LevelDbStorage, cacheCapacity: Int) {
   }
 
   def set(key: K, value: V, writeBatch: WriteBatch = null): Boolean = {
-    val batch = session.map(_.onSet(key, value, writeBatch)).getOrElse(null)
+    val batch = session.map(_.onSet(key, value, writeBatch)).orNull
     if (setBackStore(key, value, batch)) {
       cache.set(key, value)
       true
@@ -417,7 +411,7 @@ abstract class StoreBase[K, V](val db: LevelDbStorage, cacheCapacity: Int) {
   }
 
   def delete(key: K, writeBatch: WriteBatch = null): Unit = {
-    val batch = session.map(_.onDelete(key, writeBatch)).getOrElse(null)
+    val batch = session.map(_.onDelete(key, writeBatch)).orNull
     deleteBackStore(key, batch)
     cache.delete(key)
   }
@@ -430,14 +424,20 @@ abstract class StoreBase[K, V](val db: LevelDbStorage, cacheCapacity: Int) {
 
   def commit(): Unit = {
     session.map(_.close())
+    session = None
   }
 
   def rollBack(): Unit = {
     session.map(_.rollBack())
+    session = None
   }
 
   protected def genKey(key: K): Array[Byte] = {
     prefixBytes ++ keyConverter.toBytes(key)
+  }
+
+  protected def backContains(key: K): Boolean = {
+    db.containsKey(genKey(key))
   }
 
   protected def getFromBackStore(key: K): Option[V] = {
@@ -503,22 +503,6 @@ abstract class StoreBase[K, V](val db: LevelDbStorage, cacheCapacity: Int) {
 
     private def fillDelete(kv: (K, V)): Unit = {
       delete.put(kv._1, kv._2)
-    }
-  }
-
-  object SessionItem {
-    def fromBytes(bytes: Array[Byte]): SessionItem = {
-      import com.apex.common.Serializable._
-      val bs = new ByteArrayInputStream(bytes)
-      val is = new DataInputStream(bs)
-      val insert = is.readMap(keyConverter.deserializer, valConverter.deserializer)
-      val update = is.readMap(keyConverter.deserializer, valConverter.deserializer)
-      val delete = is.readMap(keyConverter.deserializer, valConverter.deserializer)
-      val item = new SessionItem()
-      insert.foreach(p => item.insert.put(p._1, p._2))
-      update.foreach(p => item.update.put(p._1, p._2))
-      delete.foreach(p => item.delete.put(p._1, p._2))
-      item
     }
   }
 

@@ -25,7 +25,7 @@ import scala.concurrent.ExecutionContext
 import scala.io.StdIn
 
 
-object MainEntry extends ApexLogging{
+object MainEntry extends ApexLogging {
 
   def main(args: Array[String]): Unit = {
     val ns = parseArgs(args)
@@ -43,7 +43,7 @@ object MainEntry extends ApexLogging{
     val peerHandlerManagerRef = PeerHandlerManagerRef(settings, timeProvider)
     val nodeRef = NodeRef(chain, peerHandlerManagerRef)
     val producer = ProducerRef(settings.consensus, chain, peerHandlerManagerRef)
-//    val rpcRef = RpcServerRef(settings.rpcSettings, nodeRef)
+    //    val rpcRef = RpcServerRef(settings.rpcSettings, nodeRef)
     val networkControllerRef = NetworkManagerRef(settings.network, upnp, timeProvider, peerHandlerManagerRef, nodeRef)
 
     RpcServer.run(settings.rpc, nodeRef, producer)
@@ -52,15 +52,15 @@ object MainEntry extends ApexLogging{
     StdIn.readLine() // let it run until user presses return
   }
 
-  private def parseArgs(args: Array[String]): Namespace ={
-    val parser: ArgumentParser  = ArgumentParsers.newFor("MainEntry").build().defaultHelp(true)
+  private def parseArgs(args: Array[String]): Namespace = {
+    val parser: ArgumentParser = ArgumentParsers.newFor("MainEntry").build().defaultHelp(true)
       .description("check cli params")
     parser.addArgument("configFile").nargs("*").help("files for configuration")
     var ns: Namespace = null
-    try{
+    try {
       ns = parser.parseArgs(args)
     }
-    catch{
+    catch {
       case e: ArgumentParserException => {
         parser.handleError(e)
         System.exit(1)
@@ -72,7 +72,7 @@ object MainEntry extends ApexLogging{
   private def getApexSettings(ns: Namespace): ApexSettings = {
     //val digest: MessageDigest = null
     val files = ns.getList[String]("configFile")
-    if(files.size() > 0){
+    if (files.size() > 0) {
       val conf = files.toArray().head.toString
       getConfig(conf)
     }
@@ -80,8 +80,8 @@ object MainEntry extends ApexLogging{
 
   }
 
-  private def getConfig(file: String = "settings.conf"): ApexSettings ={
-    if(file.isEmpty){
+  private def getConfig(file: String = "settings.conf"): ApexSettings = {
+    if (file.isEmpty) {
       val defaultConf = "src/main/resources/settings.conf"
       return ApexSettings.read(defaultConf)
     }

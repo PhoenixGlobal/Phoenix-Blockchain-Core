@@ -64,7 +64,7 @@ class ProduceTask(val producer: Producer,
           case Failed(e) => log.error("error occurred when producing block", e)
           case Success(block, producer, time) => block match {
             case Some(blk) => {
-              log.info(s"block (${blk.height}, ${blk.timeStamp}) produced by $producer on $time")
+              log.info(s"block (${blk.height}, ${blk.timeStamp}) produced by $producer on $time  ${blk.id}")
               peerHandlerManager ! BlockMessage(blk)
               //peerHandlerManager ! InventoryMessage(new InventoryPayload(InventoryType.Block, Seq(blk.id())))
             }

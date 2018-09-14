@@ -95,7 +95,7 @@ class SortedMultiMap1[K, V](implicit ord: Ordering[K]) extends Iterable[(K, V)] 
     container.contains(k)
   }
 
-  def get(k: K) = {
+  def get(k: K): Seq[V] = {
     container(k)
   }
 
@@ -124,7 +124,8 @@ class SortedMultiMap1[K, V](implicit ord: Ordering[K]) extends Iterable[(K, V)] 
       if (it2.isEmpty || !it2.get.hasNext) {
         nextIt
       }
-      !it2.isEmpty && it2.get.hasNext
+      it2.map(_.hasNext)
+        .getOrElse(false)
     }
 
     override def next(): (K, V) = {
@@ -148,11 +149,11 @@ class SortedMultiMap2[K1, K2, V](implicit ord1: Ordering[K1], ord2: Ordering[K2]
 
   override def size: Int = container.values.map(_.size).sum
 
-  def contains(k1: K1, k2: K2) = {
+  def contains(k1: K1, k2: K2): Boolean = {
     container.contains(k1) && container(k1).contains(k2)
   }
 
-  def get(k1: K1, k2: K2) = {
+  def get(k1: K1, k2: K2): Seq[V] = {
     container(k1).get(k2)
   }
 
@@ -164,15 +165,13 @@ class SortedMultiMap2[K1, K2, V](implicit ord1: Ordering[K1], ord2: Ordering[K2]
   }
 
   def remove(k1: K1, k2: K2): Option[Seq[V]] = {
-    if (container.contains(k1)) {
-      val v = container(k1).remove(k2)
-      if (container(k1).size == 0) {
+    container.get(k1).flatMap(c => {
+      val v = c.remove(k2)
+      if (c.isEmpty) {
         container.remove(k1)
       }
       v
-    } else {
-      None
-    }
+    })
   }
 
   override def head: (K1, K2, V) = iterator.next()
@@ -189,7 +188,8 @@ class SortedMultiMap2[K1, K2, V](implicit ord1: Ordering[K1], ord2: Ordering[K2]
       if (it2.isEmpty || !it2.get.hasNext) {
         nextIt
       }
-      !it2.isEmpty && it2.get.hasNext
+      it2.map(_.hasNext)
+        .getOrElse(false)
     }
 
     override def next(): (K1, K2, V) = {
@@ -206,7 +206,6 @@ class SortedMultiMap2[K1, K2, V](implicit ord1: Ordering[K1], ord2: Ordering[K2]
       }
     }
   }
-
 }
 
 object SortedMultiMap {
@@ -329,9 +328,12 @@ class ForkBase(dir: String, witnesses: Array[Witness],
       _head = indexById.get(indexByConfirmedHeight.head._3)
       val item = _head.get
       removeConfirmed(item.confirmedHeight)
-      if (oldHead.isEmpty || item.block.prev.equals(oldHead.get.block.id)) {
-        indexById.put(item.block.id, item.copy(master = true))
-      } else if (!item.block.id.equals(oldHead.get.block.id)) {
+      if (oldHead.map(_.block.id).map(item.block.prev.equals).getOrElse(true)) {
+        val newItem = item.copy(master = true)
+        if (db.set(item.block.id.toBytes, newItem.toBytes)) {
+          updateIndex(newItem)
+        }
+      } else {
         switch(oldHead.get, item)
       }
       true
@@ -356,10 +358,14 @@ class ForkBase(dir: String, witnesses: Array[Witness],
         items.append(newItem)
       }
     })
-    for (item <- items) {
-      indexById.put(item.block.id, item)
-    }
+
+    items.foreach(updateIndex)
+
     onSwitch(originFork, newFork)
+  }
+
+  def close(): Unit = {
+    db.close()
   }
 
   private def init() = {
@@ -368,43 +374,32 @@ class ForkBase(dir: String, witnesses: Array[Witness],
       createIndex(item)
     })
 
-    if (!indexByConfirmedHeight.isEmpty) {
-      _head = indexById.get(indexByConfirmedHeight.head._3)
-    }
+    _head = indexByConfirmedHeight
+      .headOption.map(_._3)
+      .flatMap(indexById.get)
   }
 
-  private def removeConfirmed(height: Int) = {
-    val items = ListBuffer.empty[ForkItem]
-    for (p <- indexByHeight if p._1 < height) {
-      val item = indexById.get(p._3)
-      if (!item.isEmpty) {
-        items.append(item.get)
-      }
-    }
-    items.foreach(item => {
-      if (item.master) {
-        onConfirmed(item.block)
-        db.batchWrite(batch => {
-          batch.delete(item.block.id.toBytes)
-          deleteIndex(item)
-        })
+  private def removeConfirmed(height: Int): Unit = {
+    def tryConfirm(key: (Int, Boolean, UInt256)): Boolean = {
+      if (key._1 < height) {
+        indexById.get(key._3).map(item => {
+          if (item.master) {
+            onConfirmed(item.block)
+          }
+          db.batchWrite(batch => {
+            batch.delete(item.block.id.toBytes)
+            deleteIndex(item)
+          })
+          true
+        }).getOrElse(false)
       } else {
-        removeFork(item.block.id)
+        false
       }
-    })
-  }
+    }
 
-  private def removeFork(id: UInt256) = {
-    log.info(s"remove fork: ${id}")
-    val items = indexByPrev.get(id)
-      .map(indexById.get)
-      .filterNot(_.isEmpty)
-      .map(_.get)
-
-    db.batchWrite(batch => {
-      items.map(_.block.id.toBytes).foreach(batch.delete)
-      items.foreach(deleteIndex)
-    })
+    while (indexByHeight.headOption.map(tryConfirm).getOrElse(false)) {
+      indexByHeight.headOption.foreach(h => log.debug(s"head item: ${h.toString}"))
+    }
   }
 
   private def insert(item: ForkItem): Boolean = {
@@ -464,5 +459,16 @@ class ForkBase(dir: String, witnesses: Array[Witness],
     indexByPrev.remove(blk.prev)
     indexByHeight.remove(blk.height, item.master)
     indexByConfirmedHeight.remove(item.confirmedHeight, blk.height)
+  }
+
+  private def updateIndex(newItem: ForkItem): Unit = {
+    val id = newItem.block.id
+    val height = newItem.block.height
+    val branch = newItem.master
+    indexByHeight.remove(height, !branch)
+      .map(_.filterNot(_.equals(id)))
+      .foreach(_.foreach(id => indexByHeight.put(height, branch, id)))
+    indexByHeight.put(height, branch, id)
+    indexById.put(id, newItem)
   }
 }
