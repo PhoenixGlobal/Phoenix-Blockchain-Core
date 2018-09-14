@@ -142,6 +142,7 @@ class PeerHandlerManager(settings: ApexSettings, timeProvider: NetworkTimeProvid
           connectedPeers += peer.socketAddress -> peer
           log.info("更新本节点连接的节点=" + connectedPeers)
           // Once connected, try get the peer's latest block to sync
+          Thread.sleep(50)    // to avoid peer mess with the "handshakeDone"
           peer.connectionRef ! GetBlocksMessage(new GetBlocksPayload(Seq(UInt256.Zero), UInt256.Zero)).pack
         }
       }
