@@ -117,11 +117,17 @@ class PeerConnectionManager(val settings: NetworkSettings,
 
   private def receivedData: Receive = {
     case Received(data) =>
-      HandshakeSerializer.parseBytes(data.toArray) match {
-        case Success(handshake) => handleMsg(handshake)
-        case Failure(t) =>
-          log.info(s"解析握手时的错误", t)
-          self ! CloseConnection
+      if (!handshakeGot) {
+        HandshakeSerializer.parseBytes(data.toArray) match {
+          case Success(handshake) => handleMsg(handshake)
+          case Failure(t) =>
+            log.info(s"解析握手时的错误", t)
+            self ! CloseConnection
+        }
+      }
+      else {
+        // if the peer send some data immediately after handshake done, we might got it before HandshakeDone
+        log.error(s"expect HandshakeDone, but recv other data, ignore")
       }
   }
 
