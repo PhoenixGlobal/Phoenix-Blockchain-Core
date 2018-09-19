@@ -132,6 +132,7 @@ class Producer(settings: ConsensusSettings,
           witness.privkey.get,
           nextProduceTime(now, next),
           txs)
+        txPool.clear()
         Success(block, witness.name, now)
       }
     }
