@@ -365,7 +365,8 @@ abstract class StateStore[V <: Serializable](db: LevelDbStorage) {
 abstract class StoreBase[K, V](val db: LevelDbStorage, cacheCapacity: Int) {
   protected val cache: Cache[K, V] = new LRUCache(cacheCapacity)
 
-  private var session: Option[Session] = None
+//  private var session: Option[Session] = None
+  private val sessionMgr = new SessionManager(this)
 
   val prefixBytes: Array[Byte]
 
@@ -401,7 +402,7 @@ abstract class StoreBase[K, V](val db: LevelDbStorage, cacheCapacity: Int) {
   }
 
   def set(key: K, value: V, writeBatch: WriteBatch = null): Boolean = {
-    val batch = session.map(_.onSet(key, value, writeBatch)).orNull
+    val batch = sessionMgr.beginSet(key, value, writeBatch)
     if (setBackStore(key, value, batch)) {
       cache.set(key, value)
       true
@@ -411,25 +412,21 @@ abstract class StoreBase[K, V](val db: LevelDbStorage, cacheCapacity: Int) {
   }
 
   def delete(key: K, writeBatch: WriteBatch = null): Unit = {
-    val batch = session.map(_.onDelete(key, writeBatch)).orNull
+    val batch = sessionMgr.beginDelete(key, writeBatch)
     deleteBackStore(key, batch)
     cache.delete(key)
   }
 
   def beginTransaction(): Unit = {
-    if (session.isEmpty) {
-      session = Some(new Session(this))
-    }
+    sessionMgr.newSession()
   }
 
   def commit(): Unit = {
-    session.map(_.close())
-    session = None
+    sessionMgr.commit()
   }
 
   def rollBack(): Unit = {
-    session.map(_.rollBack())
-    session = None
+    sessionMgr.rollBack()
   }
 
   protected def genKey(key: K): Array[Byte] = {
@@ -506,7 +503,7 @@ abstract class StoreBase[K, V](val db: LevelDbStorage, cacheCapacity: Int) {
     }
   }
 
-  class Session(store: StoreBase[K, V]) {
+  class Session(store: StoreBase[K, V], val level: Int) {
 
     private val sessionId = Array(StoreType.Data.id.toByte, DataType.Session.id.toByte) ++ store.prefixBytes
 
@@ -531,7 +528,7 @@ abstract class StoreBase[K, V](val db: LevelDbStorage, cacheCapacity: Int) {
           }
         }
       }
-      if (modified){
+      if (modified) {
         persist(batch)
       } else {
         batch
@@ -593,4 +590,43 @@ abstract class StoreBase[K, V](val db: LevelDbStorage, cacheCapacity: Int) {
     }
   }
 
+  class SessionManager(store: StoreBase[K, V]) {
+    private val sessions = ListBuffer.empty[Session]
+    private var level = 1
+
+    def beginSet(key: K, value: V, batch: WriteBatch): WriteBatch = {
+      sessions.lastOption.map(_.onSet(key, value, batch)).orNull
+    }
+
+    def beginDelete(key: K, batch: WriteBatch): WriteBatch = {
+      sessions.lastOption.map(_.onDelete(key, batch)).orNull
+    }
+
+    def commit(): Unit = {
+      sessions.lastOption.foreach(s => {
+        s.close()
+        sessions.dropRight(1)
+      })
+    }
+
+    def commit(level: Int): Unit = {
+      sessions.takeWhile(_.level <= level).foreach(s => {
+          s.close()
+          sessions -= s
+        })
+    }
+
+    def rollBack(): Unit = {
+      sessions.lastOption.foreach(s => {
+        s.rollBack()
+        sessions.dropRight(1)
+        level -= 1
+      })
+    }
+
+    def newSession(): Unit = {
+      sessions.append(new Session(store, level))
+      level += 1
+    }
+  }
 }
