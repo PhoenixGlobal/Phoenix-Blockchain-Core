@@ -48,7 +48,6 @@ class DataStoreTest {
     store.rollBack()
     assert(store.get(blk2.id).get.equals(blk2))
     assert(store.get(blk3.id).isEmpty)
-    db.close()
   }
 
   @Test
@@ -65,54 +64,72 @@ class DataStoreTest {
     }
 
     {
-      val db = LevelDbStorage.open("test_session")
-      val store = new HeaderStore(db, 10)
-      store.beginTransaction()
-      assert(store.sessionLevel() == 2)
-      val levels = store.activeLevels()
-      assertLevels(levels, 1, 1)
-      db.close()
+      val db = DataStoreTest.openDB("test_session")
+      try {
+        val store = new HeaderStore(db, 10)
+        store.beginTransaction()
+        assert(store.sessionLevel() == 2)
+        val levels = store.activeLevels()
+        assertLevels(levels, 1, 1)
+      } finally {
+        db.close()
+      }
     }
     {
-      val db = LevelDbStorage.open("test_session")
-      val store = new HeaderStore(db, 10)
-      store.beginTransaction()
-      assert(store.sessionLevel() == 3)
-      val levels = store.activeLevels()
-      assertLevels(levels, 1, 2)
-      db.close()
+      val db = DataStoreTest.openDB("test_session")
+      try {
+        val store = new HeaderStore(db, 10)
+        store.beginTransaction()
+        assert(store.sessionLevel() == 3)
+        val levels = store.activeLevels()
+        assertLevels(levels, 1, 2)
+      } finally {
+        db.close()
+      }
     }
     {
-      val db = LevelDbStorage.open("test_session")
-      val store = new HeaderStore(db, 10)
-      assert(store.sessionLevel() == 3)
-      store.rollBack()
-      assert(store.sessionLevel() == 2)
-      val levels = store.activeLevels()
-      assertLevels(levels, 1, 1)
-      db.close()
+      val db = DataStoreTest.openDB("test_session")
+      try {
+        val store = new HeaderStore(db, 10)
+        assert(store.sessionLevel() == 3)
+        store.rollBack()
+        assert(store.sessionLevel() == 2)
+        val levels = store.activeLevels()
+        assertLevels(levels, 1, 1)
+      } finally {
+        db.close()
+      }
     }
     {
-      val db = LevelDbStorage.open("test_session")
-      val store = new HeaderStore(db, 10)
-      assert(store.sessionLevel() == 2)
-      store.commit()
-      db.close()
+      val db = DataStoreTest.openDB("test_session")
+      try {
+        val store = new HeaderStore(db, 10)
+        assert(store.sessionLevel() == 2)
+        store.commit()
+      } finally {
+        db.close()
+      }
     }
     {
-      val db = LevelDbStorage.open("test_session")
-      val store = new HeaderStore(db, 10)
-      assert(store.sessionLevel() == 2)
-      store.beginTransaction()
-      assert(store.sessionLevel() == 3)
-      db.close()
+      val db = DataStoreTest.openDB("test_session")
+      try {
+        val store = new HeaderStore(db, 10)
+        assert(store.sessionLevel() == 2)
+        store.beginTransaction()
+        assert(store.sessionLevel() == 3)
+      } finally {
+        db.close()
+      }
     }
     {
-      val db = LevelDbStorage.open("test_session")
-      val store = new HeaderStore(db, 10)
-      assert(store.sessionLevel() == 3)
-      store.commit()
-      db.close()
+      val db = DataStoreTest.openDB("test_session")
+      try {
+        val store = new HeaderStore(db, 10)
+        assert(store.sessionLevel() == 3)
+        store.commit()
+      } finally {
+        db.close()
+      }
     }
   }
 
@@ -132,9 +149,16 @@ object DataStoreTest {
 
   def openDB(dir: String): LevelDbStorage = {
     val db = LevelDbStorage.open(dir)
-    dirs.append(dir)
+    if (!dirs.contains(dir)) {
+      dirs.append(dir)
+    }
     dbs.append(db)
     db
+  }
+
+  def closeDB(db: LevelDbStorage): Unit = {
+    db.close()
+    dbs -= db
   }
 
   @AfterClass
