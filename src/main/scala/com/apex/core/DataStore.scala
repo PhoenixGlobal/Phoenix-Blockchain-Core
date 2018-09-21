@@ -4,6 +4,7 @@ import java.io.{ByteArrayInputStream, ByteArrayOutputStream, DataInputStream, Da
 
 import com.apex.common.{Cache, LRUCache, Serializable}
 import com.apex.crypto.{UInt160, UInt256}
+import com.apex.exceptions.UnExpectedError
 import com.apex.storage.{LevelDbStorage, PersistentStack}
 import org.iq80.leveldb.{ReadOptions, WriteBatch}
 
@@ -182,6 +183,14 @@ trait UInt256Key extends KeyConverterProvider[UInt256] {
 //trait UTXOKeyKey extends KeyConverterProvider[UTXOKey] {
 //  override val keyConverter: Converter[UTXOKey] = new SerializableConverter(UTXOKey.deserialize)
 //}
+
+trait IntValue extends ValueConverterProvider[Int] {
+  override val valConverter: Converter[Int] = new IntConverter
+}
+
+trait StringValue extends ValueConverterProvider[String] {
+  override val valConverter: Converter[String] = new StringConverter
+}
 
 trait UInt160Value extends ValueConverterProvider[UInt160] {
   override val valConverter: Converter[UInt160] = new SerializableConverter(UInt160.deserialize)
@@ -365,8 +374,8 @@ abstract class StateStore[V <: Serializable](db: LevelDbStorage) {
 abstract class StoreBase[K, V](val db: LevelDbStorage, cacheCapacity: Int) {
   protected val cache: Cache[K, V] = new LRUCache(cacheCapacity)
 
-//  private var session: Option[Session] = None
-  private val sessionMgr = new SessionManager(this)
+  //  private var session: Option[Session] = None
+  private lazy val sessionMgr = new SessionManager(this)
 
   val prefixBytes: Array[Byte]
 
@@ -427,6 +436,14 @@ abstract class StoreBase[K, V](val db: LevelDbStorage, cacheCapacity: Int) {
 
   def rollBack(): Unit = {
     sessionMgr.rollBack()
+  }
+
+  def sessionLevel(): Int = {
+    sessionMgr.level()
+  }
+
+  def activeLevels(): Seq[Int] = {
+    sessionMgr.activeLevels()
   }
 
   protected def genKey(key: K): Array[Byte] = {
@@ -503,9 +520,9 @@ abstract class StoreBase[K, V](val db: LevelDbStorage, cacheCapacity: Int) {
     }
   }
 
-  class Session(store: StoreBase[K, V], val level: Int) {
+  class Session(store: StoreBase[K, V], val prefix: Array[Byte], val level: Int) {
 
-    private val sessionId = Array(StoreType.Data.id.toByte, DataType.Session.id.toByte) ++ store.prefixBytes
+    private val sessionId = prefix ++ BigInt(level).toByteArray
 
     private val item = new SessionItem
 
@@ -558,17 +575,21 @@ abstract class StoreBase[K, V](val db: LevelDbStorage, cacheCapacity: Int) {
       }
     }
 
-    def close(): Unit = {
-      store.db.delete(sessionId)
-      item.clear
+    def close(batch: WriteBatch = null): Unit = {
+      if (batch == null) {
+        store.db.delete(sessionId)
+      } else {
+        batch.delete(sessionId)
+      }
     }
 
-    def rollBack(): Unit = {
+    def rollBack(onRollBack: WriteBatch => Unit): Unit = {
       store.db.batchWrite(batch => {
         item.insert.foreach(p => store.delete(p._1, batch))
         item.update.foreach(p => store.set(p._1, p._2, batch))
         item.delete.foreach(p => store.set(p._1, p._2, batch))
-        close()
+        batch.delete(sessionId)
+        onRollBack(batch)
       })
     }
 
@@ -583,16 +604,24 @@ abstract class StoreBase[K, V](val db: LevelDbStorage, cacheCapacity: Int) {
     }
 
     private def init(): Unit = {
-      val value = store.db.get(sessionId)
-      if (value.isDefined) {
-        item.fill(value.get)
-      }
+      def save: Unit = store.db.batchWrite(persist)
+
+      store.db.get(sessionId).map(item.fill).getOrElse(save)
     }
   }
 
   class SessionManager(store: StoreBase[K, V]) {
+    private val prefix = Array(StoreType.Data.id.toByte, DataType.Session.id.toByte) ++ store.prefixBytes
+
     private val sessions = ListBuffer.empty[Session]
-    private var level = 1
+
+    private var _level = 1
+
+    init()
+
+    def level(): Int = _level
+
+    def activeLevels(): Seq[Int] = sessions.map(_.level)
 
     def beginSet(key: K, value: V, batch: WriteBatch): WriteBatch = {
       sessions.lastOption.map(_.onSet(key, value, batch)).orNull
@@ -603,30 +632,48 @@ abstract class StoreBase[K, V](val db: LevelDbStorage, cacheCapacity: Int) {
     }
 
     def commit(): Unit = {
-      sessions.lastOption.foreach(s => {
+      sessions.headOption.foreach(s => {
+        sessions.remove(0)
         s.close()
-        sessions.dropRight(1)
       })
     }
 
     def commit(level: Int): Unit = {
-      sessions.takeWhile(_.level <= level).foreach(s => {
-          s.close()
-          sessions -= s
-        })
+      val toCommit = sessions.takeWhile(_.level <= level)
+      store.db.batchWrite(batch => toCommit.foreach(_.close(batch)))
+      sessions.remove(0, toCommit.length)
     }
 
     def rollBack(): Unit = {
       sessions.lastOption.foreach(s => {
-        s.rollBack()
-        sessions.dropRight(1)
-        level -= 1
+        s.rollBack(batch => batch.put(prefix, BigInt(_level - 1).toByteArray))
+        sessions.remove(sessions.length - 1)
+        _level -= 1
       })
     }
 
-    def newSession(): Unit = {
-      sessions.append(new Session(store, level))
-      level += 1
+    def newSession(): Session = {
+      store.db.set(prefix, BigInt(_level + 1).toByteArray)
+      val session = new Session(store, prefix, _level)
+      sessions.append(session)
+      _level += 1
+      session
+    }
+
+    private def init(): Unit = {
+      store.db.find(prefix, (k, v) => {
+        require(k.length >= prefix.length)
+
+        if (k.length > prefix.length) {
+          val level = BigInt(k.drop(prefix.length)).toInt
+          val session = new Session(store, prefix, level)
+          sessions.append(session)
+        } else {
+          _level = BigInt(v).toInt
+        }
+      })
+
+      require(sessions.lastOption.forall(_.level < _level))
     }
   }
 }
