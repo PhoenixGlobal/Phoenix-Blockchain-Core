@@ -9,7 +9,6 @@
 package com.apex.crypto
 
 import java.io.DataInputStream
-import com.apex.wallets.Wallet
 import org.bouncycastle.util.encoders.Hex
 
 class UInt160(data: Array[Byte]) extends UIntBase(UInt160.Size, data) with Ordered[UInt160] {

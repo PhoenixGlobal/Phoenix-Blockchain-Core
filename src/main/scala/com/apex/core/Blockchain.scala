@@ -267,10 +267,13 @@ class LevelDBBlockchain(chainSettings: ChainSettings, consensusSettings: Consens
         blkTxMappingStore.set(block.id, blkTxMapping, batch)
         val accounts = Map.empty[UInt160, Account]
         val balances = Map.empty[UInt160, Map[UInt256, Fixed8]]
+        val nonceIncrease = Map.empty[UInt160, Long]
         block.transactions.foreach(tx => {
           txStore.set(tx.id, tx, batch)
           calcBalancesInBlock(balances, true, tx.fromPubKeyHash, tx.amount, tx.assetId)
           calcBalancesInBlock(balances, false, tx.toPubKeyHash, tx.amount, tx.assetId)
+          val noncePlus = nonceIncrease.get(tx.from.pubKeyHash).getOrElse(0L) + 1L
+          nonceIncrease.put(tx.from.pubKeyHash, noncePlus)
           updateAccout(accounts, tx)
         })
         balances.foreach(p => {
@@ -279,7 +282,7 @@ class LevelDBBlockchain(chainSettings: ChainSettings, consensusSettings: Consens
             val balances = merged.groupBy(_._1)
               .map(p => (p._1, Fixed8.sum(p._2.map(_._2).sum)))
               .filter(_._2.value > 0)
-            new Account(a.active, a.name, balances, a.nextNonce, a.version)
+            new Account(a.active, a.name, balances, a.nextNonce + nonceIncrease.get(p._1).getOrElse(0L), a.version)
           }).getOrElse(new Account(true, "", p._2.filter(_._2.value > 0).toMap, 0))
           accountStore.set(p._1, account, batch)
         })
