@@ -41,8 +41,8 @@ object MainEntry extends ApexLogging {
     val timeProvider = new NetworkTimeProvider(settings.ntp)
 
     val peerHandlerManagerRef = PeerHandlerManagerRef(settings, timeProvider)
-    val nodeRef = NodeRef(chain, peerHandlerManagerRef)
     val producer = ProducerRef(settings.consensus, chain, peerHandlerManagerRef)
+    val nodeRef = NodeRef(chain, peerHandlerManagerRef, producer)
     //    val rpcRef = RpcServerRef(settings.rpcSettings, nodeRef)
     val networkControllerRef = NetworkManagerRef(settings.network, upnp, timeProvider, peerHandlerManagerRef, nodeRef)
 

@@ -40,6 +40,9 @@ case class Success(block: Option[Block], producer: String, time: Long) extends P
 
 case class Failed(e: Throwable) extends ProduceState
 
+
+case class BlockAcceptedMessage(block: Block)
+
 class ProduceTask(val producer: Producer,
                   val peerHandlerManager: ActorRef,
                   private var cancelled: Boolean = false)
@@ -132,10 +135,20 @@ class Producer(settings: ConsensusSettings,
           witness.privkey.get,
           nextProduceTime(now, next),
           txs)
-        txPool.clear()
+        if (block.isDefined) {
+          self ! BlockAcceptedMessage(block.get)
+        }
         Success(block, witness.name, now)
       }
     }
+  }
+
+  def removeTransactionsInBlock(block: Block) = {
+    block.transactions.foreach(tx => {
+      if (txPool.contains(tx.id)) {
+        txPool.remove(tx.id)
+      }
+    })
   }
 
   // the nextBlockTime is the expected time of next block based on current latest block
@@ -202,6 +215,9 @@ class Producer(settings: ConsensusSettings,
       else {
         sender() ! false
       }
+    }
+    case BlockAcceptedMessage(block) => {
+      removeTransactionsInBlock(block)
     }
     case a: Any => {
       log.info(s"${sender().toString}, ${a.toString}")
