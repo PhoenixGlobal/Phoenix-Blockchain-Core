@@ -108,6 +108,10 @@ object Serializable {
       (1 to is.readVarInt) map (_ => kDeserializer(is) -> vDeserializer(is)) toMap
     }
 
+    def readMap(): Map[Array[Byte], Array[Byte]] = {
+      (1 to is.readVarInt) map (_ => is.readByteArray -> is.readByteArray) toMap
+    }
+
     def readObj[A](deserializer: DataInputStream => A): A = {
       deserializer(is)
     }

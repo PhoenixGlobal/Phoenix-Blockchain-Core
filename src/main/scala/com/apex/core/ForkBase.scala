@@ -18,7 +18,7 @@ import com.apex.common.ApexLogging
 import com.apex.crypto.Ecdsa.PublicKey
 import com.apex.crypto.UInt256
 import com.apex.exceptions.{InvalidOperationException, UnExpectedError}
-import com.apex.settings.Witness
+import com.apex.settings.{ForkBaseSettings, Witness}
 import com.apex.storage.LevelDbStorage
 
 import collection.mutable.{ListBuffer, Map, Seq, SortedMap}
@@ -256,7 +256,8 @@ object ForkItem {
   }
 }
 
-class ForkBase(dir: String, witnesses: Array[Witness],
+class ForkBase(settings: ForkBaseSettings,
+               witnesses: Array[Witness],
                onConfirmed: Block => Unit,
                onSwitch: (Seq[ForkItem], Seq[ForkItem]) => Unit) extends ApexLogging {
   private var _head: Option[ForkItem] = None
@@ -266,7 +267,7 @@ class ForkBase(dir: String, witnesses: Array[Witness],
   private val indexByHeight = SortedMultiMap.empty[Int, Boolean, UInt256]()(implicitly[Ordering[Int]], implicitly[Ordering[Boolean]].reverse)
   private val indexByConfirmedHeight = SortedMultiMap.empty[Int, Int, UInt256]()(implicitly[Ordering[Int]].reverse, implicitly[Ordering[Int]].reverse)
 
-  private val db = LevelDbStorage.open(dir)
+  private val db = LevelDbStorage.open(settings.dir)
 
   init()
 
@@ -278,18 +279,22 @@ class ForkBase(dir: String, witnesses: Array[Witness],
     indexById.get(id)
   }
 
+  def get(height: Int): Option[ForkItem] = {
+    indexByHeight.get(height, true).headOption.flatMap(get)
+  }
+
   //TODO
   def getNext(id: UInt256): Option[UInt256] = {
     //val next = indexByPrev.get(id)
     var target: Option[UInt256] = None
     var current: Option[ForkItem] = _head
     while (current.isDefined) {
-      if (current.get.block.prev().equals(id)) {
+      if (current.get.block.prev.equals(id)) {
         target = Some(current.get.block.id)
         current = None
       }
       else {
-        current = get(current.get.block.prev())
+        current = get(current.get.block.prev)
       }
     }
     target
@@ -311,7 +316,7 @@ class ForkBase(dir: String, witnesses: Array[Witness],
       }
       addItem(lph)
     } else {
-      if (!indexById.contains(block.id) && indexById.contains(block.header.prevBlock)) {
+      if (!indexById.contains(block.id) && indexById.contains(block.prev)) {
         for (p <- _head.get.lastProducerHeight) {
           lph.put(p._1, p._2)
         }
@@ -419,11 +424,11 @@ class ForkBase(dir: String, witnesses: Array[Witness],
     } else {
       val xs = ListBuffer.empty[ForkItem]
       val ys = ListBuffer.empty[ForkItem]
-      while (a.block.header.index < b.block.header.index) {
+      while (a.block.height < b.block.height) {
         xs.append(a)
         a = getPrev(a)
       }
-      while (b.block.header.index < a.block.header.index) {
+      while (b.block.height < a.block.height) {
         ys.append(b)
         b = getPrev(b)
       }
@@ -438,7 +443,7 @@ class ForkBase(dir: String, witnesses: Array[Witness],
   }
 
   private def getPrev(item: ForkItem): ForkItem = {
-    val prev = get(item.block.header.prevBlock)
+    val prev = get(item.block.prev)
     if (prev.isEmpty) {
       throw new UnExpectedError
     }
