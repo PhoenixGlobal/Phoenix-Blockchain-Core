@@ -44,19 +44,17 @@ object Crypto {
   }
 
   def sign(message: Array[Byte], privateKey: Array[Byte]): Array[Byte] = {
-     val sig: BinaryData = Ecdsa.encodeSignature(Ecdsa.sign(Ecdsa.sha256(BinaryData(message)), Ecdsa.PrivateKey(BinaryData(privateKey))))
-     sig
+     Ecdsa.encodeSignature(Ecdsa.sign(sha256(message), Ecdsa.PrivateKey(BinaryData(privateKey))))
   }
 
   def sign(message: Array[Byte], privateKey: Ecdsa.PrivateKey): Array[Byte] = {
-    val sig: BinaryData = Ecdsa.encodeSignature(Ecdsa.sign(Ecdsa.sha256(BinaryData(message)), privateKey))
-    sig
+     Ecdsa.encodeSignature(Ecdsa.sign(sha256(message), privateKey))
   }
 
   def verifySignature(message: Array[Byte], signature: Array[Byte], pubKey: Array[Byte]): Boolean = {
      val publicKey = Ecdsa.PublicKey(BinaryData(pubKey))
 
-     Ecdsa.verifySignature(Ecdsa.sha256(BinaryData(message)), BinaryData(signature), publicKey)
+     Ecdsa.verifySignature(sha256(message), signature, publicKey)
   }
 
   def AesEncrypt(data: Array[Byte], key: Array[Byte], iv: Array[Byte]): Array[Byte] = {

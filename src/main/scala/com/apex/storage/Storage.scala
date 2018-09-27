@@ -1,20 +1,45 @@
 package com.apex.storage
 
-trait Storage[Key, Value] {
+import org.iq80.leveldb.WriteBatch
 
-  def set(key: Key, value: Value): Boolean
+import scala.collection.mutable.ListBuffer
+
+trait Storage[Key, Value] {
+  def containsKey(key: Key): Boolean = get(key).isDefined
 
   def get(key: Key): Option[Value]
 
-  def delete(key: Key): Unit
+  def set(key: Key, value: Value, batch: Batch): Boolean
+
+  def delete(key: Key, batch: Batch): Unit
 
   def scan(func: (Key, Value) => Unit): Unit
 
   def find(prefix: Array[Byte], func: (Key, Value) => Unit): Unit
 
-  def commit(): Unit
+  def newSession(): Unit
+
+  def commit(revision: Int = -1): Unit
+
+  def rollBack(): Unit
 
   def close(): Unit
+}
 
-  def containsKey(key: Key): Boolean = get(key).isDefined
+trait BatchItem
+
+case class DeleteOperationItem(key: Array[Byte]) extends BatchItem
+
+case class PutOperationItem(key: Array[Byte], value: Array[Byte]) extends BatchItem
+
+class Batch(val ops: ListBuffer[BatchItem] = ListBuffer.empty[BatchItem]) {
+  def put(key: Array[Byte], value: Array[Byte]): Batch = {
+    ops.append(PutOperationItem(key, value))
+    this
+  }
+
+  def delete(key: Array[Byte]): Batch = {
+    ops.append(DeleteOperationItem(key))
+    this
+  }
 }

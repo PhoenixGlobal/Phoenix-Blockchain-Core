@@ -13,11 +13,14 @@ import com.apex.common.ApexLogging
 import com.apex.core._
 import com.apex.crypto.UInt256
 import com.apex.network.rpc.{GetBlockByHeightCmd, GetBlockByIdCmd, GetBlockCountCmd, GetBlocksCmd, GetAccountCmd, RPCCommand}
-
+import com.apex.consensus.BlockAcceptedMessage
 
 import scala.collection.mutable.{ArrayBuffer, Map}
 
-class Node(val chain: Blockchain, val peerHandlerManager: ActorRef) extends Actor with ApexLogging {
+class Node(val chain: Blockchain,
+           val peerHandlerManager: ActorRef,
+           val producer: ActorRef)
+  extends Actor with ApexLogging {
 
 //  def addTransaction(tx: Transaction): Boolean = {
 //    //lock (Blockchain.Default.PersistLock)
@@ -115,6 +118,7 @@ class Node(val chain: Blockchain, val peerHandlerManager: ActorRef) extends Acto
         //log.info(s"received a block #${block.height} (${block.id})")
         if (chain.tryInsertBlock(block)) {
           log.info(s"insert block #${block.height} (${block.id}) success")
+          producer ! BlockAcceptedMessage(block)
           peerHandlerManager ! InventoryMessage(new InventoryPayload(InventoryType.Block, Seq(block.id())))
         } else {
           log.error(s"failed insert block #${block.height}, (${block.id}) to db")
@@ -130,6 +134,7 @@ class Node(val chain: Blockchain, val peerHandlerManager: ActorRef) extends Acto
         blocksPayload.blocks.foreach(block => {
           if (chain.tryInsertBlock(block)) {
             log.info(s"insert block #${block.height} (${block.id}) success")
+            producer ! BlockAcceptedMessage(block)
             // no need to send INV during sync
             //peerHandlerManager ! InventoryMessage(new Inventory(InventoryType.Block, Seq(block.id())))
           } else {
@@ -188,12 +193,12 @@ class Node(val chain: Blockchain, val peerHandlerManager: ActorRef) extends Acto
 }
 
 object NodeRef {
-  def props(chain: Blockchain, peerHandlerManager: ActorRef): Props = Props(new Node(chain, peerHandlerManager))
+  def props(chain: Blockchain, peerHandlerManager: ActorRef, producer: ActorRef): Props = Props(new Node(chain, peerHandlerManager, producer))
 
-  def apply(chain: Blockchain, peerHandlerManager: ActorRef)
-           (implicit system: ActorSystem): ActorRef = system.actorOf(props(chain, peerHandlerManager))
+  def apply(chain: Blockchain, peerHandlerManager: ActorRef, producer: ActorRef)
+           (implicit system: ActorSystem): ActorRef = system.actorOf(props(chain, peerHandlerManager, producer))
 
-  def apply(chain: Blockchain, peerHandlerManager: ActorRef, name: String)
-           (implicit system: ActorSystem): ActorRef = system.actorOf(props(chain, peerHandlerManager), name)
+  def apply(chain: Blockchain, peerHandlerManager: ActorRef, producer: ActorRef, name: String)
+           (implicit system: ActorSystem): ActorRef = system.actorOf(props(chain, peerHandlerManager, producer), name)
 
 }

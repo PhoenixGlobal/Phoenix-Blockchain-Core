@@ -43,9 +43,15 @@ case class ApexSettings(dataDir: File,
                         chain: ChainSettings,
                         rpc: RPCSettings)
 
+case class BlockBaseSettings(dir: String, cacheEnabled: Boolean, cacheSize: Int)
+
+case class DataBaseSettings(dir: String, cacheEnabled: Boolean, cacheSize: Int)
+
+case class ForkBaseSettings(dir: String)
+
 case class GenesisSettings(timeStamp: Long, publicKey: String, privateKey: String)
 
-case class ChainSettings(dbDir: String, forkDir: String, miner: String, genesis: GenesisSettings)
+case class ChainSettings(blockBase: BlockBaseSettings, dataBase: DataBaseSettings, forkBase: ForkBaseSettings, miner: String, genesis: GenesisSettings)
 
 case class ConsensusSettings(produceInterval: Int,
                              acceptableTimeError: Int,
@@ -58,9 +64,9 @@ case class Witness(name: String,
 
 object ApexSettings extends SettingsReaders with ApexLogging {
   protected val configPath: String = "apex"
-//
-//  implicit val valueReader: ValueReader[ApexSettings] =
-//    (cfg: Config, path: String) => cfg.as[ApexSettings](path)
+  //
+  //  implicit val valueReader: ValueReader[ApexSettings] =
+  //    (cfg: Config, path: String) => cfg.as[ApexSettings](path)
 
 
   implicit val publicKeyReader: ValueReader[PublicKey] = (cfg, path) => new PublicKey(Point(cfg.getString(path)))

@@ -5,10 +5,16 @@ import java.io.{ByteArrayInputStream, ByteArrayOutputStream, DataInputStream, Da
 import com.apex.common.{Cache, LRUCache, Serializable}
 import com.apex.crypto.{UInt160, UInt256}
 import com.apex.exceptions.UnExpectedError
-import com.apex.storage.{LevelDbStorage, PersistentStack}
+import com.apex.storage.{Batch, LevelDbStorage, PersistentStack}
 import org.iq80.leveldb.{ReadOptions, WriteBatch}
 
 import scala.collection.mutable.ListBuffer
+
+class BlockStore(db: LevelDbStorage, capacity: Int)
+  extends StoreBase[UInt256, Block](db, capacity)
+    with BlockPrefix
+    with UInt256Key
+    with BlockValue
 
 class HeaderStore(db: LevelDbStorage, capacity: Int)
   extends StoreBase[UInt256, BlockHeader](db, capacity)
@@ -53,14 +59,19 @@ class NameToAccountStore(db: LevelDbStorage, capacity: Int)
 //    with TxOutputValue
 
 class HeadBlockStore(db: LevelDbStorage)
-  extends StateStore[HeadBlock](db)
+  extends StateStore[BlockHeader](db)
     with HeadBlockStatePrefix
-    with HeadBlockValue
+    with BlockHeaderValue
 
 class ProducerStateStore(db: LevelDbStorage)
   extends StateStore[ProducerStatus](db)
     with ProducerStatePrefix
     with ProducerStatusValue
+
+class LatestConfirmedBlockStore(db: LevelDbStorage)
+  extends StateStore[BlockHeader](db)
+    with LatestConfirmedStatePrefix
+    with BlockHeaderValue
 
 object StoreType extends Enumeration {
   val Data = Value(0x00)
@@ -73,6 +84,7 @@ object DataType extends Enumeration {
   val Transaction = Value(0x01)
   val Account = Value(0x02)
   val Session = Value(0x03)
+  val Block = Value(0x04)
 }
 
 object IndexType extends Enumeration {
@@ -85,6 +97,7 @@ object IndexType extends Enumeration {
 object StateType extends Enumeration {
   val HeadBlock = Value(0x00)
   val Producer = Value(0x01)
+  val LatestConfirmed = Value(0x02)
 }
 
 trait Prefix {
@@ -107,6 +120,10 @@ trait StatePrefix extends Prefix {
   val storeType = StoreType.Index
   val stateType: StateType.Value
   override lazy val prefixBytes: Array[Byte] = Array(storeType.id.toByte, stateType.id.toByte)
+}
+
+trait BlockPrefix extends DataPrefix {
+  override val dataType: DataType.Value = DataType.Block
 }
 
 trait HeaderPrefix extends DataPrefix {
@@ -143,6 +160,10 @@ trait HeadBlockStatePrefix extends StatePrefix {
 
 trait ProducerStatePrefix extends StatePrefix {
   override val stateType: StateType.Value = StateType.Producer
+}
+
+trait LatestConfirmedStatePrefix extends StatePrefix {
+  override val stateType: StateType.Value = StateType.LatestConfirmed
 }
 
 trait Converter[A] {
@@ -198,6 +219,10 @@ trait UInt160Value extends ValueConverterProvider[UInt160] {
 
 trait UInt256Value extends ValueConverterProvider[UInt256] {
   override val valConverter: Converter[UInt256] = new SerializableConverter(UInt256.deserialize)
+}
+
+trait BlockValue extends ValueConverterProvider[Block] {
+  override val valConverter: Converter[Block] = new SerializableConverter(Block.deserialize)
 }
 
 trait BlockHeaderValue extends ValueConverterProvider[BlockHeader] {
@@ -342,7 +367,7 @@ abstract class StateStore[V <: Serializable](db: LevelDbStorage) {
     cached
   }
 
-  def set(value: V, batch: WriteBatch = null): Boolean = {
+  def set(value: V, batch: Batch = null): Boolean = {
     if (value == null) {
       false
     } else {
@@ -361,12 +386,8 @@ abstract class StateStore[V <: Serializable](db: LevelDbStorage) {
     }
   }
 
-  def delete(batch: WriteBatch = null): Unit = {
-    if (batch != null) {
-      batch.delete(prefixBytes)
-    } else {
-      db.delete(prefixBytes)
-    }
+  def delete(batch: Batch = null): Unit = {
+    db.delete(prefixBytes, batch)
     cached = None
   }
 }
@@ -375,7 +396,7 @@ abstract class StoreBase[K, V](val db: LevelDbStorage, cacheCapacity: Int) {
   protected val cache: Cache[K, V] = new LRUCache(cacheCapacity)
 
   //  private var session: Option[Session] = None
-  private lazy val sessionMgr = new SessionManager(this)
+//  private lazy val sessionMgr = new SessionManager(this)
 
   val prefixBytes: Array[Byte]
 
@@ -410,8 +431,8 @@ abstract class StoreBase[K, V](val db: LevelDbStorage, cacheCapacity: Int) {
     }
   }
 
-  def set(key: K, value: V, writeBatch: WriteBatch = null): Boolean = {
-    val batch = sessionMgr.beginSet(key, value, writeBatch)
+  def set(key: K, value: V, batch: Batch = null): Boolean = {
+//    val batch = sessionMgr.beginSet(key, value, writeBatch)
     if (setBackStore(key, value, batch)) {
       cache.set(key, value)
       true
@@ -420,31 +441,31 @@ abstract class StoreBase[K, V](val db: LevelDbStorage, cacheCapacity: Int) {
     }
   }
 
-  def delete(key: K, writeBatch: WriteBatch = null): Unit = {
-    val batch = sessionMgr.beginDelete(key, writeBatch)
+  def delete(key: K, batch: Batch = null): Unit = {
+//    val batch = sessionMgr.beginDelete(key, writeBatch)
     deleteBackStore(key, batch)
     cache.delete(key)
   }
 
-  def beginTransaction(): Unit = {
-    sessionMgr.newSession()
-  }
-
-  def commit(): Unit = {
-    sessionMgr.commit()
-  }
-
-  def rollBack(): Unit = {
-    sessionMgr.rollBack()
-  }
-
-  def sessionLevel(): Int = {
-    sessionMgr.level()
-  }
-
-  def activeLevels(): Seq[Int] = {
-    sessionMgr.activeLevels()
-  }
+//  def beginTransaction(): Unit = {
+//    sessionMgr.newSession()
+//  }
+//
+//  def commit(): Unit = {
+//    sessionMgr.commit()
+//  }
+//
+//  def rollBack(): Unit = {
+//    sessionMgr.rollBack()
+//  }
+//
+//  def sessionLevel(): Int = {
+//    sessionMgr.level()
+//  }
+//
+//  def activeLevels(): Seq[Int] = {
+//    sessionMgr.activeLevels()
+//  }
 
   protected def genKey(key: K): Array[Byte] = {
     prefixBytes ++ keyConverter.toBytes(key)
@@ -455,14 +476,10 @@ abstract class StoreBase[K, V](val db: LevelDbStorage, cacheCapacity: Int) {
   }
 
   protected def getFromBackStore(key: K): Option[V] = {
-    val opt = new ReadOptions().fillCache(false)
-    db.get(genKey(key), opt) match {
-      case Some(value) => Some(valConverter.fromBytes(value))
-      case None => None
-    }
+    db.get(genKey(key)).map(valConverter.fromBytes)
   }
 
-  protected def setBackStore(key: K, value: V, batch: WriteBatch): Boolean = {
+  protected def setBackStore(key: K, value: V, batch: Batch): Boolean = {
     if (batch != null) {
       batch.put(genKey(key), valConverter.toBytes(value))
       true
@@ -471,209 +488,206 @@ abstract class StoreBase[K, V](val db: LevelDbStorage, cacheCapacity: Int) {
     }
   }
 
-  protected def deleteBackStore(key: K, batch: WriteBatch): Unit = {
-    if (batch != null) {
-      batch.delete(genKey(key))
-    } else {
-      db.delete(genKey(key))
-    }
+  protected def deleteBackStore(key: K, batch: Batch): Unit = {
+    db.delete(genKey(key), batch)
   }
+//
+//  import collection.mutable.Map
+//
+//  class SessionItem(val insert: Map[K, V] = Map.empty[K, V],
+//                    val update: Map[K, V] = Map.empty[K, V],
+//                    val delete: Map[K, V] = Map.empty[K, V])
+//    extends Serializable {
+//    override def serialize(os: DataOutputStream): Unit = {
+//      import com.apex.common.Serializable._
+//      os.writeMap(insert.toMap)(keyConverter.serializer, valConverter.serializer)
+//      os.writeMap(update.toMap)(keyConverter.serializer, valConverter.serializer)
+//      os.writeMap(delete.toMap)(keyConverter.serializer, valConverter.serializer)
+//    }
+//
+//    def fill(bytes: Array[Byte]): Unit = {
+//      import com.apex.common.Serializable._
+//      val bs = new ByteArrayInputStream(bytes)
+//      val is = new DataInputStream(bs)
+//      is.readMap(keyConverter.deserializer, valConverter.deserializer).foreach(fillInsert)
+//      is.readMap(keyConverter.deserializer, valConverter.deserializer).foreach(fillUpdate)
+//      is.readMap(keyConverter.deserializer, valConverter.deserializer).foreach(fillDelete)
+//    }
+//
+//    def clear(): Unit = {
+//      insert.clear()
+//      update.clear()
+//      delete.clear()
+//    }
+//
+//    private def fillInsert(kv: (K, V)): Unit = {
+//      insert.put(kv._1, kv._2)
+//    }
+//
+//    private def fillUpdate(kv: (K, V)): Unit = {
+//      update.put(kv._1, kv._2)
+//    }
+//
+//    private def fillDelete(kv: (K, V)): Unit = {
+//      delete.put(kv._1, kv._2)
+//    }
+//  }
+//
+//  class Session(store: StoreBase[K, V], val prefix: Array[Byte], val level: Int) {
+//
+//    private val sessionId = prefix ++ BigInt(level).toByteArray
+//
+//    private val item = new SessionItem
+//
+//    init()
+//
+//    def onSet(k: K, v: V, batch: WriteBatch): WriteBatch = {
+//      var modified = true
+//      if (item.insert.contains(k) || item.update.contains(k)) {
+//        modified = false
+//      } else if (item.delete.contains(k)) {
+//        item.update.put(k, item.delete(k))
+//        item.delete.remove(k)
+//      } else {
+//        store.get(k) match {
+//          case Some(old) => {
+//            item.update.put(k, old)
+//          }
+//          case None => {
+//            item.insert.put(k, v)
+//          }
+//        }
+//      }
+//      if (modified) {
+//        persist(batch)
+//      } else {
+//        batch
+//      }
+//    }
+//
+//    def onDelete(k: K, batch: WriteBatch): WriteBatch = {
+//      var modified = false
+//      if (item.insert.contains(k)) {
+//        item.insert.remove(k)
+//        modified = true
+//      } else if (item.update.contains(k)) {
+//        item.delete.put(k, item.update(k))
+//        item.update.remove(k)
+//        modified = true
+//      } else if (!item.delete.contains(k)) {
+//        val old = store.get(k)
+//        if (old.isDefined) {
+//          item.delete.put(k, old.get)
+//          modified = true
+//        }
+//      }
+//      if (modified) {
+//        persist(batch)
+//      } else {
+//        batch
+//      }
+//    }
+//
+//    def close(batch: WriteBatch = null): Unit = {
+//      if (batch == null) {
+//        store.db.delete(sessionId)
+//      } else {
+//        batch.delete(sessionId)
+//      }
+//    }
+//
+//    def rollBack(onRollBack: WriteBatch => Unit): Unit = {
+//      store.db.batchWrite(batch => {
+//        item.insert.foreach(p => store.delete(p._1, batch))
+//        item.update.foreach(p => store.set(p._1, p._2, batch))
+//        item.delete.foreach(p => store.set(p._1, p._2, batch))
+//        batch.delete(sessionId)
+//        onRollBack(batch)
+//      })
+//    }
+//
+//    private def persist(batch: WriteBatch): WriteBatch = {
+//      if (batch != null) {
+//        batch.put(sessionId, item.toBytes)
+//      } else {
+//        val batch = store.db.beginBatch
+//        batch.put(sessionId, item.toBytes)
+//        batch
+//      }
+//    }
+//
+//    private def init(): Unit = {
+//      def save: Unit = store.db.batchWrite(persist)
+//
+//      store.db.get(sessionId).map(item.fill).getOrElse(save)
+//    }
+//  }
+//
+//  class SessionManager(store: StoreBase[K, V]) {
+//    private val prefix = Array(StoreType.Data.id.toByte, DataType.Session.id.toByte) ++ store.prefixBytes
+//
+//    private val sessions = ListBuffer.empty[Session]
+//
+//    private var _level = 1
+//
+//    init()
+//
+//    def level(): Int = _level
+//
+//    def activeLevels(): Seq[Int] = sessions.map(_.level)
+//
+//    def beginSet(key: K, value: V, batch: WriteBatch): WriteBatch = {
+//      sessions.lastOption.map(_.onSet(key, value, batch)).orNull
+//    }
+//
+//    def beginDelete(key: K, batch: WriteBatch): WriteBatch = {
+//      sessions.lastOption.map(_.onDelete(key, batch)).orNull
+//    }
+//
+//    def commit(): Unit = {
+//      sessions.headOption.foreach(s => {
+//        sessions.remove(0)
+//        s.close()
+//      })
+//    }
+//
+//    def commit(level: Int): Unit = {
+//      val toCommit = sessions.takeWhile(_.level <= level)
+//      store.db.batchWrite(batch => toCommit.foreach(_.close(batch)))
+//      sessions.remove(0, toCommit.length)
+//    }
+//
+//    def rollBack(): Unit = {
+//      sessions.lastOption.foreach(s => {
+//        s.rollBack(batch => batch.put(prefix, BigInt(_level - 1).toByteArray))
+//        sessions.remove(sessions.length - 1)
+//        _level -= 1
+//      })
+//    }
+//
+//    def newSession(): Session = {
+//      store.db.set(prefix, BigInt(_level + 1).toByteArray)
+//      val session = new Session(store, prefix, _level)
+//      sessions.append(session)
+//      _level += 1
+//      session
+//    }
+//
+//    private def init(): Unit = {
+//      store.db.find(prefix, (k, v) => {
+//        require(k.length >= prefix.length)
+//
+//        if (k.length > prefix.length) {
+//          val level = BigInt(k.drop(prefix.length)).toInt
+//          val session = new Session(store, prefix, level)
+//          sessions.append(session)
+//        } else {
+//          _level = BigInt(v).toInt
+//        }
+//      })
+//
+//      require(sessions.lastOption.forall(_.level < _level))
+//    }
+//  }
 
-  import collection.mutable.Map
-
-  class SessionItem(val insert: Map[K, V] = Map.empty[K, V],
-                    val update: Map[K, V] = Map.empty[K, V],
-                    val delete: Map[K, V] = Map.empty[K, V])
-    extends Serializable {
-    override def serialize(os: DataOutputStream): Unit = {
-      import com.apex.common.Serializable._
-      os.writeMap(insert.toMap)(keyConverter.serializer, valConverter.serializer)
-      os.writeMap(update.toMap)(keyConverter.serializer, valConverter.serializer)
-      os.writeMap(delete.toMap)(keyConverter.serializer, valConverter.serializer)
-    }
-
-    def fill(bytes: Array[Byte]): Unit = {
-      import com.apex.common.Serializable._
-      val bs = new ByteArrayInputStream(bytes)
-      val is = new DataInputStream(bs)
-      is.readMap(keyConverter.deserializer, valConverter.deserializer).foreach(fillInsert)
-      is.readMap(keyConverter.deserializer, valConverter.deserializer).foreach(fillUpdate)
-      is.readMap(keyConverter.deserializer, valConverter.deserializer).foreach(fillDelete)
-    }
-
-    def clear(): Unit = {
-      insert.clear()
-      update.clear()
-      delete.clear()
-    }
-
-    private def fillInsert(kv: (K, V)): Unit = {
-      insert.put(kv._1, kv._2)
-    }
-
-    private def fillUpdate(kv: (K, V)): Unit = {
-      update.put(kv._1, kv._2)
-    }
-
-    private def fillDelete(kv: (K, V)): Unit = {
-      delete.put(kv._1, kv._2)
-    }
-  }
-
-  class Session(store: StoreBase[K, V], val prefix: Array[Byte], val level: Int) {
-
-    private val sessionId = prefix ++ BigInt(level).toByteArray
-
-    private val item = new SessionItem
-
-    init()
-
-    def onSet(k: K, v: V, batch: WriteBatch): WriteBatch = {
-      var modified = true
-      if (item.insert.contains(k) || item.update.contains(k)) {
-        modified = false
-      } else if (item.delete.contains(k)) {
-        item.update.put(k, item.delete(k))
-        item.delete.remove(k)
-      } else {
-        store.get(k) match {
-          case Some(old) => {
-            item.update.put(k, old)
-          }
-          case None => {
-            item.insert.put(k, v)
-          }
-        }
-      }
-      if (modified) {
-        persist(batch)
-      } else {
-        batch
-      }
-    }
-
-    def onDelete(k: K, batch: WriteBatch): WriteBatch = {
-      var modified = false
-      if (item.insert.contains(k)) {
-        item.insert.remove(k)
-        modified = true
-      } else if (item.update.contains(k)) {
-        item.delete.put(k, item.update(k))
-        item.update.remove(k)
-        modified = true
-      } else if (!item.delete.contains(k)) {
-        val old = store.get(k)
-        if (old.isDefined) {
-          item.delete.put(k, old.get)
-          modified = true
-        }
-      }
-      if (modified) {
-        persist(batch)
-      } else {
-        batch
-      }
-    }
-
-    def close(batch: WriteBatch = null): Unit = {
-      if (batch == null) {
-        store.db.delete(sessionId)
-      } else {
-        batch.delete(sessionId)
-      }
-    }
-
-    def rollBack(onRollBack: WriteBatch => Unit): Unit = {
-      store.db.batchWrite(batch => {
-        item.insert.foreach(p => store.delete(p._1, batch))
-        item.update.foreach(p => store.set(p._1, p._2, batch))
-        item.delete.foreach(p => store.set(p._1, p._2, batch))
-        batch.delete(sessionId)
-        onRollBack(batch)
-      })
-    }
-
-    private def persist(batch: WriteBatch): WriteBatch = {
-      if (batch != null) {
-        batch.put(sessionId, item.toBytes)
-      } else {
-        val batch = store.db.beginBatch
-        batch.put(sessionId, item.toBytes)
-        batch
-      }
-    }
-
-    private def init(): Unit = {
-      def save: Unit = store.db.batchWrite(persist)
-
-      store.db.get(sessionId).map(item.fill).getOrElse(save)
-    }
-  }
-
-  class SessionManager(store: StoreBase[K, V]) {
-    private val prefix = Array(StoreType.Data.id.toByte, DataType.Session.id.toByte) ++ store.prefixBytes
-
-    private val sessions = ListBuffer.empty[Session]
-
-    private var _level = 1
-
-    init()
-
-    def level(): Int = _level
-
-    def activeLevels(): Seq[Int] = sessions.map(_.level)
-
-    def beginSet(key: K, value: V, batch: WriteBatch): WriteBatch = {
-      sessions.lastOption.map(_.onSet(key, value, batch)).orNull
-    }
-
-    def beginDelete(key: K, batch: WriteBatch): WriteBatch = {
-      sessions.lastOption.map(_.onDelete(key, batch)).orNull
-    }
-
-    def commit(): Unit = {
-      sessions.headOption.foreach(s => {
-        sessions.remove(0)
-        s.close()
-      })
-    }
-
-    def commit(level: Int): Unit = {
-      val toCommit = sessions.takeWhile(_.level <= level)
-      store.db.batchWrite(batch => toCommit.foreach(_.close(batch)))
-      sessions.remove(0, toCommit.length)
-    }
-
-    def rollBack(): Unit = {
-      sessions.lastOption.foreach(s => {
-        s.rollBack(batch => batch.put(prefix, BigInt(_level - 1).toByteArray))
-        sessions.remove(sessions.length - 1)
-        _level -= 1
-      })
-    }
-
-    def newSession(): Session = {
-      store.db.set(prefix, BigInt(_level + 1).toByteArray)
-      val session = new Session(store, prefix, _level)
-      sessions.append(session)
-      _level += 1
-      session
-    }
-
-    private def init(): Unit = {
-      store.db.find(prefix, (k, v) => {
-        require(k.length >= prefix.length)
-
-        if (k.length > prefix.length) {
-          val level = BigInt(k.drop(prefix.length)).toInt
-          val session = new Session(store, prefix, level)
-          sessions.append(session)
-        } else {
-          _level = BigInt(v).toInt
-        }
-      })
-
-      require(sessions.lastOption.forall(_.level < _level))
-    }
-  }
 }
