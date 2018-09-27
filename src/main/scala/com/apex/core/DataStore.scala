@@ -387,11 +387,7 @@ abstract class StateStore[V <: Serializable](db: LevelDbStorage) {
   }
 
   def delete(batch: Batch = null): Unit = {
-    if (batch != null) {
-      batch.delete(prefixBytes)
-    } else {
-      db.delete(prefixBytes)
-    }
+    db.delete(prefixBytes, batch)
     cached = None
   }
 }
@@ -493,11 +489,7 @@ abstract class StoreBase[K, V](val db: LevelDbStorage, cacheCapacity: Int) {
   }
 
   protected def deleteBackStore(key: K, batch: Batch): Unit = {
-    if (batch != null) {
-      batch.delete(genKey(key))
-    } else {
-      db.delete(genKey(key))
-    }
+    db.delete(genKey(key), batch)
   }
 //
 //  import collection.mutable.Map

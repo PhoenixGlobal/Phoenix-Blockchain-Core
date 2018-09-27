@@ -7,6 +7,7 @@ import java.util.Map.Entry
 
 import com.apex.common.{ApexLogging, Serializable}
 import com.apex.core.{DataType, StoreType}
+import com.apex.exceptions.InvalidOperationException
 import org.fusesource.leveldbjni.JniDBFactory._
 import org.iq80.leveldb._
 
@@ -16,34 +17,28 @@ class LevelDbStorage(private val db: DB) extends Storage[Array[Byte], Array[Byte
   private lazy val sessionMgr = new SessionManager(db)
 
   override def get(key: Array[Byte]): Option[Array[Byte]] = {
-    try {
-      val opt = new ReadOptions().fillCache(false)
-      val value = db.get(key, opt)
-      if (value == null) None else Some(value)
-    } catch {
-      case e: Exception => {
-        log.error("db get failed", e)
-        None
-      }
+    val opt = new ReadOptions().fillCache(false)
+    val value = db.get(key, opt)
+    if (value == null) {
+      None
+    } else {
+      Some(value)
     }
   }
 
-  override def set(key: Array[Byte], value: Array[Byte]): Boolean = {
-    try {
-      val batch = sessionMgr.beginSet(key, value, null)
-      batch.put(key, value)
-      true
-    } catch {
-      case e: Exception => {
-        log.error("db set failed", e)
-        false
-      }
+  override def set(key: Array[Byte], value: Array[Byte], batch: Batch = null): Boolean = {
+    val newBatch = sessionMgr.beginSet(key, value, batch)
+    if (newBatch != batch) {
+      applyBatch(newBatch)
     }
+    true
   }
 
-  override def delete(key: Array[Byte]): Unit = {
-    sessionMgr.beginDelete(key)
-    db.delete(key)
+  override def delete(key: Array[Byte], batch: Batch = null): Unit = {
+    val newBatch = sessionMgr.beginDelete(key, batch)
+    if (newBatch != batch) {
+      applyBatch(newBatch)
+    }
   }
 
   override def scan(func: (Array[Byte], Array[Byte]) => Unit): Unit = {
@@ -86,23 +81,10 @@ class LevelDbStorage(private val db: DB) extends Storage[Array[Byte], Array[Byte
   }
 
   def batchWrite[R](action: Batch => R): R = {
-    val writeBatch = db.createWriteBatch()
     val batch = new Batch
-    try {
-      val ret = action(batch)
-      batch.ops.foreach(_ match {
-        case delOp: DeleteOperationItem => {
-          sessionMgr.beginDelete(delOp.key, writeBatch)
-        }
-        case putOp: PutOperationItem => {
-          sessionMgr.beginSet(putOp.key, putOp.value, writeBatch)
-        }
-      })
-      db.write(writeBatch)
-      ret
-    } finally {
-      writeBatch.close()
-    }
+    val ret = action(batch)
+    applyBatch(batch)
+    ret
   }
 
   def last(): Option[Entry[Array[Byte], Array[Byte]]] = {
@@ -126,6 +108,19 @@ class LevelDbStorage(private val db: DB) extends Storage[Array[Byte], Array[Byte
       case e: Throwable => log.error("seek", e)
     } finally {
       iterator.close()
+    }
+  }
+
+  private def applyBatch(batch: Batch): Unit = {
+    val update = db.createWriteBatch()
+    try {
+      batch.ops.foreach(_ match {
+        case PutOperationItem(k, v) => update.put(k, v)
+        case DeleteOperationItem(k) => update.delete(k)
+      })
+      db.write(update)
+    } finally {
+      update.close()
     }
   }
 }
@@ -201,9 +196,16 @@ class Session(db: DB, val prefix: Array[Byte], val revision: Int) {
 
   private val item = new SessionItem
 
+  private var closed = false
+
   init()
 
-  def onSet(key: Array[Byte], v: Array[Byte], batch: WriteBatch): WriteBatch = {
+  def onSet(key: Array[Byte], v: Array[Byte], batch: Batch): Batch = {
+    if (closed) throw new InvalidOperationException("closed session")
+
+    val newBatch = if (batch == null) new Batch else batch
+    newBatch.put(key, v)
+
     var modified = true
     val k = ByteArrayKey(key)
     if (item.insert.contains(k) || item.update.contains(k)) {
@@ -219,14 +221,19 @@ class Session(db: DB, val prefix: Array[Byte], val revision: Int) {
         item.insert.put(k, v)
       }
     }
+
     if (modified) {
-      persist(batch)
-    } else {
-      batch
+      batch.put(sessionId, item.toBytes)
     }
+    newBatch
   }
 
-  def onDelete(key: Array[Byte], batch: WriteBatch): WriteBatch = {
+  def onDelete(key: Array[Byte], batch: Batch): Batch = {
+    if (closed) throw new InvalidOperationException("closed session")
+
+    val newBatch = if (batch == null) new Batch else batch
+    newBatch.delete(key)
+
     var modified = false
     val k = ByteArrayKey(key)
     if (item.insert.contains(k)) {
@@ -243,19 +250,16 @@ class Session(db: DB, val prefix: Array[Byte], val revision: Int) {
         modified = true
       }
     }
+
     if (modified) {
-      persist(batch)
-    } else {
-      batch
+      batch.put(sessionId, item.toBytes)
     }
+    newBatch
   }
 
-  def close(batch: WriteBatch = null): Unit = {
-    if (batch == null) {
-      db.delete(sessionId)
-    } else {
-      batch.delete(sessionId)
-    }
+  def close(): Unit = {
+    db.delete(sessionId)
+    closed = true
   }
 
   def rollBack(onRollBack: WriteBatch => Unit): Unit = {
@@ -268,16 +272,6 @@ class Session(db: DB, val prefix: Array[Byte], val revision: Int) {
       onRollBack(batch)
     } finally {
       batch.close()
-    }
-  }
-
-  private def persist(batch: WriteBatch): WriteBatch = {
-    if (batch != null) {
-      batch.put(sessionId, item.toBytes)
-    } else {
-      val batch = db.createWriteBatch()
-      batch.put(sessionId, item.toBytes)
-      batch
     }
   }
 
@@ -304,30 +298,25 @@ class SessionManager(db: DB) {
 
   def revisions(): Seq[Int] = sessions.map(_.revision)
 
-  def beginSet(key: Array[Byte], value: Array[Byte], batch: WriteBatch = null): WriteBatch = {
+  def beginSet(key: Array[Byte], value: Array[Byte], batch: Batch = null): Batch = {
     sessions.lastOption.map(_.onSet(key, value, batch)).orNull
   }
 
-  def beginDelete(key: Array[Byte], batch: WriteBatch = null): WriteBatch = {
+  def beginDelete(key: Array[Byte], batch: Batch = null): Batch = {
     sessions.lastOption.map(_.onDelete(key, batch)).orNull
   }
 
   def commit(revision: Int): Unit = {
-    if (revision > 0) {
-      val toCommit = sessions.takeWhile(_.revision <= revision)
-      val batch = db.createWriteBatch()
-      try {
-        toCommit.foreach(_.close(batch))
-      } finally {
-        batch.close()
-      }
-      sessions.remove(0, toCommit.length)
-    } else {
-      sessions.headOption.foreach(s => {
-        sessions.remove(0)
-        s.close()
-      })
-    }
+    val toCommit = sessions.takeWhile(_.revision <= revision)
+    sessions.remove(0, toCommit.length)
+    toCommit.foreach(_.close)
+  }
+
+  def commit(): Unit = {
+    sessions.headOption.foreach(s => {
+      sessions.remove(0)
+      s.close()
+    })
   }
 
   def rollBack(): Unit = {

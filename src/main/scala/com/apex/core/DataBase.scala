@@ -55,8 +55,11 @@ class DataBase(settings: DataBaseSettings) {
     db.rollBack()
   }
 
-  def commit(revision: Int = -1): Unit = {
+  def commit(revision: Int): Unit = {
     db.commit(revision)
   }
 
+  def commit(): Unit = {
+    db.commit()
+  }
 }

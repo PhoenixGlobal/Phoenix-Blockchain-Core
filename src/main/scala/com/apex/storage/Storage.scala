@@ -9,9 +9,9 @@ trait Storage[Key, Value] {
 
   def get(key: Key): Option[Value]
 
-  def set(key: Key, value: Value): Boolean
+  def set(key: Key, value: Value, batch: Batch): Boolean
 
-  def delete(key: Key): Unit
+  def delete(key: Key, batch: Batch): Unit
 
   def scan(func: (Key, Value) => Unit): Unit
 

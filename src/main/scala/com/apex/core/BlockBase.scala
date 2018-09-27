@@ -26,6 +26,8 @@ class BlockBase(settings: BlockBaseSettings) {
   }
 
   def add(block: Block): Unit = {
+    require(head.map(_.id.equals(block.prev)).getOrElse(true))
+
     db.batchWrite(batch => {
       blockStore.set(block.id, block, batch)
       heightStore.set(block.height, block.id, batch)

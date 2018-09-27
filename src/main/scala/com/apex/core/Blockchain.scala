@@ -67,8 +67,6 @@ object Blockchain {
 }
 
 class LevelDBBlockchain(chainSettings: ChainSettings, consensusSettings: ConsensusSettings) extends Blockchain {
-  private val db: LevelDbStorage = LevelDbStorage.open(chainSettings.dataBase.dir)
-
   private val genesisProducer = PublicKey(BinaryData(chainSettings.genesis.publicKey)) // TODO: read from settings
   private val genesisProducerPrivKey = new PrivateKey(BinaryData(chainSettings.genesis.privateKey))
 
@@ -227,11 +225,11 @@ class LevelDBBlockchain(chainSettings: ChainSettings, consensusSettings: Consens
     require(block.header.verifySig())
 
     try {
-      db.newSession()
-      db.batchWrite(batch => {
-
-        // TODO accounts.foreach()
-      })
+//      db.newSession()
+//      db.batchWrite(batch => {
+//
+//        // TODO accounts.foreach()
+//      })
       //      latestHeader = block.header
       true
     } catch {
@@ -316,10 +314,18 @@ class LevelDBBlockchain(chainSettings: ChainSettings, consensusSettings: Consens
   }
 
   private def populate(): Unit = {
+    if (blockBase.head.isEmpty) {
+      blockBase.add(genesisBlock)
+    }
+
     if (forkBase.head.isEmpty) {
       forkBase.add(genesisBlock)
     }
-    //latestProdState = prodStateStore.get.get
+
+    require(
+      forkBase.head.map(_.block.height).get >=
+      blockBase.head.map(_.index).get
+    )
   }
 
   private def verifyHeader(header: BlockHeader): Boolean = {
@@ -342,7 +348,7 @@ class LevelDBBlockchain(chainSettings: ChainSettings, consensusSettings: Consens
   private def onConfirmed(block: Block): Unit = {
     log.debug(s"confirm block ${block.height} (${block.id})")
     if (block.height > 0) {
-      db.commit(block.height)
+      dataBase.commit(block.height)
       blockBase.add(block)
     }
   }
@@ -355,7 +361,7 @@ class LevelDBBlockchain(chainSettings: ChainSettings, consensusSettings: Consens
     printChain("old chain", from)
     printChain("new chain", to)
 
-    from.foreach(_ => db.rollBack())
+    from.foreach(_ => dataBase.rollBack())
     //TODO apply all blocks switched to
   }
 }
