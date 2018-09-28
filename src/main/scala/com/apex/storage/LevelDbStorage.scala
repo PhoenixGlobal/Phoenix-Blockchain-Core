@@ -80,11 +80,10 @@ class LevelDbStorage(private val db: DB) extends Storage[Array[Byte], Array[Byte
     db.close()
   }
 
-  def batchWrite[R](action: Batch => R): R = {
+  def batchWrite(action: Batch => Unit): Boolean = {
     val batch = new Batch
-    val ret = action(batch)
+    action(batch)
     applyBatch(batch)
-    ret
   }
 
   def last(): Option[Entry[Array[Byte], Array[Byte]]] = {
@@ -111,7 +110,7 @@ class LevelDbStorage(private val db: DB) extends Storage[Array[Byte], Array[Byte
     }
   }
 
-  private def applyBatch(batch: Batch): Unit = {
+  private def applyBatch(batch: Batch): Boolean = {
     val update = db.createWriteBatch()
     try {
       batch.ops.foreach(_ match {
@@ -119,6 +118,12 @@ class LevelDbStorage(private val db: DB) extends Storage[Array[Byte], Array[Byte
         case DeleteOperationItem(k) => update.delete(k)
       })
       db.write(update)
+      true
+    }catch {
+      case e: Throwable => {
+        log.error("apply batch failed", e)
+        false
+      }
     } finally {
       update.close()
     }

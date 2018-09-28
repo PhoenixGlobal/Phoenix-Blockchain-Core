@@ -47,7 +47,7 @@ case class BlockBaseSettings(dir: String, cacheEnabled: Boolean, cacheSize: Int)
 
 case class DataBaseSettings(dir: String, cacheEnabled: Boolean, cacheSize: Int)
 
-case class ForkBaseSettings(dir: String)
+case class ForkBaseSettings(dir: String, cacheEnabled: Boolean, cacheSize: Int)
 
 case class GenesisSettings(timeStamp: Long, publicKey: String, privateKey: String)
 

@@ -19,7 +19,7 @@ import com.apex.crypto.Ecdsa.PublicKey
 import com.apex.crypto.UInt256
 import com.apex.exceptions.{InvalidOperationException, UnExpectedError}
 import com.apex.settings.{ForkBaseSettings, Witness}
-import com.apex.storage.LevelDbStorage
+import com.apex.storage.{Batch, LevelDbStorage}
 
 import collection.mutable.{ListBuffer, Map, Seq, SortedMap}
 import scala.collection.mutable
@@ -206,6 +206,7 @@ class SortedMultiMap2[K1, K2, V](implicit ord1: Ordering[K1], ord2: Ordering[K2]
       }
     }
   }
+
 }
 
 object SortedMultiMap {
@@ -214,7 +215,7 @@ object SortedMultiMap {
   def empty[A, B, C]()(implicit ord1: Ordering[A], ord2: Ordering[B]): SortedMultiMap2[A, B, C] = new SortedMultiMap2[A, B, C]
 }
 
-case class ForkItem(block: Block, lastProducerHeight: mutable.Map[PublicKey, Int], master: Boolean = false) {
+case class ForkItem(block: Block, lastProducerHeight: mutable.Map[PublicKey, Int], master: Boolean = false) extends com.apex.common.Serializable {
   private var _confirmedHeight: Int = -1
 
   def confirmedHeight: Int = {
@@ -227,9 +228,14 @@ case class ForkItem(block: Block, lastProducerHeight: mutable.Map[PublicKey, Int
   }
 
   def toBytes: Array[Byte] = {
-    import com.apex.common.Serializable._
     val bs = new ByteArrayOutputStream()
     val os = new DataOutputStream(bs)
+    serialize(os)
+    bs.toByteArray
+  }
+
+  override def serialize(os: DataOutputStream): Unit = {
+    import com.apex.common.Serializable._
     os.write(block)
     os.writeBoolean(master)
     os.writeVarInt(lastProducerHeight.size)
@@ -237,15 +243,12 @@ case class ForkItem(block: Block, lastProducerHeight: mutable.Map[PublicKey, Int
       os.writeByteArray(p._1.toBin)
       os.writeVarInt(p._2)
     })
-    bs.toByteArray
   }
 }
 
 object ForkItem {
-  def fromBytes(bytes: Array[Byte]): ForkItem = {
+  def deserialize(is: DataInputStream): ForkItem = {
     import com.apex.common.Serializable._
-    val bs = new ByteArrayInputStream(bytes)
-    val is = new DataInputStream(bs)
     val block = is.readObj(Block.deserialize)
     val master = is.readBoolean
     val lastProducerHeight = Map.empty[PublicKey, Int]
@@ -254,20 +257,27 @@ object ForkItem {
     }
     ForkItem(block, lastProducerHeight, master)
   }
+
+  def fromBytes(bytes: Array[Byte]): ForkItem = {
+    val bs = new ByteArrayInputStream(bytes)
+    val is = new DataInputStream(bs)
+    deserialize(is)
+  }
 }
 
 class ForkBase(settings: ForkBaseSettings,
                witnesses: Array[Witness],
                onConfirmed: Block => Unit,
                onSwitch: (Seq[ForkItem], Seq[ForkItem]) => Unit) extends ApexLogging {
-  private var _head: Option[ForkItem] = None
+  private val db = LevelDbStorage.open(settings.dir)
+  private val forkStore = new ForkItemStore(db, settings.cacheSize)
 
   private val indexById = Map.empty[UInt256, ForkItem]
   private val indexByPrev = MultiMap.empty[UInt256, UInt256]
   private val indexByHeight = SortedMultiMap.empty[Int, Boolean, UInt256]()(implicitly[Ordering[Int]], implicitly[Ordering[Boolean]].reverse)
   private val indexByConfirmedHeight = SortedMultiMap.empty[Int, Int, UInt256]()(implicitly[Ordering[Int]].reverse, implicitly[Ordering[Int]].reverse)
 
-  private val db = LevelDbStorage.open(settings.dir)
+  private var _head: Option[ForkItem] = None
 
   init()
 
@@ -335,7 +345,7 @@ class ForkBase(settings: ForkBaseSettings,
       removeConfirmed(item.confirmedHeight)
       if (oldHead.map(_.block.id).map(item.block.prev.equals).getOrElse(true)) {
         val newItem = item.copy(master = true)
-        if (db.set(item.block.id.toBytes, newItem.toBytes)) {
+        if (forkStore.set(item.block.id, newItem)) {
           updateIndex(newItem)
         }
       } else {
@@ -351,22 +361,50 @@ class ForkBase(settings: ForkBaseSettings,
     val (originFork, newFork) = getForks(from, to)
 
     val items = ListBuffer.empty[ForkItem]
-    db.batchWrite(batch => {
+
+    def switchFork(batch: Batch) = {
       for (item <- originFork) {
         val newItem = item.copy(master = false)
-        batch.put(newItem.block.id.toBytes, newItem.toBytes)
+        forkStore.set(newItem.block.id, newItem, batch)
         items.append(newItem)
       }
       for (item <- newFork) {
         val newItem = item.copy(master = true)
-        batch.put(newItem.block.id.toBytes, newItem.toBytes)
+        forkStore.set(newItem.block.id, newItem, batch)
         items.append(newItem)
       }
+    }
+
+    if (db.batchWrite(switchFork)) {
+      items.foreach(updateIndex)
+      onSwitch(originFork, newFork)
+    }
+  }
+
+  def removeFork(id: UInt256): Boolean = {
+    indexById.get(id).forall(item => {
+      val queue = ListBuffer(item)
+
+      def removeAll(batch: Batch): Unit = {
+        var i = 0
+
+        while (i < queue.size) {
+          val toRemove = queue(i)
+          val toRemoveId = toRemove.block.id
+          val children = indexByPrev.get(toRemoveId).map(indexById)
+          queue.appendAll(children)
+          forkStore.delete(toRemoveId, batch)
+          i += 1
+        }
+      }
+
+      if (db.batchWrite(removeAll)) {
+        queue.foreach(deleteIndex)
+        true
+      } else {
+        false
+      }
     })
-
-    items.foreach(updateIndex)
-
-    onSwitch(originFork, newFork)
   }
 
   def close(): Unit = {
@@ -374,11 +412,7 @@ class ForkBase(settings: ForkBaseSettings,
   }
 
   private def init() = {
-    db.scan((_, v) => {
-      val item = ForkItem.fromBytes(v)
-      createIndex(item)
-    })
-
+    forkStore.foreach((_, item) => createIndex(item))
     _head = indexByConfirmedHeight
       .headOption.map(_._3)
       .flatMap(indexById.get)
@@ -391,11 +425,12 @@ class ForkBase(settings: ForkBaseSettings,
           if (item.master) {
             onConfirmed(item.block)
           }
-          db.batchWrite(batch => {
-            batch.delete(item.block.id.toBytes)
+          if (db.batchWrite(batch => forkStore.delete(item.block.id, batch))) {
             deleteIndex(item)
-          })
-          true
+            true
+          } else {
+            false
+          }
         }).getOrElse(false)
       } else {
         false
@@ -408,7 +443,7 @@ class ForkBase(settings: ForkBaseSettings,
   }
 
   private def insert(item: ForkItem): Boolean = {
-    if (db.set(item.block.id.toBytes, item.toBytes)) {
+    if (forkStore.set(item.block.id, item)) {
       createIndex(item)
       true
     } else {

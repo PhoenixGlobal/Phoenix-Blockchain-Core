@@ -52,11 +52,11 @@ class NameToAccountStore(db: LevelDbStorage, capacity: Int)
     with StringKey
     with UInt160Value
 
-//class UTXOStore(db: LevelDbStorage, capacity: Int)
-//  extends StoreBase[UTXOKey, TransactionOutput](db, capacity)
-//    with UTXOIndexPrefix
-//    with UTXOKeyKey
-//    with TxOutputValue
+class ForkItemStore(db: LevelDbStorage, capacity: Int)
+  extends StoreBase[UInt256, ForkItem](db, capacity)
+    with ForkItemPrefix
+    with UInt256Key
+    with ForkItemValue
 
 class HeadBlockStore(db: LevelDbStorage)
   extends StateStore[BlockHeader](db)
@@ -85,6 +85,7 @@ object DataType extends Enumeration {
   val Account = Value(0x02)
   val Session = Value(0x03)
   val Block = Value(0x04)
+  val ForkItem = Value(0x05)
 }
 
 object IndexType extends Enumeration {
@@ -136,6 +137,10 @@ trait TxPrefix extends DataPrefix {
 
 trait AccountPrefix extends DataPrefix {
   override val dataType: DataType.Value = DataType.Account
+}
+
+trait ForkItemPrefix extends DataPrefix{
+  override val dataType: DataType.Value = DataType.ForkItem
 }
 
 trait HeightToIdIndexPrefix extends IndexPrefix {
@@ -237,13 +242,13 @@ trait AccountValue extends ValueConverterProvider[Account] {
   override val valConverter: Converter[Account] = new SerializableConverter(Account.deserialize)
 }
 
+trait ForkItemValue extends ValueConverterProvider[ForkItem] {
+  override val valConverter: Converter[ForkItem] = new SerializableConverter(ForkItem.deserialize)
+}
+
 trait BlkTxMappingValue extends ValueConverterProvider[BlkTxMapping] {
   override val valConverter: Converter[BlkTxMapping] = new SerializableConverter(BlkTxMapping.deserialize)
 }
-
-//trait TxOutputValue extends ValueConverterProvider[TransactionOutput] {
-//  override val valConverter: Converter[TransactionOutput] = new SerializableConverter(TransactionOutput.deserialize)
-//}
 
 trait ProducerStatusValue extends ValueConverterProvider[ProducerStatus] {
   override val valConverter: Converter[ProducerStatus] = new SerializableConverter(ProducerStatus.deserialize)
