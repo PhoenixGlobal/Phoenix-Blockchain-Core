@@ -42,9 +42,9 @@ trait Blockchain extends Iterable[Block] with ApexLogging {
   //
   //  def containsTransaction(id: UInt256): Boolean
 
-  def verifyBlock(block: Block): Boolean
+  //def verifyBlock(block: Block): Boolean
 
-  def verifyTransaction(tx: Transaction): Boolean
+  //def verifyTransaction(tx: Transaction): Boolean
 
   def getBalance(address: UInt160): Option[collection.immutable.Map[UInt256, Long]]
 
@@ -104,7 +104,7 @@ class LevelDBBlockchain(chainSettings: ChainSettings, consensusSettings: Consens
     genesisProducer, genesisProducerPrivKey)
   private val genesisBlock: Block = Block.build(genesisBlockHeader, Seq(genesisTx))
 
-  //  private var latestHeader: BlockHeader = genesisBlockHeader
+  private var latestHeader: BlockHeader = genesisBlockHeader
 
   //  private var latestProdState: ProducerStatus = null
 
@@ -172,13 +172,14 @@ class LevelDBBlockchain(chainSettings: ChainSettings, consensusSettings: Consens
       producer.pubKeyHash, "", minerAward, UInt256.Zero,
       forkHead.block.height + 1, BinaryData.empty, BinaryData.empty
     )
-    val txs = Seq(minerTx) ++ transactions.filter(verifyTransaction)
+    //val txs = Seq(minerTx) ++ transactions.filter(verifyTransaction)
+    val txs = Seq(minerTx) ++ transactions
     val merkleRoot = MerkleTree.root(txs.map(_.id))
     val header = BlockHeader.build(
       forkHead.block.height + 1, timeStamp, merkleRoot,
       forkHead.block.id, producer, privateKey)
     val block = Block.build(header, txs)
-    if (forkBase.add(block)) {
+    if (tryInsertBlock(block)) {
       Some(block)
     } else {
       None
@@ -186,13 +187,23 @@ class LevelDBBlockchain(chainSettings: ChainSettings, consensusSettings: Consens
   }
 
   override def tryInsertBlock(block: Block): Boolean = {
+    var inserted = false
     forkBase.add(block)
-    //    log.info(s"received block ${block.height}")
-    //    if (verifyBlock(block)) {
-    //      forkBase.add(block)
-    //    } else {
-    //      false
-    //    }
+    if (forkBase.head.get.block.prev().equals(latestHeader.id)) {
+      if (dataBase.applyBlock(block)) {
+        inserted = true
+        latestHeader = block.header
+      }
+      else {
+        log.info(s"block ${block.height} ${block.id} apply error")
+        forkBase.removeFork(block.id)
+      }
+    }
+    else {
+      log.info(s"received block added to minor fork chain. block ${block.height} ${block.id}")
+      inserted = true
+    }
+    inserted
   }
 
   //  override def getTransaction(id: UInt256): Option[Transaction] = {
@@ -240,71 +251,6 @@ class LevelDBBlockchain(chainSettings: ChainSettings, consensusSettings: Consens
     }
   }
 
-  private def verifyRegisterNames(transactions: Seq[Transaction]): Boolean = {
-    var isValid = true
-    val newNames = Set.empty[String]
-    val registers = Set.empty[UInt160]
-    transactions.foreach(tx => {
-      if (tx.txType == TransactionType.RegisterName) {
-        val name = new String(tx.data, "UTF-8")
-        if (name.length != 10) // TODO: read "10" from config file
-          isValid = false
-        if (newNames.contains(name))
-          isValid = false
-        if (registers.contains(tx.fromPubKeyHash()))
-          isValid = false
-        newNames.add(name)
-        registers.add(tx.fromPubKeyHash())
-      }
-    })
-    // make sure name is not used
-    //    newNames.foreach(name => {
-    ////      if (nameToAccountStore.get(name) != None)
-    ////        isValid = false
-    ////    })
-    ////
-    isValid = !newNames.exists(dataBase.nameExists)
-
-    // make sure register never registed before
-    //    registers.foreach(register => {
-    //      val account = accountStore.get(register)
-    //      if (account != None && account.get.name != "") {
-    //        isValid = false
-    //      }
-    //    })
-    isValid = !registers.exists(dataBase.registerExists)
-
-    isValid
-  }
-
-  override def verifyBlock(block: Block): Boolean = {
-    if (!verifyHeader(block.header))
-      false
-    else if (!block.transactions.forall(verifyTransaction))
-      false
-    else if (!verifyRegisterNames(block.transactions))
-      false
-    else
-      true
-  }
-
-  override def verifyTransaction(tx: Transaction): Boolean = {
-    def checkAmount(): Boolean = {
-      // TODO
-      true
-    }
-
-    if (tx.txType == TransactionType.Miner) {
-      // TODO check miner and only one miner tx
-      true
-    }
-    else {
-      var isValid = tx.verifySignature()
-      // More TODO
-      isValid && checkAmount()
-    }
-  }
-
   override def getBalance(address: UInt160): Option[collection.immutable.Map[UInt256, Long]] = {
     dataBase.getBalance(address).map(_.mapValues(_.value))
   }
@@ -319,30 +265,18 @@ class LevelDBBlockchain(chainSettings: ChainSettings, consensusSettings: Consens
     }
 
     if (forkBase.head.isEmpty) {
-      forkBase.add(genesisBlock)
+      tryInsertBlock(genesisBlock)
     }
 
     require(
       forkBase.head.map(_.block.height).get >=
       blockBase.head.map(_.index).get
     )
-  }
 
-  private def verifyHeader(header: BlockHeader): Boolean = {
-    //    if (header.index != latestHeader.index + 1)
-    //      false
-    //    else if (header.timeStamp < latestHeader.timeStamp)
-    //      false
-    //    // TODO: verify rule of timeStamp and producer
-    //    else if (header.id.equals(latestHeader.id))
-    //      false
-    //    else if (!header.prevBlock.equals(latestHeader.id))
-    //      false
-    //    else if (!header.verifySig())
-    //      false
-    //    else
-    //      true
-    header.verifySig()
+    if (forkBase.head.isDefined)
+      latestHeader = forkBase.head().get.block.header
+    else
+      latestHeader = blockBase.head().get
   }
 
   private def onConfirmed(block: Block): Unit = {
