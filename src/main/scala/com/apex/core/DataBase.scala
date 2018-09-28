@@ -40,8 +40,21 @@ class DataBase(settings: DataBaseSettings) extends ApexLogging {
     accountStore.get(address)
   }
 
-  def setAccount(address: UInt160, account: Account) = {
-    accountStore.set(address, account)
+  def setAccount(from: (UInt160, Account),
+                 to: (UInt160, Account)) = {
+    try {
+      db.batchWrite(batch => {
+        accountStore.set(from._1, from._2, batch)
+        accountStore.set(to._1, to._2, batch)
+      })
+      true
+    }
+    catch {
+      case e: Throwable => {
+        log.error("setAccount failed", e)
+        false
+      }
+    }
   }
 
   def getBalance(address: UInt160): Option[scala.collection.immutable.Map[UInt256, Fixed8]] = {

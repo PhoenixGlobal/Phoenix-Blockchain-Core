@@ -114,6 +114,15 @@ class Producer(settings: ConsensusSettings,
 
   private def tryProduce(now: Long) = {
     val next = nextBlockTime()
+    if (next - now <= settings.produceInterval) {
+      val witness = getWitness(nextProduceTime(now, next))
+      if (!witness.privkey.isEmpty) {
+        log.info("startProduceBlock")
+        chain.startProduceBlock(witness.pubkey)
+        txPool.foreach(p => chain.produceBlockAddTransaction(p._2))
+        txPool.clear()
+      }
+    }
     if (now + settings.acceptableTimeError < next) {
       NotYet(next, now)
     } else {
@@ -130,11 +139,12 @@ class Producer(settings: ConsensusSettings,
          * the timestamp in every block header
          * should be divided evenly with no remainder by settings.produceInterval
          */
-        val block = chain.produceBlock(
-          witness.pubkey,
-          witness.privkey.get,
-          nextProduceTime(now, next),
-          txs)
+        //        val block = chain.produceBlock(
+        //          witness.pubkey,
+        //          witness.privkey.get,
+        //          nextProduceTime(now, next),
+        //          txs)
+        val block = chain.produceBlockFinalize(witness.pubkey, witness.privkey.get, nextProduceTime(now, next))
         if (block.isDefined) {
           self ! BlockAcceptedMessage(block.get)
         }
@@ -209,7 +219,12 @@ class Producer(settings: ConsensusSettings,
       val is = new DataInputStream(new ByteArrayInputStream(rawTx))
       val tx = Transaction.deserialize(is)
       if (tx.verifySignature()) {
-        txPool += (tx.id -> tx)
+        if (chain.isProducingBlock()) {
+          chain.produceBlockAddTransaction(tx)   // TODO: check return result
+        }
+        else {
+          txPool += (tx.id -> tx)
+        }
         sender() ! true
       }
       else {

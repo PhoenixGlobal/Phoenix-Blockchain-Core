@@ -9,7 +9,7 @@ import com.apex.crypto.{BinaryData, Crypto, Fixed8, MerkleTree, UInt160, UInt256
 import com.apex.storage.{Batch, LevelDbStorage}
 import org.iq80.leveldb.WriteBatch
 
-import scala.collection.mutable.{Map, Set}
+import scala.collection.mutable.{ArrayBuffer, Map, Set}
 import scala.collection.immutable
 
 trait Blockchain extends Iterable[Block] with ApexLogging {
@@ -33,10 +33,18 @@ trait Blockchain extends Iterable[Block] with ApexLogging {
 
   def getBlockInForkBase(id: UInt256): Option[Block]
 
-  def produceBlock(producer: PublicKey, privateKey: PrivateKey, timeStamp: Long,
-                   transactions: Seq[Transaction]): Option[Block]
+//  def produceBlock(producer: PublicKey, privateKey: PrivateKey, timeStamp: Long,
+//                   transactions: Seq[Transaction]): Option[Block]
 
-  def tryInsertBlock(block: Block): Boolean
+  def startProduceBlock(producer: PublicKey)
+
+  def produceBlockAddTransaction(tx: Transaction): Boolean
+
+  def produceBlockFinalize(producer: PublicKey, privateKey: PrivateKey, timeStamp: Long): Option[Block]
+
+  def isProducingBlock(): Boolean
+
+  def tryInsertBlock(block: Block, doApply: Boolean): Boolean
 
   //
   //  def getTransaction(id: UInt256): Option[Transaction]
@@ -109,6 +117,9 @@ class LevelDBBlockchain(chainSettings: ChainSettings, consensusSettings: Consens
 
   //  private var latestProdState: ProducerStatus = null
 
+  private val pendingTxs = ArrayBuffer.empty[Transaction]  // TODO: save to DB?
+  private val unapplyTxs = ArrayBuffer.empty[Transaction] //Map.empty[UInt256, Transaction]  // TODO: save to DB?
+
   populate()
 
   override def getGenesisBlockChainId: String = genesisBlockHeader.id.toString
@@ -166,49 +177,96 @@ class LevelDBBlockchain(chainSettings: ChainSettings, consensusSettings: Consens
     forkBase.get(id).flatMap(item => getBlock(item.block.id))
   }
 
-  override def produceBlock(producer: PublicKey, privateKey: PrivateKey,
-                            timeStamp: Long, transactions: Seq[Transaction]): Option[Block] = {
+//  override def produceBlock(producer: PublicKey, privateKey: PrivateKey,
+//                            timeStamp: Long, transactions: Seq[Transaction]): Option[Block] = {
+//    val forkHead = forkBase.head.get
+//    val minerTx = new Transaction(TransactionType.Miner, minerCoinFrom,
+//      producer.pubKeyHash, "", minerAward, UInt256.Zero,
+//      forkHead.block.height + 1, BinaryData.empty, BinaryData.empty
+//    )
+//    //val txs = Seq(minerTx) ++ transactions.filter(verifyTransaction)
+//    val txs = Seq(minerTx) ++ transactions
+//    val merkleRoot = MerkleTree.root(txs.map(_.id))
+//    val header = BlockHeader.build(
+//      forkHead.block.height + 1, timeStamp, merkleRoot,
+//      forkHead.block.id, producer, privateKey)
+//    val block = Block.build(header, txs)
+//    if (tryInsertBlock(block, true)) {
+//      Some(block)
+//    } else {
+//      None
+//    }
+//  }
+
+  override def startProduceBlock(producer: PublicKey) = {
+    require(pendingTxs.isEmpty)
+
     val forkHead = forkBase.head.get
     val minerTx = new Transaction(TransactionType.Miner, minerCoinFrom,
       producer.pubKeyHash, "", minerAward, UInt256.Zero,
       forkHead.block.height + 1, BinaryData.empty, BinaryData.empty
     )
-    //val txs = Seq(minerTx) ++ transactions.filter(verifyTransaction)
-    val txs = Seq(minerTx) ++ transactions
-    val merkleRoot = MerkleTree.root(txs.map(_.id))
+    //isPendingBlock = true
+    dataBase.startSession()
+
+    val applied = applyTransaction(minerTx)
+    require(applied)
+    pendingTxs.append(minerTx)
+    //pendingTxs.put(minerTx.id(), minerTx)
+
+  }
+
+  override def isProducingBlock(): Boolean = {
+    !pendingTxs.isEmpty
+  }
+
+  override def produceBlockAddTransaction(tx: Transaction): Boolean = {
+    require(!pendingTxs.isEmpty)
+
+    if (applyTransaction(tx)) {
+      pendingTxs.append(tx)
+      true
+    }
+    else
+      false
+  }
+
+  override def produceBlockFinalize(producer: PublicKey, privateKey: PrivateKey,
+                           timeStamp: Long): Option[Block] = {
+    require(!pendingTxs.isEmpty)
+
+    val forkHead = forkBase.head.get
+    val merkleRoot = MerkleTree.root(pendingTxs.toSeq.map(_.id))
+
     val header = BlockHeader.build(
       forkHead.block.height + 1, timeStamp, merkleRoot,
       forkHead.block.id, producer, privateKey)
-    val block = Block.build(header, txs)
-    if (tryInsertBlock(block)) {
+    val block = Block.build(header, pendingTxs.toSeq)
+    pendingTxs.clear()
+    if (tryInsertBlock(block, false)) {
       Some(block)
     } else {
       None
     }
   }
 
-  def startProduceBlock(producer: PublicKey) = {
-    //    val minerTx = new Transaction(TransactionType.Miner, minerCoinFrom,
-    //      producer.pubKeyHash, "", minerAward, UInt256.Zero,
-    //      forkHead.block.height + 1, BinaryData.empty, BinaryData.empty
-    //    )
-    //isPendingBlock = true
-    //dataBase.startSession()
-    // TODO
-  }
-
-  def produceBlockAddTransaction() = {
-
-  }
-
-  def produceBlockFinalize() = {
-
-  }
-
-  override def tryInsertBlock(block: Block): Boolean = {
+  override def tryInsertBlock(block: Block, doApply: Boolean): Boolean = {
     var inserted = false
+
+    if (!pendingTxs.isEmpty) {
+      pendingTxs.foreach(unapplyTxs.append(_))
+      pendingTxs.clear()
+
+      dataBase.rollBack()
+    }
+
     if (forkBase.head.get.block.id.equals(block.prev())) {
-      if (applyBlock(block)) {
+      if (doApply == false) {   // check first !
+        forkBase.add(block)
+        inserted = true
+        latestHeader = block.header
+      }
+      else if (applyBlock(block)) {
         forkBase.add(block)
         inserted = true
         latestHeader = block.header
@@ -240,7 +298,10 @@ class LevelDBBlockchain(chainSettings: ChainSettings, consensusSettings: Consens
     applied
   }
 
-  private def applyTransaction(tx: Transaction) = {
+  private def applyTransaction(tx: Transaction): Boolean = {
+
+    //TODO: verifyTransaction first
+
     val fromAccount = dataBase.getAccount(tx.fromPubKeyHash()).getOrElse(new Account(true, "", immutable.Map.empty[UInt256, Fixed8], 0))
     val toAccount = dataBase.getAccount(tx.toPubKeyHash).getOrElse(new Account(true, "", immutable.Map.empty[UInt256, Fixed8], 0))
 
@@ -251,8 +312,10 @@ class LevelDBBlockchain(chainSettings: ChainSettings, consensusSettings: Consens
       .map(p => (p._1, Fixed8.sum(p._2.map(_._2).sum)))
       .filter(_._2.value > 0)
 
-    dataBase.setAccount(tx.fromPubKeyHash(), new Account(true, fromAccount.name, fromBalance, fromAccount.nextNonce + 1))
-    dataBase.setAccount(tx.toPubKeyHash, new Account(true, toAccount.name, toBalance, toAccount.nextNonce))
+    dataBase.setAccount((tx.fromPubKeyHash(), new Account(true, fromAccount.name, fromBalance, fromAccount.nextNonce + 1)),
+         (tx.toPubKeyHash, new Account(true, toAccount.name, toBalance, toAccount.nextNonce)))
+
+    true  //TODO
   }
 
   private def verifyBlock(block: Block): Boolean = {
@@ -266,6 +329,7 @@ class LevelDBBlockchain(chainSettings: ChainSettings, consensusSettings: Consens
       true
   }
 
+  // TODO: merge with applyTransaction()
   private def verifyTransaction(tx: Transaction): Boolean = {
     def checkAmount(): Boolean = {
       // TODO
@@ -396,7 +460,7 @@ class LevelDBBlockchain(chainSettings: ChainSettings, consensusSettings: Consens
     }
 
     if (forkBase.head.isEmpty) {
-      tryInsertBlock(genesisBlock)
+      tryInsertBlock(genesisBlock, true)
     }
 
     require(
