@@ -10,6 +10,7 @@ import com.apex.storage.{Batch, LevelDbStorage}
 import org.iq80.leveldb.WriteBatch
 
 import scala.collection.mutable.{Map, Set}
+import scala.collection.immutable
 
 trait Blockchain extends Iterable[Block] with ApexLogging {
   def getLatestHeader: BlockHeader
@@ -186,24 +187,154 @@ class LevelDBBlockchain(chainSettings: ChainSettings, consensusSettings: Consens
     }
   }
 
+  def startProduceBlock(producer: PublicKey) = {
+    //    val minerTx = new Transaction(TransactionType.Miner, minerCoinFrom,
+    //      producer.pubKeyHash, "", minerAward, UInt256.Zero,
+    //      forkHead.block.height + 1, BinaryData.empty, BinaryData.empty
+    //    )
+    //isPendingBlock = true
+    //dataBase.startSession()
+    // TODO
+  }
+
+  def produceBlockAddTransaction() = {
+
+  }
+
+  def produceBlockFinalize() = {
+
+  }
+
   override def tryInsertBlock(block: Block): Boolean = {
     var inserted = false
-    forkBase.add(block)
-    if (forkBase.head.get.block.prev().equals(latestHeader.id)) {
-      if (dataBase.applyBlock(block)) {
+    if (forkBase.head.get.block.id.equals(block.prev())) {
+      if (applyBlock(block)) {
+        forkBase.add(block)
         inserted = true
         latestHeader = block.header
       }
       else {
         log.info(s"block ${block.height} ${block.id} apply error")
-        forkBase.removeFork(block.id)
+        //forkBase.removeFork(block.id)
       }
     }
     else {
       log.info(s"received block added to minor fork chain. block ${block.height} ${block.id}")
+      forkBase.add(block)
       inserted = true
     }
     inserted
+  }
+
+  def applyBlock(block: Block): Boolean = {
+    var applied = false
+    //    if (isPendingBlock) {
+    //      rollBack()
+    //    }
+    if (verifyBlock(block)) {
+      dataBase.startSession()
+      block.transactions.foreach(applyTransaction(_))
+      applied = true
+      //dataBase.rollBack()
+    }
+    applied
+  }
+
+  private def applyTransaction(tx: Transaction) = {
+    val fromAccount = dataBase.getAccount(tx.fromPubKeyHash()).getOrElse(new Account(true, "", immutable.Map.empty[UInt256, Fixed8], 0))
+    val toAccount = dataBase.getAccount(tx.toPubKeyHash).getOrElse(new Account(true, "", immutable.Map.empty[UInt256, Fixed8], 0))
+
+    val fromBalance = (fromAccount.balances.toSeq ++ Seq((tx.assetId, -tx.amount))).groupBy(_._1)
+      .map(p => (p._1, Fixed8.sum(p._2.map(_._2).sum)))
+      .filter(_._2.value > 0)
+    val toBalance = (toAccount.balances.toSeq ++ Seq((tx.assetId, tx.amount))).groupBy(_._1)
+      .map(p => (p._1, Fixed8.sum(p._2.map(_._2).sum)))
+      .filter(_._2.value > 0)
+
+    dataBase.setAccount(tx.fromPubKeyHash(), new Account(true, fromAccount.name, fromBalance, fromAccount.nextNonce + 1))
+    dataBase.setAccount(tx.toPubKeyHash, new Account(true, toAccount.name, toBalance, toAccount.nextNonce))
+  }
+
+  private def verifyBlock(block: Block): Boolean = {
+    if (!verifyHeader(block.header))
+      false
+    else if (!block.transactions.forall(verifyTransaction))
+      false
+    else if (!verifyRegisterNames(block.transactions))
+      false
+    else
+      true
+  }
+
+  private def verifyTransaction(tx: Transaction): Boolean = {
+    def checkAmount(): Boolean = {
+      // TODO
+      true
+    }
+
+    if (tx.txType == TransactionType.Miner) {
+      // TODO check miner and only one miner tx
+      true
+    }
+    else {
+      var isValid = tx.verifySignature()
+      // More TODO
+      isValid && checkAmount()
+    }
+  }
+
+  private def verifyHeader(header: BlockHeader): Boolean = {
+    //    if (header.index != latestHeader.index + 1)
+    //      false
+    //    else if (header.timeStamp < latestHeader.timeStamp)
+    //      false
+    //    // TODO: verify rule of timeStamp and producer
+    //    else if (header.id.equals(latestHeader.id))
+    //      false
+    //    else if (!header.prevBlock.equals(latestHeader.id))
+    //      false
+    //    else if (!header.verifySig())
+    //      false
+    //    else
+    //      true
+    header.verifySig()
+  }
+
+  private def verifyRegisterNames(transactions: Seq[Transaction]): Boolean = {
+    var isValid = true
+    val newNames = Set.empty[String]
+    val registers = Set.empty[UInt160]
+    transactions.foreach(tx => {
+      if (tx.txType == TransactionType.RegisterName) {
+        val name = new String(tx.data, "UTF-8")
+        if (name.length != 10) // TODO: read "10" from config file
+          isValid = false
+        if (newNames.contains(name))
+          isValid = false
+        if (registers.contains(tx.fromPubKeyHash()))
+          isValid = false
+        newNames.add(name)
+        registers.add(tx.fromPubKeyHash())
+      }
+    })
+    // make sure name is not used
+    //    newNames.foreach(name => {
+    ////      if (nameToAccountStore.get(name) != None)
+    ////        isValid = false
+    ////    })
+    ////
+    isValid = !newNames.exists(dataBase.nameExists)
+
+    // make sure register never registed before
+    //    registers.foreach(register => {
+    //      val account = accountStore.get(register)
+    //      if (account != None && account.get.name != "") {
+    //        isValid = false
+    //      }
+    //    })
+    isValid = !registers.exists(dataBase.registerExists)
+
+    isValid
   }
 
   //  override def getTransaction(id: UInt256): Option[Transaction] = {
@@ -214,42 +345,42 @@ class LevelDBBlockchain(chainSettings: ChainSettings, consensusSettings: Consens
   //    txStore.contains(id)
   //  }
 
-  private def saveBlockToStores(block: Block): Boolean = {
-    def calcBalancesInBlock(balances: Map[UInt160, Map[UInt256, Fixed8]], spent: Boolean,
-                            address: UInt160, amounts: Fixed8, assetId: UInt256) = {
-      val amount = if (spent) -amounts else amounts
-      balances.get(address) match {
-        case Some(balance) => {
-          balance(assetId) += amount
-        }
-        case None => balances.put(address, Map((assetId, amount)))
-      }
-    }
-
-    def updateAccout(accounts: Map[UInt160, Account], tx: Transaction) = {
-      // TODO
-    }
-
-    //temp check
-    //    require(latestHeader.id.equals(block.prev))
-    //    require(block.header.index == latestHeader.index + 1)
-    require(block.header.verifySig())
-
-    try {
-//      db.newSession()
-//      db.batchWrite(batch => {
+//  private def saveBlockToStores(block: Block): Boolean = {
+//    def calcBalancesInBlock(balances: Map[UInt160, Map[UInt256, Fixed8]], spent: Boolean,
+//                            address: UInt160, amounts: Fixed8, assetId: UInt256) = {
+//      val amount = if (spent) -amounts else amounts
+//      balances.get(address) match {
+//        case Some(balance) => {
+//          balance(assetId) += amount
+//        }
+//        case None => balances.put(address, Map((assetId, amount)))
+//      }
+//    }
 //
-//        // TODO accounts.foreach()
-//      })
-      //      latestHeader = block.header
-      true
-    } catch {
-      case e: Throwable => {
-        log.error("produce block failed", e)
-        false
-      }
-    }
-  }
+//    def updateAccout(accounts: Map[UInt160, Account], tx: Transaction) = {
+//      // TODO
+//    }
+//
+//    //temp check
+//    //    require(latestHeader.id.equals(block.prev))
+//    //    require(block.header.index == latestHeader.index + 1)
+//    require(block.header.verifySig())
+//
+//    try {
+////      db.newSession()
+////      db.batchWrite(batch => {
+////
+////        // TODO accounts.foreach()
+////      })
+//      //      latestHeader = block.header
+//      true
+//    } catch {
+//      case e: Throwable => {
+//        log.error("produce block failed", e)
+//        false
+//      }
+//    }
+//  }
 
   override def getBalance(address: UInt160): Option[collection.immutable.Map[UInt256, Long]] = {
     dataBase.getBalance(address).map(_.mapValues(_.value))
