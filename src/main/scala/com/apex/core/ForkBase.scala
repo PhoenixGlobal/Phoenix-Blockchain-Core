@@ -341,18 +341,25 @@ class ForkBase(settings: ForkBaseSettings,
   }
 
   def add(item: ForkItem): Boolean = {
+    def replaceHead = {
+      val old = _head
+      _head = indexByConfirmedHeight.headOption.map(_._3).flatMap(indexById.get)
+      old
+    }
+
     if (insert(item)) {
-      val oldHead = _head
-      _head = indexById.get(indexByConfirmedHeight.head._3)
-      val item = _head.get
-      removeConfirmed(item.confirmedHeight)
-      if (oldHead.map(_.block.id).map(item.block.prev.equals).getOrElse(true)) {
-        val newItem = item.copy(master = true)
-        if (forkStore.set(item.block.id, newItem)) {
-          updateIndex(newItem)
+      val oldHead = replaceHead
+      require(_head.isDefined)
+      val headItem = _head.get
+      val oldItem = oldHead.getOrElse(headItem)
+      if (headItem.block.prev.equals(oldItem.block.id)) {
+        removeConfirmed(item.confirmedHeight)
+        val udpItem = headItem.copy(master = true)
+        if (forkStore.set(udpItem.block.id, udpItem)) {
+          updateIndex(udpItem)
         }
-      } else {
-        switch(oldHead.get, item)
+      } else if (!headItem.block.id.equals(oldItem.block.id)) {
+        switch(oldItem, headItem)
       }
       true
     } else {
@@ -459,18 +466,23 @@ class ForkBase(settings: ForkBaseSettings,
   }
 
   private def getForks(x: ForkItem, y: ForkItem): (Seq[ForkItem], Seq[ForkItem]) = {
-    var a = x
-    var b = y
+    def getPrev(item: ForkItem): ForkItem = {
+      val prev = get(item.block.prev)
+      require(prev.isDefined)
+      prev.get
+    }
+
+    var (a, b) = if (x.block.height >= y.block.height) (x, y) else (y, x)
     if (a.block.id.equals(b.block.id)) {
-      (Seq(a), Seq(b))
+      (Seq.empty, Seq.empty)
     } else {
       val xs = ListBuffer.empty[ForkItem]
       val ys = ListBuffer.empty[ForkItem]
-      while (a.block.height < b.block.height) {
+      while (a.block.height > b.block.height) {
         xs.append(a)
         a = getPrev(a)
       }
-      while (b.block.height < a.block.height) {
+      while (b.block.height > a.block.height) {
         ys.append(b)
         b = getPrev(b)
       }
@@ -482,14 +494,6 @@ class ForkBase(settings: ForkBaseSettings,
       }
       (xs, ys)
     }
-  }
-
-  private def getPrev(item: ForkItem): ForkItem = {
-    val prev = get(item.block.prev)
-    if (prev.isEmpty) {
-      throw new UnExpectedError
-    }
-    prev.get
   }
 
   private def createIndex(item: ForkItem): Unit = {
