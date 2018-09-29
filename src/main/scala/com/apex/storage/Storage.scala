@@ -1,6 +1,6 @@
 package com.apex.storage
 
-import org.iq80.leveldb.WriteBatch
+import java.util.Map.Entry
 
 import scala.collection.mutable.ListBuffer
 
@@ -11,7 +11,11 @@ trait Storage[Key, Value] {
 
   def set(key: Key, value: Value, batch: Batch): Boolean
 
-  def delete(key: Key, batch: Batch): Unit
+  def delete(key: Key, batch: Batch): Boolean
+
+  def batchWrite(action: Batch => Unit): Boolean
+
+  def last(): Option[Entry[Array[Byte], Array[Byte]]]
 
   def scan(func: (Key, Value) => Unit): Unit
 
@@ -19,11 +23,17 @@ trait Storage[Key, Value] {
 
   def newSession(): Unit
 
-  def commit(revision: Int = -1): Unit
+  def commit(revision: Int): Unit
+
+  def commit(): Unit
 
   def rollBack(): Unit
 
   def close(): Unit
+
+  def revision(): Int
+
+  def uncommitted(): Seq[Int]
 }
 
 trait BatchItem

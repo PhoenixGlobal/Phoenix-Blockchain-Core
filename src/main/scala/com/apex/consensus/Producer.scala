@@ -87,7 +87,7 @@ class Producer(settings: ConsensusSettings,
 
   private val txPool: scala.collection.mutable.Map[UInt256, Transaction] = scala.collection.mutable.Map.empty
 
-  private var canProduce = false
+  private var canProduce = true
 
   private val task = new ProduceTask(this, peerHandlerManager)
   system.scheduler.scheduleOnce(Duration.ZERO, task)
@@ -114,7 +114,8 @@ class Producer(settings: ConsensusSettings,
 
   private def tryProduce(now: Long) = {
     val next = nextBlockTime()
-    if (next - now <= settings.produceInterval) {
+    if (next - now <= settings.produceInterval
+         && chain.isProducingBlock() == false) {
       val witness = getWitness(nextProduceTime(now, next))
       if (!witness.privkey.isEmpty) {
         log.info("startProduceBlock")

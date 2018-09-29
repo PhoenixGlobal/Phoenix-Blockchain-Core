@@ -1,13 +1,11 @@
 package com.apex.storage
 
 import java.io.{ByteArrayInputStream, DataInputStream, DataOutputStream, File}
-import java.nio.ByteBuffer
 import java.util
 import java.util.Map.Entry
 
 import com.apex.common.{ApexLogging, Serializable}
 import com.apex.core.{DataType, StoreType}
-import com.apex.exceptions.InvalidOperationException
 import org.fusesource.leveldbjni.JniDBFactory._
 import org.iq80.leveldb._
 
@@ -30,14 +28,37 @@ class LevelDbStorage(private val db: DB) extends Storage[Array[Byte], Array[Byte
     val newBatch = sessionMgr.beginSet(key, value, batch)
     if (newBatch != batch) {
       applyBatch(newBatch)
+    } else {
+      true
     }
-    true
   }
 
-  override def delete(key: Array[Byte], batch: Batch = null): Unit = {
+  override def delete(key: Array[Byte], batch: Batch = null): Boolean = {
     val newBatch = sessionMgr.beginDelete(key, batch)
     if (newBatch != batch) {
       applyBatch(newBatch)
+    } else {
+      true
+    }
+  }
+
+  override def batchWrite(action: Batch => Unit): Boolean = {
+    val batch = new Batch
+    action(batch)
+    applyBatch(batch)
+  }
+
+  override def last(): Option[Entry[Array[Byte], Array[Byte]]] = {
+    val it = db.iterator()
+    try {
+      it.seekToLast()
+      if (it.hasNext) {
+        Some(it.peekNext())
+      } else {
+        None
+      }
+    } finally {
+      it.close()
     }
   }
 
@@ -68,8 +89,12 @@ class LevelDbStorage(private val db: DB) extends Storage[Array[Byte], Array[Byte
     sessionMgr.newSession()
   }
 
-  override def commit(revision: Int = -1): Unit = {
+  override def commit(revision: Int): Unit = {
     sessionMgr.commit(revision)
+  }
+
+  override def commit(): Unit = {
+    sessionMgr.commit()
   }
 
   override def rollBack(): Unit = {
@@ -78,22 +103,6 @@ class LevelDbStorage(private val db: DB) extends Storage[Array[Byte], Array[Byte
 
   override def close(): Unit = {
     db.close()
-  }
-
-  def batchWrite(action: Batch => Unit): Boolean = {
-    val batch = new Batch
-    action(batch)
-    applyBatch(batch)
-  }
-
-  def last(): Option[Entry[Array[Byte], Array[Byte]]] = {
-    val it = db.iterator()
-    it.seekToLast()
-    if (it.hasNext) {
-      Some(it.peekNext())
-    } else {
-      None
-    }
   }
 
   private def seekThenApply(seekAction: DBIterator => Unit, func: Entry[Array[Byte], Array[Byte]] => Boolean): Unit = {
@@ -119,7 +128,7 @@ class LevelDbStorage(private val db: DB) extends Storage[Array[Byte], Array[Byte
       })
       db.write(update)
       true
-    }catch {
+    } catch {
       case e: Throwable => {
         log.error("apply batch failed", e)
         false
@@ -127,6 +136,14 @@ class LevelDbStorage(private val db: DB) extends Storage[Array[Byte], Array[Byte
     } finally {
       update.close()
     }
+  }
+
+  override def revision(): Int = {
+    sessionMgr.revision()
+  }
+
+  override def uncommitted(): Seq[Int] = {
+    sessionMgr.revisions()
   }
 }
 
@@ -195,20 +212,77 @@ class SessionItem(val insert: Map[ByteArrayKey, Array[Byte]] = Map.empty[ByteArr
   }
 }
 
-class Session(db: DB, val prefix: Array[Byte], val revision: Int) {
+class Session {
+  def onSet(key: Array[Byte], value: Array[Byte], batch: Batch): Batch = {
+    val newBatch = originOrNew(batch)
+    newBatch.put(key, value)
+    newBatch
+  }
 
+  def onDelete(key: Array[Byte], batch: Batch): Batch = {
+    val newBatch = originOrNew(batch)
+    newBatch.delete(key)
+    newBatch
+  }
+
+  protected def originOrNew(batch: Batch): Batch = {
+    if (batch == null) new Batch else batch
+  }
+}
+
+class RollbackSession(db: DB, val prefix: Array[Byte], val revision: Int) extends Session {
   private val sessionId = prefix ++ BigInt(revision).toByteArray
 
   private val item = new SessionItem
 
   private var closed = false
 
-  init()
+  def init(data: Array[Byte]): Unit = {
+    require(!closed)
 
-  def onSet(key: Array[Byte], v: Array[Byte], batch: Batch): Batch = {
-    if (closed) throw new InvalidOperationException("closed session")
+    item.fill(data)
+  }
 
-    val newBatch = if (batch == null) new Batch else batch
+  def init(action: WriteBatch => Unit): Unit = {
+    require(!closed)
+
+    val batch = db.createWriteBatch()
+    try {
+      batch.put(sessionId, item.toBytes)
+      action(batch)
+      db.write(batch)
+    } finally {
+      batch.close()
+    }
+  }
+
+  def close(): Unit = {
+    require(!closed)
+
+    db.delete(sessionId)
+    closed = true
+  }
+
+  def rollBack(onRollBack: WriteBatch => Unit): Unit = {
+    require(!closed)
+
+    val batch = db.createWriteBatch()
+    try {
+      item.insert.foreach(p => batch.delete(p._1.bytes))
+      item.update.foreach(p => batch.put(p._1.bytes, p._2))
+      item.delete.foreach(p => batch.put(p._1.bytes, p._2))
+      batch.delete(sessionId)
+      onRollBack(batch)
+      db.write(batch)
+    } finally {
+      batch.close()
+    }
+  }
+
+  override def onSet(key: Array[Byte], v: Array[Byte], batch: Batch): Batch = {
+    require(!closed)
+
+    val newBatch = originOrNew(batch)
     newBatch.put(key, v)
 
     var modified = true
@@ -228,15 +302,15 @@ class Session(db: DB, val prefix: Array[Byte], val revision: Int) {
     }
 
     if (modified) {
-      batch.put(sessionId, item.toBytes)
+      newBatch.put(sessionId, item.toBytes)
     }
     newBatch
   }
 
-  def onDelete(key: Array[Byte], batch: Batch): Batch = {
-    if (closed) throw new InvalidOperationException("closed session")
+  override def onDelete(key: Array[Byte], batch: Batch): Batch = {
+    require(!closed)
 
-    val newBatch = if (batch == null) new Batch else batch
+    val newBatch = originOrNew(batch)
     newBatch.delete(key)
 
     var modified = false
@@ -257,43 +331,18 @@ class Session(db: DB, val prefix: Array[Byte], val revision: Int) {
     }
 
     if (modified) {
-      batch.put(sessionId, item.toBytes)
+      newBatch.put(sessionId, item.toBytes)
     }
     newBatch
-  }
-
-  def close(): Unit = {
-    db.delete(sessionId)
-    closed = true
-  }
-
-  def rollBack(onRollBack: WriteBatch => Unit): Unit = {
-    val batch = db.createWriteBatch()
-    try {
-      item.insert.foreach(p => batch.delete(p._1.bytes))
-      item.update.foreach(p => batch.put(p._1.bytes, p._2))
-      item.delete.foreach(p => batch.put(p._1.bytes, p._2))
-      batch.delete(sessionId)
-      onRollBack(batch)
-    } finally {
-      batch.close()
-    }
-  }
-
-  private def init(): Unit = {
-    val session = db.get(sessionId)
-    if (session != null) {
-      db.put(sessionId, item.toBytes)
-    } else {
-      item.fill(session)
-    }
   }
 }
 
 class SessionManager(db: DB) {
   private val prefix = Array(StoreType.Data.id.toByte, DataType.Session.id.toByte)
 
-  private val sessions = ListBuffer.empty[Session]
+  private val sessions = ListBuffer.empty[RollbackSession]
+
+  private val defaultSession = new Session
 
   private var _revision = 1
 
@@ -303,12 +352,12 @@ class SessionManager(db: DB) {
 
   def revisions(): Seq[Int] = sessions.map(_.revision)
 
-  def beginSet(key: Array[Byte], value: Array[Byte], batch: Batch = null): Batch = {
-    sessions.lastOption.map(_.onSet(key, value, batch)).orNull
+  def beginSet(key: Array[Byte], value: Array[Byte], batch: Batch): Batch = {
+    sessions.lastOption.getOrElse(defaultSession).onSet(key, value, batch)
   }
 
-  def beginDelete(key: Array[Byte], batch: Batch = null): Batch = {
-    sessions.lastOption.map(_.onDelete(key, batch)).orNull
+  def beginDelete(key: Array[Byte], batch: Batch): Batch = {
+    sessions.lastOption.getOrElse(defaultSession).onDelete(key, batch)
   }
 
   def commit(revision: Int): Unit = {
@@ -333,35 +382,46 @@ class SessionManager(db: DB) {
   }
 
   def newSession(): Session = {
-    db.put(prefix, BigInt(_revision + 1).toByteArray)
-    val session = new Session(db, prefix, _revision)
+    val session = new RollbackSession(db, prefix, _revision)
+    session.init(batch => batch.put(prefix, BigInt(_revision + 1).toByteArray))
     sessions.append(session)
     _revision += 1
     session
   }
 
   private def init(): Unit = {
+    def reloadSessions(iterator: DBIterator): Boolean = {
+      val kv = iterator.peekNext()
+      val key = kv.getKey
+      if (key.startsWith(prefix)) {
+        val value = kv.getValue
+        if (key.length > prefix.length) {
+          val revision = BigInt(key.drop(prefix.length)).toInt
+          val session = new RollbackSession(db, prefix, revision)
+          sessions.append(session)
+          session.init(value)
+        } else {
+          _revision = BigInt(value).toInt
+        }
+        iterator.next
+        false
+      } else {
+        true
+      }
+    }
     val iterator = db.iterator
     try {
       iterator.seek(prefix)
-      while (iterator.hasNext) {
-        val kv = iterator.peekNext()
-        val k = kv.getKey
-        val v = kv.getValue
-        if (k.length > prefix.length) {
-          val level = BigInt(k.drop(prefix.length)).toInt
-          val session = new Session(db, prefix, level)
-          sessions.append(session)
-        } else {
-          _revision = BigInt(v).toInt
-        }
-        iterator.next
+
+      var eof = false
+      while (!eof && iterator.hasNext) {
+        eof = reloadSessions(iterator)
       }
     } finally {
       iterator.close()
     }
 
-    require(sessions.lastOption.forall(_.revision < _revision))
+    require(sessions.lastOption.map(_.revision == _revision - 1).getOrElse(true))
   }
 }
 

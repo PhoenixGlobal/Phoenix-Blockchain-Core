@@ -17,27 +17,27 @@ import java.io.{ByteArrayInputStream, ByteArrayOutputStream, DataInputStream, Da
 import com.apex.common.ApexLogging
 import com.apex.crypto.Ecdsa.PublicKey
 import com.apex.crypto.UInt256
-import com.apex.exceptions.{InvalidOperationException, UnExpectedError}
+import com.apex.exceptions.UnExpectedError
 import com.apex.settings.{ForkBaseSettings, Witness}
 import com.apex.storage.{Batch, LevelDbStorage}
 
-import collection.mutable.{ListBuffer, Map, Seq, SortedMap}
 import scala.collection.mutable
+import scala.collection.mutable.{ListBuffer, Map, Seq, SortedMap}
 
 class MultiMap[K, V] extends mutable.Iterable[(K, V)] {
   private val container = Map.empty[K, ListBuffer[V]]
 
   override def size: Int = container.values.map(_.size).sum
 
-  def contains(k: K) = {
+  def contains(k: K): Boolean = {
     container.contains(k)
   }
 
-  def get(k: K) = {
-    container(k)
+  def get(k: K): Option[Seq[V]] = {
+    container.get(k)
   }
 
-  def put(k: K, v: V) = {
+  def put(k: K, v: V): Unit = {
     if (!container.contains(k)) {
       container.put(k, ListBuffer.empty)
     }
@@ -63,7 +63,8 @@ class MultiMap[K, V] extends mutable.Iterable[(K, V)] {
         nextIt
       }
 
-      !it2.isEmpty && it2.get.hasNext
+      it2.map(_.hasNext)
+        .getOrElse(false)
     }
 
     override def next(): (K, V) = {
@@ -95,8 +96,8 @@ class SortedMultiMap1[K, V](implicit ord: Ordering[K]) extends Iterable[(K, V)] 
     container.contains(k)
   }
 
-  def get(k: K): Seq[V] = {
-    container(k)
+  def get(k: K): Option[Seq[V]] = {
+    container.get(k)
   }
 
   def put(k: K, v: V): Unit = {
@@ -153,8 +154,8 @@ class SortedMultiMap2[K1, K2, V](implicit ord1: Ordering[K1], ord2: Ordering[K2]
     container.contains(k1) && container(k1).contains(k2)
   }
 
-  def get(k1: K1, k2: K2): Seq[V] = {
-    container(k1).get(k2)
+  def get(k1: K1, k2: K2): Option[Seq[V]] = {
+    container.get(k1).flatMap(_.get(k2))
   }
 
   def put(k1: K1, k2: K2, v: V): Unit = {
@@ -290,7 +291,9 @@ class ForkBase(settings: ForkBaseSettings,
   }
 
   def get(height: Int): Option[ForkItem] = {
-    indexByHeight.get(height, true).headOption.flatMap(get)
+    indexByHeight.get(height, true)
+      .flatMap(_.headOption)
+      .flatMap(get)
   }
 
   //TODO
@@ -385,14 +388,18 @@ class ForkBase(settings: ForkBaseSettings,
     indexById.get(id).forall(item => {
       val queue = ListBuffer(item)
 
+      def getAncestors(ancestors: Seq[UInt256]): Seq[ForkItem] = {
+        ancestors.map(indexById.get).filter(_.isDefined).map(_.get)
+      }
+
       def removeAll(batch: Batch): Unit = {
         var i = 0
 
         while (i < queue.size) {
           val toRemove = queue(i)
           val toRemoveId = toRemove.block.id
-          val children = indexByPrev.get(toRemoveId).map(indexById)
-          queue.appendAll(children)
+          val ancestors = indexByPrev.get(toRemoveId).map(getAncestors)
+          ancestors.foreach(queue.appendAll)
           forkStore.delete(toRemoveId, batch)
           i += 1
         }

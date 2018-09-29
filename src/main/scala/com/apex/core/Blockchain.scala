@@ -79,17 +79,6 @@ class LevelDBBlockchain(chainSettings: ChainSettings, consensusSettings: Consens
   private val genesisProducer = PublicKey(BinaryData(chainSettings.genesis.publicKey)) // TODO: read from settings
   private val genesisProducerPrivKey = new PrivateKey(BinaryData(chainSettings.genesis.privateKey))
 
-  //  private val headerStore = new HeaderStore(db, 10)
-  //  private val heightStore = new HeightStore(db, 10)
-  //  private val txStore = new TransactionStore(db, 10)
-  //  private val accountStore = new AccountStore(db, 10)
-  //  //  private val addressStore = new AddressStore(db)
-  //  private val blkTxMappingStore = new BlkTxMappingStore(db, 10)
-  //  private val headBlkStore = new HeadBlockStore(db)
-  //  //private val utxoStore = new UTXOStore(db, 10)
-  //  private val nameToAccountStore = new NameToAccountStore(db, 10)
-  //  // TODO:  pubkeyNonceStore
-  //  private val prodStateStore = new ProducerStateStore(db)
   private val blockBase = new BlockBase(chainSettings.blockBase)
 
   private val dataBase = new DataBase(chainSettings.dataBase)
@@ -174,29 +163,8 @@ class LevelDBBlockchain(chainSettings: ChainSettings, consensusSettings: Consens
   }
 
   override def getBlockInForkBase(id: UInt256): Option[Block] = {
-    forkBase.get(id).flatMap(item => getBlock(item.block.id))
+    forkBase.get(id).map(_.block.id).flatMap(getBlock)
   }
-
-//  override def produceBlock(producer: PublicKey, privateKey: PrivateKey,
-//                            timeStamp: Long, transactions: Seq[Transaction]): Option[Block] = {
-//    val forkHead = forkBase.head.get
-//    val minerTx = new Transaction(TransactionType.Miner, minerCoinFrom,
-//      producer.pubKeyHash, "", minerAward, UInt256.Zero,
-//      forkHead.block.height + 1, BinaryData.empty, BinaryData.empty
-//    )
-//    //val txs = Seq(minerTx) ++ transactions.filter(verifyTransaction)
-//    val txs = Seq(minerTx) ++ transactions
-//    val merkleRoot = MerkleTree.root(txs.map(_.id))
-//    val header = BlockHeader.build(
-//      forkHead.block.height + 1, timeStamp, merkleRoot,
-//      forkHead.block.id, producer, privateKey)
-//    val block = Block.build(header, txs)
-//    if (tryInsertBlock(block, true)) {
-//      Some(block)
-//    } else {
-//      None
-//    }
-//  }
 
   override def startProduceBlock(producer: PublicKey) = {
     require(pendingTxs.isEmpty)
@@ -381,70 +349,11 @@ class LevelDBBlockchain(chainSettings: ChainSettings, consensusSettings: Consens
         registers.add(tx.fromPubKeyHash())
       }
     })
-    // make sure name is not used
-    //    newNames.foreach(name => {
-    ////      if (nameToAccountStore.get(name) != None)
-    ////        isValid = false
-    ////    })
-    ////
+
     isValid = !newNames.exists(dataBase.nameExists)
-
-    // make sure register never registed before
-    //    registers.foreach(register => {
-    //      val account = accountStore.get(register)
-    //      if (account != None && account.get.name != "") {
-    //        isValid = false
-    //      }
-    //    })
     isValid = !registers.exists(dataBase.registerExists)
-
     isValid
   }
-
-  //  override def getTransaction(id: UInt256): Option[Transaction] = {
-  //    txStore.get(id)
-  //  }
-  //
-  //  override def containsTransaction(id: UInt256): Boolean = {
-  //    txStore.contains(id)
-  //  }
-
-//  private def saveBlockToStores(block: Block): Boolean = {
-//    def calcBalancesInBlock(balances: Map[UInt160, Map[UInt256, Fixed8]], spent: Boolean,
-//                            address: UInt160, amounts: Fixed8, assetId: UInt256) = {
-//      val amount = if (spent) -amounts else amounts
-//      balances.get(address) match {
-//        case Some(balance) => {
-//          balance(assetId) += amount
-//        }
-//        case None => balances.put(address, Map((assetId, amount)))
-//      }
-//    }
-//
-//    def updateAccout(accounts: Map[UInt160, Account], tx: Transaction) = {
-//      // TODO
-//    }
-//
-//    //temp check
-//    //    require(latestHeader.id.equals(block.prev))
-//    //    require(block.header.index == latestHeader.index + 1)
-//    require(block.header.verifySig())
-//
-//    try {
-////      db.newSession()
-////      db.batchWrite(batch => {
-////
-////        // TODO accounts.foreach()
-////      })
-//      //      latestHeader = block.header
-//      true
-//    } catch {
-//      case e: Throwable => {
-//        log.error("produce block failed", e)
-//        false
-//      }
-//    }
-//  }
 
   override def getBalance(address: UInt160): Option[collection.immutable.Map[UInt256, Long]] = {
     dataBase.getBalance(address).map(_.mapValues(_.value))
@@ -460,7 +369,8 @@ class LevelDBBlockchain(chainSettings: ChainSettings, consensusSettings: Consens
     }
 
     if (forkBase.head.isEmpty) {
-      tryInsertBlock(genesisBlock, true)
+      //tryInsertBlock(genesisBlock, true)
+      forkBase.add(genesisBlock)
     }
 
     require(
@@ -475,8 +385,8 @@ class LevelDBBlockchain(chainSettings: ChainSettings, consensusSettings: Consens
   }
 
   private def onConfirmed(block: Block): Unit = {
-    log.debug(s"confirm block ${block.height} (${block.id})")
     if (block.height > 0) {
+      log.info(s"confirm block ${block.height} (${block.id})")
       dataBase.commit(block.height)
       blockBase.add(block)
     }
@@ -484,13 +394,14 @@ class LevelDBBlockchain(chainSettings: ChainSettings, consensusSettings: Consens
 
   private def onSwitch(from: Seq[ForkItem], to: Seq[ForkItem]): Unit = {
     def printChain(title: String, fork: Seq[ForkItem]): Unit = {
-      log.debug(s"$title: ${fork.map(_.block.id.toString.substring(0, 6)).mkString(" -> ")}")
+      log.info(s"$title: ${fork.map(_.block.id.toString.substring(0, 6)).mkString(" -> ")}")
     }
 
     printChain("old chain", from)
     printChain("new chain", to)
 
     from.foreach(_ => dataBase.rollBack())
+    to.foreach(item => applyBlock(item.block))
     //TODO apply all blocks switched to
   }
 }

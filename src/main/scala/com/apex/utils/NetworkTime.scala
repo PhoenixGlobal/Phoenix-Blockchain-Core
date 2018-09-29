@@ -34,20 +34,24 @@ class NetworkTimeProvider(ntpSettings: NetworkTimeProviderSettings)(implicit ec:
   }
 
   private def checkUpdateRequired(): Unit = {
-    val time = NetworkTime.localWithOffset(offset.get())
-    val lu = lastUpdate.getAndSet(time)
-    if (time > lu + ntpSettings.updateEvery.toMillis) {
-      updateOffset().onComplete {
-        case Success(newOffset) =>
-          offset.set(newOffset)
-          log.info("新时间偏移调整: " + offset)
-          lastUpdate.set(time)
-        case Failure(e) =>
-          log.warn("Problems with NTP: ", e)
-          lastUpdate.compareAndSet(time, lu)
+    try {
+      val time = NetworkTime.localWithOffset(offset.get())
+      val lu = lastUpdate.getAndSet(time)
+      if (time > lu + ntpSettings.updateEvery.toMillis) {
+        updateOffset().onComplete {
+          case Success(newOffset) =>
+            offset.set(newOffset)
+            log.info("新时间偏移调整: " + offset)
+            lastUpdate.set(time)
+          case Failure(e) =>
+            log.warn("Problems with NTP: ", e)
+            lastUpdate.compareAndSet(time, lu)
+        }
+      } else {
+        lastUpdate.compareAndSet(time, lu)
       }
-    } else {
-      lastUpdate.compareAndSet(time, lu)
+    } catch {
+      case e: Throwable => log.error(e.getMessage)
     }
   }
 
