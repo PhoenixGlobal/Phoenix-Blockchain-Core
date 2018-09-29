@@ -9,7 +9,8 @@ import com.apex.crypto.{BinaryData, Crypto, Fixed8, MerkleTree, UInt160, UInt256
 import com.apex.storage.{Batch, LevelDbStorage}
 import org.iq80.leveldb.WriteBatch
 
-import scala.collection.mutable.{Map, Set}
+import scala.collection.mutable.{ArrayBuffer, Map, Set}
+import scala.collection.immutable
 
 trait Blockchain extends Iterable[Block] with ApexLogging {
   def getLatestHeader: BlockHeader
@@ -32,19 +33,27 @@ trait Blockchain extends Iterable[Block] with ApexLogging {
 
   def getBlockInForkBase(id: UInt256): Option[Block]
 
-  def produceBlock(producer: PublicKey, privateKey: PrivateKey, timeStamp: Long,
-                   transactions: Seq[Transaction]): Option[Block]
+//  def produceBlock(producer: PublicKey, privateKey: PrivateKey, timeStamp: Long,
+//                   transactions: Seq[Transaction]): Option[Block]
 
-  def tryInsertBlock(block: Block): Boolean
+  def startProduceBlock(producer: PublicKey)
+
+  def produceBlockAddTransaction(tx: Transaction): Boolean
+
+  def produceBlockFinalize(producer: PublicKey, privateKey: PrivateKey, timeStamp: Long): Option[Block]
+
+  def isProducingBlock(): Boolean
+
+  def tryInsertBlock(block: Block, doApply: Boolean): Boolean
 
   //
   //  def getTransaction(id: UInt256): Option[Transaction]
   //
   //  def containsTransaction(id: UInt256): Boolean
 
-  def verifyBlock(block: Block): Boolean
+  //def verifyBlock(block: Block): Boolean
 
-  def verifyTransaction(tx: Transaction): Boolean
+  //def verifyTransaction(tx: Transaction): Boolean
 
   def getBalance(address: UInt160): Option[collection.immutable.Map[UInt256, Long]]
 
@@ -70,17 +79,6 @@ class LevelDBBlockchain(chainSettings: ChainSettings, consensusSettings: Consens
   private val genesisProducer = PublicKey(BinaryData(chainSettings.genesis.publicKey)) // TODO: read from settings
   private val genesisProducerPrivKey = new PrivateKey(BinaryData(chainSettings.genesis.privateKey))
 
-  //  private val headerStore = new HeaderStore(db, 10)
-  //  private val heightStore = new HeightStore(db, 10)
-  //  private val txStore = new TransactionStore(db, 10)
-  //  private val accountStore = new AccountStore(db, 10)
-  //  //  private val addressStore = new AddressStore(db)
-  //  private val blkTxMappingStore = new BlkTxMappingStore(db, 10)
-  //  private val headBlkStore = new HeadBlockStore(db)
-  //  //private val utxoStore = new UTXOStore(db, 10)
-  //  private val nameToAccountStore = new NameToAccountStore(db, 10)
-  //  // TODO:  pubkeyNonceStore
-  //  private val prodStateStore = new ProducerStateStore(db)
   private val blockBase = new BlockBase(chainSettings.blockBase)
 
   private val dataBase = new DataBase(chainSettings.dataBase)
@@ -104,9 +102,12 @@ class LevelDBBlockchain(chainSettings: ChainSettings, consensusSettings: Consens
     genesisProducer, genesisProducerPrivKey)
   private val genesisBlock: Block = Block.build(genesisBlockHeader, Seq(genesisTx))
 
-  //  private var latestHeader: BlockHeader = genesisBlockHeader
+  private var latestHeader: BlockHeader = genesisBlockHeader
 
   //  private var latestProdState: ProducerStatus = null
+
+  private val pendingTxs = ArrayBuffer.empty[Transaction]  // TODO: save to DB?
+  private val unapplyTxs = ArrayBuffer.empty[Transaction] //Map.empty[UInt256, Transaction]  // TODO: save to DB?
 
   populate()
 
@@ -162,122 +163,130 @@ class LevelDBBlockchain(chainSettings: ChainSettings, consensusSettings: Consens
   }
 
   override def getBlockInForkBase(id: UInt256): Option[Block] = {
-    forkBase.get(id).flatMap(item => getBlock(item.block.id))
+    forkBase.get(id).map(_.block.id).flatMap(getBlock)
   }
 
-  override def produceBlock(producer: PublicKey, privateKey: PrivateKey,
-                            timeStamp: Long, transactions: Seq[Transaction]): Option[Block] = {
+  override def startProduceBlock(producer: PublicKey) = {
+    require(pendingTxs.isEmpty)
+
     val forkHead = forkBase.head.get
     val minerTx = new Transaction(TransactionType.Miner, minerCoinFrom,
       producer.pubKeyHash, "", minerAward, UInt256.Zero,
       forkHead.block.height + 1, BinaryData.empty, BinaryData.empty
     )
-    val txs = Seq(minerTx) ++ transactions.filter(verifyTransaction)
-    val merkleRoot = MerkleTree.root(txs.map(_.id))
+    //isPendingBlock = true
+    dataBase.startSession()
+
+    val applied = applyTransaction(minerTx)
+    require(applied)
+    pendingTxs.append(minerTx)
+    //pendingTxs.put(minerTx.id(), minerTx)
+
+  }
+
+  override def isProducingBlock(): Boolean = {
+    !pendingTxs.isEmpty
+  }
+
+  override def produceBlockAddTransaction(tx: Transaction): Boolean = {
+    require(!pendingTxs.isEmpty)
+
+    if (applyTransaction(tx)) {
+      pendingTxs.append(tx)
+      true
+    }
+    else
+      false
+  }
+
+  override def produceBlockFinalize(producer: PublicKey, privateKey: PrivateKey,
+                           timeStamp: Long): Option[Block] = {
+    require(!pendingTxs.isEmpty)
+
+    val forkHead = forkBase.head.get
+    val merkleRoot = MerkleTree.root(pendingTxs.toSeq.map(_.id))
+
     val header = BlockHeader.build(
       forkHead.block.height + 1, timeStamp, merkleRoot,
       forkHead.block.id, producer, privateKey)
-    val block = Block.build(header, txs)
-    if (forkBase.add(block)) {
+    val block = Block.build(header, pendingTxs.toSeq)
+    pendingTxs.clear()
+    if (tryInsertBlock(block, false)) {
       Some(block)
     } else {
       None
     }
   }
 
-  override def tryInsertBlock(block: Block): Boolean = {
-    forkBase.add(block)
-    //    log.info(s"received block ${block.height}")
-    //    if (verifyBlock(block)) {
-    //      forkBase.add(block)
-    //    } else {
-    //      false
+  override def tryInsertBlock(block: Block, doApply: Boolean): Boolean = {
+    var inserted = false
+
+    if (!pendingTxs.isEmpty) {
+      pendingTxs.foreach(unapplyTxs.append(_))
+      pendingTxs.clear()
+
+      dataBase.rollBack()
+    }
+
+    if (forkBase.head.get.block.id.equals(block.prev())) {
+      if (doApply == false) {   // check first !
+        forkBase.add(block)
+        inserted = true
+        latestHeader = block.header
+      }
+      else if (applyBlock(block)) {
+        forkBase.add(block)
+        inserted = true
+        latestHeader = block.header
+      }
+      else {
+        log.info(s"block ${block.height} ${block.id} apply error")
+        //forkBase.removeFork(block.id)
+      }
+    }
+    else {
+      log.info(s"received block added to minor fork chain. block ${block.height} ${block.id}")
+      forkBase.add(block)
+      inserted = true
+    }
+    inserted
+  }
+
+  def applyBlock(block: Block): Boolean = {
+    var applied = false
+    //    if (isPendingBlock) {
+    //      rollBack()
     //    }
+    if (verifyBlock(block)) {
+      dataBase.startSession()
+      block.transactions.foreach(applyTransaction(_))
+      applied = true
+      //dataBase.rollBack()
+    }
+    applied
   }
 
-  //  override def getTransaction(id: UInt256): Option[Transaction] = {
-  //    txStore.get(id)
-  //  }
-  //
-  //  override def containsTransaction(id: UInt256): Boolean = {
-  //    txStore.contains(id)
-  //  }
+  private def applyTransaction(tx: Transaction): Boolean = {
 
-  private def saveBlockToStores(block: Block): Boolean = {
-    def calcBalancesInBlock(balances: Map[UInt160, Map[UInt256, Fixed8]], spent: Boolean,
-                            address: UInt160, amounts: Fixed8, assetId: UInt256) = {
-      val amount = if (spent) -amounts else amounts
-      balances.get(address) match {
-        case Some(balance) => {
-          balance(assetId) += amount
-        }
-        case None => balances.put(address, Map((assetId, amount)))
-      }
-    }
+    //TODO: verifyTransaction first
 
-    def updateAccout(accounts: Map[UInt160, Account], tx: Transaction) = {
-      // TODO
-    }
+    val fromAccount = dataBase.getAccount(tx.fromPubKeyHash()).getOrElse(new Account(true, "", immutable.Map.empty[UInt256, Fixed8], 0))
+    val toAccount = dataBase.getAccount(tx.toPubKeyHash).getOrElse(new Account(true, "", immutable.Map.empty[UInt256, Fixed8], 0))
 
-    //temp check
-    //    require(latestHeader.id.equals(block.prev))
-    //    require(block.header.index == latestHeader.index + 1)
-    require(block.header.verifySig())
+    val fromBalance = (fromAccount.balances.toSeq ++ Seq((tx.assetId, -tx.amount))).groupBy(_._1)
+      .map(p => (p._1, Fixed8.sum(p._2.map(_._2).sum)))
+      .filter(_._2.value > 0)
+    val toBalance = (toAccount.balances.toSeq ++ Seq((tx.assetId, tx.amount))).groupBy(_._1)
+      .map(p => (p._1, Fixed8.sum(p._2.map(_._2).sum)))
+      .filter(_._2.value > 0)
 
-    try {
-//      db.newSession()
-//      db.batchWrite(batch => {
-//
-//        // TODO accounts.foreach()
-//      })
-      //      latestHeader = block.header
-      true
-    } catch {
-      case e: Throwable => {
-        log.error("produce block failed", e)
-        false
-      }
-    }
+    dataBase.setAccount((tx.fromPubKeyHash(), new Account(true, fromAccount.name, fromBalance, fromAccount.nextNonce + 1)),
+         (tx.toPubKeyHash, new Account(true, toAccount.name, toBalance, toAccount.nextNonce)))
+
+    true  //TODO
   }
 
-  private def verifyRegisterNames(transactions: Seq[Transaction]): Boolean = {
-    var isValid = true
-    val newNames = Set.empty[String]
-    val registers = Set.empty[UInt160]
-    transactions.foreach(tx => {
-      if (tx.txType == TransactionType.RegisterName) {
-        val name = new String(tx.data, "UTF-8")
-        if (name.length != 10) // TODO: read "10" from config file
-          isValid = false
-        if (newNames.contains(name))
-          isValid = false
-        if (registers.contains(tx.fromPubKeyHash()))
-          isValid = false
-        newNames.add(name)
-        registers.add(tx.fromPubKeyHash())
-      }
-    })
-    // make sure name is not used
-    //    newNames.foreach(name => {
-    ////      if (nameToAccountStore.get(name) != None)
-    ////        isValid = false
-    ////    })
-    ////
-    isValid = !newNames.exists(dataBase.nameExists)
-
-    // make sure register never registed before
-    //    registers.foreach(register => {
-    //      val account = accountStore.get(register)
-    //      if (account != None && account.get.name != "") {
-    //        isValid = false
-    //      }
-    //    })
-    isValid = !registers.exists(dataBase.registerExists)
-
-    isValid
-  }
-
-  override def verifyBlock(block: Block): Boolean = {
+  private def verifyBlock(block: Block): Boolean = {
     if (!verifyHeader(block.header))
       false
     else if (!block.transactions.forall(verifyTransaction))
@@ -288,7 +297,8 @@ class LevelDBBlockchain(chainSettings: ChainSettings, consensusSettings: Consens
       true
   }
 
-  override def verifyTransaction(tx: Transaction): Boolean = {
+  // TODO: merge with applyTransaction()
+  private def verifyTransaction(tx: Transaction): Boolean = {
     def checkAmount(): Boolean = {
       // TODO
       true
@@ -303,29 +313,6 @@ class LevelDBBlockchain(chainSettings: ChainSettings, consensusSettings: Consens
       // More TODO
       isValid && checkAmount()
     }
-  }
-
-  override def getBalance(address: UInt160): Option[collection.immutable.Map[UInt256, Long]] = {
-    dataBase.getBalance(address).map(_.mapValues(_.value))
-  }
-
-  override def getAccount(address: UInt160): Option[Account] = {
-    dataBase.getAccount(address)
-  }
-
-  private def populate(): Unit = {
-    if (blockBase.head.isEmpty) {
-      blockBase.add(genesisBlock)
-    }
-
-    if (forkBase.head.isEmpty) {
-      forkBase.add(genesisBlock)
-    }
-
-    require(
-      forkBase.head.map(_.block.height).get >=
-      blockBase.head.map(_.index).get
-    )
   }
 
   private def verifyHeader(header: BlockHeader): Boolean = {
@@ -345,9 +332,61 @@ class LevelDBBlockchain(chainSettings: ChainSettings, consensusSettings: Consens
     header.verifySig()
   }
 
+  private def verifyRegisterNames(transactions: Seq[Transaction]): Boolean = {
+    var isValid = true
+    val newNames = Set.empty[String]
+    val registers = Set.empty[UInt160]
+    transactions.foreach(tx => {
+      if (tx.txType == TransactionType.RegisterName) {
+        val name = new String(tx.data, "UTF-8")
+        if (name.length != 10) // TODO: read "10" from config file
+          isValid = false
+        if (newNames.contains(name))
+          isValid = false
+        if (registers.contains(tx.fromPubKeyHash()))
+          isValid = false
+        newNames.add(name)
+        registers.add(tx.fromPubKeyHash())
+      }
+    })
+
+    isValid = !newNames.exists(dataBase.nameExists)
+    isValid = !registers.exists(dataBase.registerExists)
+    isValid
+  }
+
+  override def getBalance(address: UInt160): Option[collection.immutable.Map[UInt256, Long]] = {
+    dataBase.getBalance(address).map(_.mapValues(_.value))
+  }
+
+  override def getAccount(address: UInt160): Option[Account] = {
+    dataBase.getAccount(address)
+  }
+
+  private def populate(): Unit = {
+    if (blockBase.head.isEmpty) {
+      blockBase.add(genesisBlock)
+    }
+
+    if (forkBase.head.isEmpty) {
+      //tryInsertBlock(genesisBlock, true)
+      forkBase.add(genesisBlock)
+    }
+
+    require(
+      forkBase.head.map(_.block.height).get >=
+      blockBase.head.map(_.index).get
+    )
+
+    if (forkBase.head.isDefined)
+      latestHeader = forkBase.head().get.block.header
+    else
+      latestHeader = blockBase.head().get
+  }
+
   private def onConfirmed(block: Block): Unit = {
-    log.debug(s"confirm block ${block.height} (${block.id})")
     if (block.height > 0) {
+      log.info(s"confirm block ${block.height} (${block.id})")
       dataBase.commit(block.height)
       blockBase.add(block)
     }
@@ -355,13 +394,14 @@ class LevelDBBlockchain(chainSettings: ChainSettings, consensusSettings: Consens
 
   private def onSwitch(from: Seq[ForkItem], to: Seq[ForkItem]): Unit = {
     def printChain(title: String, fork: Seq[ForkItem]): Unit = {
-      log.debug(s"$title: ${fork.map(_.block.id.toString.substring(0, 6)).mkString(" -> ")}")
+      log.info(s"$title: ${fork.map(_.block.id.toString.substring(0, 6)).mkString(" -> ")}")
     }
 
     printChain("old chain", from)
     printChain("new chain", to)
 
     from.foreach(_ => dataBase.rollBack())
+    to.foreach(item => applyBlock(item.block))
     //TODO apply all blocks switched to
   }
 }

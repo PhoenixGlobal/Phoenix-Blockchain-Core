@@ -40,6 +40,8 @@ class DataStoreTest {
     store.set(blk2.id, blk2)
     db.commit()
     assert(store.get(blk2.id).get.equals(blk2))
+    db.rollBack()
+    assert(store.get(blk2.id).get.equals(blk2))
     db.newSession()
     val blk3 = createBlockHeader
     println(blk3.id)
@@ -48,89 +50,6 @@ class DataStoreTest {
     db.rollBack()
     assert(store.get(blk2.id).get.equals(blk2))
     assert(store.get(blk3.id).isEmpty)
-  }
-
-  @Test
-  def testSession(): Unit = {
-
-    def assertLevels(levels: Seq[Int], min: Int, max: Int) = {
-      assert(levels.length == max - min + 1)
-      var start = min
-      for (elem <- levels) {
-        assert(elem == start)
-        start += 1
-      }
-      assert(start == max + 1)
-    }
-
-    {
-      val db = DataStoreTest.openDB("test_session")
-      try {
-        val store = new HeaderStore(db, 10)
-        db.newSession()
-//        assert(db.() == 2)
-//        val levels = store.activeLevels()
-//        assertLevels(levels, 1, 1)
-      } finally {
-        db.close()
-      }
-    }
-//    {
-//      val db = DataStoreTest.openDB("test_session")
-//      try {
-//        val store = new HeaderStore(db, 10)
-//        store.beginTransaction()
-//        assert(store.sessionLevel() == 3)
-//        val levels = store.activeLevels()
-//        assertLevels(levels, 1, 2)
-//      } finally {
-//        db.close()
-//      }
-//    }
-//    {
-//      val db = DataStoreTest.openDB("test_session")
-//      try {
-//        val store = new HeaderStore(db, 10)
-//        assert(store.sessionLevel() == 3)
-//        store.rollBack()
-//        assert(store.sessionLevel() == 2)
-//        val levels = store.activeLevels()
-//        assertLevels(levels, 1, 1)
-//      } finally {
-//        db.close()
-//      }
-//    }
-//    {
-//      val db = DataStoreTest.openDB("test_session")
-//      try {
-//        val store = new HeaderStore(db, 10)
-//        assert(store.sessionLevel() == 2)
-//        store.commit()
-//      } finally {
-//        db.close()
-//      }
-//    }
-//    {
-//      val db = DataStoreTest.openDB("test_session")
-//      try {
-//        val store = new HeaderStore(db, 10)
-//        assert(store.sessionLevel() == 2)
-//        store.beginTransaction()
-//        assert(store.sessionLevel() == 3)
-//      } finally {
-//        db.close()
-//      }
-//    }
-//    {
-//      val db = DataStoreTest.openDB("test_session")
-//      try {
-//        val store = new HeaderStore(db, 10)
-//        assert(store.sessionLevel() == 3)
-//        store.commit()
-//      } finally {
-//        db.close()
-//      }
-//    }
   }
 
   private def createBlockHeader() = {
