@@ -421,7 +421,7 @@ class SessionManager(db: DB) {
       iterator.close()
     }
 
-    require(sessions.lastOption.map(_.revision == _revision - 1).getOrElse(true))
+    require(sessions.lastOption.forall(_.revision == _revision - 1))
   }
 }
 
