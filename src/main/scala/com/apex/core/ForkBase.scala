@@ -21,6 +21,7 @@ import com.apex.exceptions.UnExpectedError
 import com.apex.settings.{ForkBaseSettings, Witness}
 import com.apex.storage.{Batch, LevelDbStorage}
 
+import scala.collection.immutable.{Map => IMap}
 import scala.collection.mutable
 import scala.collection.mutable.{ListBuffer, Map, Seq, SortedMap}
 
@@ -63,8 +64,7 @@ class MultiMap[K, V] extends mutable.Iterable[(K, V)] {
         nextIt
       }
 
-      it2.map(_.hasNext)
-        .getOrElse(false)
+      it2.exists(_.hasNext)
     }
 
     override def next(): (K, V) = {
@@ -125,8 +125,7 @@ class SortedMultiMap1[K, V](implicit ord: Ordering[K]) extends Iterable[(K, V)] 
       if (it2.isEmpty || !it2.get.hasNext) {
         nextIt
       }
-      it2.map(_.hasNext)
-        .getOrElse(false)
+      it2.exists(_.hasNext)
     }
 
     override def next(): (K, V) = {
@@ -189,8 +188,7 @@ class SortedMultiMap2[K1, K2, V](implicit ord1: Ordering[K1], ord2: Ordering[K2]
       if (it2.isEmpty || !it2.get.hasNext) {
         nextIt
       }
-      it2.map(_.hasNext)
-        .getOrElse(false)
+      it2.exists(_.hasNext)
     }
 
     override def next(): (K1, K2, V) = {
@@ -218,6 +216,10 @@ object SortedMultiMap {
 
 case class ForkItem(block: Block, lastProducerHeight: mutable.Map[PublicKey, Int], master: Boolean = false) extends com.apex.common.Serializable {
   private var _confirmedHeight: Int = -1
+
+  def id(): UInt256 = block.id()
+
+  def prev(): UInt256 = block.prev()
 
   def confirmedHeight: Int = {
     if (_confirmedHeight == -1) {
@@ -298,42 +300,35 @@ class ForkBase(settings: ForkBaseSettings,
 
   //TODO
   def getNext(id: UInt256): Option[UInt256] = {
-    //val next = indexByPrev.get(id)
-    var target: Option[UInt256] = None
-    var current: Option[ForkItem] = _head
-    while (current.isDefined) {
-      if (current.get.block.prev.equals(id)) {
-        target = Some(current.get.block.id)
-        current = None
-      }
-      else {
-        current = get(current.get.block.prev)
-      }
-    }
-    target
+    indexByPrev.get(id)
+      .map(a => a.map(indexById.get))
+      .map(a => a.flatten.find(_.master).map(_.block.id))
+      .flatten
   }
 
   def add(block: Block): Boolean = {
-    def addItem(lph: Map[PublicKey, Int]) = {
+    def makeItem(heights: IMap[PublicKey, Int], master: Boolean) = {
+      val lph = Map.empty[PublicKey, Int]
+      heights.foreach(lph +=)
       val pub = block.header.producer
       if (lph.contains(pub)) {
         lph.put(pub, block.height)
       }
-      add(ForkItem(block, lph))
+      ForkItem(block, lph, master)
     }
 
-    val lph = mutable.Map.empty[PublicKey, Int]
     if (_head.isEmpty) {
-      for (witness <- witnesses) {
-        lph.put(witness.pubkey, 0)
-      }
-      addItem(lph)
+      val prodHeights = witnesses.map(_.pubkey -> 0).toMap
+      val item = makeItem(prodHeights, true)
+      add(item)
     } else {
-      if (!indexById.contains(block.id) && indexById.contains(block.prev)) {
-        for (p <- _head.get.lastProducerHeight) {
-          lph.put(p._1, p._2)
-        }
-        addItem(lph)
+      if (!indexById.contains(block.id)) {
+        indexById.get(block.prev).exists(prev => {
+          val prodHeights = prev.lastProducerHeight.toMap
+          val master = _head.get.id.equals(block.prev)
+          val item = makeItem(prodHeights, master)
+          add(item)
+        })
       } else {
         false
       }
@@ -341,25 +336,19 @@ class ForkBase(settings: ForkBaseSettings,
   }
 
   def add(item: ForkItem): Boolean = {
-    def replaceHead = {
+    def maybeReplaceHead: (ForkItem, ForkItem) = {
       val old = _head
       _head = indexByConfirmedHeight.headOption.map(_._3).flatMap(indexById.get)
-      old
+      require(_head.isDefined)
+      (old.orElse(_head).get, _head.get)
     }
 
     if (insert(item)) {
-      val oldHead = replaceHead
-      require(_head.isDefined)
-      val headItem = _head.get
-      val oldItem = oldHead.getOrElse(headItem)
-      if (headItem.block.prev.equals(oldItem.block.id)) {
+      val (oldItem, newItem) = maybeReplaceHead
+      if (newItem.prev.equals(oldItem.id)) {
         removeConfirmed(item.confirmedHeight)
-        val udpItem = headItem.copy(master = true)
-        if (forkStore.set(udpItem.block.id, udpItem)) {
-          updateIndex(udpItem)
-        }
-      } else if (!headItem.block.id.equals(oldItem.block.id)) {
-        switch(oldItem, headItem)
+      } else if (!newItem.id.equals(oldItem.id)) {
+        switch(oldItem, newItem)
       }
       true
     } else {
@@ -435,7 +424,7 @@ class ForkBase(settings: ForkBaseSettings,
   private def removeConfirmed(height: Int): Unit = {
     def tryConfirm(key: (Int, Boolean, UInt256)): Boolean = {
       if (key._1 < height) {
-        indexById.get(key._3).map(item => {
+        indexById.get(key._3).exists(item => {
           if (item.master) {
             onConfirmed(item.block)
           }
@@ -445,13 +434,13 @@ class ForkBase(settings: ForkBaseSettings,
           } else {
             false
           }
-        }).getOrElse(false)
+        })
       } else {
         false
       }
     }
 
-    while (indexByHeight.headOption.map(tryConfirm).getOrElse(false)) {
+    while (indexByHeight.headOption.exists(tryConfirm)) {
       indexByHeight.headOption.foreach(h => log.debug(s"head item: ${h.toString}"))
     }
   }
@@ -472,7 +461,7 @@ class ForkBase(settings: ForkBaseSettings,
       prev.get
     }
 
-    var (a, b) = if (x.block.height >= y.block.height) (x, y) else (y, x)
+    var (a, b) = (x, y)
     if (a.block.id.equals(b.block.id)) {
       (Seq.empty, Seq.empty)
     } else {

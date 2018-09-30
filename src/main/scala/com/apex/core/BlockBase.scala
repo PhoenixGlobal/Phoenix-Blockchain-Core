@@ -26,7 +26,7 @@ class BlockBase(settings: BlockBaseSettings) {
   }
 
   def add(block: Block): Unit = {
-    require(head.map(_.id.equals(block.prev)).getOrElse(true))
+    require(head.forall(_.id.equals(block.prev)))
 
     db.batchWrite(batch => {
       blockStore.set(block.id, block, batch)

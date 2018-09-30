@@ -32,29 +32,115 @@ class ForkBaseTest {
   private val genesis = ForkBaseTest.genesisBlock
 
   @Test
-  def testFork(): Unit = {
-    val forkBase = ForkBaseTest.open("fork", witnesses)
+  def testHead(): Unit = {
     val blk1a = ForkBaseTest.newBlock(PubA, PriA, genesis)
     val blk2a = ForkBaseTest.newBlock(PubA, PriA, blk1a)
     val blk3a = ForkBaseTest.newBlock(PubA, PriA, blk2a)
+    val blk4a = ForkBaseTest.newBlock(PubA, PriA, blk3a)
+    val blk3b = ForkBaseTest.newBlock(PubB, PriB, blk2a)
+    val blk4b = ForkBaseTest.newBlock(PubB, PriB, blk3b)
+    val forkBase = ForkBaseTest.open("forkBase_head", witnesses)
+    assert(forkBase.head.isEmpty)
+    forkBase.add(genesis)
+    assert(forkBase.head.exists(_.block.equals(genesis)))
+    forkBase.add(blk1a)
+    assert(forkBase.head.exists(_.block.equals(blk1a)))
+    forkBase.add(blk2a)
+    assert(forkBase.head.exists(_.block.equals(blk2a)))
+    forkBase.add(blk3a)
+    assert(forkBase.head.exists(_.block.equals(blk3a)))
+    forkBase.add(blk4a)
+    assert(forkBase.head.exists(_.block.equals(blk4a)))
+    forkBase.add(blk3b)
+    assert(forkBase.head.exists(_.block.equals(blk3b)))
+    forkBase.add(blk4b)
+    assert(forkBase.head.exists(_.block.equals(blk4b)))
+  }
+
+  @Test
+  def testGet(): Unit = {
+    val forkBase = ForkBaseTest.open("forkBase_get", witnesses)
+
+    def assertBlock(block: Block,
+                    beforeId: Boolean = false,
+                    beforeHeight: Boolean = false,
+                    afterId: Boolean = true,
+                    afterHeight: Boolean = true): Unit = {
+      assert(forkBase.get(block.id).isDefined == beforeId)
+      assert(forkBase.get(block.height).isDefined == beforeHeight)
+      forkBase.add(block)
+      assert(forkBase.get(block.id).isDefined == afterId)
+      assert(forkBase.get(block.height).isDefined == afterHeight)
+    }
+
+    assertBlock(genesis)
+
+    val blk1a = ForkBaseTest.newBlock(PubA, PriA, genesis)
+    assertBlock(blk1a)
+
+    val blk2a = ForkBaseTest.newBlock(PubA, PriA, blk1a)
+    assertBlock(blk2a)
+
+    val blk3a = ForkBaseTest.newBlock(PubA, PriA, blk2a)
+    assertBlock(blk3a)
+
+    val blk3b = ForkBaseTest.newBlock(PubB, PriB, blk2a)
+    assertBlock(blk3b, false, true, true, true)
+  }
+
+  @Test
+  def testGetNext(): Unit = {
+    val forkBase = ForkBaseTest.open("forkBase_next", witnesses)
+    assert(forkBase.getNext(genesis.id).isEmpty)
+    forkBase.add(genesis)
+    assert(forkBase.getNext(genesis.id).isEmpty)
+    val blk1a = ForkBaseTest.newBlock(PubA, PriA, genesis)
+    val blk1b = ForkBaseTest.newBlock(PubB, PriB, genesis)
+    val blk2b = ForkBaseTest.newBlock(PubB, PriB, blk1b)
+    forkBase.add(blk1a)
+    assert(forkBase.getNext(genesis.id).forall(_.equals(blk1a.id)))
+    forkBase.add(blk1b)
+    assert(forkBase.getNext(genesis.id).forall(_.equals(blk1a.id)))
+    forkBase.add(blk2b)
+    assert(forkBase.getNext(genesis.id).forall(_.equals(blk1b.id)))
+  }
+
+  @Test
+  def testAdd(): Unit = {
+    val forkBase = ForkBaseTest.open("forkBase_add", witnesses)
+    assert(forkBase.add(genesis))
+    assert(!forkBase.add(genesis))
+    val blk1a = ForkBaseTest.newBlock(PubA, PriA, genesis)
+    assert(forkBase.add(blk1a))
+    val blk2a = ForkBaseTest.newBlock(PubA, PriA, blk1a)
+    val blk3a = ForkBaseTest.newBlock(PubA, PriA, blk2a)
+    assert(!forkBase.add(blk3a))
+  }
+
+  @Test
+  def testFork(): Unit = {
+    val forkBase = ForkBaseTest.open("forkBase_fork", witnesses)
+    val blk1a = ForkBaseTest.newBlock(PubA, PriA, genesis)
+    val blk2a = ForkBaseTest.newBlock(PubA, PriA, blk1a)
+    val blk3a = ForkBaseTest.newBlock(PubA, PriA, blk2a)
+    val blk4a = ForkBaseTest.newBlock(PubA, PriA, blk3a)
     forkBase.add(genesis)
     forkBase.add(blk1a)
-    assert(forkBase.head.map(_.block.id.equals(blk1a.id)).getOrElse(false))
-    forkBase.head.map(_.block.id).foreach(hid => {
-      println(s"$hid\n${blk1a.id}")
-    })
+    assert(forkBase.head.exists(_.block.id.equals(blk1a.id)))
     forkBase.add(blk2a)
-    assert(forkBase.head.map(_.block.id.equals(blk2a.id)).getOrElse(false))
+    assert(forkBase.head.exists(_.block.id.equals(blk2a.id)))
     forkBase.add(blk3a)
-    assert(forkBase.head.map(_.block.id.equals(blk3a.id)).getOrElse(false))
-    val blk3b = ForkBaseTest.newBlock(PubA, PriA, blk2a)
-    val blk4b = ForkBaseTest.newBlock(PubA, PriA, blk3b)
-    val blk5b = ForkBaseTest.newBlock(PubA, PriA, blk4b)
+    assert(forkBase.head.exists(_.block.id.equals(blk3a.id)))
+    val blk3b = ForkBaseTest.newBlock(PubB, PriB, blk2a)
+    val blk4b = ForkBaseTest.newBlock(PubB, PriB, blk3b)
     forkBase.add(blk3b)
-    assert(forkBase.head.map(_.block.id.equals(blk3a.id)).getOrElse(false))
-    assert(forkBase.get(blk3b.id).map(_.master == false).getOrElse(false))
+    assert(forkBase.head.exists(_.block.id.equals(blk3b.id)))
+    assert(forkBase.get(blk3a.id).exists(_.master == false))
+    assert(forkBase.get(blk3b.id).exists(_.master == true))
+    forkBase.add(blk4a)
+    assert(forkBase.head.exists(_.block.id.equals(blk3b.id)))
     forkBase.add(blk4b)
-    forkBase.add(blk5b)
+    assert(forkBase.head.exists(_.block.id.equals(blk4b.id)))
   }
 
 }
@@ -71,7 +157,7 @@ object ForkBaseTest {
 
   def open(dir: String, witnesses: Array[Witness]): ForkBase = {
     def forkStr(title: String, fork: Seq[ForkItem]): String = {
-      s"  $title: ${fork.map(blk => s"${blk.block.height}(${blk.block.id.toString.substring(0, 6)})").mkString(" -> ")}"
+      s"  $title: ${fork.map(blk => s"${blk.block.height}(${blk.block.id.toString.substring(0, 6)})").mkString(" <- ")}"
     }
 
     val settings = new ForkBaseSettings(dir, false, 0)
