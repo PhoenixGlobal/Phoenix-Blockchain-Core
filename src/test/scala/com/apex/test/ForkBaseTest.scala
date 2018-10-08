@@ -16,7 +16,6 @@ import com.apex.core.{Block, BlockHeader, ForkBase, ForkItem}
 import com.apex.crypto.{BinaryData, UInt256}
 import com.apex.crypto.Ecdsa.{PrivateKey, PublicKey}
 import com.apex.settings.{ForkBaseSettings, Witness}
-import com.apex.test.LevelDBStorageTest.{dbs, deleteDir, dirs}
 import org.junit.{AfterClass, Test}
 
 import scala.collection.mutable.ListBuffer
@@ -28,6 +27,8 @@ class ForkBaseTest {
   private val PriA = new PrivateKey(BinaryData("efc382ccc0358f468c2a80f3738211be98e5ae419fc0907cb2f51d3334001471"))
   private val PubB = PublicKey("0238eb90b322fac718ce10b21d451d00b7003a2a1de2a1d584a158d7b7ffee297b")
   private val PriB = new PrivateKey(BinaryData("485cfb9f743d9997e316f5dca216b1c6adf12aa301c1d520e020269debbebbf0"))
+  private val PubC = PublicKey("0234b9b7d2909231d143a6693082665837965438fc273fbc4c507996e41394c8c1")
+  private val PriC = new PrivateKey(BinaryData("5dfee6af4775e9635c67e1cea1ed617efb6d22ca85abfa97951771d47934aaa0"))
   private val witnesses = Array(Witness("A", PubA, Some(PriA)), Witness("B", PubB, Some(PriB)))
   private val genesis = ForkBaseTest.genesisBlock
 
@@ -115,6 +116,83 @@ class ForkBaseTest {
     val blk2a = ForkBaseTest.newBlock(PubA, PriA, blk1a)
     val blk3a = ForkBaseTest.newBlock(PubA, PriA, blk2a)
     assert(!forkBase.add(blk3a))
+  }
+
+  @Test
+  def testSwitch(): Unit = {
+    val forkBase = ForkBaseTest.open("forkBase_switch", witnesses :+ Witness("C", PubC, Some(PriC)))
+    val blk1a = ForkBaseTest.newBlock(PubA, PriA, genesis)
+    val blk2a = ForkBaseTest.newBlock(PubA, PriA, blk1a)
+    val blk3a = ForkBaseTest.newBlock(PubA, PriA, blk2a)
+    val blk4a = ForkBaseTest.newBlock(PubA, PriA, blk3a)
+    val blk5a = ForkBaseTest.newBlock(PubA, PriA, blk4a)
+    val blk3b = ForkBaseTest.newBlock(PubB, PriB, blk2a)
+    val blk4b = ForkBaseTest.newBlock(PubB, PriB, blk3b)
+    val blk4c = ForkBaseTest.newBlock(PubC, PriC, blk3b)
+    forkBase.add(genesis)
+    forkBase.add(blk1a)
+    forkBase.add(blk2a)
+    forkBase.add(blk3b)
+    forkBase.add(blk4b)
+    assert(forkBase.get(blk1a.id).exists(_.master))
+    assert(forkBase.get(blk2a.id).exists(_.master))
+    assert(forkBase.get(blk3b.id).exists(_.master))
+    assert(forkBase.get(blk4b.id).exists(_.master))
+    forkBase.add(blk3a)
+    forkBase.add(blk4a)
+    assert(forkBase.get(blk1a.id).exists(_.master))
+    assert(forkBase.get(blk2a.id).exists(_.master))
+    assert(forkBase.get(blk3a.id).exists(!_.master))
+    assert(forkBase.get(blk4a.id).exists(!_.master))
+    forkBase.add(blk5a)
+    assert(forkBase.get(blk3b.id).exists(!_.master))
+    assert(forkBase.get(blk4b.id).exists(!_.master))
+    assert(forkBase.get(blk3a.id).exists(_.master))
+    assert(forkBase.get(blk4a.id).exists(_.master))
+    assert(forkBase.get(blk5a.id).exists(_.master))
+    forkBase.add(blk4c)
+    assert(forkBase.get(blk4b.id).exists(!_.master))
+    assert(forkBase.get(blk3a.id).exists(!_.master))
+    assert(forkBase.get(blk4a.id).exists(!_.master))
+    assert(forkBase.get(blk5a.id).exists(!_.master))
+    assert(forkBase.get(blk3b.id).exists(_.master))
+    assert(forkBase.get(blk4c.id).exists(_.master))
+  }
+
+  @Test
+  def testRemoveFork(): Unit = {
+    val forkBase = ForkBaseTest.open("forkBase_removeFork", witnesses :+ Witness("C", PubC, Some(PriC)))
+    val blk1a = ForkBaseTest.newBlock(PubA, PriA, genesis)
+    val blk2a = ForkBaseTest.newBlock(PubA, PriA, blk1a)
+    val blk3a = ForkBaseTest.newBlock(PubA, PriA, blk2a)
+    val blk4a = ForkBaseTest.newBlock(PubA, PriA, blk3a)
+    val blk5a = ForkBaseTest.newBlock(PubA, PriA, blk4a)
+    val blk3b = ForkBaseTest.newBlock(PubB, PriB, blk2a)
+    val blk4b = ForkBaseTest.newBlock(PubB, PriB, blk3b)
+    val blk3c = ForkBaseTest.newBlock(PubC, PriC, blk2a)
+    forkBase.add(genesis)
+    forkBase.add(blk1a)
+    forkBase.add(blk2a)
+    forkBase.add(blk3b)
+    forkBase.add(blk4b)
+    forkBase.add(blk3a)
+    forkBase.add(blk4a)
+    forkBase.add(blk5a)
+    assert(forkBase.removeFork(blk4a.id))
+    assert(forkBase.get(blk1a.id).isDefined)
+    assert(forkBase.get(blk2a.id).isDefined)
+    assert(forkBase.get(blk3a.id).isDefined)
+    assert(forkBase.get(blk3b.id).isDefined)
+    assert(forkBase.get(blk4b.id).isDefined)
+    assert(forkBase.get(blk4a.id).isEmpty)
+    assert(forkBase.get(blk5a.id).isEmpty)
+    assert(forkBase.removeFork(blk2a.id))
+    assert(forkBase.get(blk1a.id).isDefined)
+    assert(forkBase.get(blk2a.id).isEmpty)
+    assert(forkBase.get(blk3a.id).isEmpty)
+    assert(forkBase.get(blk3b.id).isEmpty)
+    assert(forkBase.get(blk4b.id).isEmpty)
+    assert(!forkBase.removeFork(blk3c.id))
   }
 
   @Test

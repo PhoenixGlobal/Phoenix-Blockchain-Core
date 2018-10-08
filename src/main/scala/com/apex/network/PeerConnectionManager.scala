@@ -73,9 +73,10 @@ class PeerConnectionManager(val settings: NetworkSettings,
     val chain = Blockchain.getLevelDBBlockchain
     val headerNum = chain.getHeight()
     val chainId = chain.getGenesisBlockChainId
-    Handshake(settings.agentName,
-            Version(settings.appVersion), settings.nodeName,
-            ownSocketAddress,chainId,headerNum.toString,  timeProvider.time())
+
+    Handshake(settings.agentName, Version(settings.appVersion), settings.nodeName,
+            ownSocketAddress, chainId, headerNum.toString,
+            System.currentTimeMillis())
   }
 
   private def handshake: Receive =
@@ -119,7 +120,7 @@ class PeerConnectionManager(val settings: NetworkSettings,
     case Received(data) =>
       if (!handshakeGot) {
         HandshakeSerializer.parseBytes(data.toArray) match {
-          case Success(handshake) => handleMsg(handshake)
+          case Success(handshake) => handleHandshake(handshake)
           case Failure(t) =>
             log.info(s"解析握手时的错误", t)
             self ! CloseConnection
@@ -131,23 +132,25 @@ class PeerConnectionManager(val settings: NetworkSettings,
       }
   }
 
-  private def handleMsg(handshakeMsg: Handshake): Unit ={
+  private def handleHandshake(handshakeMsg: Handshake): Unit ={
     val localChain = Blockchain.getLevelDBBlockchain
     if(localChain.getGenesisBlockChainId != handshakeMsg.chainId){
       log.error(f"Peer on a different chain. Closing connection")
       self ! CloseConnection
       return
     }
-    if (localChain.getHeight() > handshakeMsg.headerNum.toInt){
-      //log.error(f"Peer on a lower chain. Closing connection")
-      //self ! CloseConnection
-      //return
+
+    // Peer clock may be no more than 1 second skewed from our clock, including network latency
+    val peerMaxTimeGapMs: Long = 1000
+    val myTime = System.currentTimeMillis() 
+    val timeGap = math.abs(handshakeMsg.time - myTime)
+    log.info(s"peer timeGap = $timeGap")
+    if (timeGap > peerMaxTimeGapMs) {
+      log.error(s"peer timeGap too large $timeGap  Closing connection")
+      self ! CloseConnection
+      return
     }
 
-    recvHandshake(handshakeMsg)
-  }
-
-  private def recvHandshake(handshakeMsg: Handshake): Unit ={
     receivedHandshake = Some(handshakeMsg)
     log.info(s"获得握手: $remote")
     connection ! ResumeReading
