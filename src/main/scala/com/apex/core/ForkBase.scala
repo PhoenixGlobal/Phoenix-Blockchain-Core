@@ -381,7 +381,7 @@ class ForkBase(settings: ForkBaseSettings,
   }
 
   def removeFork(id: UInt256): Boolean = {
-    indexById.get(id).forall(item => {
+    indexById.get(id).exists(item => {
       val queue = ListBuffer(item)
 
       def getAncestors(ancestors: Seq[UInt256]): Seq[ForkItem] = {
