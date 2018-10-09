@@ -3,6 +3,7 @@ package com.apex.core
 import java.nio.file.Path
 
 import com.apex.common.ApexLogging
+import com.apex.consensus.ProducerUtil
 import com.apex.settings.{ChainSettings, ConsensusSettings}
 import com.apex.crypto.Ecdsa.{PrivateKey, PublicKey}
 import com.apex.crypto.{BinaryData, Crypto, Fixed8, MerkleTree, UInt160, UInt256}
@@ -289,6 +290,8 @@ class LevelDBBlockchain(chainSettings: ChainSettings, consensusSettings: Consens
   private def verifyBlock(block: Block): Boolean = {
     if (!verifyHeader(block.header))
       false
+    else if (!block.merkleRoot().equals(block.header.merkleRoot))
+      false
     else if (!block.transactions.forall(verifyTransaction))
       false
     else if (!verifyRegisterNames(block.transactions))
@@ -316,20 +319,23 @@ class LevelDBBlockchain(chainSettings: ChainSettings, consensusSettings: Consens
   }
 
   private def verifyHeader(header: BlockHeader): Boolean = {
-    //    if (header.index != latestHeader.index + 1)
-    //      false
-    //    else if (header.timeStamp < latestHeader.timeStamp)
-    //      false
-    //    // TODO: verify rule of timeStamp and producer
-    //    else if (header.id.equals(latestHeader.id))
-    //      false
-    //    else if (!header.prevBlock.equals(latestHeader.id))
-    //      false
-    //    else if (!header.verifySig())
-    //      false
-    //    else
-    //      true
-    header.verifySig()
+    val prevBlock = forkBase.get(header.prevBlock)
+    if (prevBlock.isEmpty) {
+      false
+    }
+    else if (header.index != prevBlock.get.block.height() + 1) {
+      false
+    }
+    else if (!ProducerUtil.isProducerValid(header.timeStamp, header.producer, consensusSettings)) {
+      false
+    }
+    else if (!header.verifySig()) {
+      false
+    }
+    else {
+      // verify merkleRoot in verifyBlock()
+      true
+    }
   }
 
   private def verifyRegisterNames(transactions: Seq[Transaction]): Boolean = {

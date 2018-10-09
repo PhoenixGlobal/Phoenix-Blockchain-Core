@@ -116,7 +116,7 @@ class Producer(settings: ConsensusSettings,
     val next = nextBlockTime()
     if (next - now <= settings.produceInterval
          && chain.isProducingBlock() == false) {
-      val witness = getWitness(nextProduceTime(now, next))
+      val witness = ProducerUtil.getWitness(nextProduceTime(now, next), settings)
       if (!witness.privkey.isEmpty) {
         log.info("startProduceBlock")
         chain.startProduceBlock(witness.pubkey)
@@ -130,7 +130,7 @@ class Producer(settings: ConsensusSettings,
       if (nextProduceTime(now, next) > next) {
         //println(s"some blocks skipped")
       }
-      val witness = getWitness(nextProduceTime(now, next))
+      val witness = ProducerUtil.getWitness(nextProduceTime(now, next), settings)
       if (witness.privkey.isEmpty) {
         NotMyTurn(witness.name, witness.pubkey)
       } else {
@@ -182,14 +182,6 @@ class Producer(settings: ConsensusSettings,
     }
   }
 
-  // "timeMs": time from 1970 in ms, should be divided evenly with no remainder by settings.produceInterval
-  private def getWitness(timeMs: Long): Witness = {
-    val slot = timeMs / settings.produceInterval
-    var index = slot % (settings.initialWitness.size * settings.producerRepetitions)
-    index /= settings.producerRepetitions
-    settings.initialWitness(index.toInt)
-  }
-
   def updateWitnessSchedule(nowSec: Long, witnesses: Array[Witness]): Array[Witness] = {
     var newWitness = witnesses.clone()
 
@@ -238,6 +230,34 @@ class Producer(settings: ConsensusSettings,
     case a: Any => {
       log.info(s"${sender().toString}, ${a.toString}")
     }
+  }
+}
+
+object ProducerUtil {
+
+  // "timeMs": time from 1970 in ms, should be divided evenly with no remainder by settings.produceInterval
+  def getWitness(timeMs: Long, settings: ConsensusSettings): Witness = {
+    val slot = timeMs / settings.produceInterval
+    var index = slot % (settings.initialWitness.size * settings.producerRepetitions)
+    index /= settings.producerRepetitions
+    settings.initialWitness(index.toInt)
+  }
+
+  def isTimeStampValid(timeStamp: Long, settings: ConsensusSettings): Boolean = {
+    if (timeStamp % settings.produceInterval == 0)
+      true
+    else
+      false
+  }
+
+  def isProducerValid(timeStamp: Long, producer: PublicKey, settings: ConsensusSettings): Boolean = {
+    var isValid = false
+    if (getWitness(timeStamp, settings).pubkey.toBin sameElements producer.toBin) {
+      if (isTimeStampValid(timeStamp, settings)) {
+        isValid = true
+      }
+    }
+    isValid
   }
 }
 
