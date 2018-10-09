@@ -3,7 +3,7 @@ package com.apex.core
 import java.io.{ByteArrayInputStream, DataInputStream, DataOutputStream}
 
 import com.apex.common.Serializable
-import com.apex.crypto.UInt256
+import com.apex.crypto.{MerkleTree, UInt256}
 import play.api.libs.json.{JsValue, Json, Writes}
 
 import scala.util.Try
@@ -26,6 +26,10 @@ class Block(val header: BlockHeader,
 
   def timeStamp(): Long = {
     header.timeStamp
+  }
+
+  def merkleRoot(): UInt256 = {
+    MerkleTree.root(transactions.map(_.id))
   }
 
   def getTransaction(id: UInt256): Option[Transaction] = {
