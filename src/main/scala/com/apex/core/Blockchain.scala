@@ -231,9 +231,13 @@ class LevelDBBlockchain(chainSettings: ChainSettings, consensusSettings: Consens
 
     if (forkBase.head.get.block.id.equals(block.prev())) {
       if (doApply == false) {   // check first !
-        forkBase.add(block)
-        inserted = true
-        latestHeader = block.header
+        if (forkBase.add(block)) {
+          inserted = true
+          latestHeader = block.header
+        }
+        else {
+          log.error(s"error during forkBase add block ${block.height()}  ${block.id()}")
+        }
       }
       else if (applyBlock(block)) {
         forkBase.add(block)
@@ -400,6 +404,8 @@ class LevelDBBlockchain(chainSettings: ChainSettings, consensusSettings: Consens
       latestHeader = forkBase.head().get.block.header
     else
       latestHeader = blockBase.head().get
+
+    log.info(s"populate() latest block ${latestHeader.index} ${latestHeader.id}")
   }
 
   private def onConfirmed(block: Block): Unit = {
