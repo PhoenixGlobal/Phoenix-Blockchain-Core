@@ -112,18 +112,21 @@ class Producer(settings: ConsensusSettings,
     }
   }
 
-  private def tryProduce(now: Long) = {
-    val next = nextBlockTime()
-    if (next - now <= settings.produceInterval
-         && chain.isProducingBlock() == false) {
-      val witness = ProducerUtil.getWitness(nextProduceTime(now, next), settings)
-      if (!witness.privkey.isEmpty) {
+  private def tryStartProduce(now: Long) = {
+    if (chain.isProducingBlock() == false) {
+      val witness = ProducerUtil.getWitness(nextProduceTime(now, nextBlockTime()), settings)
+      if (witness.privkey.isDefined) {
         log.info("startProduceBlock")
         chain.startProduceBlock(witness.pubkey)
         txPool.foreach(p => chain.produceBlockAddTransaction(p._2))
         txPool.clear()
       }
     }
+  }
+
+  private def tryProduce(now: Long) = {
+    val next = nextBlockTime()
+    tryStartProduce(now)
     if (now + settings.acceptableTimeError < next) {
       NotYet(next, now)
     } else {
@@ -134,7 +137,7 @@ class Producer(settings: ConsensusSettings,
       if (witness.privkey.isEmpty) {
         NotMyTurn(witness.name, witness.pubkey)
       } else {
-        val txs = txPool.values.toSeq
+        //val txs = txPool.values.toSeq
 
         /*
          * the timestamp in every block header
@@ -226,6 +229,7 @@ class Producer(settings: ConsensusSettings,
     }
     case BlockAcceptedMessage(block) => {
       removeTransactionsInBlock(block)
+      tryStartProduce(Instant.now.toEpochMilli)
     }
     case a: Any => {
       log.info(s"${sender().toString}, ${a.toString}")

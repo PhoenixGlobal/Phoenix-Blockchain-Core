@@ -26,7 +26,7 @@ class DataStoreTest {
 
   @Test
   def testCommitRollBack: Unit = {
-    val db = DataStoreTest.openDB("test_rollBack")
+    val db = DbManager.open("DataStoreTest", "testCommitRollBack")
     val store = new HeaderStore(db, 10)
     val blk1 = createBlockHeader
     println(blk1.id)
@@ -63,34 +63,8 @@ class DataStoreTest {
 }
 
 object DataStoreTest {
-  private final val dirs = ListBuffer.empty[String]
-  private final val dbs = ListBuffer.empty[LevelDbStorage]
-
-  def openDB(dir: String): LevelDbStorage = {
-    val db = LevelDbStorage.open(dir)
-    if (!dirs.contains(dir)) {
-      dirs.append(dir)
-    }
-    dbs.append(db)
-    db
-  }
-
-  def closeDB(db: LevelDbStorage): Unit = {
-    db.close()
-    dbs -= db
-  }
-
   @AfterClass
   def cleanUp: Unit = {
-    dbs.foreach(_.close())
-    dirs.foreach(deleteDir)
-  }
-
-  private def deleteDir(dir: String): Unit = {
-    try {
-      Directory(dir).deleteRecursively()
-    } catch {
-      case e: Throwable => println(e.getMessage)
-    }
+    DbManager.clearUp("DataStoreTest")
   }
 }

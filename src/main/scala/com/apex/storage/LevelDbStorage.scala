@@ -15,7 +15,7 @@ class LevelDbStorage(private val db: DB) extends Storage[Array[Byte], Array[Byte
   private lazy val sessionMgr = new SessionManager(db)
 
   override def get(key: Array[Byte]): Option[Array[Byte]] = {
-    val opt = new ReadOptions().fillCache(false)
+    val opt = new ReadOptions().fillCache(true)
     val value = db.get(key, opt)
     if (value == null) {
       None
