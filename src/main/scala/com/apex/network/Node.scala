@@ -117,7 +117,7 @@ class Node(val chain: Blockchain,
       case BlockMessage(block) => {
         //log.info(s"received a block #${block.height} (${block.id})")
         if (chain.tryInsertBlock(block, true)) {
-          log.info(s"insert block #${block.height} (${block.id}) success")
+          log.info(s"success insert block #${block.height} (${block.id})")
           producer ! BlockAcceptedMessage(block)
           peerHandlerManager ! InventoryMessage(new InventoryPayload(InventoryType.Block, Seq(block.id())))
         } else {
@@ -133,7 +133,7 @@ class Node(val chain: Blockchain,
         log.info(s"received ${blocksPayload.blocks.size} blocks")
         blocksPayload.blocks.foreach(block => {
           if (chain.tryInsertBlock(block, true)) {
-            log.info(s"insert block #${block.height} (${block.id}) success")
+            log.info(s"success insert block #${block.height} (${block.id})")
             producer ! BlockAcceptedMessage(block)
             // no need to send INV during sync
             //peerHandlerManager ! InventoryMessage(new Inventory(InventoryType.Block, Seq(block.id())))
