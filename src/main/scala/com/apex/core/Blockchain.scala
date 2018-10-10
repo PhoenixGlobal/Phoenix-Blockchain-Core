@@ -210,7 +210,7 @@ class LevelDBBlockchain(chainSettings: ChainSettings, consensusSettings: Consens
     val header = BlockHeader.build(
       forkHead.block.height + 1, timeStamp, merkleRoot,
       forkHead.block.id, producer, privateKey)
-    val block = Block.build(header, pendingTxs.toSeq)
+    val block = Block.build(header, pendingTxs.clone)
     pendingTxs.clear()
     if (tryInsertBlock(block, false)) {
       Some(block)
@@ -246,9 +246,13 @@ class LevelDBBlockchain(chainSettings: ChainSettings, consensusSettings: Consens
       }
     }
     else {
-      log.info(s"received block added to minor fork chain. block ${block.height} ${block.id}")
-      forkBase.add(block)
-      inserted = true
+      log.info(s"received block try add to minor fork chain. block ${block.height} ${block.id}")
+      if (forkBase.add(block)) {
+        inserted = true
+      }
+      else {
+        log.info("add fail")
+      }
     }
     inserted
   }
@@ -290,6 +294,10 @@ class LevelDBBlockchain(chainSettings: ChainSettings, consensusSettings: Consens
   private def verifyBlock(block: Block): Boolean = {
     if (!verifyHeader(block.header))
       false
+    else if (block.transactions.size == 0) {
+      log.info("verifyBlock error: block.transactions.size == 0")
+      false
+    }
     else if (!block.merkleRoot().equals(block.header.merkleRoot))
       false
     else if (!block.transactions.forall(verifyTransaction))
@@ -321,15 +329,19 @@ class LevelDBBlockchain(chainSettings: ChainSettings, consensusSettings: Consens
   private def verifyHeader(header: BlockHeader): Boolean = {
     val prevBlock = forkBase.get(header.prevBlock)
     if (prevBlock.isEmpty) {
+      log.info("verifyHeader error: prevBlock not found")
       false
     }
     else if (header.index != prevBlock.get.block.height() + 1) {
+      log.info(s"verifyHeader error: index error ${header.index} ${prevBlock.get.block.height()}")
       false
     }
     else if (!ProducerUtil.isProducerValid(header.timeStamp, header.producer, consensusSettings)) {
+      log.info("verifyHeader error: producer not valid")
       false
     }
     else if (!header.verifySig()) {
+      log.info("verifyHeader error: verifySig fail")
       false
     }
     else {
