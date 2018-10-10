@@ -30,7 +30,7 @@ class ForkBaseTest {
   private val PubC = PublicKey("0234b9b7d2909231d143a6693082665837965438fc273fbc4c507996e41394c8c1")
   private val PriC = new PrivateKey(BinaryData("5dfee6af4775e9635c67e1cea1ed617efb6d22ca85abfa97951771d47934aaa0"))
   private val witnesses = Array(Witness("A", PubA, Some(PriA)), Witness("B", PubB, Some(PriB)))
-  private val genesis = ForkBaseTest.genesisBlock
+  private val genesis = BlockBuilder.genesisBlock
 
   @Test
   def testHead(): Unit = {
@@ -248,22 +248,7 @@ object ForkBaseTest {
   }
 
   def newBlock(pub: PublicKey, pri: PrivateKey, prevBlock: Block) = {
-    val root = SerializerTest.testHash256("test")
-    val timeStamp = Instant.now.toEpochMilli
-    val header = BlockHeader.build(
-      prevBlock.height + 1, timeStamp,
-      root, prevBlock.id, pub, pri)
-    Block.build(header, Seq.empty)
-  }
-
-  private def genesisBlock() = {
-    val pub = PublicKey("03b4534b44d1da47e4b4a504a210401a583f860468dec766f507251a057594e682")
-    val pri = new PrivateKey(BinaryData("7a93d447bffe6d89e690f529a3a0bdff8ff6169172458e04849ef1d4eafd7f86"))
-
-    val genesisHeader = BlockHeader.build(
-      0, Instant.now.toEpochMilli,
-      UInt256.Zero, UInt256.Zero, pub, pri)
-    Block.build(genesisHeader, Seq.empty)
+    BlockBuilder.newBlock(pub, pri, prevBlock)
   }
 
   private def deleteDir(dir: String): Unit = {

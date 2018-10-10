@@ -363,45 +363,20 @@ abstract class StateStore[V <: Serializable](db: LevelDbStorage) {
   val valConverter: Converter[V]
 
   def get(): Option[V] = {
-    if (cached.isEmpty) {
-      val bytes = db.get(prefixBytes)
-      if (!bytes.isEmpty) {
-        cached = Some(valConverter.fromBytes(bytes.get))
-      }
-    }
-    cached
+    db.get(prefixBytes).map(valConverter.fromBytes)
   }
 
   def set(value: V, batch: Batch = null): Boolean = {
-    if (value == null) {
-      false
-    } else {
-      if (batch != null) {
-        batch.put(prefixBytes, valConverter.toBytes(value))
-        cached = Some(value)
-        true
-      } else {
-        if (db.set(prefixBytes, valConverter.toBytes(value))) {
-          cached = Some(value)
-          true
-        } else {
-          false
-        }
-      }
-    }
+    db.set(prefixBytes, valConverter.toBytes(value), batch)
   }
 
   def delete(batch: Batch = null): Unit = {
     db.delete(prefixBytes, batch)
-    cached = None
   }
 }
 
 abstract class StoreBase[K, V](val db: LevelDbStorage, cacheCapacity: Int) {
   protected val cache: Cache[K, V] = new LRUCache(cacheCapacity)
-
-  //  private var session: Option[Session] = None
-  //  private lazy val sessionMgr = new SessionManager(this)
 
   val prefixBytes: Array[Byte]
 
@@ -455,26 +430,6 @@ abstract class StoreBase[K, V](val db: LevelDbStorage, cacheCapacity: Int) {
       false
     }
   }
-
-  //  def beginTransaction(): Unit = {
-  //    sessionMgr.newSession()
-  //  }
-  //
-  //  def commit(): Unit = {
-  //    sessionMgr.commit()
-  //  }
-  //
-  //  def rollBack(): Unit = {
-  //    sessionMgr.rollBack()
-  //  }
-  //
-  //  def sessionLevel(): Int = {
-  //    sessionMgr.level()
-  //  }
-  //
-  //  def activeLevels(): Seq[Int] = {
-  //    sessionMgr.activeLevels()
-  //  }
 
   protected def genKey(key: K): Array[Byte] = {
     prefixBytes ++ keyConverter.toBytes(key)
