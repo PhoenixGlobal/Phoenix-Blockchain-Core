@@ -19,7 +19,7 @@ class AssettViewTest {
   def testSerialize = {
     val a = new Asset(
       AssetType.Token,
-      SerializerTest.testHash160(),
+      SerializerHelper.testHash160(),
       "cpx",
       Fixed8.fromDecimal(100),
       Fixed8.fromDecimal(50),
@@ -27,7 +27,7 @@ class AssettViewTest {
       Fixed8.One,
       true
     )
-    val o = new SerializerTest[Asset](
+    val o = new SerializerHelper[Asset](
       Asset.deserialize,
       (x, _) => x.version == a.version
         && x.id == a.id

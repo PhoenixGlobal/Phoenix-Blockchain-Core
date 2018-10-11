@@ -216,16 +216,18 @@ class Producer(settings: ConsensusSettings,
       val tx = Transaction.deserialize(is)
       if (tx.verifySignature()) {
         if (chain.isProducingBlock()) {
-          chain.produceBlockAddTransaction(tx)   // TODO: check return result
+          if (chain.produceBlockAddTransaction(tx))
+            sender() ! true
+          else
+            sender() ! false
         }
         else {
           txPool += (tx.id -> tx)
+          sender() ! true
         }
-        sender() ! true
       }
-      else {
+      else
         sender() ! false
-      }
     }
     case BlockAcceptedMessage(block) => {
       removeTransactionsInBlock(block)

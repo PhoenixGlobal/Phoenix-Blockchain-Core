@@ -33,10 +33,10 @@ class UInt256Test {
   @Test def testEquals = {
     assert(!UInt256.Zero.equals(null))
     assert(UInt256.Zero.equals(UInt256.Zero))
-    val a = SerializerTest.testHash256()
-    val b = SerializerTest.testHash256()
-    val c = SerializerTest.testHash160()
-    val d = SerializerTest.testHash256("Test")
+    val a = SerializerHelper.testHash256()
+    val b = SerializerHelper.testHash256()
+    val c = SerializerHelper.testHash160()
+    val d = SerializerHelper.testHash256("Test")
     assert(a.equals(a))
     assert(a.equals(b))
     assert(!a.equals(c))
@@ -47,9 +47,9 @@ class UInt256Test {
   @Test
   def testCompare = {
     assert(UInt256.Zero.compare(UInt256.Zero) == 0)
-    val a = SerializerTest.testHash256()
-    val b = SerializerTest.testHash256()
-    val c = SerializerTest.testHash256("Test")
+    val a = SerializerHelper.testHash256()
+    val b = SerializerHelper.testHash256()
+    val c = SerializerHelper.testHash256("Test")
     assert(a.compare(b) == 0)
     assert(a.compare(c) < 0)
     assert(c.compare(a) > 0)
@@ -62,8 +62,8 @@ class UInt256Test {
 
   @Test
   def testSerialize = {
-    val o = new SerializerTest(UInt256.deserialize)
-    o.test(SerializerTest.testHash256())
+    val o = new SerializerHelper(UInt256.deserialize)
+    o.test(SerializerHelper.testHash256())
     o.test(UInt256.Zero)
   }
 }

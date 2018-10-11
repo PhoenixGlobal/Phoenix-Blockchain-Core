@@ -8,32 +8,26 @@
 
 package com.apex.test
 
-import com.apex.core.HeaderStore
-import com.apex.storage.LevelDbStorage
 import org.junit.{AfterClass, Test}
-
-import scala.collection.mutable.ListBuffer
-import scala.reflect.io.Directory
 
 @Test
 class LevelDBStorageTest {
+  private final val testClass = "LevelDBStorageTest"
+
   @Test
   def testSet() = {
-    val storage = LevelDBStorageTest.open("test_db")
-    assert(true == storage.set("testSet".getBytes, "testSetValue".getBytes))
-    storage.close()
+    val storage = DbManager.open(testClass, "testSet")
+    assert(storage.set("testSet".getBytes, "testSetValue".getBytes))
   }
 
   @Test
   def testGet() = {
     val key = "testGet".getBytes
     val valueString = "testGetValue"
-    val storage = LevelDBStorageTest.open("test_db")
-    assert(true == storage.set(key, valueString.getBytes))
+    val storage = DbManager.open(testClass, "testGet")
+    assert(storage.set(key, valueString.getBytes))
     val value = storage.get(key)
-    assert(value.isDefined)
-    assert(new String(value.get).equals(valueString))
-    storage.close()
+    assert(value.exists(v => new String(v).equals(valueString)))
   }
 
   @Test
@@ -41,7 +35,7 @@ class LevelDBStorageTest {
     val key = "testUpdate".getBytes
     val valueString = "testUpdateValue"
     val newValueString = "testUpdateValueNew"
-    val storage = LevelDBStorageTest.open("test_db")
+    val storage = DbManager.open(testClass, "testUpdate")
     assert(true == storage.set(key, valueString.getBytes))
     val value = storage.get(key)
     assert(value.isDefined)
@@ -50,32 +44,29 @@ class LevelDBStorageTest {
     val newValue = storage.get(key)
     assert(newValue.isDefined)
     assert(new String(newValue.get).equals(newValueString))
-    storage.close()
   }
 
   @Test
   def testGetKeyNotExists() = {
-    val storage = LevelDBStorageTest.open("test_db")
+    val storage = DbManager.open(testClass, "testGetKeyNotExists")
     val value = storage.get("testNotExistKey".getBytes)
     assert(value.isEmpty)
-    storage.close()
   }
 
   @Test
   def testDelete() = {
     val key = "testDelete".getBytes
     val value = "testDeleteValue".getBytes
-    val storage = LevelDBStorageTest.open("test_db")
+    val storage = DbManager.open(testClass, "testDelete")
     assert(true == storage.set(key, value))
     assert(storage.get(key).isDefined)
     storage.delete(key)
     assert(storage.get(key).isEmpty)
-    storage.close()
   }
 
   @Test
   def testScan() = {
-    val storage = LevelDBStorageTest.open("scan_test_db")
+    val storage = DbManager.open(testClass, "testScan")
     var pairs = collection.mutable.Seq.empty[(String, String)]
     for (i <- 1 to 10) {
       val key = s"key$i"
@@ -92,12 +83,11 @@ class LevelDBStorageTest {
       i += 1
     })
     assert(i == 10)
-    storage.close()
   }
 
   @Test
   def testFind() = {
-    val storage = LevelDBStorageTest.open("find_test_db")
+    val storage = DbManager.open(testClass, "testFind")
     val seqArr = Array(
       collection.mutable.Seq.empty[(String, String)],
       collection.mutable.Seq.empty[(String, String)]
@@ -122,18 +112,17 @@ class LevelDBStorageTest {
       })
       assert(i == 5)
     }
-    storage.close()
   }
 
   @Test
   def testLastEmpty(): Unit = {
-    val storage = LevelDBStorageTest.open("last_test_empty_db")
+    val storage = DbManager.open(testClass, "testLastEmpty")
     assert(storage.last().isEmpty)
   }
 
   @Test
   def testLast(): Unit = {
-    val storage = LevelDBStorageTest.open("last_test_db")
+    val storage = DbManager.open(testClass, "testLast")
     for (i <- 0 to 10) {
       storage.set(BigInt(i).toByteArray, s"test$i".getBytes)
     }
@@ -141,7 +130,6 @@ class LevelDBStorageTest {
     val last = storage.last.get
     assert(BigInt(last.getKey).toInt == 10)
     assert(new String(last.getValue).equals("test10"))
-    storage.close()
   }
 
   @Test
@@ -157,49 +145,51 @@ class LevelDBStorageTest {
       assert(start == max + 1)
     }
 
+    val testMethod = "testSession"
+
     {
-      val db = LevelDBStorageTest.open("test_session")
+      val db = DbManager.open(testClass, testMethod)
       try {
         db.newSession()
         assert(db.revision() == 2)
         assertUncommittedSessions(db.uncommitted(), 1, 1)
       } finally {
-        db.close()
+        DbManager.close(testClass, testMethod)
       }
     }
     {
-      val db = LevelDBStorageTest.open("test_session")
+      val db = DbManager.open(testClass, testMethod)
       try {
         db.newSession()
         assert(db.revision() == 3)
         assertUncommittedSessions(db.uncommitted(), 1, 2)
       } finally {
-        db.close()
+        DbManager.close(testClass, testMethod)
       }
     }
     {
-      val db = LevelDBStorageTest.open("test_session")
+      val db = DbManager.open(testClass, testMethod)
       try {
         assert(db.revision() == 3)
         db.rollBack()
         assert(db.revision() == 2)
         assertUncommittedSessions(db.uncommitted(), 1, 1)
       } finally {
-        db.close()
+        DbManager.close(testClass, testMethod)
       }
     }
     {
-      val db = LevelDBStorageTest.open("test_session")
+      val db = DbManager.open(testClass, testMethod)
       try {
         assert(db.revision() == 2)
         db.commit()
         assert(db.uncommitted().isEmpty)
       } finally {
-        db.close()
+        DbManager.close(testClass, testMethod)
       }
     }
     {
-      val db = LevelDBStorageTest.open("test_session")
+      val db = DbManager.open(testClass, testMethod)
       try {
         assert(db.revision() == 2)
         assert(db.uncommitted().isEmpty)
@@ -211,22 +201,22 @@ class LevelDBStorageTest {
         db.newSession()
         assert(db.revision() == 8)
       } finally {
-        db.close()
+        DbManager.close(testClass, testMethod)
       }
     }
     {
-      val db = LevelDBStorageTest.open("test_session")
+      val db = DbManager.open(testClass, testMethod)
       try {
         assert(db.revision() == 8)
         assertUncommittedSessions(db.uncommitted(), 2, 7)
         db.commit(5)
         assertUncommittedSessions(db.uncommitted(), 6, 7)
       } finally {
-        db.close()
+        DbManager.close(testClass, testMethod)
       }
     }
     {
-      val db = LevelDBStorageTest.open("test_session")
+      val db = DbManager.open(testClass, testMethod)
       try {
         assert(db.revision() == 8)
         assertUncommittedSessions(db.uncommitted(), 6, 7)
@@ -235,51 +225,25 @@ class LevelDBStorageTest {
         assert(db.uncommitted().isEmpty)
         assert(db.revision() == 6)
       } finally {
-        db.close()
+        DbManager.close(testClass, testMethod)
       }
     }
     {
-      val db = LevelDBStorageTest.open("test_session")
+      val db = DbManager.open(testClass, testMethod)
       try {
         assert(db.uncommitted().isEmpty)
         assert(db.revision() == 6)
         println(s"final revision ${db.revision()}")
       } finally {
-        db.close()
+        DbManager.close(testClass, testMethod)
       }
     }
   }
 }
 
 object LevelDBStorageTest {
-  private final val dirs = ListBuffer.empty[String]
-  private final val dbs = ListBuffer.empty[LevelDbStorage]
-
-  def open(dir: String): LevelDbStorage = {
-    val db = LevelDbStorage.open(dir)
-    if (!dirs.contains(dir)) {
-      dirs.append(dir)
-    }
-    dbs.append(db)
-    db
-  }
-
-  def closeDB(db: LevelDbStorage): Unit = {
-    db.close()
-    dbs -= db
-  }
-
   @AfterClass
   def cleanUp: Unit = {
-    dbs.foreach(_.close())
-    dirs.foreach(deleteDir)
-  }
-
-  private def deleteDir(dir: String): Unit = {
-    try {
-      Directory(dir).deleteRecursively()
-    } catch {
-      case e: Throwable => println(e.getMessage)
-    }
+    DbManager.clearUp("LevelDBStorageTest")
   }
 }

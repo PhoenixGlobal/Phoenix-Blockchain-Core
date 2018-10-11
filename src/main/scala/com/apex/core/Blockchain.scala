@@ -190,7 +190,7 @@ class LevelDBBlockchain(chainSettings: ChainSettings, consensusSettings: Consens
   }
 
   override def produceBlockAddTransaction(tx: Transaction): Boolean = {
-    require(!pendingTxs.isEmpty)
+    require(pendingTxs.size > 0)
 
     if (applyTransaction(tx)) {
       pendingTxs.append(tx)
@@ -276,23 +276,33 @@ class LevelDBBlockchain(chainSettings: ChainSettings, consensusSettings: Consens
   }
 
   private def applyTransaction(tx: Transaction): Boolean = {
-
-    //TODO: verifyTransaction first
+    var txValid = true
 
     val fromAccount = dataBase.getAccount(tx.fromPubKeyHash()).getOrElse(new Account(true, "", immutable.Map.empty[UInt256, Fixed8], 0))
     val toAccount = dataBase.getAccount(tx.toPubKeyHash).getOrElse(new Account(true, "", immutable.Map.empty[UInt256, Fixed8], 0))
 
-    val fromBalance = (fromAccount.balances.toSeq ++ Seq((tx.assetId, -tx.amount))).groupBy(_._1)
-      .map(p => (p._1, Fixed8.sum(p._2.map(_._2).sum)))
-      .filter(_._2.value > 0)
-    val toBalance = (toAccount.balances.toSeq ++ Seq((tx.assetId, tx.amount))).groupBy(_._1)
-      .map(p => (p._1, Fixed8.sum(p._2.map(_._2).sum)))
-      .filter(_._2.value > 0)
+    if (tx.txType == TransactionType.Miner) {
+      // TODO
+    }
+    else {
+      if (tx.amount > fromAccount.balances(tx.assetId))
+        txValid = false
+      else if (tx.nonce != fromAccount.nextNonce)
+        txValid = false
+    }
 
-    dataBase.setAccount((tx.fromPubKeyHash(), new Account(true, fromAccount.name, fromBalance, fromAccount.nextNonce + 1)),
-         (tx.toPubKeyHash, new Account(true, toAccount.name, toBalance, toAccount.nextNonce)))
+    if (txValid) {
+      val fromBalance = (fromAccount.balances.toSeq ++ Seq((tx.assetId, -tx.amount))).groupBy(_._1)
+        .map(p => (p._1, Fixed8.sum(p._2.map(_._2).sum)))
+        .filter(_._2.value > 0)
+      val toBalance = (toAccount.balances.toSeq ++ Seq((tx.assetId, tx.amount))).groupBy(_._1)
+        .map(p => (p._1, Fixed8.sum(p._2.map(_._2).sum)))
+        .filter(_._2.value > 0)
 
-    true  //TODO
+      dataBase.setAccount((tx.fromPubKeyHash(), new Account(true, fromAccount.name, fromBalance, fromAccount.nextNonce + 1)),
+        (tx.toPubKeyHash, new Account(true, toAccount.name, toBalance, toAccount.nextNonce)))
+    }
+    txValid
   }
 
   private def verifyBlock(block: Block): Boolean = {

@@ -39,7 +39,7 @@ class TransactionTest {
 
     assert(tx.verifySignature() == true)
 
-    val o = new SerializerTest[Transaction](
+    val o = new SerializerHelper[Transaction](
       Transaction.deserialize,
       (x, _) => x.id == tx.id
         && x.txType == tx.txType

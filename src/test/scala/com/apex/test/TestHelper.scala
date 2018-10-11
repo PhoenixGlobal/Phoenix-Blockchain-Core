@@ -11,11 +11,12 @@
 package com.apex.test
 
 
+import java.io.{ByteArrayInputStream, ByteArrayOutputStream, DataInputStream, DataOutputStream}
 import java.time.Instant
 
 import com.apex.core.{Block, BlockHeader}
 import com.apex.crypto.Ecdsa.{PrivateKey, PublicKey}
-import com.apex.crypto.{BinaryData, UInt256}
+import com.apex.crypto.{BinaryData, Crypto, UInt160, UInt256}
 import com.apex.storage.LevelDbStorage
 
 import scala.collection.mutable.Map
@@ -74,7 +75,7 @@ object DbManager {
 
 object BlockBuilder {
   def newBlock(pub: PublicKey, pri: PrivateKey, prevBlock: Block) = {
-    val root = SerializerTest.testHash256("test")
+    val root = SerializerHelper.testHash256("test")
     val timeStamp = Instant.now.toEpochMilli
     val header = BlockHeader.build(
       prevBlock.height + 1, timeStamp,
@@ -90,5 +91,28 @@ object BlockBuilder {
       0, Instant.now.toEpochMilli,
       UInt256.Zero, UInt256.Zero, pub, pri)
     Block.build(genesisHeader, Seq.empty)
+  }
+}
+
+class SerializerHelper[T <: com.apex.common.Serializable](deserializer: DataInputStream => T, eqComparer: (T, T) => Boolean = (x: T, y: T) => x.equals(y)) {
+  def test(value: T) = {
+    SerializerHelper.test(value, deserializer, eqComparer)
+  }
+}
+
+object SerializerHelper {
+  def testHash256(str: String = "test") = UInt256.fromBytes(Crypto.hash256(str.getBytes("UTF-8")))
+
+  def testHash160(str: String = "test") = UInt160.fromBytes(Crypto.hash160(str.getBytes("UTF-8")))
+
+  def test[T <: com.apex.common.Serializable](value: T, deserializer: DataInputStream => T, eqComparer: (T, T) => Boolean) = {
+    val bos = new ByteArrayOutputStream
+    val os = new DataOutputStream(bos)
+    os.write(value)
+    val ba = bos.toByteArray
+    val bis = new ByteArrayInputStream(ba)
+    val is = new DataInputStream(bis)
+    import com.apex.common.Serializable._
+    assert(eqComparer(is.readObj(deserializer), value))
   }
 }
