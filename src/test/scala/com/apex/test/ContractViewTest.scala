@@ -23,7 +23,7 @@ class ContractViewTest {
       description = "test",
       script = Array.fill(32)((Random.nextInt(256) - 128).toByte)
     )
-    val o = new SerializerTest[ContractView](
+    val o = new SerializerHelper[ContractView](
       ContractView.deserialize,
       (x, _) => x.version.equals(a.version)
         && x.id.equals(a.id)

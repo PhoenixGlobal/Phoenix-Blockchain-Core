@@ -390,32 +390,52 @@ class SessionManager(db: DB) {
   }
 
   private def init(): Unit = {
-    def reloadSessions(iterator: DBIterator): Boolean = {
-      val kv = iterator.peekNext()
-      val key = kv.getKey
-      if (key.startsWith(prefix)) {
-        val value = kv.getValue
-        if (key.length > prefix.length) {
-          val revision = BigInt(key.drop(prefix.length)).toInt
-          val session = new RollbackSession(db, prefix, revision)
-          sessions.append(session)
-          session.init(value)
+    def reloadRevision(iterator: DBIterator) = {
+      if (iterator.hasNext) {
+        val kv = iterator.peekNext()
+        if (kv.getKey.startsWith(prefix)) {
+          require(kv.getKey.sameElements(prefix))
+          _revision = BigInt(kv.getValue).toInt
+          iterator.next
+          true
         } else {
-          _revision = BigInt(value).toInt
+          false
         }
-        iterator.next
-        false
       } else {
-        true
+        false
       }
     }
+
+    def reloadSessions(iterator: DBIterator) = {
+
+      var eof = false
+      val temp = ListBuffer.empty[RollbackSession]
+      while (!eof && iterator.hasNext) {
+        val kv = iterator.peekNext()
+        val key = kv.getKey
+        if (key.startsWith(prefix)) {
+          val value = kv.getValue
+          val revision = BigInt(key.drop(prefix.length)).toInt
+          val session = new RollbackSession(db, prefix, revision)
+          session.init(value)
+          temp.append(session)
+          iterator.next
+        } else {
+          eof = true
+        }
+      }
+
+      temp
+    }
+
     val iterator = db.iterator
+
     try {
       iterator.seek(prefix)
 
-      var eof = false
-      while (!eof && iterator.hasNext) {
-        eof = reloadSessions(iterator)
+      if (reloadRevision(iterator)) {
+        val temp = reloadSessions(iterator)
+        sessions.appendAll(temp.sortBy(_.revision))
       }
     } finally {
       iterator.close()

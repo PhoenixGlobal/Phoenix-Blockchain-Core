@@ -19,10 +19,10 @@ class AccountTest {
   @Test
   def testSerialize = {
     val balances = (1 to 10)
-      .map(i => SerializerTest.testHash256(s"test$i") -> new Fixed8(i))
+      .map(i => SerializerHelper.testHash256(s"test$i") -> new Fixed8(i))
       .toMap
     val a = new Account(false, "", balances, 0)
-    val o = new SerializerTest[Account](
+    val o = new SerializerHelper[Account](
       Account.deserialize,
       (x, _) => x.id == a.id
         && x.active == a.active

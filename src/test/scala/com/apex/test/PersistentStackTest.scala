@@ -14,30 +14,29 @@ package com.apex.test
 
 import java.io.{ByteArrayInputStream, DataInputStream, DataOutputStream}
 
-import com.apex.storage.{LevelDbStorage, PersistentStack}
-import org.junit.{AfterClass, BeforeClass, Test}
+import com.apex.storage.PersistentStack
+import org.junit.{AfterClass, Test}
 
-import scala.collection.mutable.ListBuffer
-import scala.reflect.io.Directory
+case class A(a: Int)
 
 @Test
 class PersistentStackTest {
   @Test
   def testSizeEmpty = {
-    val stack = PersistentStackTest.newStack("test_size_empty_persistent_stack")
+    val stack = PersistentStackTest.newStack("testSizeEmpty")
     assert(stack.size == 0)
     assert(stack.isEmpty)
   }
 
   @Test(expected = classOf[IndexOutOfBoundsException])
   def testTopEmpty: Unit = {
-    val stack = PersistentStackTest.newStack("test_top_empty_persistent_stack")
+    val stack = PersistentStackTest.newStack("testTopEmpty")
     stack.top
   }
 
   @Test
   def testPush = {
-    val stack = PersistentStackTest.newStack("test_push_persistent_stack")
+    val stack = PersistentStackTest.newStack("testPush")
     stack.push(TestItem("test1"))
     assert(stack.size == 1)
     assert(stack.top.value.equals("test1"))
@@ -48,7 +47,7 @@ class PersistentStackTest {
 
   @Test
   def testPop: Unit = {
-    val stack = PersistentStackTest.newStack("test_pop_persistent_stack")
+    val stack = PersistentStackTest.newStack("testPop")
     stack.push(TestItem("test1"))
     stack.push(TestItem("test2"))
     stack.pop()
@@ -60,7 +59,7 @@ class PersistentStackTest {
 
   @Test(expected = classOf[IndexOutOfBoundsException])
   def testPopEmpty: Unit = {
-    val stack = PersistentStackTest.newStack("test_pop_empty_persistent_stack")
+    val stack = PersistentStackTest.newStack("testPopEmpty")
     stack.pop()
   }
 }
@@ -84,28 +83,14 @@ object TestItem {
 }
 
 object PersistentStackTest {
-  private final val dirs = ListBuffer.empty[String]
-  private final val dbs = ListBuffer.empty[LevelDbStorage]
-
-  def newStack(dir: String): PersistentStack[TestItem] = {
-    val db = LevelDbStorage.open(dir)
+  def newStack(testMethod: String): PersistentStack[TestItem] = {
+    val db = DbManager.open("PersistentStackTest", testMethod)
     val stack = new PersistentStack[TestItem](db)
-    dirs.append(dir)
-    dbs.append(db)
     stack
   }
 
   @AfterClass
   def cleanUp: Unit = {
-    dbs.foreach(_.close())
-    dirs.foreach(cleanUp)
-  }
-
-  private def cleanUp(dir: String): Unit = {
-    try {
-      Directory(dir).deleteRecursively()
-    } catch {
-      case e: Throwable => println(e.getMessage)
-    }
+    DbManager.clearUp("PersistentStackTest")
   }
 }

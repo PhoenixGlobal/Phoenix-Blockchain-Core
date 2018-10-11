@@ -32,10 +32,10 @@ class UInt160Test {
   @Test def testEquals = {
     assert(!UInt160.Zero.equals(null))
     assert(UInt160.Zero.equals(UInt160.Zero))
-    val a = SerializerTest.testHash160()
-    val b = SerializerTest.testHash160()
-    val c = SerializerTest.testHash256()
-    val d = SerializerTest.testHash160("Test")
+    val a = SerializerHelper.testHash160()
+    val b = SerializerHelper.testHash160()
+    val c = SerializerHelper.testHash256()
+    val d = SerializerHelper.testHash160("Test")
     assert(a.equals(a))
     assert(a.equals(b))
     assert(!a.equals(c))
@@ -46,9 +46,9 @@ class UInt160Test {
   @Test
   def testCompare = {
     assert(UInt160.Zero.compare(UInt160.Zero) == 0)
-    val a = SerializerTest.testHash160()
-    val b = SerializerTest.testHash160()
-    val c = SerializerTest.testHash160("Test")
+    val a = SerializerHelper.testHash160()
+    val b = SerializerHelper.testHash160()
+    val c = SerializerHelper.testHash160("Test")
     assert(a.compare(b) == 0)
     assert(a.compare(c) < 0)
     assert(c.compare(a) > 0)
@@ -61,8 +61,8 @@ class UInt160Test {
 
   @Test
   def testSerialize = {
-    val o = new SerializerTest(UInt160.deserialize)
-    o.test(SerializerTest.testHash160())
+    val o = new SerializerHelper(UInt160.deserialize)
+    o.test(SerializerHelper.testHash160())
     o.test(UInt160.Zero)
   }
 }

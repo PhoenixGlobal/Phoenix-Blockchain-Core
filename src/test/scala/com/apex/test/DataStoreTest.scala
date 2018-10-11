@@ -53,8 +53,8 @@ class DataStoreTest {
   }
 
   private def createBlockHeader() = {
-    val prevBlock = SerializerTest.testHash256("prev")
-    val merkleRoot = SerializerTest.testHash256("root")
+    val prevBlock = SerializerHelper.testHash256("prev")
+    val merkleRoot = SerializerHelper.testHash256("root")
     val producer = PublicKey("03b4534b44d1da47e4b4a504a210401a583f860468dec766f507251a057594e682") // TODO: read from settings
     val producerPrivKey = new PrivateKey(BinaryData("7a93d447bffe6d89e690f529a3a0bdff8ff6169172458e04849ef1d4eafd7f86"))
     val timeStamp = Instant.now.toEpochMilli

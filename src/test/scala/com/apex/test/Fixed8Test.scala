@@ -85,7 +85,7 @@ class Fixed8Test extends Assert {
 
   @Test
   def testSerialize = {
-    val o = new SerializerTest(Fixed8.deserialize)
+    val o = new SerializerHelper(Fixed8.deserialize)
     o.test(Fixed8.Zero)
     o.test(Fixed8.One)
     o.test(Fixed8.MaxValue)
