@@ -43,6 +43,8 @@ case class Failed(e: Throwable) extends ProduceState
 
 case class BlockAcceptedMessage(block: Block)
 
+//case class ReceivedNewTransactions(txs: Seq[Transaction])
+
 class ProduceTask(val producer: Producer,
                   val peerHandlerManager: ActorRef,
                   private var cancelled: Boolean = false)
@@ -85,7 +87,7 @@ class Producer(settings: ConsensusSettings,
 
   implicit val executionContext: ExecutionContext = system.dispatcher
 
-  private val txPool: scala.collection.mutable.Map[UInt256, Transaction] = scala.collection.mutable.Map.empty
+  //private val txPool = scala.collection.mutable.Map.empty[UInt256, Transaction]
 
   private var canProduce = true
 
@@ -116,10 +118,10 @@ class Producer(settings: ConsensusSettings,
     if (chain.isProducingBlock() == false) {
       val witness = ProducerUtil.getWitness(nextProduceTime(now, nextBlockTime()), settings)
       if (witness.privkey.isDefined) {
-        log.info("startProduceBlock")
+        //log.info("startProduceBlock")
         chain.startProduceBlock(witness.pubkey)
-        txPool.foreach(p => chain.produceBlockAddTransaction(p._2))
-        txPool.clear()
+//        txPool.foreach(p => chain.produceBlockAddTransaction(p._2))
+//        txPool.clear()
       }
     }
   }
@@ -157,13 +159,13 @@ class Producer(settings: ConsensusSettings,
     }
   }
 
-  def removeTransactionsInBlock(block: Block) = {
-    block.transactions.foreach(tx => {
-      if (txPool.contains(tx.id)) {
-        txPool.remove(tx.id)
-      }
-    })
-  }
+//  private def removeTransactionsInBlock(block: Block) = {
+//    block.transactions.foreach(tx => {
+//      if (txPool.contains(tx.id)) {
+//        txPool.remove(tx.id)
+//      }
+//    })
+//  }
 
   // the nextBlockTime is the expected time of next block based on current latest block
   private def nextBlockTime(nextN: Int = 1): Long = {
@@ -210,29 +212,46 @@ class Producer(settings: ConsensusSettings,
     newWitness
   }
 
+//  private def newTransactionIncoming(tx: Transaction): Boolean = {
+//    if (chain.isProducingBlock()) {
+//      if (chain.produceBlockAddTransaction(tx))
+//        true
+//      else
+//        false
+//    }
+//    else {
+//      txPool += (tx.id -> tx)
+//      true
+//    }
+//  }
+
   override def receive: Receive = {
     case SendRawTransactionCmd(rawTx) => {
       val is = new DataInputStream(new ByteArrayInputStream(rawTx))
       val tx = Transaction.deserialize(is)
       if (tx.verifySignature()) {
-        if (chain.isProducingBlock()) {
-          if (chain.produceBlockAddTransaction(tx))
-            sender() ! true
-          else
-            sender() ! false
+        peerHandlerManager ! InventoryMessage(new InventoryPayload(InventoryType.Tx, Seq(tx.id)))
+        if (chain.addTransaction(tx)) {
+          sender() ! true
         }
         else {
-          txPool += (tx.id -> tx)
-          sender() ! true
+          sender() ! false
         }
       }
       else
         sender() ! false
     }
     case BlockAcceptedMessage(block) => {
-      removeTransactionsInBlock(block)
+      //removeTransactionsInBlock(block)
       tryStartProduce(Instant.now.toEpochMilli)
     }
+//    case ReceivedNewTransactions(txs) => {
+//      txs.foreach(tx => {
+//        if (tx.verifySignature()) {
+//          chain.addTransaction(tx)
+//        }
+//      })
+//    }
     case a: Any => {
       log.info(s"${sender().toString}, ${a.toString}")
     }
