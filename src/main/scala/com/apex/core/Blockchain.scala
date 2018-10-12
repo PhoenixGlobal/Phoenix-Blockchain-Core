@@ -175,7 +175,9 @@ class LevelDBBlockchain(chainSettings: ChainSettings, consensusSettings: Consens
     val forkHead = forkBase.head.get
     val minerTx = new Transaction(TransactionType.Miner, minerCoinFrom,
       producer.pubKeyHash, "", minerAward, UInt256.Zero,
-      forkHead.block.height + 1, BinaryData.empty, BinaryData.empty
+      forkHead.block.height + 1,
+      BinaryData(Crypto.randomBytes(8)),  // add random bytes to distinct different blocks with same block index during debug in some cases
+      BinaryData.empty
     )
     //isPendingBlock = true
     dataBase.startSession()
