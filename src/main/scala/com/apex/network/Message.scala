@@ -12,10 +12,10 @@
 
 package com.apex.network
 
-import java.io.{DataInputStream, DataOutputStream, ByteArrayInputStream}
+import java.io.{ByteArrayInputStream, DataInputStream, DataOutputStream}
 import java.net.{InetAddress, InetSocketAddress}
 
-import com.apex.core.Block
+import com.apex.core.{Block, Transaction}
 import com.apex.crypto.UInt256
 
 object MessageType extends Enumeration {
@@ -26,6 +26,7 @@ object MessageType extends Enumeration {
   val Blocks = Value(4)
   val Inventory = Value(5)
   val Getdata = Value(6)
+  val Transactions = Value(7)
 }
 
 trait PackMessage {
@@ -57,6 +58,12 @@ case class BlockMessage(block: Block) extends Message(MessageType.Block) {
 case class BlocksMessage(blocks: BlocksPayload) extends Message(MessageType.Blocks) {
   override def pack(): MessagePack = {
     MessagePack(messageType, blocks.toBytes)
+  }
+}
+
+case class TransactionsMessage(txs: TransactionsPayload) extends Message(MessageType.Transactions) {
+  override def pack(): MessagePack = {
+    MessagePack(messageType, txs.toBytes)
   }
 }
 
@@ -125,6 +132,26 @@ object BlocksPayload {
   }
 }
 
+class TransactionsPayload(val txs: Seq[Transaction]) extends com.apex.common.Serializable {
+  def serialize(os: DataOutputStream) = {
+    import com.apex.common.Serializable._
+    os.writeSeq(txs)
+  }
+}
+
+object TransactionsPayload {
+  def deserialize(is: DataInputStream): TransactionsPayload = {
+    import com.apex.common.Serializable._
+    val txs = is.readSeq(Transaction.deserialize)
+    new TransactionsPayload(txs)
+  }
+  def fromBytes(data: Array[Byte]): TransactionsPayload = {
+    val bs = new ByteArrayInputStream(data)
+    val is = new DataInputStream(bs)
+    deserialize(is)
+  }
+}
+
 class GetBlocksPayload(val hashStart: Seq[UInt256],
                        val hashStop: UInt256) extends com.apex.common.Serializable {
   def serialize(os: DataOutputStream) = {
@@ -170,6 +197,9 @@ object MessagePack {
       }
       case MessageType.Getdata => {
         GetDataMessage(InventoryPayload.fromBytes(data))
+      }
+      case MessageType.Transactions => {
+        TransactionsMessage(TransactionsPayload.fromBytes(data))
       }
     }
   }

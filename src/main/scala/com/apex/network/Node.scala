@@ -12,7 +12,7 @@ import akka.actor.{Actor, ActorRef, ActorSystem, Props}
 import com.apex.common.ApexLogging
 import com.apex.core._
 import com.apex.crypto.UInt256
-import com.apex.network.rpc.{GetBlockByHeightCmd, GetBlockByIdCmd, GetBlockCountCmd, GetBlocksCmd, GetAccountCmd, RPCCommand}
+import com.apex.network.rpc.{GetAccountCmd, GetBlockByHeightCmd, GetBlockByIdCmd, GetBlockCountCmd, GetBlocksCmd, RPCCommand}
 import com.apex.consensus.BlockAcceptedMessage
 
 import scala.collection.mutable.{ArrayBuffer, Map}
@@ -144,6 +144,15 @@ class Node(val chain: Blockchain,
         // try to get more blocks if have any
         sender() ! GetBlocksMessage(new GetBlocksPayload(Seq(chain.getLatestHeader.id), UInt256.Zero)).pack
       }
+      case TransactionsMessage(txsPayload) => {
+        log.info(s"received ${txsPayload.txs.size} transactions from network")
+        //producer ! ReceivedNewTransactions(txsPayload.txs)
+        txsPayload.txs.foreach(tx => {
+          if (tx.verifySignature())
+            chain.addTransaction(tx)
+        })
+        // TODO: for the new txs broadcast INV
+      }
       case InventoryMessage(inv) => {
         //log.info(s"received Inventory")
         if (inv.invType == InventoryType.Block) {
@@ -159,6 +168,11 @@ class Node(val chain: Blockchain,
             log.info(s"send GetDataMessage $newBlocks")
             sender() ! GetDataMessage(new InventoryPayload(InventoryType.Block, newBlocks.toSeq)).pack
           }
+        }
+        else if (inv.invType == InventoryType.Tx) {
+          // val newTxs = ArrayBuffer.empty[UInt256]
+          // TODO: only request the txs that we don't have
+          sender() ! GetDataMessage(new InventoryPayload(InventoryType.Tx, inv.hashs)).pack
         }
       }
       case GetDataMessage(inv) => {
@@ -185,6 +199,18 @@ class Node(val chain: Blockchain,
           })
           if (blocks.size > 0) {
             sender() ! BlocksMessage(new BlocksPayload(blocks.toSeq)).pack
+          }
+        }
+        else if (inv.invType == InventoryType.Tx) {
+          val txs = ArrayBuffer.empty[Transaction]
+          inv.hashs.foreach(h => {
+            val tx = chain.getPendingTransaction(h)
+            if (tx.isDefined) {
+              txs.append(tx.get)
+            }
+          })
+          if (txs.size > 0) {
+            sender() ! TransactionsMessage(new TransactionsPayload(txs)).pack
           }
         }
       }

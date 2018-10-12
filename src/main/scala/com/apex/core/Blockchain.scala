@@ -9,7 +9,7 @@ import com.apex.crypto.Ecdsa.{PrivateKey, PublicKey}
 import com.apex.crypto.{BinaryData, Crypto, Fixed8, MerkleTree, UInt160, UInt256}
 import com.apex.storage.{Batch, LevelDbStorage}
 import org.iq80.leveldb.WriteBatch
-
+import scala.collection.mutable
 import scala.collection.mutable.{ArrayBuffer, Map, Set}
 import scala.collection.immutable
 
@@ -34,12 +34,14 @@ trait Blockchain extends Iterable[Block] with ApexLogging {
 
   def getBlockInForkBase(id: UInt256): Option[Block]
 
+  def getPendingTransaction(txid: UInt256): Option[Transaction]
+
 //  def produceBlock(producer: PublicKey, privateKey: PrivateKey, timeStamp: Long,
 //                   transactions: Seq[Transaction]): Option[Block]
 
   def startProduceBlock(producer: PublicKey)
 
-  def produceBlockAddTransaction(tx: Transaction): Boolean
+  def addTransaction(tx: Transaction): Boolean
 
   def produceBlockFinalize(producer: PublicKey, privateKey: PrivateKey, timeStamp: Long): Option[Block]
 
@@ -107,8 +109,8 @@ class LevelDBBlockchain(chainSettings: ChainSettings, consensusSettings: Consens
 
   //  private var latestProdState: ProducerStatus = null
 
-  private val pendingTxs = ArrayBuffer.empty[Transaction]  // TODO: save to DB?
-  private val unapplyTxs = ArrayBuffer.empty[Transaction] //Map.empty[UInt256, Transaction]  // TODO: save to DB?
+  private val pendingTxs = ArrayBuffer.empty[Transaction]  //TODO: change to seq map // TODO: save to DB?
+  private val unapplyTxs = mutable.Map.empty[UInt256, Transaction]  // TODO: save to DB?
 
   populate()
 
@@ -181,23 +183,31 @@ class LevelDBBlockchain(chainSettings: ChainSettings, consensusSettings: Consens
     val applied = applyTransaction(minerTx)
     require(applied)
     pendingTxs.append(minerTx)
-    //pendingTxs.put(minerTx.id(), minerTx)
 
+    unapplyTxs.foreach(p => addTransaction(p._2))
+
+    pendingTxs.foreach(tx => unapplyTxs.remove(tx.id))
   }
 
   override def isProducingBlock(): Boolean = {
     !pendingTxs.isEmpty
   }
 
-  override def produceBlockAddTransaction(tx: Transaction): Boolean = {
-    require(pendingTxs.size > 0)
-
-    if (applyTransaction(tx)) {
-      pendingTxs.append(tx)
+  override def addTransaction(tx: Transaction): Boolean = {
+    if (isProducingBlock()) {
+      if (applyTransaction(tx)) {
+        pendingTxs.append(tx)
+        true
+      }
+      else
+        false
+    }
+    else {
+      if (!unapplyTxs.contains(tx.id)) {
+        unapplyTxs += (tx.id -> tx)
+      }
       true
     }
-    else
-      false
   }
 
   override def produceBlockFinalize(producer: PublicKey, privateKey: PrivateKey,
@@ -223,7 +233,7 @@ class LevelDBBlockchain(chainSettings: ChainSettings, consensusSettings: Consens
     var inserted = false
 
     if (!pendingTxs.isEmpty) {
-      pendingTxs.foreach(unapplyTxs.append(_))
+      pendingTxs.foreach(tx => { unapplyTxs += (tx.id -> tx) })
       pendingTxs.clear()
 
       dataBase.rollBack()
@@ -258,8 +268,12 @@ class LevelDBBlockchain(chainSettings: ChainSettings, consensusSettings: Consens
         log.info("add fail")
       }
     }
+    if (inserted) {
+      block.transactions.foreach(tx => unapplyTxs.remove(tx.id))
+    }
     inserted
   }
+
 
   def applyBlock(block: Block): Boolean = {
     var applied = false
@@ -439,6 +453,15 @@ class LevelDBBlockchain(chainSettings: ChainSettings, consensusSettings: Consens
     from.foreach(_ => dataBase.rollBack())
     to.foreach(item => applyBlock(item.block))
     //TODO apply all blocks switched to
+  }
+
+  def getPendingTransaction(txid: UInt256): Option[Transaction] = {
+    if (pendingTxs.map(_.id()).contains(txid)) {
+      pendingTxs.find(tx => tx.id().equals(txid))
+    }
+    else {
+      unapplyTxs.get(txid)
+    }
   }
 }
 
