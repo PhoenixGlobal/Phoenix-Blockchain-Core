@@ -116,7 +116,7 @@ class Producer(settings: ConsensusSettings,
     if (chain.isProducingBlock() == false) {
       val witness = ProducerUtil.getWitness(nextProduceTime(now, nextBlockTime()), settings)
       if (witness.privkey.isDefined) {
-        log.info("startProduceBlock")
+        //log.info("startProduceBlock")
         chain.startProduceBlock(witness.pubkey)
         txPool.foreach(p => chain.produceBlockAddTransaction(p._2))
         txPool.clear()

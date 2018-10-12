@@ -205,7 +205,7 @@ class LevelDBBlockchain(chainSettings: ChainSettings, consensusSettings: Consens
     require(!pendingTxs.isEmpty)
 
     val forkHead = forkBase.head.get
-    val merkleRoot = MerkleTree.root(pendingTxs.toSeq.map(_.id))
+    val merkleRoot = MerkleTree.root(pendingTxs.map(_.id))
 
     val header = BlockHeader.build(
       forkHead.block.height + 1, timeStamp, merkleRoot,
@@ -285,7 +285,9 @@ class LevelDBBlockchain(chainSettings: ChainSettings, consensusSettings: Consens
       // TODO
     }
     else {
-      if (tx.amount > fromAccount.balances(tx.assetId))
+      if (!fromAccount.balances.contains(tx.assetId))
+        txValid = false
+      else if (tx.amount > fromAccount.balances(tx.assetId))
         txValid = false
       else if (tx.nonce != fromAccount.nextNonce)
         txValid = false
