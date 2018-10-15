@@ -194,7 +194,7 @@ class PeerConnectionManager(val settings: NetworkSettings,
   //发送消息
   def workingCycleLocalInterface: Receive = {
     case msg: MessagePack =>
-      //log.info("PeerConnectionManager try send Message")
+      //log.info(s"PeerConnectionManager try send $msg")
       if (waitForAck) {
         msgBuffer.append(msg)
         log.info(s"msgBuffer size ${msgBuffer.size}")
