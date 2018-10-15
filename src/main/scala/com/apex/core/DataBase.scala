@@ -91,6 +91,10 @@ class DataBase(settings: DataBaseSettings) extends ApexLogging {
     db.commit()
   }
 
+  def close(): Unit = {
+    db.close()
+  }
+
 //  private def applyBlockToDB(block: Block): Boolean = {
 //    def calcBalancesInBlock(balances: Map[UInt160, Map[UInt256, Fixed8]], spent: Boolean,
 //                            address: UInt160, amounts: Fixed8, assetId: UInt256) = {

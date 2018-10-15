@@ -41,7 +41,10 @@ case class Success(block: Option[Block], producer: String, time: Long) extends P
 case class Failed(e: Throwable) extends ProduceState
 
 
-case class BlockAcceptedMessage(block: Block)
+trait ProducerMessage
+
+case class BlockAcceptedMessage(block: Block) extends ProducerMessage
+case class ProducerStopMessage() extends ProducerMessage
 
 //case class ReceivedNewTransactions(txs: Seq[Transaction])
 
@@ -245,13 +248,11 @@ class Producer(settings: ConsensusSettings,
       //removeTransactionsInBlock(block)
       tryStartProduce(Instant.now.toEpochMilli)
     }
-//    case ReceivedNewTransactions(txs) => {
-//      txs.foreach(tx => {
-//        if (tx.verifySignature()) {
-//          chain.addTransaction(tx)
-//        }
-//      })
-//    }
+    case ProducerStopMessage() => {
+      log.info("stopping producer task")
+      task.cancel()
+      context.stop(self)
+    }
     case a: Any => {
       log.info(s"${sender().toString}, ${a.toString}")
     }

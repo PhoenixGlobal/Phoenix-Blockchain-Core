@@ -63,6 +63,8 @@ trait Blockchain extends Iterable[Block] with ApexLogging {
   def getAccount(address: UInt160): Option[Account]
 
   def getGenesisBlockChainId: String
+
+  def close()
 }
 
 object Blockchain {
@@ -464,6 +466,14 @@ class LevelDBBlockchain(chainSettings: ChainSettings, consensusSettings: Consens
     else {
       unapplyTxs.get(txid)
     }
+  }
+
+  override def close() = {
+    log.info("blockchain closing")
+    blockBase.close()
+    dataBase.close()
+    forkBase.close()
+    log.info("blockchain closed")
   }
 }
 

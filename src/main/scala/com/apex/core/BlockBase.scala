@@ -42,4 +42,8 @@ class BlockBase(settings: BlockBaseSettings) {
   def getBlock(height: Int): Option[Block] = {
     heightStore.get(height).flatMap(getBlock)
   }
+
+  def close(): Unit = {
+    db.close()
+  }
 }

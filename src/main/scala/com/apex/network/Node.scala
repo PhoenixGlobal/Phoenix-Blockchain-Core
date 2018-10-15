@@ -17,6 +17,10 @@ import com.apex.consensus.BlockAcceptedMessage
 
 import scala.collection.mutable.{ArrayBuffer, Map}
 
+trait NodeMessage
+
+case class NodeStopMessage() extends NodeMessage
+
 class Node(val chain: Blockchain,
            val peerHandlerManager: ActorRef,
            val producer: ActorRef)
@@ -58,6 +62,11 @@ class Node(val chain: Blockchain,
   override def receive: Receive = {
     case message: Message => processMessage(message)
     case cmd: RPCCommand => processRPCCommand(cmd)
+    case msg: NodeStopMessage => {
+      log.info("stopping node")
+      chain.close()
+      context.stop(self)
+    }
     case unknown: Any => {
       println("Unknown msg:")
       println(unknown)
