@@ -61,20 +61,6 @@ class DataBase(settings: DataBaseSettings) extends ApexLogging {
     accountStore.get(address).map(_.balances)
   }
 
-//  def applyTransaction(transaction: Transaction): Boolean = {
-//    if (isPendingBlock) {
-//
-//    }
-//    else {
-//      startSession()
-//      isPendingBlock = true
-//    }
-//
-//    // TODO  check and apply this tx
-//
-//    false
-//  }
-
   def startSession(): Unit = {
     db.newSession()
   }
@@ -91,61 +77,11 @@ class DataBase(settings: DataBaseSettings) extends ApexLogging {
     db.commit()
   }
 
-//  private def applyBlockToDB(block: Block): Boolean = {
-//    def calcBalancesInBlock(balances: Map[UInt160, Map[UInt256, Fixed8]], spent: Boolean,
-//                            address: UInt160, amounts: Fixed8, assetId: UInt256) = {
-//      val amount = if (spent) -amounts else amounts
-//      balances.get(address) match {
-//        case Some(balance) => {
-//          balance(assetId) += amount
-//        }
-//        case None => balances.put(address, Map((assetId, amount)))
-//      }
-//    }
-//
-//    def updateAccout(accounts: Map[UInt160, Account], tx: Transaction) = {
-//      // TODO
-//    }
-//
-//    try {
-//      db.batchWrite(batch => {
-//        //headerStore.set(block.header.id, block.header, batch)
-//        //heightStore.set(block.header.index, block.header.id, batch)
-//        //headBlkStore.set(HeadBlock.fromHeader(block.header), batch)
-//        //prodStateStore.set(latestProdState, batch)
-//        //val blkTxMapping = BlkTxMapping(block.id, block.transactions.map(_.id))
-//        //blkTxMappingStore.set(block.id, blkTxMapping, batch)
-//        val accounts = Map.empty[UInt160, Account]
-//        val balances = Map.empty[UInt160, Map[UInt256, Fixed8]]
-//        val nonceIncrease = Map.empty[UInt160, Long]
-//        block.transactions.foreach(tx => {
-//          //txStore.set(tx.id, tx, batch)
-//          calcBalancesInBlock(balances, true, tx.fromPubKeyHash, tx.amount, tx.assetId)
-//          calcBalancesInBlock(balances, false, tx.toPubKeyHash, tx.amount, tx.assetId)
-//          val noncePlus = nonceIncrease.get(tx.from.pubKeyHash).getOrElse(0L) + 1L
-//          nonceIncrease.put(tx.from.pubKeyHash, noncePlus)
-//          updateAccout(accounts, tx)
-//        })
-//        balances.foreach(p => {
-//          val account = accountStore.get(p._1).map(a => {
-//            val merged = a.balances.toSeq ++ p._2.toSeq
-//            val balances = merged.groupBy(_._1)
-//              .map(p => (p._1, Fixed8.sum(p._2.map(_._2).sum)))
-//              .filter(_._2.value > 0)
-//            new Account(a.active, a.name, balances, a.nextNonce + nonceIncrease.get(p._1).getOrElse(0L), a.version)
-//          }).getOrElse(new Account(true, "", p._2.filter(_._2.value > 0).toMap, 0))
-//          accountStore.set(p._1, account, batch)
-//        })
-//        // TODO accounts.foreach()
-//      })
-//      //latestHeader = block.header
-//      true
-//    } catch {
-//      case e: Throwable => {
-//        log.error("applyBlockToDB failed", e)
-//        false
-//      }
-//    }
-//  }
+  def close(): Unit = {
+    db.close()
+  }
 
+  def revision(): Int = {
+    db.revision()
+  }
 }

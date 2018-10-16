@@ -5,7 +5,7 @@ import java.nio.file.Path
 import com.apex.common.ApexLogging
 import com.apex.consensus.ProducerUtil
 import com.apex.settings.{ChainSettings, ConsensusSettings}
-import com.apex.crypto.Ecdsa.{PrivateKey, PublicKey}
+import com.apex.crypto.Ecdsa.{PrivateKey, PublicKey, PublicKeyHash}
 import com.apex.crypto.{BinaryData, Crypto, Fixed8, MerkleTree, UInt160, UInt256}
 import com.apex.storage.{Batch, LevelDbStorage}
 import org.iq80.leveldb.WriteBatch
@@ -36,8 +36,8 @@ trait Blockchain extends Iterable[Block] with ApexLogging {
 
   def getPendingTransaction(txid: UInt256): Option[Transaction]
 
-//  def produceBlock(producer: PublicKey, privateKey: PrivateKey, timeStamp: Long,
-//                   transactions: Seq[Transaction]): Option[Block]
+  //  def produceBlock(producer: PublicKey, privateKey: PrivateKey, timeStamp: Long,
+  //                   transactions: Seq[Transaction]): Option[Block]
 
   def startProduceBlock(producer: PublicKey)
 
@@ -63,6 +63,8 @@ trait Blockchain extends Iterable[Block] with ApexLogging {
   def getAccount(address: UInt160): Option[Account]
 
   def getGenesisBlockChainId: String
+
+  def close()
 }
 
 object Blockchain {
@@ -93,12 +95,12 @@ class LevelDBBlockchain(chainSettings: ChainSettings, consensusSettings: Consens
     onSwitch)
 
   // TODO: zero is not a valid pub key, need to work out other method
-  private val minerCoinFrom = PublicKey(BinaryData(chainSettings.miner)) // 33 bytes pub key
-  private val minerAward = Fixed8.Ten
+  private val minerCoinFrom = PublicKey(BinaryData(chainSettings.minerCoinFrom)) // 33 bytes pub key
+  private val minerAward = Fixed8.fromDecimal(chainSettings.minerAward)
 
-  private val genesisMinerAddress = UInt160.parse("f54a5851e9372b87810a8e60cdd2e7cfd80b6e31").get
+  private val genesisCoinToAddress = PublicKeyHash.fromAddress(chainSettings.genesis.coinToAddr).get
   private val genesisTx = new Transaction(TransactionType.Miner, minerCoinFrom,
-    genesisMinerAddress, "", minerAward, UInt256.Zero, 0, BinaryData.empty, BinaryData.empty)
+    genesisCoinToAddress, "", minerAward, UInt256.Zero, 0, BinaryData.empty, BinaryData.empty)
 
   private val genesisBlockHeader: BlockHeader = BlockHeader.build(0,
     chainSettings.genesis.timeStamp, UInt256.Zero, UInt256.Zero,
@@ -109,14 +111,22 @@ class LevelDBBlockchain(chainSettings: ChainSettings, consensusSettings: Consens
 
   //  private var latestProdState: ProducerStatus = null
 
-  private val pendingTxs = ArrayBuffer.empty[Transaction]  //TODO: change to seq map // TODO: save to DB?
-  private val unapplyTxs = mutable.Map.empty[UInt256, Transaction]  // TODO: save to DB?
+  private val pendingTxs = ArrayBuffer.empty[Transaction] //TODO: change to seq map // TODO: save to DB?
+  private val unapplyTxs = mutable.Map.empty[UInt256, Transaction] // TODO: save to DB?
 
   populate()
 
   override def getGenesisBlockChainId: String = genesisBlockHeader.id.toString
 
   override def iterator: Iterator[Block] = new BlockchainIterator(this)
+
+  override def close() = {
+    log.info("blockchain closing")
+    blockBase.close()
+    dataBase.close()
+    forkBase.close()
+    log.info("blockchain closed")
+  }
 
   override def getHeight(): Int = {
     forkBase.head.map(_.block.height).getOrElse(genesisBlockHeader.index)
@@ -169,6 +179,15 @@ class LevelDBBlockchain(chainSettings: ChainSettings, consensusSettings: Consens
     forkBase.get(id).map(_.block.id).flatMap(getBlock)
   }
 
+  def getPendingTransaction(txid: UInt256): Option[Transaction] = {
+    if (pendingTxs.map(_.id()).contains(txid)) {
+      pendingTxs.find(tx => tx.id().equals(txid))
+    }
+    else {
+      unapplyTxs.get(txid)
+    }
+  }
+
   override def startProduceBlock(producer: PublicKey) = {
     require(pendingTxs.isEmpty)
 
@@ -176,7 +195,7 @@ class LevelDBBlockchain(chainSettings: ChainSettings, consensusSettings: Consens
     val minerTx = new Transaction(TransactionType.Miner, minerCoinFrom,
       producer.pubKeyHash, "", minerAward, UInt256.Zero,
       forkHead.block.height + 1,
-      BinaryData(Crypto.randomBytes(8)),  // add random bytes to distinct different blocks with same block index during debug in some cases
+      BinaryData(Crypto.randomBytes(8)), // add random bytes to distinct different blocks with same block index during debug in some cases
       BinaryData.empty
     )
     //isPendingBlock = true
@@ -213,7 +232,7 @@ class LevelDBBlockchain(chainSettings: ChainSettings, consensusSettings: Consens
   }
 
   override def produceBlockFinalize(producer: PublicKey, privateKey: PrivateKey,
-                           timeStamp: Long): Option[Block] = {
+                                    timeStamp: Long): Option[Block] = {
     require(!pendingTxs.isEmpty)
 
     val forkHead = forkBase.head.get
@@ -235,14 +254,16 @@ class LevelDBBlockchain(chainSettings: ChainSettings, consensusSettings: Consens
     var inserted = false
 
     if (!pendingTxs.isEmpty) {
-      pendingTxs.foreach(tx => { unapplyTxs += (tx.id -> tx) })
+      pendingTxs.foreach(tx => {
+        unapplyTxs += (tx.id -> tx)
+      })
       pendingTxs.clear()
 
       dataBase.rollBack()
     }
 
     if (forkBase.head.get.block.id.equals(block.prev())) {
-      if (doApply == false) {   // check first !
+      if (doApply == false) { // check first !
         if (forkBase.add(block)) {
           inserted = true
           latestHeader = block.header
@@ -423,17 +444,49 @@ class LevelDBBlockchain(chainSettings: ChainSettings, consensusSettings: Consens
       forkBase.add(genesisBlock)
     }
 
-    require(
-      forkBase.head.map(_.block.height).get >=
-      blockBase.head.map(_.index).get
-    )
+    require(forkBase.head.isDefined)
 
-    if (forkBase.head.isDefined)
-      latestHeader = forkBase.head().get.block.header
-    else
-      latestHeader = blockBase.head().get
+    forkBase.switchState.foreach(resolveSwitchFailure)
+
+    forkBase.head.foreach(resolveDbUnConsistent)
+
+    require(forkBase.head.map(_.block.height).get >= blockBase.head.map(_.index).get)
+
+    latestHeader = forkBase.head.get.block.header
 
     log.info(s"populate() latest block ${latestHeader.index} ${latestHeader.id}")
+  }
+
+  private def resolveSwitchFailure(state: SwitchState): Unit = {
+    while (dataBase.revision > state.height) {
+      dataBase.rollBack()
+    }
+
+    val newBranch = forkBase.getBranch(state.newHead, state.forkPoint)
+    require(newBranch.head.height == dataBase.revision + 1)
+    for (blk <- newBranch if (applyBlock(blk))) {
+      newBranch.remove(0)
+    }
+
+    // apply new branch failed, switch back
+    if (!newBranch.isEmpty) {
+      forkBase.removeFork(newBranch.head.id)
+      while (dataBase.revision > state.height) {
+        dataBase.rollBack()
+      }
+      val oldBranch = forkBase.getBranch(state.oldHead, state.forkPoint)
+      for (blk <- oldBranch if (applyBlock(blk))) {
+        newBranch.remove(0)
+      }
+    }
+
+    forkBase.deleteSwitchState
+  }
+
+  private def resolveDbUnConsistent(head: ForkItem): Unit = {
+    while (dataBase.revision > head.height) {
+      dataBase.rollBack()
+    }
   }
 
   private def onConfirmed(block: Block): Unit = {
@@ -444,7 +497,7 @@ class LevelDBBlockchain(chainSettings: ChainSettings, consensusSettings: Consens
     }
   }
 
-  private def onSwitch(from: Seq[ForkItem], to: Seq[ForkItem]): Unit = {
+  private def onSwitch(from: Seq[ForkItem], to: Seq[ForkItem], switchState: SwitchState): SwitchResult = {
     def printChain(title: String, fork: Seq[ForkItem]): Unit = {
       log.info(s"$title: ${fork.map(_.block.id.toString.substring(0, 6)).mkString(" -> ")}")
     }
@@ -454,15 +507,20 @@ class LevelDBBlockchain(chainSettings: ChainSettings, consensusSettings: Consens
 
     from.foreach(_ => dataBase.rollBack())
     to.foreach(item => applyBlock(item.block))
-    //TODO apply all blocks switched to
-  }
 
-  def getPendingTransaction(txid: UInt256): Option[Transaction] = {
-    if (pendingTxs.map(_.id()).contains(txid)) {
-      pendingTxs.find(tx => tx.id().equals(txid))
+    var appliedCount = 0
+    for (item <- to if applyBlock(item.block)) {
+      appliedCount += 1
     }
-    else {
-      unapplyTxs.get(txid)
+
+    if (appliedCount < to.size) {
+      while (dataBase.revision > switchState.height) {
+        dataBase.rollBack()
+      }
+      from.foreach(item => applyBlock(item.block))
+      SwitchResult(false, to(appliedCount))
+    } else {
+      SwitchResult(true)
     }
   }
 }

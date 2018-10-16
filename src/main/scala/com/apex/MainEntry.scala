@@ -10,12 +10,12 @@ package com.apex
 
 import akka.actor.ActorSystem
 import com.apex.common.ApexLogging
-import com.apex.consensus.ProducerRef
+import com.apex.consensus.{ProducerRef, ProducerStopMessage}
 import com.apex.core.Blockchain
 import com.apex.network.peer.PeerHandlerManagerRef
 import com.apex.network.rpc.RpcServer
 import com.apex.network.upnp.UPnP
-import com.apex.network.{NetworkManagerRef, NodeRef}
+import com.apex.network.{NetworkManagerRef, NodeRef, NodeStopMessage}
 import com.apex.settings.ApexSettings
 import com.apex.utils.NetworkTimeProvider
 import net.sourceforge.argparse4j.ArgumentParsers
@@ -50,6 +50,13 @@ object MainEntry extends ApexLogging {
 
     System.out.println("Press RETURN to stop...")
     StdIn.readLine() // let it run until user presses return
+    log.info("stoping")
+    producer ! ProducerStopMessage()
+    nodeRef ! NodeStopMessage()
+    // TODO: close network ...
+    Thread.sleep(1000) // TODO
+    log.info("quit")
+    System.exit(0)
   }
 
   private def parseArgs(args: Array[String]): Namespace = {

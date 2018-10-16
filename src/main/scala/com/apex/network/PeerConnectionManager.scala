@@ -140,12 +140,10 @@ class PeerConnectionManager(val settings: NetworkSettings,
       return
     }
 
-    // Peer clock may be no more than 1 second skewed from our clock, including network latency
-    val peerMaxTimeGapMs: Long = 1000
     val myTime = System.currentTimeMillis() 
     val timeGap = math.abs(handshakeMsg.time - myTime)
     log.info(s"peer timeGap = $timeGap")
-    if (timeGap > peerMaxTimeGapMs) {
+    if (timeGap > settings.peerMaxTimeGap) {
       log.error(s"peer timeGap too large $timeGap  Closing connection")
       self ! CloseConnection
       return
@@ -194,7 +192,7 @@ class PeerConnectionManager(val settings: NetworkSettings,
   //发送消息
   def workingCycleLocalInterface: Receive = {
     case msg: MessagePack =>
-      //log.info("PeerConnectionManager try send Message")
+      //log.info(s"PeerConnectionManager try send $msg")
       if (waitForAck) {
         msgBuffer.append(msg)
         log.info(s"msgBuffer size ${msgBuffer.size}")

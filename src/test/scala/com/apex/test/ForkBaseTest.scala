@@ -12,7 +12,7 @@ package com.apex.test
 
 import java.time.Instant
 
-import com.apex.core.{Block, BlockHeader, ForkBase, ForkItem}
+import com.apex.core._
 import com.apex.crypto.{BinaryData, UInt256}
 import com.apex.crypto.Ecdsa.{PrivateKey, PublicKey}
 import com.apex.settings.{ForkBaseSettings, Witness}
@@ -241,7 +241,10 @@ object ForkBaseTest {
     val settings = new ForkBaseSettings(dir, false, 0)
     val forkBase = new ForkBase(settings, witnesses,
       blk => println(s"confirm block ${blk.height}"),
-      (from, to) => println(s"switch\n${forkStr("from", from)}\n${forkStr("to", to)}"))
+      (from, to, _) => {
+        println(s"switch\n${forkStr("from", from)}\n${forkStr("to", to)}")
+        SwitchResult(true)
+      })
     dbs.append(forkBase)
     dirs.append(dir)
     forkBase

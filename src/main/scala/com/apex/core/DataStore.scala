@@ -73,6 +73,11 @@ class LatestConfirmedBlockStore(db: LevelDbStorage)
     with LatestConfirmedStatePrefix
     with BlockHeaderValue
 
+class SwitchStateStore(db: LevelDbStorage)
+  extends StateStore[SwitchState](db)
+    with SwitchStatePrefix
+    with SwitchStateValue
+
 object StoreType extends Enumeration {
   val Data = Value(0x00)
   val Index = Value(0x01)
@@ -99,6 +104,7 @@ object StateType extends Enumeration {
   val HeadBlock = Value(0x00)
   val Producer = Value(0x01)
   val LatestConfirmed = Value(0x02)
+  val SwitchState = Value(0x03)
 }
 
 trait Prefix {
@@ -169,6 +175,10 @@ trait ProducerStatePrefix extends StatePrefix {
 
 trait LatestConfirmedStatePrefix extends StatePrefix {
   override val stateType: StateType.Value = StateType.LatestConfirmed
+}
+
+trait SwitchStatePrefix extends StatePrefix {
+  override val stateType: StateType.Value = StateType.SwitchState
 }
 
 trait Converter[A] {
@@ -256,6 +266,10 @@ trait ProducerStatusValue extends ValueConverterProvider[ProducerStatus] {
 
 trait HeadBlockValue extends ValueConverterProvider[HeadBlock] {
   override val valConverter: Converter[HeadBlock] = new SerializableConverter(HeadBlock.deserialize)
+}
+
+trait SwitchStateValue extends ValueConverterProvider[SwitchState] {
+  override val valConverter: Converter[SwitchState] = new SerializableConverter(SwitchState.deserialize)
 }
 
 class IntConverter extends Converter[Int] {

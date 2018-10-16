@@ -147,6 +147,63 @@ class LevelDbStorage(private val db: DB) extends Storage[Array[Byte], Array[Byte
   }
 }
 
+class LevelDBWriteBatch(val batch: WriteBatch) extends LowLevelWriteBatch {
+  override def set(key: Array[Byte], value: Array[Byte]): Unit = {
+    batch.put(key, value)
+  }
+
+  override def delete(key: Array[Byte]): Unit = {
+    batch.delete(key)
+  }
+
+  override def close(): Unit = {
+    batch.close()
+  }
+}
+
+class LevelDBIterator(it: DBIterator) extends LowLevelDBIterator {
+  override def seek(prefix: Array[Byte]): Unit = {
+    it.seek(prefix)
+  }
+
+  override def next(): (Array[Byte], Array[Byte]) = {
+    val entry = it.next()
+    (entry.getKey, entry.getValue)
+  }
+
+  override def hasNext(): Boolean = {
+    it.hasNext
+  }
+}
+
+class LevelDB(db: DB) extends LowLevelDB {
+  override def get(key: Array[Byte]): Array[Byte] = {
+    db.get(key)
+  }
+
+  override def set(key: Array[Byte], value: Array[Byte]): Unit = {
+    db.put(key, value)
+  }
+
+  override def delete(key: Array[Byte]): Unit = {
+    db.delete(key)
+  }
+
+  override def iterator(): LowLevelDBIterator = {
+    new LevelDBIterator(db.iterator())
+  }
+
+  override def batchWrite(action: LowLevelWriteBatch => Unit): Unit = {
+    val update = new LevelDBWriteBatch(db.createWriteBatch())
+    try {
+      action(update)
+      db.write(update.batch)
+    } finally {
+      update.close()
+    }
+  }
+}
+
 case class ByteArrayKey(bytes: Array[Byte]) extends com.apex.common.Serializable {
   override def equals(obj: scala.Any): Boolean = {
     obj match {
@@ -263,7 +320,7 @@ class RollbackSession(db: DB, val prefix: Array[Byte], val revision: Int) extend
     closed = true
   }
 
-  def rollBack(onRollBack: WriteBatch => Unit): Unit = {
+  def rollBack(): Unit = {
     require(!closed)
 
     val batch = db.createWriteBatch()
@@ -271,8 +328,8 @@ class RollbackSession(db: DB, val prefix: Array[Byte], val revision: Int) extend
       item.insert.foreach(p => batch.delete(p._1.bytes))
       item.update.foreach(p => batch.put(p._1.bytes, p._2))
       item.delete.foreach(p => batch.put(p._1.bytes, p._2))
+      batch.put(prefix, BigInt(revision - 1).toByteArray)
       batch.delete(sessionId)
-      onRollBack(batch)
       db.write(batch)
     } finally {
       batch.close()
@@ -375,9 +432,9 @@ class SessionManager(db: DB) {
 
   def rollBack(): Unit = {
     sessions.lastOption.foreach(s => {
-      s.rollBack(batch => batch.put(prefix, BigInt(_revision - 1).toByteArray))
       sessions.remove(sessions.length - 1)
       _revision -= 1
+      s.rollBack()
     })
   }
 
