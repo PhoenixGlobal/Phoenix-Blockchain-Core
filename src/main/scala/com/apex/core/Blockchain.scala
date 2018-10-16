@@ -5,7 +5,7 @@ import java.nio.file.Path
 import com.apex.common.ApexLogging
 import com.apex.consensus.ProducerUtil
 import com.apex.settings.{ChainSettings, ConsensusSettings}
-import com.apex.crypto.Ecdsa.{PrivateKey, PublicKey}
+import com.apex.crypto.Ecdsa.{PrivateKey, PublicKey, PublicKeyHash}
 import com.apex.crypto.{BinaryData, Crypto, Fixed8, MerkleTree, UInt160, UInt256}
 import com.apex.storage.{Batch, LevelDbStorage}
 import org.iq80.leveldb.WriteBatch
@@ -95,12 +95,12 @@ class LevelDBBlockchain(chainSettings: ChainSettings, consensusSettings: Consens
     onSwitch)
 
   // TODO: zero is not a valid pub key, need to work out other method
-  private val minerCoinFrom = PublicKey(BinaryData(chainSettings.miner)) // 33 bytes pub key
-  private val minerAward = Fixed8.Ten
+  private val minerCoinFrom = PublicKey(BinaryData(chainSettings.minerCoinFrom)) // 33 bytes pub key
+  private val minerAward = Fixed8.fromDecimal(chainSettings.minerAward)
 
-  private val genesisMinerAddress = UInt160.parse("f54a5851e9372b87810a8e60cdd2e7cfd80b6e31").get
+  private val genesisCoinToAddress = PublicKeyHash.fromAddress(chainSettings.genesis.coinToAddr).get
   private val genesisTx = new Transaction(TransactionType.Miner, minerCoinFrom,
-    genesisMinerAddress, "", minerAward, UInt256.Zero, 0, BinaryData.empty, BinaryData.empty)
+    genesisCoinToAddress, "", minerAward, UInt256.Zero, 0, BinaryData.empty, BinaryData.empty)
 
   private val genesisBlockHeader: BlockHeader = BlockHeader.build(0,
     chainSettings.genesis.timeStamp, UInt256.Zero, UInt256.Zero,

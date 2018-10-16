@@ -30,7 +30,8 @@ case class NetworkSettings(nodeName: String,
                            appVersion: String,
                            agentName: String,
                            maxPacketSize: Int,
-                           controllerTimeout: Option[FiniteDuration])
+                           controllerTimeout: Option[FiniteDuration],
+                           peerMaxTimeGap: Int)
 
 case class NetworkTimeProviderSettings(server: String, updateEvery: FiniteDuration, timeout: FiniteDuration)
 
@@ -49,9 +50,17 @@ case class DataBaseSettings(dir: String, cacheEnabled: Boolean, cacheSize: Int)
 
 case class ForkBaseSettings(dir: String, cacheEnabled: Boolean, cacheSize: Int)
 
-case class GenesisSettings(timeStamp: Long, publicKey: String, privateKey: String)
+case class GenesisSettings(timeStamp: Long,
+                           publicKey: String,
+                           privateKey: String,
+                           coinToAddr: String)
 
-case class ChainSettings(blockBase: BlockBaseSettings, dataBase: DataBaseSettings, forkBase: ForkBaseSettings, miner: String, genesis: GenesisSettings)
+case class ChainSettings(blockBase: BlockBaseSettings,
+                         dataBase: DataBaseSettings,
+                         forkBase: ForkBaseSettings,
+                         minerCoinFrom: String,
+                         minerAward: Double,
+                         genesis: GenesisSettings)
 
 case class ConsensusSettings(produceInterval: Int,
                              acceptableTimeError: Int,
