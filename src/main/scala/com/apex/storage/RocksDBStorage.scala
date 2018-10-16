@@ -53,13 +53,17 @@ class RocksDBStorage(db: RocksDB) extends Storage[Array[Byte], Array[Byte]] with
   override def uncommitted(): Seq[Int] = ???
 }
 
-class RocksDBWriteBatch(writeBatch: WriteBatch) extends LowLevelWriteBatch {
+class RocksDBWriteBatch(val batch: WriteBatch) extends LowLevelWriteBatch {
   override def set(key: Array[Byte], value: Array[Byte]): Unit = {
-    writeBatch.put(key, value)
+    batch.put(key, value)
   }
 
   override def delete(key: Array[Byte]): Unit = {
-    writeBatch.remove(key)
+    batch.remove(key)
+  }
+
+  override def close(): Unit = {
+    batch.close()
   }
 }
 
@@ -97,10 +101,10 @@ class RocksDatabase(db: RocksDB) extends LowLevelDB {
   }
 
   override def batchWrite(action: LowLevelWriteBatch => Unit): Unit = {
-    val update = new WriteBatch
+    val update = new RocksDBWriteBatch(new WriteBatch)
     try {
       action(update)
-      db.write(new WriteOptions(), update)
+      db.write(new WriteOptions(), update.batch)
     } finally {
       update.close()
     }

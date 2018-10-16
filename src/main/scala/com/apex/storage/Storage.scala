@@ -48,6 +48,8 @@ trait LowLevelWriteBatch {
   def set(key: Array[Byte], value: Array[Byte]): Unit
 
   def delete(key: Array[Byte]): Unit
+
+  def close(): Unit
 }
 
 trait LowLevelDB {
