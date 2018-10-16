@@ -17,7 +17,6 @@ import java.io.{ByteArrayInputStream, ByteArrayOutputStream, DataInputStream, Da
 import com.apex.common.ApexLogging
 import com.apex.crypto.Ecdsa.PublicKey
 import com.apex.crypto.UInt256
-import com.apex.exceptions.UnExpectedError
 import com.apex.settings.{ForkBaseSettings, Witness}
 import com.apex.storage.{Batch, LevelDbStorage}
 
@@ -298,10 +297,12 @@ object SwitchState {
   }
 }
 
+case class SwitchResult(succeed: Boolean, failedItem: ForkItem = null)
+
 class ForkBase(settings: ForkBaseSettings,
                witnesses: Array[Witness],
                onConfirmed: Block => Unit,
-               onSwitch: (Seq[ForkItem], Seq[ForkItem]) => Unit) extends ApexLogging {
+               onSwitch: (Seq[ForkItem], Seq[ForkItem], SwitchState) => SwitchResult) extends ApexLogging {
   private val db = LevelDbStorage.open(settings.dir)
   private val forkStore = new ForkItemStore(db, settings.cacheSize)
   private val switchStateStore = new SwitchStateStore(db)
@@ -385,8 +386,7 @@ class ForkBase(settings: ForkBaseSettings,
 
   def add(item: ForkItem): Boolean = {
     def maybeReplaceHead: (ForkItem, ForkItem) = {
-      val old = _head
-      _head = indexByConfirmedHeight.headOption.map(_._3).flatMap(indexById.get)
+      val old = resetHead
       require(_head.isDefined)
       (old.orElse(_head).get, _head.get)
     }
@@ -425,10 +425,23 @@ class ForkBase(settings: ForkBaseSettings,
       }
     }
 
-    if (switchState != null) {
-      if (db.batchWrite(switchFork)) {
+    def discardSwitch(batch: Batch) = {
+      for (item <- originFork) {
+        forkStore.set(item.id, item, batch)
+        switchStateStore.delete(batch)
+      }
+    }
+
+    require(switchState != null)
+    if (db.batchWrite(switchFork)) {
+      val result = onSwitch(originFork, newFork, switchState)
+      if (result.succeed) {
         items.foreach(updateIndex)
-        onSwitch(originFork, newFork)
+        deleteSwitchState()
+      } else {
+        db.batchWrite(discardSwitch)
+        removeFork(result.failedItem.id)
+        resetHead()
       }
     }
   }
@@ -466,11 +479,19 @@ class ForkBase(settings: ForkBaseSettings,
     db.close()
   }
 
-  private def init() = {
+  private def init(): Unit = {
+    createIndex
+    resetHead
+  }
+
+  private def createIndex(): Unit = {
     forkStore.foreach((_, item) => createIndex(item))
-    _head = indexByConfirmedHeight
-      .headOption.map(_._3)
-      .flatMap(indexById.get)
+  }
+
+  private def resetHead() = {
+    val old = _head
+    _head = indexByConfirmedHeight.headOption.map(_._3).flatMap(indexById.get)
+    old
   }
 
   private def removeConfirmed(height: Int): Unit = {

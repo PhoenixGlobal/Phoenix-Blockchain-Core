@@ -36,6 +36,32 @@ trait Storage[Key, Value] {
   def uncommitted(): Seq[Int]
 }
 
+trait LowLevelDBIterator {
+  def seek(prefix: Array[Byte]): Unit
+
+  def next(): (Array[Byte], Array[Byte])
+
+  def hasNext(): Boolean
+}
+
+trait LowLevelWriteBatch {
+  def set(key: Array[Byte], value: Array[Byte]): Unit
+
+  def delete(key: Array[Byte]): Unit
+}
+
+trait LowLevelDB {
+  def get(key: Array[Byte]): Array[Byte]
+
+  def set(key: Array[Byte], value: Array[Byte]): Unit
+
+  def delete(key: Array[Byte]): Unit
+
+  def iterator(): LowLevelDBIterator
+
+  def batchWrite(action: LowLevelWriteBatch => Unit)
+}
+
 trait BatchItem
 
 case class DeleteOperationItem(key: Array[Byte]) extends BatchItem

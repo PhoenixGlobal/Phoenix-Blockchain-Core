@@ -263,7 +263,7 @@ class RollbackSession(db: DB, val prefix: Array[Byte], val revision: Int) extend
     closed = true
   }
 
-  def rollBack(onRollBack: WriteBatch => Unit): Unit = {
+  def rollBack(): Unit = {
     require(!closed)
 
     val batch = db.createWriteBatch()
@@ -271,8 +271,8 @@ class RollbackSession(db: DB, val prefix: Array[Byte], val revision: Int) extend
       item.insert.foreach(p => batch.delete(p._1.bytes))
       item.update.foreach(p => batch.put(p._1.bytes, p._2))
       item.delete.foreach(p => batch.put(p._1.bytes, p._2))
+      batch.put(prefix, BigInt(revision - 1).toByteArray)
       batch.delete(sessionId)
-      onRollBack(batch)
       db.write(batch)
     } finally {
       batch.close()
@@ -375,9 +375,9 @@ class SessionManager(db: DB) {
 
   def rollBack(): Unit = {
     sessions.lastOption.foreach(s => {
-      s.rollBack(batch => batch.put(prefix, BigInt(_revision - 1).toByteArray))
       sessions.remove(sessions.length - 1)
       _revision -= 1
+      s.rollBack()
     })
   }
 
