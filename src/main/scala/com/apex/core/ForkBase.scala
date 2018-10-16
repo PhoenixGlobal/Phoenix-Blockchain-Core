@@ -219,6 +219,8 @@ case class ForkItem(block: Block, lastProducerHeight: mutable.Map[PublicKey, Int
 
   def id(): UInt256 = block.id()
 
+  def height(): Int = block.height()
+
   def prev(): UInt256 = block.prev()
 
   def confirmedHeight: Int = {
@@ -268,12 +270,41 @@ object ForkItem {
   }
 }
 
+case class SwitchState(oldHead: UInt256, newHead: UInt256, forkPoint: UInt256, height: Int) extends com.apex.common.Serializable {
+  override def serialize(os: DataOutputStream): Unit = {
+    import com.apex.common.Serializable._
+    os.write(oldHead)
+    os.write(newHead)
+    os.write(forkPoint)
+    os.writeVarInt(height)
+  }
+}
+
+object SwitchState {
+  def deserialize(is: DataInputStream): SwitchState = {
+    import com.apex.common.Serializable._
+    SwitchState(
+      is.readObj(UInt256.deserializer),
+      is.readObj(UInt256.deserializer),
+      is.readObj(UInt256.deserializer),
+      is.readVarInt
+    )
+  }
+
+  def fromBytes(bytes: Array[Byte]): SwitchState = {
+    val bs = new ByteArrayInputStream(bytes)
+    val is = new DataInputStream(bs)
+    deserialize(is)
+  }
+}
+
 class ForkBase(settings: ForkBaseSettings,
                witnesses: Array[Witness],
                onConfirmed: Block => Unit,
                onSwitch: (Seq[ForkItem], Seq[ForkItem]) => Unit) extends ApexLogging {
   private val db = LevelDbStorage.open(settings.dir)
   private val forkStore = new ForkItemStore(db, settings.cacheSize)
+  private val switchStateStore = new SwitchStateStore(db)
 
   private val indexById = Map.empty[UInt256, ForkItem]
   private val indexByPrev = MultiMap.empty[UInt256, UInt256]
@@ -283,6 +314,24 @@ class ForkBase(settings: ForkBaseSettings,
   private var _head: Option[ForkItem] = None
 
   init()
+
+  def switchState(): Option[SwitchState] = {
+    switchStateStore.get()
+  }
+
+  def deleteSwitchState(): Unit = {
+    switchStateStore.delete()
+  }
+
+  def getBranch(head: UInt256, tail: UInt256): ListBuffer[Block] = {
+    var item = indexById.get(head)
+    val branch = ListBuffer.empty[Block]
+    while (item.exists(!_.prev.equals(tail))) {
+      branch.insert(0, item.get.block)
+      item = indexById.get(item.get.prev)
+    }
+    branch
+  }
 
   def head(): Option[ForkItem] = {
     _head
@@ -298,7 +347,6 @@ class ForkBase(settings: ForkBaseSettings,
       .flatMap(get)
   }
 
-  //TODO
   def getNext(id: UInt256): Option[UInt256] = {
     indexByPrev.get(id)
       .map(a => a.map(indexById.get))
@@ -357,26 +405,31 @@ class ForkBase(settings: ForkBaseSettings,
   }
 
   def switch(from: ForkItem, to: ForkItem): Unit = {
-    val (originFork, newFork) = getForks(from, to)
+    val (originFork, newFork, switchState) = getForks(from, to)
 
     val items = ListBuffer.empty[ForkItem]
 
     def switchFork(batch: Batch) = {
+      switchStateStore.set(switchState, batch)
+
       for (item <- originFork) {
         val newItem = item.copy(master = false)
-        forkStore.set(newItem.block.id, newItem, batch)
+        forkStore.set(newItem.id, newItem, batch)
         items.append(newItem)
       }
+
       for (item <- newFork) {
         val newItem = item.copy(master = true)
-        forkStore.set(newItem.block.id, newItem, batch)
+        forkStore.set(newItem.id, newItem, batch)
         items.append(newItem)
       }
     }
 
-    if (db.batchWrite(switchFork)) {
-      items.foreach(updateIndex)
-      onSwitch(originFork, newFork)
+    if (switchState != null) {
+      if (db.batchWrite(switchFork)) {
+        items.foreach(updateIndex)
+        onSwitch(originFork, newFork)
+      }
     }
   }
 
@@ -427,7 +480,7 @@ class ForkBase(settings: ForkBaseSettings,
           if (item.master) {
             onConfirmed(item.block)
           }
-          if (db.batchWrite(batch => forkStore.delete(item.block.id, batch))) {
+          if (db.batchWrite(batch => forkStore.delete(item.id, batch))) {
             deleteIndex(item)
             true
           } else {
@@ -445,7 +498,7 @@ class ForkBase(settings: ForkBaseSettings,
   }
 
   private def insert(item: ForkItem): Boolean = {
-    if (forkStore.set(item.block.id, item)) {
+    if (forkStore.set(item.id, item)) {
       createIndex(item)
       true
     } else {
@@ -453,7 +506,7 @@ class ForkBase(settings: ForkBaseSettings,
     }
   }
 
-  private def getForks(x: ForkItem, y: ForkItem): (Seq[ForkItem], Seq[ForkItem]) = {
+  private def getForks(x: ForkItem, y: ForkItem): (Seq[ForkItem], Seq[ForkItem], SwitchState) = {
     def getPrev(item: ForkItem): ForkItem = {
       val prev = get(item.block.prev)
       require(prev.isDefined)
@@ -461,26 +514,28 @@ class ForkBase(settings: ForkBaseSettings,
     }
 
     var (a, b) = (x, y)
-    if (a.block.id.equals(b.block.id)) {
-      (Seq.empty, Seq.empty)
+    if (a.id.equals(b.id)) {
+      (Seq.empty, Seq.empty, null)
     } else {
       val xs = ListBuffer.empty[ForkItem]
       val ys = ListBuffer.empty[ForkItem]
-      while (a.block.height > b.block.height) {
+      while (a.height > b.height) {
         xs.append(a)
         a = getPrev(a)
       }
-      while (b.block.height > a.block.height) {
+      while (b.height > a.height) {
         ys.append(b)
         b = getPrev(b)
       }
-      while (!a.block.id.equals(b.block.id)) {
+      while (!a.id.equals(b.id)) {
         xs.append(a)
         ys.append(b)
         a = getPrev(a)
         b = getPrev(b)
       }
-      (xs, ys)
+
+      require(a != null)
+      (xs, ys, SwitchState(x.id, y.id, a.id, a.height))
     }
   }
 
@@ -501,8 +556,8 @@ class ForkBase(settings: ForkBaseSettings,
   }
 
   private def updateIndex(newItem: ForkItem): Unit = {
-    val id = newItem.block.id
-    val height = newItem.block.height
+    val id = newItem.id
+    val height = newItem.height
     val branch = newItem.master
     indexByHeight.remove(height, !branch)
       .map(_.filterNot(_.equals(id)))

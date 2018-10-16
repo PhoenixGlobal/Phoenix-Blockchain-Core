@@ -36,8 +36,8 @@ trait Blockchain extends Iterable[Block] with ApexLogging {
 
   def getPendingTransaction(txid: UInt256): Option[Transaction]
 
-//  def produceBlock(producer: PublicKey, privateKey: PrivateKey, timeStamp: Long,
-//                   transactions: Seq[Transaction]): Option[Block]
+  //  def produceBlock(producer: PublicKey, privateKey: PrivateKey, timeStamp: Long,
+  //                   transactions: Seq[Transaction]): Option[Block]
 
   def startProduceBlock(producer: PublicKey)
 
@@ -111,8 +111,8 @@ class LevelDBBlockchain(chainSettings: ChainSettings, consensusSettings: Consens
 
   //  private var latestProdState: ProducerStatus = null
 
-  private val pendingTxs = ArrayBuffer.empty[Transaction]  //TODO: change to seq map // TODO: save to DB?
-  private val unapplyTxs = mutable.Map.empty[UInt256, Transaction]  // TODO: save to DB?
+  private val pendingTxs = ArrayBuffer.empty[Transaction] //TODO: change to seq map // TODO: save to DB?
+  private val unapplyTxs = mutable.Map.empty[UInt256, Transaction] // TODO: save to DB?
 
   populate()
 
@@ -195,7 +195,7 @@ class LevelDBBlockchain(chainSettings: ChainSettings, consensusSettings: Consens
     val minerTx = new Transaction(TransactionType.Miner, minerCoinFrom,
       producer.pubKeyHash, "", minerAward, UInt256.Zero,
       forkHead.block.height + 1,
-      BinaryData(Crypto.randomBytes(8)),  // add random bytes to distinct different blocks with same block index during debug in some cases
+      BinaryData(Crypto.randomBytes(8)), // add random bytes to distinct different blocks with same block index during debug in some cases
       BinaryData.empty
     )
     //isPendingBlock = true
@@ -232,7 +232,7 @@ class LevelDBBlockchain(chainSettings: ChainSettings, consensusSettings: Consens
   }
 
   override def produceBlockFinalize(producer: PublicKey, privateKey: PrivateKey,
-                           timeStamp: Long): Option[Block] = {
+                                    timeStamp: Long): Option[Block] = {
     require(!pendingTxs.isEmpty)
 
     val forkHead = forkBase.head.get
@@ -254,14 +254,16 @@ class LevelDBBlockchain(chainSettings: ChainSettings, consensusSettings: Consens
     var inserted = false
 
     if (!pendingTxs.isEmpty) {
-      pendingTxs.foreach(tx => { unapplyTxs += (tx.id -> tx) })
+      pendingTxs.foreach(tx => {
+        unapplyTxs += (tx.id -> tx)
+      })
       pendingTxs.clear()
 
       dataBase.rollBack()
     }
 
     if (forkBase.head.get.block.id.equals(block.prev())) {
-      if (doApply == false) {   // check first !
+      if (doApply == false) { // check first !
         if (forkBase.add(block)) {
           inserted = true
           latestHeader = block.header
@@ -442,15 +444,37 @@ class LevelDBBlockchain(chainSettings: ChainSettings, consensusSettings: Consens
       forkBase.add(genesisBlock)
     }
 
-    require(
-      forkBase.head.map(_.block.height).get >=
-      blockBase.head.map(_.index).get
-    )
+    forkBase.switchState.foreach(state => {
+      while (dataBase.revision > state.height) {
+        dataBase.rollBack()
+      }
 
-    if (forkBase.head.isDefined)
-      latestHeader = forkBase.head().get.block.header
-    else
-      latestHeader = blockBase.head().get
+      val newBranch = forkBase.getBranch(state.newHead, state.forkPoint)
+      require(newBranch.head.height == dataBase.revision + 1)
+      for (blk <- newBranch if (applyBlock(blk))) {
+        newBranch.remove(0)
+      }
+
+      // apply new branch failed, switch back
+      if (!newBranch.isEmpty) {
+        forkBase.removeFork(newBranch.head.id)
+        while (dataBase.revision > state.height) {
+          dataBase.rollBack()
+        }
+        val oldBranch = forkBase.getBranch(state.oldHead, state.forkPoint)
+        for (blk <- oldBranch if (applyBlock(blk))) {
+          newBranch.remove(0)
+        }
+      }
+
+      forkBase.deleteSwitchState
+    })
+
+    require(forkBase.head.map(_.block.height).get >= blockBase.head.map(_.index).get)
+
+    require(forkBase.head.isDefined)
+
+    latestHeader = forkBase.head.get.block.header
 
     log.info(s"populate() latest block ${latestHeader.index} ${latestHeader.id}")
   }
