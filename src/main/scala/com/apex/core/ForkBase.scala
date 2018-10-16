@@ -384,7 +384,7 @@ class ForkBase(settings: ForkBaseSettings,
     indexById.get(id).exists(item => {
       val queue = ListBuffer(item)
 
-      def getAncestors(ancestors: Seq[UInt256]): Seq[ForkItem] = {
+      def getFollowers(ancestors: Seq[UInt256]): Seq[ForkItem] = {
         ancestors.map(indexById.get).filter(_.isDefined).map(_.get)
       }
 
@@ -392,10 +392,9 @@ class ForkBase(settings: ForkBaseSettings,
         var i = 0
 
         while (i < queue.size) {
-          val toRemove = queue(i)
-          val toRemoveId = toRemove.block.id
-          val ancestors = indexByPrev.get(toRemoveId).map(getAncestors)
-          ancestors.foreach(queue.appendAll)
+          val toRemoveId = queue(i).id
+          val followers = indexByPrev.get(toRemoveId).map(getFollowers)
+          followers.foreach(queue.appendAll)
           forkStore.delete(toRemoveId, batch)
           i += 1
         }
