@@ -26,39 +26,6 @@ class Node(val chain: Blockchain,
            val producer: ActorRef)
   extends Actor with ApexLogging {
 
-//  def addTransaction(tx: Transaction): Boolean = {
-//    //lock (Blockchain.Default.PersistLock)
-//    //lock (mem_pool)
-//    if (memPool.contains(tx.id)) return false
-//    if (chain.containsTransaction(tx.id)) return false
-//    //if (!tx.Verify(mem_pool.Values)) return false;
-//    memPool.put(tx.id, tx)
-//    //CheckMemPool()
-//    true
-//  }
-//
-//  def getMemoryPool(): Seq[Transaction] = {
-//    memPool.values.toSeq
-//  }
-//
-//  def clearMemoryPool() = {
-//    memPool.clear()
-//  }
-//
-//  def getTransaction(hash: UInt256): Option[Transaction] = {
-//
-//    return memPool.get(hash)
-//  }
-//
-//  def containsTransaction(tx: Transaction): Boolean = {
-//
-//    return memPool.contains(tx.id)
-//  }
-
-  def removeTransactionsInBlock(block: Block) = {
-    //TODO
-  }
-
   override def receive: Receive = {
     case message: Message => processMessage(message)
     case cmd: RPCCommand => processRPCCommand(cmd)
@@ -94,6 +61,33 @@ class Node(val chain: Blockchain,
       }
       case GetAccountCmd(address) => {
         sender() ! chain.getAccount(address)
+      }
+    }
+  }
+
+  private def processMessage(message: Message) = {
+    //log.info(s"Node processMessage $message")
+    message match {
+      case VersionMessage(height) => {
+        processVersionMessage(message.asInstanceOf[VersionMessage])
+      }
+      case GetBlocksMessage(blockHashs) => {
+        processGetBlocksMessage(message.asInstanceOf[GetBlocksMessage])
+      }
+      case BlockMessage(block) => {
+        processBlockMessage(message.asInstanceOf[BlockMessage])
+      }
+      case BlocksMessage(blocksPayload) => {
+        processBlocksMessage(message.asInstanceOf[BlocksMessage])
+      }
+      case TransactionsMessage(txsPayload) => {
+        processTransactionsMessage(message.asInstanceOf[TransactionsMessage])
+      }
+      case InventoryMessage(inv) => {
+        processInventoryMessage(message.asInstanceOf[InventoryMessage])
+      }
+      case GetDataMessage(inv) => {
+        processGetDataMessage(message.asInstanceOf[GetDataMessage])
       }
     }
   }
@@ -223,33 +217,6 @@ class Node(val chain: Blockchain,
       })
       if (txs.size > 0) {
         sender() ! TransactionsMessage(new TransactionsPayload(txs)).pack
-      }
-    }
-  }
-
-  private def processMessage(message: Message) = {
-    //log.info(s"Node processMessage $message")
-    message match {
-      case VersionMessage(height) => {
-        processVersionMessage(message.asInstanceOf[VersionMessage])
-      }
-      case GetBlocksMessage(blockHashs) => {
-        processGetBlocksMessage(message.asInstanceOf[GetBlocksMessage])
-      }
-      case BlockMessage(block) => {
-        processBlockMessage(message.asInstanceOf[BlockMessage])
-      }
-      case BlocksMessage(blocksPayload) => {
-        processBlocksMessage(message.asInstanceOf[BlocksMessage])
-      }
-      case TransactionsMessage(txsPayload) => {
-        processTransactionsMessage(message.asInstanceOf[TransactionsMessage])
-      }
-      case InventoryMessage(inv) => {
-        processInventoryMessage(message.asInstanceOf[InventoryMessage])
-      }
-      case GetDataMessage(inv) => {
-        processGetDataMessage(message.asInstanceOf[GetDataMessage])
       }
     }
   }

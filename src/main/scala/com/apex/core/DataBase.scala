@@ -61,20 +61,6 @@ class DataBase(settings: DataBaseSettings) extends ApexLogging {
     accountStore.get(address).map(_.balances)
   }
 
-//  def applyTransaction(transaction: Transaction): Boolean = {
-//    if (isPendingBlock) {
-//
-//    }
-//    else {
-//      startSession()
-//      isPendingBlock = true
-//    }
-//
-//    // TODO  check and apply this tx
-//
-//    false
-//  }
-
   def startSession(): Unit = {
     db.newSession()
   }

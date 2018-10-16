@@ -120,6 +120,14 @@ class LevelDBBlockchain(chainSettings: ChainSettings, consensusSettings: Consens
 
   override def iterator: Iterator[Block] = new BlockchainIterator(this)
 
+  override def close() = {
+    log.info("blockchain closing")
+    blockBase.close()
+    dataBase.close()
+    forkBase.close()
+    log.info("blockchain closed")
+  }
+
   override def getHeight(): Int = {
     forkBase.head.map(_.block.height).getOrElse(genesisBlockHeader.index)
   }
@@ -169,6 +177,15 @@ class LevelDBBlockchain(chainSettings: ChainSettings, consensusSettings: Consens
 
   override def getBlockInForkBase(id: UInt256): Option[Block] = {
     forkBase.get(id).map(_.block.id).flatMap(getBlock)
+  }
+
+  def getPendingTransaction(txid: UInt256): Option[Transaction] = {
+    if (pendingTxs.map(_.id()).contains(txid)) {
+      pendingTxs.find(tx => tx.id().equals(txid))
+    }
+    else {
+      unapplyTxs.get(txid)
+    }
   }
 
   override def startProduceBlock(producer: PublicKey) = {
@@ -457,23 +474,6 @@ class LevelDBBlockchain(chainSettings: ChainSettings, consensusSettings: Consens
     from.foreach(_ => dataBase.rollBack())
     to.foreach(item => applyBlock(item.block))
     //TODO apply all blocks switched to
-  }
-
-  def getPendingTransaction(txid: UInt256): Option[Transaction] = {
-    if (pendingTxs.map(_.id()).contains(txid)) {
-      pendingTxs.find(tx => tx.id().equals(txid))
-    }
-    else {
-      unapplyTxs.get(txid)
-    }
-  }
-
-  override def close() = {
-    log.info("blockchain closing")
-    blockBase.close()
-    dataBase.close()
-    forkBase.close()
-    log.info("blockchain closed")
   }
 }
 
