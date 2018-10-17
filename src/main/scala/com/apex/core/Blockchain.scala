@@ -458,33 +458,14 @@ class LevelDBBlockchain(chainSettings: ChainSettings, consensusSettings: Consens
   }
 
   private def resolveSwitchFailure(state: SwitchState): Unit = {
-    while (dataBase.revision > state.height) {
-      dataBase.rollBack()
-    }
-
+    val oldBranch = forkBase.getBranch(state.oldHead, state.forkPoint)
     val newBranch = forkBase.getBranch(state.newHead, state.forkPoint)
-    require(newBranch.head.height == dataBase.revision + 1)
-    for (blk <- newBranch if (applyBlock(blk))) {
-      newBranch.remove(0)
-    }
-
-    // apply new branch failed, switch back
-    if (!newBranch.isEmpty) {
-      forkBase.removeFork(newBranch.head.id)
-      while (dataBase.revision > state.height) {
-        dataBase.rollBack()
-      }
-      val oldBranch = forkBase.getBranch(state.oldHead, state.forkPoint)
-      for (blk <- oldBranch if (applyBlock(blk))) {
-        newBranch.remove(0)
-      }
-    }
-
-    forkBase.deleteSwitchState
+    val result = onSwitch(oldBranch, newBranch, state)
+    forkBase.endSwitch(oldBranch, newBranch, result)
   }
 
   private def resolveDbUnConsistent(head: ForkItem): Unit = {
-    while (dataBase.revision > head.height) {
+    while (dataBase.revision > head.height + 1) {
       dataBase.rollBack()
     }
   }
@@ -499,14 +480,16 @@ class LevelDBBlockchain(chainSettings: ChainSettings, consensusSettings: Consens
 
   private def onSwitch(from: Seq[ForkItem], to: Seq[ForkItem], switchState: SwitchState): SwitchResult = {
     def printChain(title: String, fork: Seq[ForkItem]): Unit = {
-      log.info(s"$title: ${fork.map(_.block.id.toString.substring(0, 6)).mkString(" -> ")}")
+      log.info(s"$title: ${fork.map(_.block.id.toString.substring(0, 6)).mkString(" <- ")}")
     }
 
     printChain("old chain", from)
     printChain("new chain", to)
 
-    from.foreach(_ => dataBase.rollBack())
-    to.foreach(item => applyBlock(item.block))
+    require(dataBase.revision == from.last.height + 1)
+    while (dataBase.revision > switchState.height  + 1) {
+      dataBase.rollBack()
+    }
 
     var appliedCount = 0
     for (item <- to if applyBlock(item.block)) {
@@ -514,7 +497,7 @@ class LevelDBBlockchain(chainSettings: ChainSettings, consensusSettings: Consens
     }
 
     if (appliedCount < to.size) {
-      while (dataBase.revision > switchState.height) {
+      while (dataBase.revision > switchState.height + 1) {
         dataBase.rollBack()
       }
       from.foreach(item => applyBlock(item.block))
