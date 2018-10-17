@@ -18,7 +18,7 @@ import com.apex.crypto.Ecdsa.{PrivateKey, PublicKey}
 import com.apex.settings.{ForkBaseSettings, Witness}
 import org.junit.{AfterClass, Test}
 
-import scala.collection.mutable.ListBuffer
+import scala.collection.mutable.{ListBuffer, Seq}
 import scala.reflect.io.Directory
 
 @Test
@@ -138,18 +138,21 @@ class ForkBaseTest {
     assert(forkBase.get(blk2a.id).exists(_.master))
     assert(forkBase.get(blk3b.id).exists(_.master))
     assert(forkBase.get(blk4b.id).exists(_.master))
+    assert(forkBase.head.exists(_.id.equals(blk4b.id)))
     forkBase.add(blk3a)
     forkBase.add(blk4a)
     assert(forkBase.get(blk1a.id).exists(_.master))
     assert(forkBase.get(blk2a.id).exists(_.master))
     assert(forkBase.get(blk3a.id).exists(!_.master))
     assert(forkBase.get(blk4a.id).exists(!_.master))
+    assert(forkBase.head.exists(_.id.equals(blk4b.id)))
     forkBase.add(blk5a)
     assert(forkBase.get(blk3b.id).exists(!_.master))
     assert(forkBase.get(blk4b.id).exists(!_.master))
     assert(forkBase.get(blk3a.id).exists(_.master))
     assert(forkBase.get(blk4a.id).exists(_.master))
     assert(forkBase.get(blk5a.id).exists(_.master))
+    assert(forkBase.head.exists(_.id.equals(blk5a.id)))
     forkBase.add(blk4c)
     assert(forkBase.get(blk4b.id).exists(!_.master))
     assert(forkBase.get(blk3a.id).exists(!_.master))
@@ -157,6 +160,71 @@ class ForkBaseTest {
     assert(forkBase.get(blk5a.id).exists(!_.master))
     assert(forkBase.get(blk3b.id).exists(_.master))
     assert(forkBase.get(blk4c.id).exists(_.master))
+    assert(forkBase.head.exists(_.id.equals(blk4c.id)))
+  }
+
+  @Test
+  def testSwitchFailed(): Unit = {
+    def  applyBlock(blk: Block) = {
+      !blk.header.producer.equals(PubC)
+    }
+
+    def onSwitch(a: Seq[ForkItem], b: Seq[ForkItem], c: SwitchState) = {
+      var i = 0
+      for (blk <- b.map(_.block) if applyBlock(blk)) {
+        i += 1
+      }
+      if (i < b.size) {
+        SwitchResult(false, b(i))
+      } else {
+        SwitchResult(true)
+      }
+    }
+
+    val forkBase = ForkBaseTest.open("forkBase_switchFailed", witnesses :+ Witness("C", PubC, Some(PriC)), onSwitch)
+    val blk1a = ForkBaseTest.newBlock(PubA, PriA, genesis)
+    val blk2a = ForkBaseTest.newBlock(PubA, PriA, blk1a)
+    val blk3a = ForkBaseTest.newBlock(PubA, PriA, blk2a)
+    val blk4a = ForkBaseTest.newBlock(PubA, PriA, blk3a)
+    val blk5a = ForkBaseTest.newBlock(PubA, PriA, blk4a)
+    val blk3b = ForkBaseTest.newBlock(PubB, PriB, blk2a)
+    val blk4b = ForkBaseTest.newBlock(PubB, PriB, blk3b)
+    val blk4c = ForkBaseTest.newBlock(PubC, PriC, blk3b)
+
+    forkBase.add(genesis)
+    forkBase.add(blk1a)
+    forkBase.add(blk2a)
+    forkBase.add(blk3b)
+    forkBase.add(blk4b)
+    assert(forkBase.get(blk1a.id).exists(_.master))
+    assert(forkBase.get(blk2a.id).exists(_.master))
+    assert(forkBase.get(blk3b.id).exists(_.master))
+    assert(forkBase.get(blk4b.id).exists(_.master))
+    assert(forkBase.head.exists(_.id.equals(blk4b.id)))
+    forkBase.add(blk3a)
+    forkBase.add(blk4a)
+    assert(forkBase.get(blk1a.id).exists(_.master))
+    assert(forkBase.get(blk2a.id).exists(_.master))
+    assert(forkBase.get(blk3a.id).exists(!_.master))
+    assert(forkBase.get(blk4a.id).exists(!_.master))
+    assert(forkBase.head.exists(_.id.equals(blk4b.id)))
+    forkBase.add(blk5a)
+    assert(forkBase.get(blk3b.id).exists(!_.master))
+    assert(forkBase.get(blk4b.id).exists(!_.master))
+    assert(forkBase.get(blk3a.id).exists(_.master))
+    assert(forkBase.get(blk4a.id).exists(_.master))
+    assert(forkBase.get(blk5a.id).exists(_.master))
+    assert(forkBase.head.exists(_.id.equals(blk5a.id)))
+    forkBase.add(blk4c)
+    assert(forkBase.get(blk1a.id).exists(_.master))
+    assert(forkBase.get(blk2a.id).exists(_.master))
+    assert(forkBase.get(blk3a.id).exists(_.master))
+    assert(forkBase.get(blk4a.id).exists(_.master))
+    assert(forkBase.get(blk5a.id).exists(_.master))
+    assert(forkBase.get(blk3b.id).exists(!_.master))
+    assert(forkBase.get(blk4b.id).exists(!_.master))
+    assert(forkBase.get(blk4c.id).isEmpty)
+    assert(forkBase.head.exists(_.id.equals(blk5a.id)))
   }
 
   @Test
@@ -220,10 +288,11 @@ class ForkBaseTest {
     forkBase.add(blk4b)
     assert(forkBase.head.exists(_.block.id.equals(blk4b.id)))
   }
-
 }
 
 object ForkBaseTest {
+  type SwitchCallback = (Seq[ForkItem], Seq[ForkItem], SwitchState) => SwitchResult
+
   private final val dirs = ListBuffer.empty[String]
   private final val dbs = ListBuffer.empty[ForkBase]
 
@@ -233,18 +302,28 @@ object ForkBaseTest {
     dirs.foreach(deleteDir)
   }
 
-  def open(dir: String, witnesses: Array[Witness]): ForkBase = {
+  def open(dir: String, witnesses: Array[Witness], onSwitch: SwitchCallback = null): ForkBase = {
     def forkStr(title: String, fork: Seq[ForkItem]): String = {
       s"  $title: ${fork.map(blk => s"${blk.block.height}(${blk.block.id.toString.substring(0, 6)})").mkString(" <- ")}"
+    }
+
+    var switchCallback: SwitchCallback = null
+    if (onSwitch == null) {
+      switchCallback = (from, to, _) => {
+        println(s"switch\n${forkStr("from", from)}\n${forkStr("to", to)}")
+        SwitchResult(true)
+      }
+    } else {
+      switchCallback = (from, to, state) => {
+        println(s"switch\n${forkStr("from", from)}\n${forkStr("to", to)}")
+        onSwitch(from, to, state)
+      }
     }
 
     val settings = new ForkBaseSettings(dir, false, 0)
     val forkBase = new ForkBase(settings, witnesses,
       blk => println(s"confirm block ${blk.height}"),
-      (from, to, _) => {
-        println(s"switch\n${forkStr("from", from)}\n${forkStr("to", to)}")
-        SwitchResult(true)
-      })
+      switchCallback)
     dbs.append(forkBase)
     dirs.append(dir)
     forkBase

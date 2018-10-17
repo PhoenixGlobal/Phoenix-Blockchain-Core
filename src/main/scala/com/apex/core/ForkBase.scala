@@ -21,6 +21,7 @@ import com.apex.settings.{ForkBaseSettings, Witness}
 import com.apex.storage.{Batch, LevelDbStorage}
 
 import scala.collection.immutable.{Map => IMap}
+import scala.collection.immutable.{Seq => ISeq}
 import scala.collection.mutable
 import scala.collection.mutable.{ListBuffer, Map, Seq, SortedMap}
 
@@ -324,14 +325,14 @@ class ForkBase(settings: ForkBaseSettings,
     switchStateStore.delete()
   }
 
-  def getBranch(head: UInt256, tail: UInt256): ListBuffer[Block] = {
-    var item = indexById.get(head)
-    val branch = ListBuffer.empty[Block]
-    while (item.exists(!_.prev.equals(tail))) {
-      branch.insert(0, item.get.block)
-      item = indexById.get(item.get.prev)
+  def getBranch(head: UInt256, tail: UInt256): Seq[ForkItem] = {
+    var curr = indexById.get(head)
+    val branch = ListBuffer.empty[ForkItem]
+    while (curr.exists(!_.prev.equals(tail))) {
+      branch.append(curr.get)
+      curr = indexById.get(curr.get.prev)
     }
-    branch
+    branch.reverse
   }
 
   def head(): Option[ForkItem] = {
@@ -396,7 +397,7 @@ class ForkBase(settings: ForkBaseSettings,
       if (newItem.prev.equals(oldItem.id)) {
         removeConfirmed(item.confirmedHeight)
       } else if (!newItem.id.equals(oldItem.id)) {
-        switch(oldItem, newItem)
+        beginSwitch(oldItem, newItem)
       }
       true
     } else {
@@ -404,45 +405,34 @@ class ForkBase(settings: ForkBaseSettings,
     }
   }
 
-  def switch(from: ForkItem, to: ForkItem): Unit = {
+  def beginSwitch(from: ForkItem, to: ForkItem): Unit = {
     val (originFork, newFork, switchState) = getForks(from, to)
-
-    val items = ListBuffer.empty[ForkItem]
-
-    def switchFork(batch: Batch) = {
-      switchStateStore.set(switchState, batch)
-
-      for (item <- originFork) {
-        val newItem = item.copy(master = false)
-        forkStore.set(newItem.id, newItem, batch)
-        items.append(newItem)
-      }
-
-      for (item <- newFork) {
-        val newItem = item.copy(master = true)
-        forkStore.set(newItem.id, newItem, batch)
-        items.append(newItem)
-      }
-    }
-
-    def discardSwitch(batch: Batch) = {
-      for (item <- originFork) {
-        forkStore.set(item.id, item, batch)
-        switchStateStore.delete(batch)
-      }
-    }
-
     require(switchState != null)
-    if (db.batchWrite(switchFork)) {
+
+    if (switchStateStore.set(switchState)) {
       val result = onSwitch(originFork, newFork, switchState)
-      if (result.succeed) {
-        items.foreach(updateIndex)
-        deleteSwitchState()
-      } else {
-        db.batchWrite(discardSwitch)
-        removeFork(result.failedItem.id)
-        resetHead()
+      endSwitch(originFork, newFork, result)
+    } else {
+      log.error("begin switch failed")
+    }
+  }
+
+  def endSwitch(oldBranch: Seq[ForkItem], newBranch: Seq[ForkItem], switchResult: SwitchResult): Unit = {
+    if (switchResult.succeed) {
+      val oldItems = oldBranch.map(item => item.copy(master = false))
+      val newItems = newBranch.map(item => item.copy(master = true))
+      if(db.batchWrite(batch => {
+        oldItems.foreach(item => forkStore.set(item.id, item, batch))
+        newItems.foreach(item => forkStore.set(item.id, item, batch))
+        switchStateStore.delete(batch)
+      })) {
+        oldItems.foreach(updateIndex)
+        newItems.foreach(updateIndex)
       }
+    } else {
+      deleteSwitchState()
+      removeFork(switchResult.failedItem.id)
+      resetHead()
     }
   }
 
@@ -461,7 +451,6 @@ class ForkBase(settings: ForkBaseSettings,
           val toRemoveId = queue(i).id
           val followers = indexByPrev.get(toRemoveId).map(getFollowers)
           followers.foreach(queue.appendAll)
-          forkStore.delete(toRemoveId, batch)
           i += 1
         }
       }
@@ -556,7 +545,7 @@ class ForkBase(settings: ForkBaseSettings,
       }
 
       require(a != null)
-      (xs, ys, SwitchState(x.id, y.id, a.id, a.height))
+      (xs.reverse, ys.reverse, SwitchState(x.id, y.id, a.id, a.height))
     }
   }
 
