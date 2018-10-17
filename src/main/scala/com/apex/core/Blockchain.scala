@@ -458,12 +458,12 @@ class LevelDBBlockchain(chainSettings: ChainSettings, consensusSettings: Consens
   }
 
   private def resolveSwitchFailure(state: SwitchState): Unit = {
-    while (dataBase.revision > state.height) {
+    while (dataBase.revision > state.height + 1) {
       dataBase.rollBack()
     }
 
     val newBranch = forkBase.getBranch(state.newHead, state.forkPoint)
-    require(newBranch.head.height == dataBase.revision + 1)
+    require(dataBase.revision == newBranch.head.height + 1)
     for (blk <- newBranch if (applyBlock(blk))) {
       newBranch.remove(0)
     }
@@ -471,7 +471,7 @@ class LevelDBBlockchain(chainSettings: ChainSettings, consensusSettings: Consens
     // apply new branch failed, switch back
     if (!newBranch.isEmpty) {
       forkBase.removeFork(newBranch.head.id)
-      while (dataBase.revision > state.height) {
+      while (dataBase.revision > state.height + 1) {
         dataBase.rollBack()
       }
       val oldBranch = forkBase.getBranch(state.oldHead, state.forkPoint)
@@ -484,7 +484,7 @@ class LevelDBBlockchain(chainSettings: ChainSettings, consensusSettings: Consens
   }
 
   private def resolveDbUnConsistent(head: ForkItem): Unit = {
-    while (dataBase.revision > head.height) {
+    while (dataBase.revision > head.height + 1) {
       dataBase.rollBack()
     }
   }
@@ -514,7 +514,7 @@ class LevelDBBlockchain(chainSettings: ChainSettings, consensusSettings: Consens
     }
 
     if (appliedCount < to.size) {
-      while (dataBase.revision > switchState.height) {
+      while (dataBase.revision > switchState.height + 1) {
         dataBase.rollBack()
       }
       from.foreach(item => applyBlock(item.block))
