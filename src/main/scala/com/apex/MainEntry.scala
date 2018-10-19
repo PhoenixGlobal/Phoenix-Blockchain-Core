@@ -28,6 +28,7 @@ import scala.io.StdIn
 object MainEntry extends ApexLogging {
 
   def main(args: Array[String]): Unit = {
+    log.info("starting APEX blockchain")
     val ns = parseArgs(args)
     val settings = getApexSettings(ns)
     val chain = Blockchain.populate(settings.chain, settings.consensus)

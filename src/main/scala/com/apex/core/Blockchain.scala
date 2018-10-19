@@ -68,7 +68,7 @@ trait Blockchain extends Iterable[Block] with ApexLogging {
 }
 
 object Blockchain {
-  var chain: LevelDBBlockchain = null
+  private var chain: LevelDBBlockchain = null
 
   //  final val Current: Blockchain = new LevelDBBlockchain()
   def populate(chainSettings: ChainSettings, consensusSettings: ConsensusSettings): LevelDBBlockchain = {
@@ -268,14 +268,16 @@ class LevelDBBlockchain(chainSettings: ChainSettings, consensusSettings: Consens
           inserted = true
           latestHeader = block.header
         }
-        else {
-          log.error(s"error during forkBase add block ${block.height()}  ${block.id()}")
-        }
+        else
+          log.error(s"Error during forkBase add block ${block.height()}  ${block.id()}")
       }
       else if (applyBlock(block)) {
-        forkBase.add(block)
-        inserted = true
-        latestHeader = block.header
+        if (forkBase.add(block)) {
+          inserted = true
+          latestHeader = block.header
+        }
+        else
+          log.error(s"Error during forkBase add block ${block.height()}  ${block.id()}")
       }
       else {
         log.info(s"block ${block.height} ${block.id} apply error")
@@ -284,12 +286,10 @@ class LevelDBBlockchain(chainSettings: ChainSettings, consensusSettings: Consens
     }
     else {
       log.info(s"received block try add to minor fork chain. block ${block.height} ${block.id}")
-      if (forkBase.add(block)) {
+      if (forkBase.add(block))
         inserted = true
-      }
-      else {
+      else
         log.info("add fail")
-      }
     }
     if (inserted) {
       block.transactions.foreach(tx => unapplyTxs.remove(tx.id))
@@ -297,17 +297,23 @@ class LevelDBBlockchain(chainSettings: ChainSettings, consensusSettings: Consens
     inserted
   }
 
-
-  def applyBlock(block: Block): Boolean = {
-    var applied = false
+  private def applyBlock(block: Block): Boolean = {
+    var applied = true
     //    if (isPendingBlock) {
     //      rollBack()
     //    }
     if (verifyBlock(block)) {
       dataBase.startSession()
-      block.transactions.foreach(applyTransaction(_))
-      applied = true
-      //dataBase.rollBack()
+      block.transactions.foreach(tx => {
+        if (!applyTransaction(tx))
+          applied = false
+      })
+    }
+    else
+      applied = false
+    if (!applied) {
+      log.info(s"Block apply fail #${block.height()} ${block.id()}")
+      //TODO: dataBase.rollBack() ?
     }
     applied
   }
