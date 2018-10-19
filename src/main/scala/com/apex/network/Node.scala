@@ -163,14 +163,11 @@ class Node(val chain: Blockchain,
     if (inv.invType == InventoryType.Block) {
       val newBlocks = ArrayBuffer.empty[UInt256]
       inv.hashs.foreach(h => {
-        if (chain.getBlock(h) == None) {
-          if (chain.getBlockInForkBase(h) == None) {
-            newBlocks.append(h)
-          }
-        }
+        if (chain.containBlock(h) == false)
+          newBlocks.append(h)
       })
       if (newBlocks.size > 0) {
-        log.info(s"send GetDataMessage $newBlocks")
+        log.info(s"send GetDataMessage to request ${newBlocks.size} new blocks.  $newBlocks")
         sender() ! GetDataMessage(new InventoryPayload(InventoryType.Block, newBlocks.toSeq)).pack
       }
     }
@@ -188,10 +185,7 @@ class Node(val chain: Blockchain,
       var sentBlockNum: Int = 0
       val blocks = ArrayBuffer.empty[Block]
       msg.inv.hashs.foreach(h => {
-        var block = chain.getBlock(h)
-        if (block == None) {
-          block = chain.getBlockInForkBase(h)
-        }
+        val block = chain.getBlock(h)
         if (block != None) {
           if (sentBlockNum < sendBlockNumMax) {
             //sender() ! BlockMessage(block.get).pack
@@ -199,9 +193,8 @@ class Node(val chain: Blockchain,
             sentBlockNum += 1
           }
         }
-        else {
+        else
           log.error("received GetDataMessage but block not found")
-        }
       })
       if (blocks.size > 0) {
         sender() ! BlocksMessage(new BlocksPayload(blocks.toSeq)).pack

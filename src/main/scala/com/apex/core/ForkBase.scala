@@ -339,6 +339,10 @@ class ForkBase(settings: ForkBaseSettings,
     _head
   }
 
+  def contains(id: UInt256): Boolean = {
+    indexById.contains(id)
+  }
+
   def get(id: UInt256): Option[ForkItem] = {
     indexById.get(id)
   }

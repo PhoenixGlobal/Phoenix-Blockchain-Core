@@ -32,7 +32,9 @@ trait Blockchain extends Iterable[Block] with ApexLogging {
 
   def getBlock(id: UInt256): Option[Block]
 
-  def getBlockInForkBase(id: UInt256): Option[Block]
+  //def getBlockInForkBase(id: UInt256): Option[Block]
+
+  def containBlock(id: UInt256): Boolean
 
   def getPendingTransaction(txid: UInt256): Option[Transaction]
 
@@ -175,8 +177,12 @@ class LevelDBBlockchain(chainSettings: ChainSettings, consensusSettings: Consens
     forkBase.get(height).map(_.block).orElse(blockBase.getBlock(height))
   }
 
-  override def getBlockInForkBase(id: UInt256): Option[Block] = {
-    forkBase.get(id).map(_.block.id).flatMap(getBlock)
+  //  override def getBlockInForkBase(id: UInt256): Option[Block] = {
+  //    forkBase.get(id).map(_.block.id).flatMap(getBlock)
+  //  }
+
+  override def containBlock(id: UInt256): Boolean = {
+    forkBase.contains(id) || blockBase.containBlock(id)
   }
 
   def getPendingTransaction(txid: UInt256): Option[Transaction] = {
