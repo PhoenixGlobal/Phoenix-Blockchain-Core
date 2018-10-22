@@ -43,6 +43,10 @@ class BlockBase(settings: BlockBaseSettings) {
     heightStore.get(height).flatMap(getBlock)
   }
 
+  def containBlock(id: UInt256): Boolean = {
+    blockStore.contains(id)
+  }
+
   def close(): Unit = {
     db.close()
   }

@@ -56,7 +56,7 @@ class AddressTest {
   @Test
   def testWIFtoPrivKey = {
     val privKey = Ecdsa.PrivateKey.fromWIF("KxFC1jmwwCoACiCAWZ3eXa96mBM6tb3TYzGmf6YwgdGWZgawvrtJ").get
-    assert(privKey.toBin sameElements BinaryData("1e99423a4ed27608a15a2616a2b0e9e52ced330ac530edcc32c8ffc6a526aedd01"))
+    assert(privKey.toBin sameElements BinaryData("1e99423a4ed27608a15a2616a2b0e9e52ced330ac530edcc32c8ffc6a526aedd"))
   }
 
   @Test
@@ -67,7 +67,7 @@ class AddressTest {
       val privateKey = new PrivateKey(BinaryData(Crypto.randomBytes(32)))
       assert(privateKey.compressed == true)
 
-      print("priv key raw with 0x01: ");  println(privateKey.toString)   // 32 + 1
+      print("priv key raw:           ");  println(privateKey.toString)  // 32
       print("priv key WIF format:    ");  println(privateKey.toWIF)
       print("pub key (compressed):   ");  println(privateKey.publicKey.toString)  // 1 + 32
       print("pub key hash160:        ");  println(privateKey.publicKey.pubKeyHash.toString)

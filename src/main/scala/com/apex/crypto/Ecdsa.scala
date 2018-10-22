@@ -117,7 +117,9 @@ object Ecdsa {
     def publicKey: PublicKey = PublicKey(value.toPoint, compressed)
 
     // 32 or 33 bytes
-    def toBin: BinaryData = if (compressed) value.toBin :+ 1.toByte else value.toBin
+    //def toBin: BinaryData = if (compressed) value.toBin :+ 1.toByte else value.toBin
+
+    def toBin: BinaryData = value.toBin // treat all as 32 bytes, compressed
 
     def toWIF: String = {
       // always treat as compressed key, do NOT use uncompressed key

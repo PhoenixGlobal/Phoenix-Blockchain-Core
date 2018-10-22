@@ -54,7 +54,7 @@ object RpcServer extends ApexLogging {
               case _: JsError => {
                 Json.parse(data).validate[GetBlockByIdCmd] match {
                   case cmd: JsSuccess[GetBlockByIdCmd] => {
-                    val f = (nodeRef ? cmd)
+                    val f = (nodeRef ? cmd.get)
                       .mapTo[Option[Block]]
                       .map(_.map(Json.toJson(_).toString).getOrElse(JsNull.toString))
                     complete(f)
@@ -100,7 +100,7 @@ object RpcServer extends ApexLogging {
             entity(as[String]) { data =>
               Json.parse(data).validate[SendRawTransactionCmd] match {
                 case cmd: JsSuccess[SendRawTransactionCmd] => {
-                  val f = (producerRef ? cmd.value).mapTo[Boolean].map(Json.toJson(_).toString)
+                  val f = (nodeRef ? cmd.value).mapTo[Boolean].map(Json.toJson(_).toString)
                   complete(f)
                 }
                 case e: JsError => {
