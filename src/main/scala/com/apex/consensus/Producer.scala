@@ -14,14 +14,10 @@ package com.apex.consensus
 
 import java.math.BigInteger
 import java.time.{Duration, Instant}
-import java.io.{ByteArrayInputStream, ByteArrayOutputStream, DataInputStream, DataOutputStream}
-
 import akka.actor.{Actor, ActorRef, ActorSystem, Props}
 import com.apex.common.ApexLogging
 import com.apex.core._
 import com.apex.crypto.Ecdsa.PublicKey
-import com.apex.crypto.UInt256
-import com.apex.network.rpc.SendRawTransactionCmd
 import com.apex.network._
 import com.apex.settings.{ConsensusSettings, Witness}
 import scala.concurrent.ExecutionContext
@@ -93,19 +89,6 @@ class Producer(settings: ConsensusSettings,
   system.scheduler.scheduleOnce(Duration.ZERO, task)
 
   override def receive: Receive = {
-    case SendRawTransactionCmd(rawTx) => {
-      val is = new DataInputStream(new ByteArrayInputStream(rawTx))
-      val tx = Transaction.deserialize(is)
-      if (tx.verifySignature()) {
-        peerHandlerManager ! InventoryMessage(new InventoryPayload(InventoryType.Tx, Seq(tx.id)))
-        if (chain.addTransaction(tx))
-          sender() ! true
-        else
-          sender() ! false
-      }
-      else
-        sender() ! false
-    }
     case BlockAcceptedMessage(block) => {
       //removeTransactionsInBlock(block)
       tryStartProduce(Instant.now.toEpochMilli)

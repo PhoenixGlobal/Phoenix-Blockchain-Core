@@ -8,11 +8,13 @@
 
 package com.apex.network
 
+import java.io.{ByteArrayInputStream, DataInputStream}
+
 import akka.actor.{Actor, ActorRef, ActorSystem, Props}
 import com.apex.common.ApexLogging
 import com.apex.core._
 import com.apex.crypto.UInt256
-import com.apex.network.rpc.{GetAccountCmd, GetBlockByHeightCmd, GetBlockByIdCmd, GetBlockCountCmd, GetBlocksCmd, RPCCommand}
+import com.apex.network.rpc._
 import com.apex.consensus.BlockAcceptedMessage
 
 import scala.collection.mutable.{ArrayBuffer, Map}
@@ -61,6 +63,19 @@ class Node(val chain: Blockchain,
       }
       case GetAccountCmd(address) => {
         sender() ! chain.getAccount(address)
+      }
+      case SendRawTransactionCmd(rawTx) => {
+        val is = new DataInputStream(new ByteArrayInputStream(rawTx))
+        val tx = Transaction.deserialize(is)
+        if (tx.verifySignature()) {
+          peerHandlerManager ! InventoryMessage(new InventoryPayload(InventoryType.Tx, Seq(tx.id)))
+          if (chain.addTransaction(tx))
+            sender() ! true
+          else
+            sender() ! false
+        }
+        else
+          sender() ! false
       }
     }
   }

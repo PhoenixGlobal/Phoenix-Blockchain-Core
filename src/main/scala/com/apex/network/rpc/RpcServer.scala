@@ -100,7 +100,7 @@ object RpcServer extends ApexLogging {
             entity(as[String]) { data =>
               Json.parse(data).validate[SendRawTransactionCmd] match {
                 case cmd: JsSuccess[SendRawTransactionCmd] => {
-                  val f = (producerRef ? cmd.value).mapTo[Boolean].map(Json.toJson(_).toString)
+                  val f = (nodeRef ? cmd.value).mapTo[Boolean].map(Json.toJson(_).toString)
                   complete(f)
                 }
                 case e: JsError => {
