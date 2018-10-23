@@ -15,7 +15,7 @@ import com.apex.common.ApexLogging
 import com.apex.core._
 import com.apex.crypto.UInt256
 import com.apex.network.rpc._
-import com.apex.consensus.BlockAcceptedMessage
+import com.apex.consensus._
 
 import scala.collection.mutable.{ArrayBuffer, Map}
 
@@ -28,9 +28,12 @@ class Node(val chain: Blockchain,
            val producer: ActorRef)
   extends Actor with ApexLogging {
 
+  producer ! NodeIsAliveMessage(self)
+
   override def receive: Receive = {
-    case message: Message => processMessage(message)
+    case message: Message => processNetworkMessage(message)
     case cmd: RPCCommand => processRPCCommand(cmd)
+    case prodMsg: ProducerMessage => processProducerMessage(prodMsg)
     case msg: NodeStopMessage => {
       log.info("stopping node")
       chain.close()
@@ -39,6 +42,26 @@ class Node(val chain: Blockchain,
     case unknown: Any => {
       println("Unknown msg:")
       println(unknown)
+    }
+  }
+
+  private def processProducerMessage(msg: ProducerMessage) = {
+    msg match {
+      case BlockStartProduceMessage(witness) => {
+        log.debug("got BlockStartProduceMessage")
+        chain.startProduceBlock(witness.pubkey)
+      }
+      case BlockFinalizeProduceMessage(witness, timeStamp) => {
+        val block = chain.produceBlockFinalize(witness.pubkey, witness.privkey.get, timeStamp)
+        if (block.isDefined) {
+          log.info(s"block (${block.get.height}, ${block.get.timeStamp}) produced by ${witness.name} ${block.get.id}")
+          producer ! BlockAcceptedMessage(block.get)
+          peerHandlerManager ! BlockMessage(block.get)
+        }
+        else {
+          log.error(s"produceBlockFinalize Error, ${witness.name} $timeStamp")
+        }
+      }
     }
   }
 
@@ -80,8 +103,8 @@ class Node(val chain: Blockchain,
     }
   }
 
-  private def processMessage(message: Message) = {
-    //log.info(s"Node processMessage $message")
+  private def processNetworkMessage(message: Message) = {
+    //log.info(s"Node processNetworkMessage $message")
     message match {
       case VersionMessage(height) => {
         processVersionMessage(message.asInstanceOf[VersionMessage])

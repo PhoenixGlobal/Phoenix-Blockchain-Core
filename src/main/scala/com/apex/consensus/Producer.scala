@@ -32,7 +32,7 @@ case class NotMyTurn(producer: String, pubKey: PublicKey) extends ProduceState
 
 case class TimeMissed(thisProduceTime: Long, currTime: Long) extends ProduceState
 
-case class Success(block: Option[Block], producer: String, time: Long) extends ProduceState
+case class Success(time: Long) extends ProduceState
 
 case class Failed(e: Throwable) extends ProduceState
 
@@ -40,6 +40,9 @@ trait ProducerMessage
 
 case class BlockAcceptedMessage(block: Block) extends ProducerMessage
 case class ProducerStopMessage() extends ProducerMessage
+case class NodeIsAliveMessage(node: ActorRef) extends ProducerMessage
+case class BlockStartProduceMessage(witness: Witness) extends ProducerMessage
+case class BlockFinalizeProduceMessage(witness: Witness, timeStamp: Long) extends ProducerMessage
 
 class ProduceTask(val producer: Producer,
                   val peerHandlerManager: ActorRef,
@@ -51,6 +54,7 @@ class ProduceTask(val producer: Producer,
   }
 
   override def run(): Unit = {
+    Thread.sleep(100) // make sure Producer.nodeRef is not null
     while (!cancelled) {
       var sleep = 500 - Instant.now.toEpochMilli % 500
       sleep = if (sleep < 10) sleep + 500 else sleep
@@ -63,14 +67,7 @@ class ProduceTask(val producer: Producer,
           case TimeMissed(tpt, ct) => log.debug(s"missed, this produce time: $tpt, current time: $ct")
           case NotMyTurn(name, _) => log.debug(s"not my turn, ($name)")
           case Failed(e) => log.error("error occurred when producing block", e)
-          case Success(block, producer, time) => block match {
-            case Some(blk) => {
-              log.info(s"block (${blk.height}, ${blk.timeStamp}) produced by $producer on $time  ${blk.id}")
-              peerHandlerManager ! BlockMessage(blk)
-              //peerHandlerManager ! InventoryMessage(new InventoryPayload(InventoryType.Block, Seq(blk.id())))
-            }
-            case None => log.error("produce block failed")
-          }
+          case Success(time) => log.debug(s"BlockFinalizeProduceMessage sent. $time")
         }
       }
     }
@@ -81,22 +78,28 @@ class Producer(settings: ConsensusSettings,
                chain: Blockchain, peerHandlerManager: ActorRef)
               (implicit system: ActorSystem) extends Actor with ApexLogging {
 
+  private var nodeRef: ActorRef = null
+  private var blockProducing = false
   implicit val executionContext: ExecutionContext = system.dispatcher
 
   private var canProduce = true
 
   private val task = new ProduceTask(this, peerHandlerManager)
+
   system.scheduler.scheduleOnce(Duration.ZERO, task)
 
   override def receive: Receive = {
     case BlockAcceptedMessage(block) => {
-      //removeTransactionsInBlock(block)
+      blockProducing = false
       tryStartProduce(Instant.now.toEpochMilli)
     }
     case ProducerStopMessage() => {
       log.info("stopping producer task")
       task.cancel()
       context.stop(self)
+    }
+    case NodeIsAliveMessage(node) => {
+      nodeRef = node
     }
     case a: Any => {
       log.info(s"${sender().toString}, ${a.toString}")
@@ -126,11 +129,12 @@ class Producer(settings: ConsensusSettings,
   }
 
   private def tryStartProduce(now: Long) = {
-    if (chain.isProducingBlock() == false) {
+    if (blockProducing == false) {
       val witness = ProducerUtil.getWitness(nextProduceTime(now, nextBlockTime()), settings)
       if (witness.privkey.isDefined) {
-        //log.info("startProduceBlock")
-        chain.startProduceBlock(witness.pubkey)
+        log.debug("send BlockStartProduceMessage to Node")
+        nodeRef ! BlockStartProduceMessage(witness)
+        blockProducing = true
       }
     }
   }
@@ -150,18 +154,15 @@ class Producer(settings: ConsensusSettings,
         NotMyTurn(witness.name, witness.pubkey)
       }
       else {
-        val block = chain.produceBlockFinalize(witness.pubkey, witness.privkey.get, nextProduceTime(now, next))
-        if (block.isDefined) {
-          self ! BlockAcceptedMessage(block.get)
-        }
-        Success(block, witness.name, now)
+        nodeRef ! BlockFinalizeProduceMessage(witness, nextProduceTime(now, next))
+        Success(now)
       }
     }
   }
 
   // the nextBlockTime is the expected time of next block based on current latest block
   private def nextBlockTime(nextN: Int = 1): Long = {
-    val headTime = chain.getLatestHeader.timeStamp
+    val headTime = chain.getLatestHeader.timeStamp  // TODO
     var slot = headTime / settings.produceInterval
     slot += nextN
     slot * settings.produceInterval
