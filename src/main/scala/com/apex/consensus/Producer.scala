@@ -14,12 +14,14 @@ package com.apex.consensus
 
 import java.math.BigInteger
 import java.time.{Duration, Instant}
+
 import akka.actor.{Actor, ActorRef, ActorSystem, Props}
 import com.apex.common.ApexLogging
-import com.apex.core._
+import com.apex.core.{BlockHeader, _}
 import com.apex.crypto.Ecdsa.PublicKey
 import com.apex.network._
 import com.apex.settings.{ConsensusSettings, Witness}
+
 import scala.concurrent.ExecutionContext
 
 trait ProduceState
@@ -38,11 +40,11 @@ case class Failed(e: Throwable) extends ProduceState
 
 trait ProducerMessage
 
-case class BlockAcceptedMessage(block: Block) extends ProducerMessage
 case class ProducerStopMessage() extends ProducerMessage
 case class NodeIsAliveMessage(node: ActorRef) extends ProducerMessage
 case class BlockStartProduceMessage(witness: Witness) extends ProducerMessage
 case class BlockFinalizeProduceMessage(witness: Witness, timeStamp: Long) extends ProducerMessage
+case class LatestHeaderMessage(header: BlockHeader) extends ProducerMessage
 
 class ProduceTask(val producer: Producer,
                   val peerHandlerManager: ActorRef,
@@ -80,6 +82,7 @@ class Producer(settings: ConsensusSettings,
 
   private var nodeRef: ActorRef = null
   private var blockProducing = false
+  private var latestHeader: BlockHeader = null
   implicit val executionContext: ExecutionContext = system.dispatcher
 
   private var canProduce = true
@@ -89,10 +92,6 @@ class Producer(settings: ConsensusSettings,
   system.scheduler.scheduleOnce(Duration.ZERO, task)
 
   override def receive: Receive = {
-    case BlockAcceptedMessage(block) => {
-      blockProducing = false
-      tryStartProduce(Instant.now.toEpochMilli)
-    }
     case ProducerStopMessage() => {
       log.info("stopping producer task")
       task.cancel()
@@ -100,6 +99,13 @@ class Producer(settings: ConsensusSettings,
     }
     case NodeIsAliveMessage(node) => {
       nodeRef = node
+    }
+    case LatestHeaderMessage(header) => {
+      if (latestHeader != null && latestHeader.id.equals(header.id) == false) {
+        blockProducing = false
+      }
+      latestHeader = header
+      tryStartProduce(Instant.now.toEpochMilli)
     }
     case a: Any => {
       log.info(s"${sender().toString}, ${a.toString}")
@@ -129,10 +135,10 @@ class Producer(settings: ConsensusSettings,
   }
 
   private def tryStartProduce(now: Long) = {
-    if (blockProducing == false) {
+    if (canProduce && blockProducing == false) {
       val witness = ProducerUtil.getWitness(nextProduceTime(now, nextBlockTime()), settings)
       if (witness.privkey.isDefined) {
-        log.debug("send BlockStartProduceMessage to Node")
+        log.debug(s"send BlockStartProduceMessage to Node. witness name is ${witness.name}")
         nodeRef ! BlockStartProduceMessage(witness)
         blockProducing = true
       }
@@ -162,7 +168,7 @@ class Producer(settings: ConsensusSettings,
 
   // the nextBlockTime is the expected time of next block based on current latest block
   private def nextBlockTime(nextN: Int = 1): Long = {
-    val headTime = chain.getLatestHeader.timeStamp  // TODO
+    val headTime = latestHeader.timeStamp
     var slot = headTime / settings.produceInterval
     slot += nextN
     slot * settings.produceInterval

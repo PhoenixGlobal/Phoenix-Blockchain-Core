@@ -29,6 +29,7 @@ class Node(val chain: Blockchain,
   extends Actor with ApexLogging {
 
   producer ! NodeIsAliveMessage(self)
+  producer ! LatestHeaderMessage(chain.getLatestHeader)
 
   override def receive: Receive = {
     case message: NetworkMessage => processNetworkMessage(message)
@@ -48,14 +49,15 @@ class Node(val chain: Blockchain,
   private def processProducerMessage(msg: ProducerMessage) = {
     msg match {
       case BlockStartProduceMessage(witness) => {
-        log.debug("got BlockStartProduceMessage")
+        log.debug(s"node got BlockStartProduceMessage witness=${witness.name}")
         chain.startProduceBlock(witness.pubkey)
       }
       case BlockFinalizeProduceMessage(witness, timeStamp) => {
+        log.debug(s"node got BlockFinalizeProduceMessage witness=${witness.name} timeStamp=$timeStamp")
         val block = chain.produceBlockFinalize(witness.pubkey, witness.privkey.get, timeStamp)
         if (block.isDefined) {
           log.info(s"block (${block.get.height}, ${block.get.timeStamp}) produced by ${witness.name} ${block.get.id}")
-          producer ! BlockAcceptedMessage(block.get)
+          producer ! LatestHeaderMessage(chain.getLatestHeader)
           peerHandlerManager ! BlockMessage(block.get)
         }
         else {
@@ -157,7 +159,7 @@ class Node(val chain: Blockchain,
     //log.info(s"received a block #${block.height} (${block.id})")
     if (chain.tryInsertBlock(msg.block, true)) {
       log.info(s"success insert block #${msg.block.height} (${msg.block.id})")
-      producer ! BlockAcceptedMessage(msg.block)
+      producer ! LatestHeaderMessage(chain.getLatestHeader) // the latest header maybe not same as the inserted block
       peerHandlerManager ! InventoryMessage(new InventoryPayload(InventoryType.Block, Seq(msg.block.id())))
     } else {
       log.error(s"failed insert block #${msg.block.height}, (${msg.block.id}) to db")
@@ -174,7 +176,7 @@ class Node(val chain: Blockchain,
     msg.blocks.blocks.foreach(block => {
       if (chain.tryInsertBlock(block, true)) {
         log.info(s"success insert block #${block.height} (${block.id})")
-        producer ! BlockAcceptedMessage(block)
+        producer ! LatestHeaderMessage(chain.getLatestHeader) // the latest header maybe not same as the inserted block
         // no need to send INV during sync
         //peerHandlerManager ! InventoryMessage(new Inventory(InventoryType.Block, Seq(block.id())))
       } else {

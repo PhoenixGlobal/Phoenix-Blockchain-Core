@@ -261,7 +261,8 @@ class LevelDBBlockchain(chainSettings: ChainSettings, consensusSettings: Consens
 
     if (!pendingTxs.isEmpty) {
       pendingTxs.foreach(tx => {
-        unapplyTxs += (tx.id -> tx)
+        if (tx.txType != TransactionType.Miner)
+          unapplyTxs += (tx.id -> tx)
       })
       pendingTxs.clear()
 
