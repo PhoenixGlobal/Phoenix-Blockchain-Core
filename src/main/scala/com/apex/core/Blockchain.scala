@@ -70,16 +70,14 @@ trait Blockchain extends Iterable[Block] with ApexLogging {
 }
 
 object Blockchain {
-  private var chain: LevelDBBlockchain = null
+  //private var chain: LevelDBBlockchain = null
 
   //  final val Current: Blockchain = new LevelDBBlockchain()
   def populate(chainSettings: ChainSettings, consensusSettings: ConsensusSettings): LevelDBBlockchain = {
-    val populateChain = new LevelDBBlockchain(chainSettings, consensusSettings)
-    chain = populateChain
-    populateChain
+    new LevelDBBlockchain(chainSettings, consensusSettings)
   }
 
-  def getLevelDBBlockchain: LevelDBBlockchain = chain
+  //def getLevelDBBlockchain: LevelDBBlockchain = chain
 }
 
 class LevelDBBlockchain(chainSettings: ChainSettings, consensusSettings: ConsensusSettings) extends Blockchain {

@@ -113,3 +113,7 @@ object ApexSettings extends SettingsReaders with ApexLogging {
     config
   }
 }
+
+object GlobalConfig {
+  var genesisBlockChainId: String = ""
+}

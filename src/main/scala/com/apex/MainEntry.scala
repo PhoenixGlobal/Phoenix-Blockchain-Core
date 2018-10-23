@@ -16,7 +16,7 @@ import com.apex.network.peer.PeerHandlerManagerRef
 import com.apex.network.rpc.RpcServer
 import com.apex.network.upnp.UPnP
 import com.apex.network.{NetworkManagerRef, NodeRef, NodeStopMessage}
-import com.apex.settings.ApexSettings
+import com.apex.settings.{ApexSettings, GlobalConfig}
 import com.apex.utils.NetworkTimeProvider
 import net.sourceforge.argparse4j.ArgumentParsers
 import net.sourceforge.argparse4j.inf.{ArgumentParser, ArgumentParserException, Namespace}
@@ -32,6 +32,7 @@ object MainEntry extends ApexLogging {
     val ns = parseArgs(args)
     val settings = getApexSettings(ns)
     val chain = Blockchain.populate(settings.chain, settings.consensus)
+    GlobalConfig.genesisBlockChainId = new String(chain.getGenesisBlockChainId)
 
     implicit val system = ActorSystem("APEX-NETWORK")
     implicit val executionContext: ExecutionContext = system.dispatcher

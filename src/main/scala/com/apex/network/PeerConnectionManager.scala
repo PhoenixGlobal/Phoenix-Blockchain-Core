@@ -8,7 +8,7 @@ import akka.io.Tcp._
 import akka.util.{ByteString, CompactByteString}
 import com.apex.common.ApexLogging
 import com.apex.core.Blockchain
-import com.apex.settings.NetworkSettings
+import com.apex.settings.{GlobalConfig, NetworkSettings}
 import com.apex.utils.{NetworkTimeProvider, Version}
 import com.apex.network.PeerConnectionManager.{AwaitingHandshake, WorkingCycle}
 
@@ -70,9 +70,8 @@ class PeerConnectionManager(val settings: NetworkSettings,
   private var chunksBuffer: ByteString = CompactByteString()
 
   private def constructHandshakeMsg: Handshake = {
-    val chain = Blockchain.getLevelDBBlockchain
-    val headerNum = chain.getHeight()
-    val chainId = chain.getGenesisBlockChainId
+    val headerNum = 0 // not used
+    val chainId = GlobalConfig.genesisBlockChainId
 
     Handshake(settings.agentName, Version(settings.appVersion), settings.nodeName,
             ownSocketAddress, chainId, headerNum.toString,
@@ -133,8 +132,7 @@ class PeerConnectionManager(val settings: NetworkSettings,
   }
 
   private def handleHandshake(handshakeMsg: Handshake): Unit ={
-    val localChain = Blockchain.getLevelDBBlockchain
-    if(localChain.getGenesisBlockChainId != handshakeMsg.chainId){
+    if(GlobalConfig.genesisBlockChainId != handshakeMsg.chainId){
       log.error(f"Peer on a different chain. Closing connection")
       self ! CloseConnection
       return
