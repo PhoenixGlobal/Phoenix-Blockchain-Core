@@ -31,7 +31,7 @@ class Node(val chain: Blockchain,
   producer ! NodeIsAliveMessage(self)
 
   override def receive: Receive = {
-    case message: Message => processNetworkMessage(message)
+    case message: NetworkMessage => processNetworkMessage(message)
     case cmd: RPCCommand => processRPCCommand(cmd)
     case prodMsg: ProducerMessage => processProducerMessage(prodMsg)
     case msg: NodeStopMessage => {
@@ -103,7 +103,7 @@ class Node(val chain: Blockchain,
     }
   }
 
-  private def processNetworkMessage(message: Message) = {
+  private def processNetworkMessage(message: NetworkMessage) = {
     //log.info(s"Node processNetworkMessage $message")
     message match {
       case VersionMessage(height) => {

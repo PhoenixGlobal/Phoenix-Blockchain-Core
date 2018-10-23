@@ -35,45 +35,45 @@ trait PackMessage {
 
 case class MessagePack(messageType: MessageType.Value, data: Array[Byte], address: Option[InetSocketAddress] = None)
 
-abstract class Message(val messageType: MessageType.Value) extends PackMessage
+abstract class NetworkMessage(val messageType: MessageType.Value) extends PackMessage
 
-case class VersionMessage(height: Int) extends Message(MessageType.Version) {
+case class VersionMessage(height: Int) extends NetworkMessage(MessageType.Version) {
   override def pack(): MessagePack = {
     MessagePack(messageType, BigInt(height).toByteArray)
   }
 }
 
-case class GetBlocksMessage(blockHashs: GetBlocksPayload) extends Message(MessageType.GetBlocks) {
+case class GetBlocksMessage(blockHashs: GetBlocksPayload) extends NetworkMessage(MessageType.GetBlocks) {
   override def pack(): MessagePack = {
     MessagePack(messageType, blockHashs.toBytes)
   }
 }
 
-case class BlockMessage(block: Block) extends Message(MessageType.Block) {
+case class BlockMessage(block: Block) extends NetworkMessage(MessageType.Block) {
   override def pack(): MessagePack = {
     MessagePack(messageType, block.toBytes)
   }
 }
 
-case class BlocksMessage(blocks: BlocksPayload) extends Message(MessageType.Blocks) {
+case class BlocksMessage(blocks: BlocksPayload) extends NetworkMessage(MessageType.Blocks) {
   override def pack(): MessagePack = {
     MessagePack(messageType, blocks.toBytes)
   }
 }
 
-case class TransactionsMessage(txs: TransactionsPayload) extends Message(MessageType.Transactions) {
+case class TransactionsMessage(txs: TransactionsPayload) extends NetworkMessage(MessageType.Transactions) {
   override def pack(): MessagePack = {
     MessagePack(messageType, txs.toBytes)
   }
 }
 
-case class InventoryMessage(inv: InventoryPayload) extends Message(MessageType.Inventory) {
+case class InventoryMessage(inv: InventoryPayload) extends NetworkMessage(MessageType.Inventory) {
   override def pack(): MessagePack = {
     MessagePack(messageType, inv.toBytes)
   }
 }
 
-case class GetDataMessage(inv: InventoryPayload) extends Message(MessageType.Getdata) {
+case class GetDataMessage(inv: InventoryPayload) extends NetworkMessage(MessageType.Getdata) {
   override def pack(): MessagePack = {
     MessagePack(messageType, inv.toBytes)
   }
@@ -176,7 +176,7 @@ object GetBlocksPayload {
 }
 
 object MessagePack {
-  def fromBytes(bytes: Array[Byte], addr: InetSocketAddress = null): Message = {
+  def fromBytes(bytes: Array[Byte], addr: InetSocketAddress = null): NetworkMessage = {
     val messageType = MessageType(bytes(0))
     val data = bytes.drop(1)
     messageType match {
