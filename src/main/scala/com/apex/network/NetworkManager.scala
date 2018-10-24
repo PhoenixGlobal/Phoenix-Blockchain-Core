@@ -2,16 +2,16 @@ package com.apex.network
 
 import java.net.InetSocketAddress
 
-import akka.actor.{Actor, ActorRef, ActorSystem, Props, actorRef2Scala}
-import akka.io.{IO, Tcp}
-import akka.io.Tcp._
+import akka.actor.{Actor, ActorContext, ActorRef, ActorSystem, Props, actorRef2Scala}
 import akka.io.Tcp.SO.KeepAlive
+import akka.io.Tcp._
+import akka.io.{IO, Tcp}
 import akka.util.Timeout
 import com.apex.common.ApexLogging
+import com.apex.core.ChainInfo
+import com.apex.network.peer.PeerHandlerManager.ReceivableMessages.PeerHandler
 import com.apex.settings.NetworkSettings
 import com.apex.utils.NetworkTimeProvider
-import com.apex.network.peer.PeerHandlerManager.ReceivableMessages.PeerHandler
-import com.apex.network.upnp.UPnP
 
 import scala.collection.mutable
 import scala.concurrent.ExecutionContext
@@ -22,10 +22,10 @@ import scala.concurrent.duration.DurationInt
   * 控制所有网络交互
   * 必须是单例
   */
-class NetworkManager(settings: NetworkSettings, upnp: UPnP,
+class NetworkManager(settings: NetworkSettings,
+                     chainInfo: ChainInfo,
                      timeProvider: NetworkTimeProvider,
-                     peerHandlerManagerRef: ActorRef,
-                     nodeRef: ActorRef)
+                     peerHandlerManager: ActorRef)
                     (implicit ec: ExecutionContext) extends Actor with ApexLogging {
 
   import NetworkManager.ReceivableMessages._
@@ -34,26 +34,18 @@ class NetworkManager(settings: NetworkSettings, upnp: UPnP,
 
   private implicit val system: ActorSystem = context.system
 
-  private implicit val timeout: Timeout = Timeout(settings.controllerTimeout.getOrElse(5 seconds))
+  private val timeout: Timeout = Timeout(settings.controllerTimeout.getOrElse(5 seconds))
 
-  private val tcpManager = IO(Tcp)
+  private val node: ActorRef = context.parent
 
-  lazy val localAddress = settings.bindAddress
+  private val localAddress = settings.bindAddress
 
   //发送给peers的地址
-  lazy val externalSocketAddress: Option[InetSocketAddress] = None
-  /*{
-     settings.declaredAddress orElse {
-       if (settings.upnpEnabled) {
-         upnp.externalAddress.map(a => new InetSocketAddress(a, settings.bindAddress.getPort))
-       } else None
-     }
-   }*/
+  private val externalSocketAddress: Option[InetSocketAddress] = None
 
-  log.info(s"Declared address: $externalSocketAddress")
+  private val connTimeout = Some(settings.connectionTimeout)
 
-
-  lazy val connTimeout = Some(settings.connectionTimeout)
+  private val tcpManager = IO(Tcp)
 
   //绑定来侦听传入的连接
   tcpManager ! Bind(self, localAddress, options = KeepAlive(true) :: Nil, pullMode = false)
@@ -89,7 +81,7 @@ class NetworkManager(settings: NetworkSettings, upnp: UPnP,
     case DisconnectFrom(peer) =>
       log.info(s"Disconnected from ${peer.socketAddress}")
       peer.connectionRef ! CloseConnection
-      peerHandlerManagerRef ! Disconnected(peer.socketAddress)
+      peerHandlerManager ! Disconnected(peer.socketAddress)
 
     //    case Blacklist(peer) =>
     //      peer.handlerRef ! PeerConnectionmanager.ReceivableMessages.Blacklist
@@ -104,19 +96,19 @@ class NetworkManager(settings: NetworkSettings, upnp: UPnP,
       }
       log.info(logMsg)
       val connection = sender()
-      val handlerProps: Props = PeerConnectionManagerRef.props(settings, peerHandlerManagerRef, nodeRef, connection, direction, externalSocketAddress, remote, self, timeProvider)
+      val handlerProps: Props = PeerConnectionManagerRef.props(settings, peerHandlerManager, node, chainInfo, connection, direction, externalSocketAddress, remote, timeProvider)
       handler = context.actorOf(handlerProps)
       outgoing -= remote
 
     case CommandFailed(c: Connect) =>
       outgoing -= c.remoteAddress
       log.info("未能连接到 : " + c.remoteAddress)
-      peerHandlerManagerRef ! Disconnected(c.remoteAddress)
+      peerHandlerManager ! Disconnected(c.remoteAddress)
   }
 
   def getHandler: Receive = {
     case GetHandlerToPeerConnectionManager =>
-      peerHandlerManagerRef ! PeerHandler(handler) //handler做为消息发送到peerHandlerManager，由peerHandlerManager统一管理
+      peerHandlerManager ! PeerHandler(handler) //handler做为消息发送到peerHandlerManager，由peerHandlerManager统一管理
   }
 
   //  def interfaceCalls: Receive = {
@@ -153,12 +145,12 @@ object NetworkManager {
 }
 
 object NetworkManagerRef {
-  def props(settings: NetworkSettings, upnp: UPnP, timeProvider: NetworkTimeProvider, peerHandlerManagerRef: ActorRef, nodeRef: ActorRef)(implicit ec: ExecutionContext): Props =
-    Props(new NetworkManager(settings, upnp, timeProvider, peerHandlerManagerRef, nodeRef))
+  def props(settings: NetworkSettings, chainInfo: ChainInfo, timeProvider: NetworkTimeProvider, peerHandlerManagerRef: ActorRef)(implicit ec: ExecutionContext): Props =
+    Props(new NetworkManager(settings, chainInfo, timeProvider, peerHandlerManagerRef))
 
-  def apply(settings: NetworkSettings, upnp: UPnP, timeProvider: NetworkTimeProvider, peerHandlerManagerRef: ActorRef, nodeRef: ActorRef)(implicit system: ActorSystem, ec: ExecutionContext): ActorRef =
-    system.actorOf(props(settings, upnp, timeProvider, peerHandlerManagerRef, nodeRef))
+  def apply(settings: NetworkSettings, chainInfo: ChainInfo, timeProvider: NetworkTimeProvider, peerHandlerManagerRef: ActorRef)(implicit system: ActorContext, ec: ExecutionContext): ActorRef =
+    system.actorOf(props(settings, chainInfo, timeProvider, peerHandlerManagerRef))
 
-  def apply(name: String, settings: NetworkSettings, upnp: UPnP, timeProvider: NetworkTimeProvider, peerHandlerManagerRef: ActorRef, nodeRef: ActorRef)(implicit system: ActorSystem, ec: ExecutionContext): ActorRef =
-    system.actorOf(props(settings, upnp, timeProvider, peerHandlerManagerRef, nodeRef), name)
+  def apply(name: String, settings: NetworkSettings, chainInfo: ChainInfo, timeProvider: NetworkTimeProvider, peerHandlerManagerRef: ActorRef)(implicit system: ActorContext, ec: ExecutionContext): ActorRef =
+    system.actorOf(props(settings, chainInfo, timeProvider, peerHandlerManagerRef), name)
 }

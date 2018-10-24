@@ -13,8 +13,12 @@ import scala.collection.mutable
 import scala.collection.mutable.{ArrayBuffer, Map, Set}
 import scala.collection.immutable
 
+case class ChainInfo(id: String)
+
 trait Blockchain extends Iterable[Block] with ApexLogging {
-  def getLatestHeader: BlockHeader
+  def getChainInfo(): ChainInfo
+
+  def getLatestHeader(): BlockHeader
 
   def getHeight(): Int
 
@@ -64,7 +68,7 @@ trait Blockchain extends Iterable[Block] with ApexLogging {
 
   def getAccount(address: UInt160): Option[Account]
 
-  def getGenesisBlockChainId: String
+  def Id: String
 
   def close()
 }
@@ -116,7 +120,7 @@ class LevelDBBlockchain(chainSettings: ChainSettings, consensusSettings: Consens
 
   populate()
 
-  override def getGenesisBlockChainId: String = genesisBlockHeader.id.toString
+  override def Id: String = genesisBlock.id.toString
 
   override def iterator: Iterator[Block] = new BlockchainIterator(this)
 
@@ -126,6 +130,10 @@ class LevelDBBlockchain(chainSettings: ChainSettings, consensusSettings: Consens
     dataBase.close()
     forkBase.close()
     log.info("blockchain closed")
+  }
+
+  override def getChainInfo(): ChainInfo = {
+    ChainInfo(genesisBlock.id.toString)
   }
 
   override def getHeight(): Int = {
@@ -498,7 +506,7 @@ class LevelDBBlockchain(chainSettings: ChainSettings, consensusSettings: Consens
     printChain("new chain", to)
 
     require(dataBase.revision == from.last.height + 1)
-    while (dataBase.revision > switchState.height  + 1) {
+    while (dataBase.revision > switchState.height + 1) {
       dataBase.rollBack()
     }
 

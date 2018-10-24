@@ -16,17 +16,31 @@ import com.apex.core._
 import com.apex.crypto.UInt256
 import com.apex.network.rpc._
 import com.apex.consensus._
+import com.apex.network.peer.PeerHandlerManagerRef
+import com.apex.network.upnp.UPnP
+import com.apex.settings.ApexSettings
+import com.apex.utils.NetworkTimeProvider
 
 import scala.collection.mutable.{ArrayBuffer, Map}
+import scala.concurrent.ExecutionContext
 
 trait NodeMessage
 
 case class NodeStopMessage() extends NodeMessage
 
-class Node(val chain: Blockchain,
-           val peerHandlerManager: ActorRef,
-           val producer: ActorRef)
+class Node(val settings: ApexSettings)
+          (implicit ec: ExecutionContext)
   extends Actor with ApexLogging {
+
+  private val chain = Blockchain.populate(settings.chain, settings.consensus)
+
+  private val timeProvider = new NetworkTimeProvider(settings.ntp)
+
+  private val peerHandlerManager = PeerHandlerManagerRef(settings.network, timeProvider)
+
+  private val networkManager = NetworkManagerRef(settings.network, chain.getChainInfo, timeProvider, peerHandlerManager)
+
+  private val producer = ProducerRef(settings.consensus, peerHandlerManager)
 
   producer ! NodeIsAliveMessage(self)
   producer ! LatestHeaderMessage(chain.getLatestHeader)
@@ -35,8 +49,9 @@ class Node(val chain: Blockchain,
     case message: NetworkMessage => processNetworkMessage(message)
     case cmd: RPCCommand => processRPCCommand(cmd)
     case prodMsg: ProducerMessage => processProducerMessage(prodMsg)
-    case msg: NodeStopMessage => {
+    case _: NodeStopMessage => {
       log.info("stopping node")
+      //TODO stop producer and connections
       chain.close()
       context.stop(self)
     }
@@ -106,7 +121,7 @@ class Node(val chain: Blockchain,
   }
 
   private def processNetworkMessage(message: NetworkMessage) = {
-    //log.info(s"Node processNetworkMessage $message")
+    log.debug(s"Node processNetworkMessage $message")
     message match {
       case VersionMessage(height) => {
         processVersionMessage(message.asInstanceOf[VersionMessage])
@@ -256,12 +271,13 @@ class Node(val chain: Blockchain,
 }
 
 object NodeRef {
-  def props(chain: Blockchain, peerHandlerManager: ActorRef, producer: ActorRef): Props = Props(new Node(chain, peerHandlerManager, producer))
 
-  def apply(chain: Blockchain, peerHandlerManager: ActorRef, producer: ActorRef)
-           (implicit system: ActorSystem): ActorRef = system.actorOf(props(chain, peerHandlerManager, producer))
+  def props(settings: ApexSettings)(implicit system: ActorSystem, ec: ExecutionContext): Props = Props(new Node(settings))
 
-  def apply(chain: Blockchain, peerHandlerManager: ActorRef, producer: ActorRef, name: String)
-           (implicit system: ActorSystem): ActorRef = system.actorOf(props(chain, peerHandlerManager, producer), name)
+  def apply(settings: ApexSettings)
+           (implicit system: ActorSystem, ec: ExecutionContext): ActorRef = system.actorOf(props(settings))
+
+  def apply(settings: ApexSettings, name: String)
+           (implicit system: ActorSystem, ec: ExecutionContext): ActorRef = system.actorOf(props(settings), name)
 
 }

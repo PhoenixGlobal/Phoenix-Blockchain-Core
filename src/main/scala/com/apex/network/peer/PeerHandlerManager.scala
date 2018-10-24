@@ -2,16 +2,16 @@ package com.apex.network.peer
 
 import java.net.InetSocketAddress
 
-import akka.actor.{Actor, ActorRef, ActorSystem, Props}
+import akka.actor.{Actor, ActorContext, ActorRef, ActorSystem, Props}
 import com.apex.common.ApexLogging
 import com.apex.crypto.UInt256
-import com.apex.settings.ApexSettings
+import com.apex.settings.{ApexSettings, NetworkSettings}
 import com.apex.utils.NetworkTimeProvider
 import com.apex.network._
 
 import scala.collection.mutable
 
-class PeerHandlerManager(settings: ApexSettings, timeProvider: NetworkTimeProvider) extends Actor with ApexLogging {
+class PeerHandlerManager(settings: NetworkSettings, timeProvider: NetworkTimeProvider) extends Actor with ApexLogging {
 
   import PeerHandlerManager.ReceivableMessages._
   import com.apex.network.ConnectedPeer
@@ -23,10 +23,10 @@ class PeerHandlerManager(settings: ApexSettings, timeProvider: NetworkTimeProvid
   //握手前
   private val connectingPeers = mutable.Set[InetSocketAddress]()
 
-  private lazy val peerDatabase = new PeerDatabaseImpl(Some(settings.dataDir + "/peers.dat"))
+  private lazy val peerDatabase = new PeerDatabaseImpl(Some(settings.peersDB + "/peers.dat"))
 
   if (peerDatabase.isEmpty()) {
-    settings.network.knownPeers.foreach { address =>
+    settings.knownPeers.foreach { address =>
       if (!isSelf(address, None)) {
         val defaultPeerInfo = PeerInfo(timeProvider.time(), None)
         peerDatabase.addOrUpdateKnownPeer(address, defaultPeerInfo)
@@ -56,10 +56,10 @@ class PeerHandlerManager(settings: ApexSettings, timeProvider: NetworkTimeProvid
 
 
   private def isSelf(address: InetSocketAddress, declaredAddress: Option[InetSocketAddress]): Boolean = {
-    settings.network.bindAddress == address ||
-      settings.network.declaredAddress.exists(da => declaredAddress.contains(da)) ||
-      declaredAddress.contains(settings.network.bindAddress) ||
-      settings.network.declaredAddress.contains(address)
+    settings.bindAddress == address ||
+      settings.declaredAddress.exists(da => declaredAddress.contains(da)) ||
+      declaredAddress.contains(settings.bindAddress) ||
+      settings.declaredAddress.contains(address)
   }
 
   private var lastIdUsed = 0
@@ -101,7 +101,7 @@ class PeerHandlerManager(settings: ApexSettings, timeProvider: NetworkTimeProvid
     case msg: BlockMessage => {
       //log.info("broadcasting BlockMessage")
       connectedPeers.values.foreach(peer => {
-        //log.info(s"send block #${msg.block.height} (${msg.block.id}) to ${peer.toString}")
+        log.debug(s"send block #${msg.block.height} (${msg.block.id}) to ${peer.toString}")
         peer.connectionRef ! msg.pack()
       })
     }
@@ -194,12 +194,12 @@ object PeerHandlerManager {
 }
 
 object PeerHandlerManagerRef {
-  def props(settings: ApexSettings, timeProvider: NetworkTimeProvider): Props =
+  def props(settings: NetworkSettings, timeProvider: NetworkTimeProvider): Props =
     Props(new PeerHandlerManager(settings, timeProvider))
 
-  def apply(settings: ApexSettings, timeProvider: NetworkTimeProvider)
-           (implicit system: ActorSystem): ActorRef = system.actorOf(props(settings, timeProvider))
+  def apply(settings: NetworkSettings, timeProvider: NetworkTimeProvider)
+           (implicit system: ActorContext): ActorRef = system.actorOf(props(settings, timeProvider))
 
-  def apply(name: String, settings: ApexSettings, timeProvider: NetworkTimeProvider)
-           (implicit system: ActorSystem): ActorRef = system.actorOf(props(settings, timeProvider), name)
+  def apply(name: String, settings: NetworkSettings, timeProvider: NetworkTimeProvider)
+           (implicit system: ActorContext): ActorRef = system.actorOf(props(settings, timeProvider), name)
 }

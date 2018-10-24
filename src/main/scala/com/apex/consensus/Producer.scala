@@ -15,7 +15,7 @@ package com.apex.consensus
 import java.math.BigInteger
 import java.time.{Duration, Instant}
 
-import akka.actor.{Actor, ActorRef, ActorSystem, Props}
+import akka.actor.{Actor, ActorContext, ActorRef, ActorSystem, Props}
 import com.apex.common.ApexLogging
 import com.apex.core.{BlockHeader, _}
 import com.apex.crypto.Ecdsa.PublicKey
@@ -77,19 +77,18 @@ class ProduceTask(val producer: Producer,
 }
 
 class Producer(settings: ConsensusSettings,
-               chain: Blockchain, peerHandlerManager: ActorRef)
-              (implicit system: ActorSystem) extends Actor with ApexLogging {
+               peerHandlerManager: ActorRef)
+              (implicit ec: ExecutionContext) extends Actor with ApexLogging {
 
   private var nodeRef: ActorRef = null
   private var blockProducing = false
   private var latestHeader: BlockHeader = null
-  implicit val executionContext: ExecutionContext = system.dispatcher
 
   private var canProduce = true
 
   private val task = new ProduceTask(this, peerHandlerManager)
 
-  system.scheduler.scheduleOnce(Duration.ZERO, task)
+  context.system.scheduler.scheduleOnce(Duration.ZERO, task)
 
   override def receive: Receive = {
     case ProducerStopMessage() => {
@@ -242,20 +241,20 @@ object ProducerUtil {
 
 object ProducerRef {
   def props(settings: ConsensusSettings,
-            chain: Blockchain, peerHandlerManager: ActorRef)
-           (implicit system: ActorSystem): Props = {
-    Props(new Producer(settings, chain, peerHandlerManager))
+            peerHandlerManager: ActorRef)
+           (implicit ec: ExecutionContext): Props = {
+    Props(new Producer(settings, peerHandlerManager))
   }
 
   def apply(settings: ConsensusSettings,
-            chain: Blockchain, peerHandlerManager: ActorRef)
-           (implicit system: ActorSystem): ActorRef = {
-    system.actorOf(props(settings, chain, peerHandlerManager))
+            peerHandlerManager: ActorRef)
+           (implicit system: ActorContext, ec: ExecutionContext): ActorRef = {
+    system.actorOf(props(settings, peerHandlerManager))
   }
 
   def apply(settings: ConsensusSettings,
-            chain: Blockchain, peerHandlerManager: ActorRef, name: String)
-           (implicit system: ActorSystem): ActorRef = {
-    system.actorOf(props(settings, chain, peerHandlerManager), name)
+            peerHandlerManager: ActorRef, name: String)
+           (implicit system: ActorContext, ec: ExecutionContext): ActorRef = {
+    system.actorOf(props(settings, peerHandlerManager), name)
   }
 }
