@@ -76,8 +76,7 @@ class ProduceTask(val producer: Producer,
   }
 }
 
-class Producer(settings: ConsensusSettings,
-               chain: Blockchain, peerHandlerManager: ActorRef)
+class Producer(settings: ConsensusSettings, peerHandlerManager: ActorRef)
               (implicit system: ActorSystem) extends Actor with ApexLogging {
 
   private var nodeRef: ActorRef = null
@@ -241,21 +240,18 @@ object ProducerUtil {
 }
 
 object ProducerRef {
-  def props(settings: ConsensusSettings,
-            chain: Blockchain, peerHandlerManager: ActorRef)
+  def props(settings: ConsensusSettings, peerHandlerManager: ActorRef)
            (implicit system: ActorSystem): Props = {
-    Props(new Producer(settings, chain, peerHandlerManager))
+    Props(new Producer(settings, peerHandlerManager))
   }
 
-  def apply(settings: ConsensusSettings,
-            chain: Blockchain, peerHandlerManager: ActorRef)
+  def apply(settings: ConsensusSettings, peerHandlerManager: ActorRef)
            (implicit system: ActorSystem): ActorRef = {
-    system.actorOf(props(settings, chain, peerHandlerManager))
+    system.actorOf(props(settings, peerHandlerManager))
   }
 
-  def apply(settings: ConsensusSettings,
-            chain: Blockchain, peerHandlerManager: ActorRef, name: String)
+  def apply(settings: ConsensusSettings, peerHandlerManager: ActorRef, name: String)
            (implicit system: ActorSystem): ActorRef = {
-    system.actorOf(props(settings, chain, peerHandlerManager), name)
+    system.actorOf(props(settings, peerHandlerManager), name)
   }
 }
