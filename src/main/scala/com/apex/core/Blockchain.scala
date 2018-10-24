@@ -107,7 +107,7 @@ class LevelDBBlockchain(chainSettings: ChainSettings, consensusSettings: Consens
     genesisCoinToAddress, "", minerAward, UInt256.Zero, 0, BinaryData.empty, BinaryData.empty)
 
   private val genesisBlockHeader: BlockHeader = BlockHeader.build(0,
-    chainSettings.genesis.timeStamp, UInt256.Zero, UInt256.Zero,
+    chainSettings.genesis.timeStamp, MerkleTree.root(Seq(genesisTx.id)), UInt256.Zero,
     genesisProducer, genesisProducerPrivKey)
   private val genesisBlock: Block = Block.build(genesisBlockHeader, Seq(genesisTx))
 

@@ -17,9 +17,8 @@ import java.time.{Duration, Instant}
 
 import akka.actor.{Actor, ActorContext, ActorRef, ActorSystem, Props}
 import com.apex.common.ApexLogging
-import com.apex.core.{BlockHeader, _}
+import com.apex.core.BlockHeader
 import com.apex.crypto.Ecdsa.PublicKey
-import com.apex.network._
 import com.apex.settings.{ConsensusSettings, Witness}
 
 import scala.concurrent.ExecutionContext
@@ -80,13 +79,12 @@ class Producer(settings: ConsensusSettings,
                peerHandlerManager: ActorRef)
               (implicit ec: ExecutionContext) extends Actor with ApexLogging {
 
-  private var nodeRef: ActorRef = null
-  private var blockProducing = false
-  private var latestHeader: BlockHeader = null
-
-  private var canProduce = true
-
   private val task = new ProduceTask(this, peerHandlerManager)
+  private val nodeRef: ActorRef = context.parent
+
+  private var latestHeader: BlockHeader = null
+  private var blockProducing = false
+  private var canProduce = true
 
   context.system.scheduler.scheduleOnce(Duration.ZERO, task)
 
@@ -95,9 +93,6 @@ class Producer(settings: ConsensusSettings,
       log.info("stopping producer task")
       task.cancel()
       context.stop(self)
-    }
-    case NodeIsAliveMessage(node) => {
-      nodeRef = node
     }
     case LatestHeaderMessage(header) => {
       if (latestHeader != null && latestHeader.id.equals(header.id) == false) {

@@ -42,7 +42,6 @@ class Node(val settings: ApexSettings)
 
   private val producer = ProducerRef(settings.consensus, peerHandlerManager)
 
-  producer ! NodeIsAliveMessage(self)
   producer ! LatestHeaderMessage(chain.getLatestHeader)
 
   override def receive: Receive = {

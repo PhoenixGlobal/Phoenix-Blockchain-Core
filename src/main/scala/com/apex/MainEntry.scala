@@ -10,13 +10,10 @@ package com.apex
 
 import akka.actor.ActorSystem
 import com.apex.common.ApexLogging
-import com.apex.consensus.{ProducerRef, ProducerStopMessage}
-import com.apex.core.Blockchain
-import com.apex.network.peer.PeerHandlerManagerRef
+import com.apex.consensus.ProducerRef
 import com.apex.network.rpc.RpcServer
-import com.apex.network.upnp.UPnP
-import com.apex.network.{NetworkManagerRef, NodeRef, NodeStopMessage}
-import com.apex.settings.{ApexSettings, GlobalConfig}
+import com.apex.network.{NodeRef, NodeStopMessage}
+import com.apex.settings.ApexSettings
 import com.apex.utils.NetworkTimeProvider
 import net.sourceforge.argparse4j.ArgumentParsers
 import net.sourceforge.argparse4j.inf.{ArgumentParser, ArgumentParserException, Namespace}
