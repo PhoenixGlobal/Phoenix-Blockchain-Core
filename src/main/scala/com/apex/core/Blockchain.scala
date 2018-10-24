@@ -13,8 +13,12 @@ import scala.collection.mutable
 import scala.collection.mutable.{ArrayBuffer, Map, Set}
 import scala.collection.immutable
 
+case class ChainInfo(id: String)
+
 trait Blockchain extends Iterable[Block] with ApexLogging {
-  def getLatestHeader: BlockHeader
+  def getChainInfo(): ChainInfo
+
+  def getLatestHeader(): BlockHeader
 
   def getHeight(): Int
 
@@ -64,22 +68,20 @@ trait Blockchain extends Iterable[Block] with ApexLogging {
 
   def getAccount(address: UInt160): Option[Account]
 
-  def getGenesisBlockChainId: String
+  def Id: String
 
   def close()
 }
 
 object Blockchain {
-  private var chain: LevelDBBlockchain = null
+  //private var chain: LevelDBBlockchain = null
 
   //  final val Current: Blockchain = new LevelDBBlockchain()
   def populate(chainSettings: ChainSettings, consensusSettings: ConsensusSettings): LevelDBBlockchain = {
-    val populateChain = new LevelDBBlockchain(chainSettings, consensusSettings)
-    chain = populateChain
-    populateChain
+    new LevelDBBlockchain(chainSettings, consensusSettings)
   }
 
-  def getLevelDBBlockchain: LevelDBBlockchain = chain
+  //def getLevelDBBlockchain: LevelDBBlockchain = chain
 }
 
 class LevelDBBlockchain(chainSettings: ChainSettings, consensusSettings: ConsensusSettings) extends Blockchain {
@@ -105,7 +107,7 @@ class LevelDBBlockchain(chainSettings: ChainSettings, consensusSettings: Consens
     genesisCoinToAddress, "", minerAward, UInt256.Zero, 0, BinaryData.empty, BinaryData.empty)
 
   private val genesisBlockHeader: BlockHeader = BlockHeader.build(0,
-    chainSettings.genesis.timeStamp, UInt256.Zero, UInt256.Zero,
+    chainSettings.genesis.timeStamp, MerkleTree.root(Seq(genesisTx.id)), UInt256.Zero,
     genesisProducer, genesisProducerPrivKey)
   private val genesisBlock: Block = Block.build(genesisBlockHeader, Seq(genesisTx))
 
@@ -118,7 +120,7 @@ class LevelDBBlockchain(chainSettings: ChainSettings, consensusSettings: Consens
 
   populate()
 
-  override def getGenesisBlockChainId: String = genesisBlockHeader.id.toString
+  override def Id: String = genesisBlock.id.toString
 
   override def iterator: Iterator[Block] = new BlockchainIterator(this)
 
@@ -128,6 +130,10 @@ class LevelDBBlockchain(chainSettings: ChainSettings, consensusSettings: Consens
     dataBase.close()
     forkBase.close()
     log.info("blockchain closed")
+  }
+
+  override def getChainInfo(): ChainInfo = {
+    ChainInfo(genesisBlock.id.toString)
   }
 
   override def getHeight(): Int = {
@@ -261,7 +267,8 @@ class LevelDBBlockchain(chainSettings: ChainSettings, consensusSettings: Consens
 
     if (!pendingTxs.isEmpty) {
       pendingTxs.foreach(tx => {
-        unapplyTxs += (tx.id -> tx)
+        if (tx.txType != TransactionType.Miner)
+          unapplyTxs += (tx.id -> tx)
       })
       pendingTxs.clear()
 
@@ -499,7 +506,7 @@ class LevelDBBlockchain(chainSettings: ChainSettings, consensusSettings: Consens
     printChain("new chain", to)
 
     require(dataBase.revision == from.last.height + 1)
-    while (dataBase.revision > switchState.height  + 1) {
+    while (dataBase.revision > switchState.height + 1) {
       dataBase.rollBack()
     }
 

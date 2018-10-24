@@ -14,12 +14,13 @@ package com.apex.consensus
 
 import java.math.BigInteger
 import java.time.{Duration, Instant}
-import akka.actor.{Actor, ActorRef, ActorSystem, Props}
+
+import akka.actor.{Actor, ActorContext, ActorRef, ActorSystem, Props}
 import com.apex.common.ApexLogging
-import com.apex.core._
+import com.apex.core.BlockHeader
 import com.apex.crypto.Ecdsa.PublicKey
-import com.apex.network._
 import com.apex.settings.{ConsensusSettings, Witness}
+
 import scala.concurrent.ExecutionContext
 
 trait ProduceState
@@ -32,14 +33,17 @@ case class NotMyTurn(producer: String, pubKey: PublicKey) extends ProduceState
 
 case class TimeMissed(thisProduceTime: Long, currTime: Long) extends ProduceState
 
-case class Success(block: Option[Block], producer: String, time: Long) extends ProduceState
+case class Success(time: Long) extends ProduceState
 
 case class Failed(e: Throwable) extends ProduceState
 
 trait ProducerMessage
 
-case class BlockAcceptedMessage(block: Block) extends ProducerMessage
 case class ProducerStopMessage() extends ProducerMessage
+case class NodeIsAliveMessage(node: ActorRef) extends ProducerMessage
+case class BlockStartProduceMessage(witness: Witness) extends ProducerMessage
+case class BlockFinalizeProduceMessage(witness: Witness, timeStamp: Long) extends ProducerMessage
+case class LatestHeaderMessage(header: BlockHeader) extends ProducerMessage
 
 class ProduceTask(val producer: Producer,
                   val peerHandlerManager: ActorRef,
@@ -51,6 +55,7 @@ class ProduceTask(val producer: Producer,
   }
 
   override def run(): Unit = {
+    Thread.sleep(100) // make sure Producer.nodeRef is not null
     while (!cancelled) {
       var sleep = 500 - Instant.now.toEpochMilli % 500
       sleep = if (sleep < 10) sleep + 500 else sleep
@@ -63,14 +68,7 @@ class ProduceTask(val producer: Producer,
           case TimeMissed(tpt, ct) => log.debug(s"missed, this produce time: $tpt, current time: $ct")
           case NotMyTurn(name, _) => log.debug(s"not my turn, ($name)")
           case Failed(e) => log.error("error occurred when producing block", e)
-          case Success(block, producer, time) => block match {
-            case Some(blk) => {
-              log.info(s"block (${blk.height}, ${blk.timeStamp}) produced by $producer on $time  ${blk.id}")
-              peerHandlerManager ! BlockMessage(blk)
-              //peerHandlerManager ! InventoryMessage(new InventoryPayload(InventoryType.Block, Seq(blk.id())))
-            }
-            case None => log.error("produce block failed")
-          }
+          case Success(time) => log.debug(s"BlockFinalizeProduceMessage sent. $time")
         }
       }
     }
@@ -78,25 +76,30 @@ class ProduceTask(val producer: Producer,
 }
 
 class Producer(settings: ConsensusSettings,
-               chain: Blockchain, peerHandlerManager: ActorRef)
-              (implicit system: ActorSystem) extends Actor with ApexLogging {
-
-  implicit val executionContext: ExecutionContext = system.dispatcher
-
-  private var canProduce = true
+               peerHandlerManager: ActorRef)
+              (implicit ec: ExecutionContext) extends Actor with ApexLogging {
 
   private val task = new ProduceTask(this, peerHandlerManager)
-  system.scheduler.scheduleOnce(Duration.ZERO, task)
+  private val nodeRef: ActorRef = context.parent
+
+  private var latestHeader: BlockHeader = null
+  private var blockProducing = false
+  private var canProduce = true
+
+  context.system.scheduler.scheduleOnce(Duration.ZERO, task)
 
   override def receive: Receive = {
-    case BlockAcceptedMessage(block) => {
-      //removeTransactionsInBlock(block)
-      tryStartProduce(Instant.now.toEpochMilli)
-    }
     case ProducerStopMessage() => {
       log.info("stopping producer task")
       task.cancel()
       context.stop(self)
+    }
+    case LatestHeaderMessage(header) => {
+      if (latestHeader != null && latestHeader.id.equals(header.id) == false) {
+        blockProducing = false
+      }
+      latestHeader = header
+      tryStartProduce(Instant.now.toEpochMilli)
     }
     case a: Any => {
       log.info(s"${sender().toString}, ${a.toString}")
@@ -126,11 +129,12 @@ class Producer(settings: ConsensusSettings,
   }
 
   private def tryStartProduce(now: Long) = {
-    if (chain.isProducingBlock() == false) {
+    if (canProduce && blockProducing == false) {
       val witness = ProducerUtil.getWitness(nextProduceTime(now, nextBlockTime()), settings)
       if (witness.privkey.isDefined) {
-        //log.info("startProduceBlock")
-        chain.startProduceBlock(witness.pubkey)
+        log.debug(s"send BlockStartProduceMessage to Node. witness name is ${witness.name}")
+        nodeRef ! BlockStartProduceMessage(witness)
+        blockProducing = true
       }
     }
   }
@@ -150,18 +154,15 @@ class Producer(settings: ConsensusSettings,
         NotMyTurn(witness.name, witness.pubkey)
       }
       else {
-        val block = chain.produceBlockFinalize(witness.pubkey, witness.privkey.get, nextProduceTime(now, next))
-        if (block.isDefined) {
-          self ! BlockAcceptedMessage(block.get)
-        }
-        Success(block, witness.name, now)
+        nodeRef ! BlockFinalizeProduceMessage(witness, nextProduceTime(now, next))
+        Success(now)
       }
     }
   }
 
   // the nextBlockTime is the expected time of next block based on current latest block
   private def nextBlockTime(nextN: Int = 1): Long = {
-    val headTime = chain.getLatestHeader.timeStamp
+    val headTime = latestHeader.timeStamp
     var slot = headTime / settings.produceInterval
     slot += nextN
     slot * settings.produceInterval
@@ -235,20 +236,20 @@ object ProducerUtil {
 
 object ProducerRef {
   def props(settings: ConsensusSettings,
-            chain: Blockchain, peerHandlerManager: ActorRef)
-           (implicit system: ActorSystem): Props = {
-    Props(new Producer(settings, chain, peerHandlerManager))
+            peerHandlerManager: ActorRef)
+           (implicit ec: ExecutionContext): Props = {
+    Props(new Producer(settings, peerHandlerManager))
   }
 
   def apply(settings: ConsensusSettings,
-            chain: Blockchain, peerHandlerManager: ActorRef)
-           (implicit system: ActorSystem): ActorRef = {
-    system.actorOf(props(settings, chain, peerHandlerManager))
+            peerHandlerManager: ActorRef)
+           (implicit system: ActorContext, ec: ExecutionContext): ActorRef = {
+    system.actorOf(props(settings, peerHandlerManager))
   }
 
   def apply(settings: ConsensusSettings,
-            chain: Blockchain, peerHandlerManager: ActorRef, name: String)
-           (implicit system: ActorSystem): ActorRef = {
-    system.actorOf(props(settings, chain, peerHandlerManager), name)
+            peerHandlerManager: ActorRef, name: String)
+           (implicit system: ActorContext, ec: ExecutionContext): ActorRef = {
+    system.actorOf(props(settings, peerHandlerManager), name)
   }
 }

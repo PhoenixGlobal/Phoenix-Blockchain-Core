@@ -2,12 +2,12 @@ package com.apex.network
 
 import java.net.InetSocketAddress
 
-import akka.actor.{Actor, ActorRef, ActorSystem, Cancellable, Props}
+import akka.actor.{Actor, ActorContext, ActorRef, ActorSystem, Cancellable, Props}
 import akka.io.Tcp
 import akka.io.Tcp._
 import akka.util.{ByteString, CompactByteString}
 import com.apex.common.ApexLogging
-import com.apex.core.Blockchain
+import com.apex.core.{Blockchain, ChainInfo}
 import com.apex.settings.NetworkSettings
 import com.apex.utils.{NetworkTimeProvider, Version}
 import com.apex.network.PeerConnectionManager.{AwaitingHandshake, WorkingCycle}
@@ -41,42 +41,44 @@ case class ConnectedPeer(socketAddress: InetSocketAddress,
 
 case object Ack extends Event
 
-class PeerConnectionManager(val settings: NetworkSettings,
-                            val peerHandlerManagerRef: ActorRef,
-                            val nodeRef: ActorRef,
+class PeerConnectionManager(settings: NetworkSettings,
+                            peerHandlerManagerRef: ActorRef,
+                            nodeRef: ActorRef,
+                            chainInfo: ChainInfo,
                             connection: ActorRef,
                             direction: ConnectionType,
                             ownSocketAddress: Option[InetSocketAddress],
                             remote: InetSocketAddress,
-                            networkManager: ActorRef,
                             timeProvider: NetworkTimeProvider)(implicit ec: ExecutionContext)
-  extends Actor with DataBuffering with ApexLogging {
+  extends Actor with ApexLogging {
 
   import PeerConnectionManager.ReceivableMessages._
   import com.apex.network.peer.PeerHandlerManager.ReceivableMessages.{Disconnected, DoConnecting, Handshaked}
 
   context watch connection
 
-  private var receivedHandshake: Option[Handshake] = None
+  private val networkManager = context.parent
 
-  private var selfPeer: Option[ConnectedPeer] = None
+  private var receivedHandshake = Option.empty[Handshake]
 
-  private def handshakeGot = receivedHandshake.isDefined
+  private var selfPeer = Option.empty[ConnectedPeer]
 
-  private var handshakeTimeoutCancellableOpt: Option[Cancellable] = None
+  private var handshakeTimeoutCancellableOpt = Option.empty[Cancellable]
+
+  private var chunksBuffer = CompactByteString()
 
   private var handshakeSent = false
 
-  private var chunksBuffer: ByteString = CompactByteString()
+  private def handshakeGot = {
+    receivedHandshake.isDefined
+  }
 
   private def constructHandshakeMsg: Handshake = {
-    val chain = Blockchain.getLevelDBBlockchain
-    val headerNum = chain.getHeight()
-    val chainId = chain.getGenesisBlockChainId
+    val headerNum = 0 // not used
 
     Handshake(settings.agentName, Version(settings.appVersion), settings.nodeName,
-            ownSocketAddress, chainId, headerNum.toString,
-            System.currentTimeMillis())
+      ownSocketAddress, chainInfo.id, headerNum.toString,
+      System.currentTimeMillis())
   }
 
   private def handshake: Receive =
@@ -132,28 +134,27 @@ class PeerConnectionManager(val settings: NetworkSettings,
       }
   }
 
-  private def handleHandshake(handshakeMsg: Handshake): Unit ={
-    val localChain = Blockchain.getLevelDBBlockchain
-    if(localChain.getGenesisBlockChainId != handshakeMsg.chainId){
+  private def handleHandshake(handshakeMsg: Handshake): Unit = {
+    if (!chainInfo.id.equals(handshakeMsg.chainId)) {
       log.error(f"Peer on a different chain. Closing connection")
       self ! CloseConnection
-      return
+    } else {
+      val myTime = System.currentTimeMillis()
+      val timeGap = math.abs(handshakeMsg.time - myTime)
+      log.info(s"peer timeGap = $timeGap")
+      if (timeGap > settings.peerMaxTimeGap) {
+        log.error(s"peer timeGap too large $timeGap  Closing connection")
+        self ! CloseConnection
+      } else {
+        receivedHandshake = Some(handshakeMsg)
+        log.info(s"获得握手: $remote")
+        connection ! ResumeReading
+        networkManager ! GetHandlerToPeerConnectionManager //握手成功后，向PeerConnectionManager发送远程handler
+        if (handshakeGot && handshakeSent) {
+          self ! HandshakeDone
+        }
+      }
     }
-
-    val myTime = System.currentTimeMillis() 
-    val timeGap = math.abs(handshakeMsg.time - myTime)
-    log.info(s"peer timeGap = $timeGap")
-    if (timeGap > settings.peerMaxTimeGap) {
-      log.error(s"peer timeGap too large $timeGap  Closing connection")
-      self ! CloseConnection
-      return
-    }
-
-    receivedHandshake = Some(handshakeMsg)
-    log.info(s"获得握手: $remote")
-    connection ! ResumeReading
-    networkManager ! GetHandlerToPeerConnectionManager //握手成功后，向PeerConnectionManager发送远程handler
-    if (handshakeGot && handshakeSent) self ! HandshakeDone
   }
 
   private def handshakeTimeout: Receive = {
@@ -202,9 +203,9 @@ class PeerConnectionManager(val settings: NetworkSettings,
         waitForAck = true
       }
 
-      //context.become({
-      //  case Ack            ⇒ acknowledge()
-      //}, discardOld = false)
+    //context.become({
+    //  case Ack            ⇒ acknowledge()
+    //}, discardOld = false)
 
     case Ack =>
       acknowledge()
@@ -219,7 +220,7 @@ class PeerConnectionManager(val settings: NetworkSettings,
   def workingCycleRemoteInterface: Receive = {
     case Received(data) =>
       connection ! ResumeReading
-      //log.info(s"PeerConnectionManager recv Message")
+//      log.info(s"PeerConnectionManager recv Message")
       nodeRef ! MessagePack.fromBytes(data.toArray)
   }
 
@@ -274,14 +275,14 @@ object PeerConnectionManager {
 }
 
 object PeerConnectionManagerRef {
-  def props(settings: NetworkSettings, peerHandlerManagerRef: ActorRef, nodeRef: ActorRef, connection: ActorRef, direction: ConnectionType, ownSocketAddress: Option[InetSocketAddress], remote: InetSocketAddress, networkManager: ActorRef, timeProvider: NetworkTimeProvider)(implicit ec: ExecutionContext): Props =
-    Props(new PeerConnectionManager(settings, peerHandlerManagerRef, nodeRef, connection, direction, ownSocketAddress, remote, networkManager, timeProvider))
+  def props(settings: NetworkSettings, peerHandlerManagerRef: ActorRef, nodeRef: ActorRef, chainInfo: ChainInfo, connection: ActorRef, direction: ConnectionType, ownSocketAddress: Option[InetSocketAddress], remote: InetSocketAddress, timeProvider: NetworkTimeProvider)(implicit ec: ExecutionContext): Props =
+    Props(new PeerConnectionManager(settings, peerHandlerManagerRef, nodeRef, chainInfo, connection, direction, ownSocketAddress, remote, timeProvider))
 
-  def apply(settings: NetworkSettings, peerHandlerManagerRef: ActorRef, nodeRef: ActorRef, connection: ActorRef, direction: ConnectionType, ownSocketAddress: Option[InetSocketAddress], remote: InetSocketAddress, networkManager: ActorRef, timeProvider: NetworkTimeProvider)
-           (implicit system: ActorSystem, ec: ExecutionContext): ActorRef =
-    system.actorOf(props(settings, peerHandlerManagerRef, nodeRef, connection, direction, ownSocketAddress, remote, networkManager, timeProvider))
+  def apply(settings: NetworkSettings, peerHandlerManagerRef: ActorRef, nodeRef: ActorRef, chainInfo: ChainInfo, connection: ActorRef, direction: ConnectionType, ownSocketAddress: Option[InetSocketAddress], remote: InetSocketAddress, timeProvider: NetworkTimeProvider)
+           (implicit system: ActorContext, ec: ExecutionContext): ActorRef =
+    system.actorOf(props(settings, peerHandlerManagerRef, nodeRef, chainInfo, connection, direction, ownSocketAddress, remote, timeProvider))
 
-  def apply(name: String, settings: NetworkSettings, peerHandlerManagerRef: ActorRef, nodeRef: ActorRef, connection: ActorRef, direction: ConnectionType, ownSocketAddress: Option[InetSocketAddress], remote: InetSocketAddress, networkManager: ActorRef, timeProvider: NetworkTimeProvider)
-           (implicit system: ActorSystem, ec: ExecutionContext): ActorRef =
-    system.actorOf(props(settings, peerHandlerManagerRef, nodeRef, connection, direction, ownSocketAddress, remote, networkManager, timeProvider), name)
+  def apply(name: String, settings: NetworkSettings, peerHandlerManagerRef: ActorRef, nodeRef: ActorRef, chainInfo: ChainInfo, connection: ActorRef, direction: ConnectionType, ownSocketAddress: Option[InetSocketAddress], remote: InetSocketAddress, timeProvider: NetworkTimeProvider)
+           (implicit system: ActorContext, ec: ExecutionContext): ActorRef =
+    system.actorOf(props(settings, peerHandlerManagerRef, nodeRef, chainInfo, connection, direction, ownSocketAddress, remote, timeProvider), name)
 }

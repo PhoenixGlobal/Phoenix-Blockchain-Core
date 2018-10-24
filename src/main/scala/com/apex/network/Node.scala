@@ -15,30 +15,69 @@ import com.apex.common.ApexLogging
 import com.apex.core._
 import com.apex.crypto.UInt256
 import com.apex.network.rpc._
-import com.apex.consensus.BlockAcceptedMessage
+import com.apex.consensus._
+import com.apex.network.peer.PeerHandlerManagerRef
+import com.apex.network.upnp.UPnP
+import com.apex.settings.ApexSettings
+import com.apex.utils.NetworkTimeProvider
 
 import scala.collection.mutable.{ArrayBuffer, Map}
+import scala.concurrent.ExecutionContext
 
 trait NodeMessage
 
 case class NodeStopMessage() extends NodeMessage
 
-class Node(val chain: Blockchain,
-           val peerHandlerManager: ActorRef,
-           val producer: ActorRef)
+class Node(val settings: ApexSettings)
+          (implicit ec: ExecutionContext)
   extends Actor with ApexLogging {
 
+  private val chain = Blockchain.populate(settings.chain, settings.consensus)
+
+  private val timeProvider = new NetworkTimeProvider(settings.ntp)
+
+  private val peerHandlerManager = PeerHandlerManagerRef(settings.network, timeProvider)
+
+  private val networkManager = NetworkManagerRef(settings.network, chain.getChainInfo, timeProvider, peerHandlerManager)
+
+  private val producer = ProducerRef(settings.consensus, peerHandlerManager)
+
+  producer ! LatestHeaderMessage(chain.getLatestHeader)
+
   override def receive: Receive = {
-    case message: Message => processMessage(message)
+    case message: NetworkMessage => processNetworkMessage(message)
     case cmd: RPCCommand => processRPCCommand(cmd)
-    case msg: NodeStopMessage => {
+    case prodMsg: ProducerMessage => processProducerMessage(prodMsg)
+    case _: NodeStopMessage => {
       log.info("stopping node")
+      //TODO stop producer and connections
       chain.close()
       context.stop(self)
     }
     case unknown: Any => {
       println("Unknown msg:")
       println(unknown)
+    }
+  }
+
+  private def processProducerMessage(msg: ProducerMessage) = {
+    msg match {
+      case BlockStartProduceMessage(witness) => {
+        log.debug(s"node got BlockStartProduceMessage witness=${witness.name}")
+        chain.startProduceBlock(witness.pubkey)
+      }
+      case BlockFinalizeProduceMessage(witness, timeStamp) => {
+        log.debug(s"node got BlockFinalizeProduceMessage witness=${witness.name} timeStamp=$timeStamp")
+        val block = chain.produceBlockFinalize(witness.pubkey, witness.privkey.get, timeStamp)
+        if (block.isDefined) {
+          log.info(s"block (${block.get.height}, ${block.get.timeStamp}) produced by ${witness.name} ${block.get.id}")
+          producer ! LatestHeaderMessage(chain.getLatestHeader)
+          peerHandlerManager ! BlockMessage(block.get)
+        }
+        else {
+          log.error(s"produceBlockFinalize Error, ${witness.name} $timeStamp")
+        }
+      }
     }
   }
 
@@ -80,8 +119,8 @@ class Node(val chain: Blockchain,
     }
   }
 
-  private def processMessage(message: Message) = {
-    //log.info(s"Node processMessage $message")
+  private def processNetworkMessage(message: NetworkMessage) = {
+    log.debug(s"Node processNetworkMessage $message")
     message match {
       case VersionMessage(height) => {
         processVersionMessage(message.asInstanceOf[VersionMessage])
@@ -134,7 +173,7 @@ class Node(val chain: Blockchain,
     //log.info(s"received a block #${block.height} (${block.id})")
     if (chain.tryInsertBlock(msg.block, true)) {
       log.info(s"success insert block #${msg.block.height} (${msg.block.id})")
-      producer ! BlockAcceptedMessage(msg.block)
+      producer ! LatestHeaderMessage(chain.getLatestHeader) // the latest header maybe not same as the inserted block
       peerHandlerManager ! InventoryMessage(new InventoryPayload(InventoryType.Block, Seq(msg.block.id())))
     } else {
       log.error(s"failed insert block #${msg.block.height}, (${msg.block.id}) to db")
@@ -151,7 +190,7 @@ class Node(val chain: Blockchain,
     msg.blocks.blocks.foreach(block => {
       if (chain.tryInsertBlock(block, true)) {
         log.info(s"success insert block #${block.height} (${block.id})")
-        producer ! BlockAcceptedMessage(block)
+        producer ! LatestHeaderMessage(chain.getLatestHeader) // the latest header maybe not same as the inserted block
         // no need to send INV during sync
         //peerHandlerManager ! InventoryMessage(new Inventory(InventoryType.Block, Seq(block.id())))
       } else {
@@ -231,12 +270,13 @@ class Node(val chain: Blockchain,
 }
 
 object NodeRef {
-  def props(chain: Blockchain, peerHandlerManager: ActorRef, producer: ActorRef): Props = Props(new Node(chain, peerHandlerManager, producer))
 
-  def apply(chain: Blockchain, peerHandlerManager: ActorRef, producer: ActorRef)
-           (implicit system: ActorSystem): ActorRef = system.actorOf(props(chain, peerHandlerManager, producer))
+  def props(settings: ApexSettings)(implicit system: ActorSystem, ec: ExecutionContext): Props = Props(new Node(settings))
 
-  def apply(chain: Blockchain, peerHandlerManager: ActorRef, producer: ActorRef, name: String)
-           (implicit system: ActorSystem): ActorRef = system.actorOf(props(chain, peerHandlerManager, producer), name)
+  def apply(settings: ApexSettings)
+           (implicit system: ActorSystem, ec: ExecutionContext): ActorRef = system.actorOf(props(settings))
+
+  def apply(settings: ApexSettings, name: String)
+           (implicit system: ActorSystem, ec: ExecutionContext): ActorRef = system.actorOf(props(settings), name)
 
 }

@@ -13,11 +13,12 @@ import net.ceedubs.ficus.readers.ValueReader
 
 import scala.concurrent.duration._
 
-case class RPCSettings(host: String, port: Int)
+case class RPCSettings(enabled: Boolean, host: String, port: Int)
 
 case class NetworkSettings(nodeName: String,
                            addedMaxDelay: Option[FiniteDuration],
                            localOnly: Boolean,
+                           peersDB: String,
                            knownPeers: Seq[InetSocketAddress],
                            bindAddress: InetSocketAddress,
                            maxConnections: Int,
@@ -36,9 +37,7 @@ case class NetworkSettings(nodeName: String,
 case class NetworkTimeProviderSettings(server: String, updateEvery: FiniteDuration, timeout: FiniteDuration)
 
 
-case class ApexSettings(dataDir: File,
-                        logDir: File,
-                        network: NetworkSettings,
+case class ApexSettings(network: NetworkSettings,
                         ntp: NetworkTimeProviderSettings,
                         consensus: ConsensusSettings,
                         chain: ChainSettings,

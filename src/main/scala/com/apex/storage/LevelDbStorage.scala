@@ -328,7 +328,7 @@ class RollbackSession(db: DB, val prefix: Array[Byte], val revision: Int) extend
       item.insert.foreach(p => batch.delete(p._1.bytes))
       item.update.foreach(p => batch.put(p._1.bytes, p._2))
       item.delete.foreach(p => batch.put(p._1.bytes, p._2))
-      batch.put(prefix, BigInt(revision - 1).toByteArray)
+      batch.put(prefix, BigInt(revision).toByteArray)
       batch.delete(sessionId)
       db.write(batch)
     } finally {

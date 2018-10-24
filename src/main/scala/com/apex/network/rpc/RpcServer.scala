@@ -37,7 +37,7 @@ object RpcServer extends ApexLogging {
 
   private var bindingFuture: Future[Http.ServerBinding] = null
 
-  def run(rpcSettings: RPCSettings, nodeRef: ActorRef, producerRef: ActorRef) = {
+  def run(rpcSettings: RPCSettings, nodeRef: ActorRef) = {
     implicit val executionContext = system.dispatcher
 
     val route =

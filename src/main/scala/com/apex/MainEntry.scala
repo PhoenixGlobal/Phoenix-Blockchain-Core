@@ -10,12 +10,9 @@ package com.apex
 
 import akka.actor.ActorSystem
 import com.apex.common.ApexLogging
-import com.apex.consensus.{ProducerRef, ProducerStopMessage}
-import com.apex.core.Blockchain
-import com.apex.network.peer.PeerHandlerManagerRef
+import com.apex.consensus.ProducerRef
 import com.apex.network.rpc.RpcServer
-import com.apex.network.upnp.UPnP
-import com.apex.network.{NetworkManagerRef, NodeRef, NodeStopMessage}
+import com.apex.network.{NodeRef, NodeStopMessage}
 import com.apex.settings.ApexSettings
 import com.apex.utils.NetworkTimeProvider
 import net.sourceforge.argparse4j.ArgumentParsers
@@ -28,32 +25,28 @@ import scala.io.StdIn
 object MainEntry extends ApexLogging {
 
   def main(args: Array[String]): Unit = {
-    log.info("starting APEX blockchain")
     val ns = parseArgs(args)
     val settings = getApexSettings(ns)
-    val chain = Blockchain.populate(settings.chain, settings.consensus)
 
     implicit val system = ActorSystem("APEX-NETWORK")
     implicit val executionContext: ExecutionContext = system.dispatcher
 
-    //p2p
-    val upnp = new UPnP(settings.network)
+    val node = NodeRef(settings)
 
-    val timeProvider = new NetworkTimeProvider(settings.ntp)
-
-    val peerHandlerManagerRef = PeerHandlerManagerRef(settings, timeProvider)
-    val producer = ProducerRef(settings.consensus, chain, peerHandlerManagerRef)
-    val nodeRef = NodeRef(chain, peerHandlerManagerRef, producer)
-    //    val rpcRef = RpcServerRef(settings.rpcSettings, nodeRef)
-    val networkControllerRef = NetworkManagerRef(settings.network, upnp, timeProvider, peerHandlerManagerRef, nodeRef)
-
-    RpcServer.run(settings.rpc, nodeRef, producer)
+    if (settings.rpc.enabled) {
+      RpcServer.run(settings.rpc, node)
+    }
 
     System.out.println("Press RETURN to stop...")
     StdIn.readLine() // let it run until user presses return
-    log.info("stoping")
-    producer ! ProducerStopMessage()
-    nodeRef ! NodeStopMessage()
+
+    if (settings.rpc.enabled) {
+      log.info("stopping rpc server")
+      RpcServer.stop()
+    }
+
+    log.info("stopping node")
+    node ! NodeStopMessage()
     // TODO: close network ...
     Thread.sleep(1000) // TODO
     log.info("quit")
