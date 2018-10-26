@@ -1,5 +1,6 @@
 package com.apex.network
 
+import java.nio.ByteOrder
 import java.net.InetSocketAddress
 
 import akka.actor.{Actor, ActorContext, ActorRef, ActorSystem, Cancellable, Props}
@@ -65,7 +66,7 @@ class PeerConnectionManager(settings: NetworkSettings,
 
   private var handshakeTimeoutCancellableOpt = Option.empty[Cancellable]
 
-  private var chunksBuffer = CompactByteString()
+  private var chunksBuffer: ByteString = CompactByteString()
 
   private var handshakeSent = false
 
@@ -180,10 +181,23 @@ class PeerConnectionManager(settings: NetworkSettings,
   private val msgBuffer = ArrayBuffer.empty[MessagePack]
   private var waitForAck: Boolean = false
 
+  private implicit val byteOrder: ByteOrder = ByteOrder.BIG_ENDIAN
+
+  private def sendMessagePack(msg: MessagePack) = {
+    val builder = ByteString.createBuilder
+
+    builder.putInt(msg.data.length + 1)
+    builder.putByte(msg.messageType.id.toByte)
+    builder.putBytes(msg.data)
+
+    //log.info(s"write ${builder.result().size} bytes")
+    connection ! Write(builder.result(), Ack)
+  }
+
   private def acknowledge(): Unit = {
     if (msgBuffer.size > 0) {
       val msg = msgBuffer.remove(0)
-      connection ! Write(ByteString(Array(msg.messageType.id.toByte) ++ msg.data), Ack)
+      sendMessagePack(msg)
       waitForAck = true
     }
     else
@@ -199,7 +213,7 @@ class PeerConnectionManager(settings: NetworkSettings,
         log.info(s"msgBuffer size ${msgBuffer.size}")
       }
       else {
-        connection ! Write(ByteString(Array(msg.messageType.id.toByte) ++ msg.data), Ack)
+        sendMessagePack(msg)
         waitForAck = true
       }
 
@@ -219,9 +233,29 @@ class PeerConnectionManager(settings: NetworkSettings,
   //接收消息
   def workingCycleRemoteInterface: Receive = {
     case Received(data) =>
+      log.debug(s"PeerConnectionManager recv Message ${data.size} bytes")
+      chunksBuffer ++= data
+      def processChunksBuffer(): Unit = {
+        if (chunksBuffer.length > 5) {
+          val payloadLen = chunksBuffer.iterator.getInt
+          log.debug(s"payloadLen=$payloadLen  chunksBuffer.length=${chunksBuffer.length}")
+          if (chunksBuffer.length >= payloadLen + 4) {
+            chunksBuffer = chunksBuffer.drop(4)
+            val msg = MessagePack.fromBytes(chunksBuffer.toArray)
+            chunksBuffer = chunksBuffer.drop(payloadLen)
+            if (msg.isDefined) {
+              nodeRef ! msg.get
+              processChunksBuffer()
+            }
+            else
+              log.error(s"parse network data Error during MessagePack fromBytes() payloadLen=${payloadLen}")
+          }
+          else
+            log.debug(s"not enough data, payloadLen=$payloadLen  chunksBuffer.length=${chunksBuffer.length}")
+        }
+      }
+      processChunksBuffer()
       connection ! ResumeReading
-//      log.info(s"PeerConnectionManager recv Message")
-      nodeRef ! MessagePack.fromBytes(data.toArray)
   }
 
   private def reportStrangeInput: Receive = {

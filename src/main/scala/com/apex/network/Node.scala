@@ -155,25 +155,28 @@ class Node(val settings: ApexSettings)
 
   private def processGetBlocksMessage(msg: GetBlocksMessage) = {
     //log.info("received GetBlocksMessage")
-    val hashs = ArrayBuffer.empty[UInt256]
     val hash = msg.blockHashs.hashStart(0)
     if (hash.equals(UInt256.Zero)) {
       sender() ! InventoryMessage(new InventoryPayload(InventoryType.Block, Seq(chain.getLatestHeader.id))).pack()
     }
     else {
+      val hashs = ArrayBuffer.empty[UInt256]
+      val hashCountMax = 10
+      var hashCount = 0
       hashs.append(hash)
       var next = chain.getNextBlockId(hash)
-      while (next.isDefined) {
+      while (next.isDefined && hashCount < hashCountMax) {
+        hashCount += 1
         hashs.append(next.get)
         next = chain.getNextBlockId(next.get)
       }
       //log.info("send InventoryMessage")
-      sender() ! InventoryMessage(new InventoryPayload(InventoryType.Block, hashs.toSeq)).pack()
+      sender() ! InventoryMessage(new InventoryPayload(InventoryType.Block, hashs)).pack()
     }
   }
 
   private def processBlockMessage(msg: BlockMessage) = {
-    //log.info(s"received a block #${block.height} (${block.id})")
+    log.debug(s"received a block #${msg.block.height} (${msg.block.id})")
     if (chain.tryInsertBlock(msg.block, true)) {
       peerHandlerManager ! InventoryMessage(new InventoryPayload(InventoryType.Block, Seq(msg.block.id())))
       log.info(s"success insert block #${msg.block.height} (${msg.block.id})")
@@ -189,17 +192,22 @@ class Node(val settings: ApexSettings)
 
   private def processBlocksMessage(msg: BlocksMessage) = {
     log.info(s"received ${msg.blocks.blocks.size} blocks")
+    var receivedNewBlock = false
     msg.blocks.blocks.foreach(block => {
       if (chain.tryInsertBlock(block, true)) {
+        log.info(s"success insert block #${block.height} (${block.id})")
         // no need to send INV during sync
         //peerHandlerManager ! InventoryMessage(new Inventory(InventoryType.Block, Seq(block.id())))
-        log.info(s"success insert block #${block.height} (${block.id})")
+        receivedNewBlock = true
       } else {
         log.error(s"failed insert block #${block.height}, (${block.id}) to db")
+        if (!chain.containsBlock(block.id))
+          receivedNewBlock = true
       }
     })
-    // try to get more blocks if have any
-    sender() ! GetBlocksMessage(new GetBlocksPayload(Seq(chain.getLatestHeader.id), UInt256.Zero)).pack
+    // try to get more new blocks
+    if (receivedNewBlock)
+      sender() ! GetBlocksMessage(new GetBlocksPayload(Seq(chain.getLatestHeader.id), UInt256.Zero)).pack
   }
 
   private def processTransactionsMessage(msg: TransactionsMessage) = {
@@ -218,11 +226,11 @@ class Node(val settings: ApexSettings)
     if (inv.invType == InventoryType.Block) {
       val newBlocks = ArrayBuffer.empty[UInt256]
       inv.hashs.foreach(h => {
-        if (chain.containBlock(h) == false)
+        if (chain.containsBlock(h) == false)
           newBlocks.append(h)
       })
       if (newBlocks.size > 0) {
-        log.info(s"send GetDataMessage to request ${newBlocks.size} new blocks.  $newBlocks")
+        log.debug(s"send GetDataMessage to request ${newBlocks.size} new blocks. ")
         sender() ! GetDataMessage(new InventoryPayload(InventoryType.Block, newBlocks.toSeq)).pack
       }
     }
