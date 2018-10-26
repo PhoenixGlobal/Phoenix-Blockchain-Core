@@ -12,27 +12,32 @@ import java.io.{ByteArrayInputStream, DataInputStream}
 
 import akka.actor.{Actor, ActorRef, ActorSystem, Props}
 import com.apex.common.ApexLogging
+import com.apex.consensus._
 import com.apex.core._
 import com.apex.crypto.UInt256
-import com.apex.network.rpc._
-import com.apex.consensus._
 import com.apex.network.peer.PeerHandlerManagerRef
-import com.apex.network.upnp.UPnP
+import com.apex.network.rpc._
 import com.apex.settings.ApexSettings
 import com.apex.utils.NetworkTimeProvider
 
-import scala.collection.mutable.{ArrayBuffer, Map}
+import scala.collection.mutable.ArrayBuffer
 import scala.concurrent.ExecutionContext
 
 trait NodeMessage
 
+trait AsyncTask
+
 case class NodeStopMessage() extends NodeMessage
+
+case class ProduceTask(task: Blockchain => Unit) extends AsyncTask
 
 class Node(val settings: ApexSettings)
           (implicit ec: ExecutionContext)
   extends Actor with ApexLogging {
 
-  private val chain = Blockchain.populate(settings.chain, settings.consensus)
+  private val notification = Notification(onBlock, onTransaction)
+
+  private val chain = Blockchain.populate(settings.chain, settings.consensus, notification)
 
   private val timeProvider = new NetworkTimeProvider(settings.ntp)
 
@@ -42,15 +47,14 @@ class Node(val settings: ApexSettings)
 
   private val producer = ProducerRef(settings.consensus, peerHandlerManager)
 
-  producer ! LatestHeaderMessage(chain.getLatestHeader)
-
   override def receive: Receive = {
+    case task: AsyncTask => processAsyncTask(task)
     case message: NetworkMessage => processNetworkMessage(message)
     case cmd: RPCCommand => processRPCCommand(cmd)
     case prodMsg: ProducerMessage => processProducerMessage(prodMsg)
     case _: NodeStopMessage => {
       log.info("stopping node")
-      //TODO stop producer and connections
+      //TODO close connections
       chain.close()
       context.stop(self)
     }
@@ -60,25 +64,24 @@ class Node(val settings: ApexSettings)
     }
   }
 
-  private def processProducerMessage(msg: ProducerMessage) = {
-    msg match {
-      case BlockStartProduceMessage(witness) => {
-        log.debug(s"node got BlockStartProduceMessage witness=${witness.name}")
-        chain.startProduceBlock(witness.pubkey)
-      }
-      case BlockFinalizeProduceMessage(witness, timeStamp) => {
-        log.debug(s"node got BlockFinalizeProduceMessage witness=${witness.name} timeStamp=$timeStamp")
-        val block = chain.produceBlockFinalize(witness.pubkey, witness.privkey.get, timeStamp)
-        if (block.isDefined) {
-          log.info(s"block (${block.get.height}, ${block.get.timeStamp}) produced by ${witness.name} ${block.get.id}")
-          producer ! LatestHeaderMessage(chain.getLatestHeader)
-          peerHandlerManager ! BlockMessage(block.get)
-        }
-        else {
-          log.error(s"produceBlockFinalize Error, ${witness.name} $timeStamp")
-        }
-      }
+  private def onBlock(block: Block): Unit = {
+    log.info(s"block (${block.height}, ${block.timeStamp}) produced by ${block.header.producer.toAddress.substring(0, 6)} ${block.id.toString.substring(0, 6)}")
+    peerHandlerManager ! BlockMessage(block)
+  }
+
+  private def onTransaction(trx: Transaction): Unit = {
+    log.info(trx.toString)
+  }
+
+  private def processAsyncTask(asyncTask: AsyncTask): Unit = {
+    asyncTask match {
+      case ProduceTask(task) => task(chain)
+      case _ => println(asyncTask)
     }
+  }
+
+  private def processProducerMessage(msg: ProducerMessage) = {
+    log.info(msg.toString)
   }
 
   private def processRPCCommand(cmd: RPCCommand) = {
@@ -152,29 +155,31 @@ class Node(val settings: ApexSettings)
 
   private def processGetBlocksMessage(msg: GetBlocksMessage) = {
     //log.info("received GetBlocksMessage")
-    val hashs = ArrayBuffer.empty[UInt256]
     val hash = msg.blockHashs.hashStart(0)
     if (hash.equals(UInt256.Zero)) {
       sender() ! InventoryMessage(new InventoryPayload(InventoryType.Block, Seq(chain.getLatestHeader.id))).pack()
     }
     else {
+      val hashs = ArrayBuffer.empty[UInt256]
+      val hashCountMax = 10
+      var hashCount = 0
       hashs.append(hash)
       var next = chain.getNextBlockId(hash)
-      while (next.isDefined) {
+      while (next.isDefined && hashCount < hashCountMax) {
+        hashCount += 1
         hashs.append(next.get)
         next = chain.getNextBlockId(next.get)
       }
       //log.info("send InventoryMessage")
-      sender() ! InventoryMessage(new InventoryPayload(InventoryType.Block, hashs.toSeq)).pack()
+      sender() ! InventoryMessage(new InventoryPayload(InventoryType.Block, hashs)).pack()
     }
   }
 
   private def processBlockMessage(msg: BlockMessage) = {
-    //log.info(s"received a block #${block.height} (${block.id})")
+    log.debug(s"received a block #${msg.block.height} (${msg.block.id})")
     if (chain.tryInsertBlock(msg.block, true)) {
-      log.info(s"success insert block #${msg.block.height} (${msg.block.id})")
-      producer ! LatestHeaderMessage(chain.getLatestHeader) // the latest header maybe not same as the inserted block
       peerHandlerManager ! InventoryMessage(new InventoryPayload(InventoryType.Block, Seq(msg.block.id())))
+      log.info(s"success insert block #${msg.block.height} (${msg.block.id})")
     } else {
       log.error(s"failed insert block #${msg.block.height}, (${msg.block.id}) to db")
       if (msg.block.height() > chain.getLatestHeader.index) {
@@ -187,18 +192,22 @@ class Node(val settings: ApexSettings)
 
   private def processBlocksMessage(msg: BlocksMessage) = {
     log.info(s"received ${msg.blocks.blocks.size} blocks")
+    var receivedNewBlock = false
     msg.blocks.blocks.foreach(block => {
       if (chain.tryInsertBlock(block, true)) {
         log.info(s"success insert block #${block.height} (${block.id})")
-        producer ! LatestHeaderMessage(chain.getLatestHeader) // the latest header maybe not same as the inserted block
         // no need to send INV during sync
         //peerHandlerManager ! InventoryMessage(new Inventory(InventoryType.Block, Seq(block.id())))
+        receivedNewBlock = true
       } else {
         log.error(s"failed insert block #${block.height}, (${block.id}) to db")
+        if (!chain.containsBlock(block.id))
+          receivedNewBlock = true
       }
     })
-    // try to get more blocks if have any
-    sender() ! GetBlocksMessage(new GetBlocksPayload(Seq(chain.getLatestHeader.id), UInt256.Zero)).pack
+    // try to get more new blocks
+    if (receivedNewBlock)
+      sender() ! GetBlocksMessage(new GetBlocksPayload(Seq(chain.getLatestHeader.id), UInt256.Zero)).pack
   }
 
   private def processTransactionsMessage(msg: TransactionsMessage) = {
@@ -217,11 +226,11 @@ class Node(val settings: ApexSettings)
     if (inv.invType == InventoryType.Block) {
       val newBlocks = ArrayBuffer.empty[UInt256]
       inv.hashs.foreach(h => {
-        if (chain.containBlock(h) == false)
+        if (chain.containsBlock(h) == false)
           newBlocks.append(h)
       })
       if (newBlocks.size > 0) {
-        log.info(s"send GetDataMessage to request ${newBlocks.size} new blocks.  $newBlocks")
+        log.debug(s"send GetDataMessage to request ${newBlocks.size} new blocks. ")
         sender() ! GetDataMessage(new InventoryPayload(InventoryType.Block, newBlocks.toSeq)).pack
       }
     }

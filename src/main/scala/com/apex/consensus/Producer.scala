@@ -12,16 +12,18 @@
 
 package com.apex.consensus
 
-import java.math.BigInteger
-import java.time.{Duration, Instant}
+import java.time.Instant
+import java.util.concurrent.TimeUnit
 
-import akka.actor.{Actor, ActorContext, ActorRef, ActorSystem, Props}
+import akka.actor.{Actor, ActorContext, ActorRef, Props}
 import com.apex.common.ApexLogging
-import com.apex.core.BlockHeader
+import com.apex.core.Blockchain
 import com.apex.crypto.Ecdsa.PublicKey
+import com.apex.network.ProduceTask
 import com.apex.settings.{ConsensusSettings, Witness}
 
 import scala.concurrent.ExecutionContext
+import scala.concurrent.duration.FiniteDuration
 
 trait ProduceState
 
@@ -40,169 +42,146 @@ case class Failed(e: Throwable) extends ProduceState
 trait ProducerMessage
 
 case class ProducerStopMessage() extends ProducerMessage
+
 case class NodeIsAliveMessage(node: ActorRef) extends ProducerMessage
+
 case class BlockStartProduceMessage(witness: Witness) extends ProducerMessage
+
 case class BlockFinalizeProduceMessage(witness: Witness, timeStamp: Long) extends ProducerMessage
-case class LatestHeaderMessage(header: BlockHeader) extends ProducerMessage
-
-class ProduceTask(val producer: Producer,
-                  val peerHandlerManager: ActorRef,
-                  private var cancelled: Boolean = false)
-  extends Runnable with ApexLogging {
-
-  def cancel(): Unit = {
-    cancelled = true
-  }
-
-  override def run(): Unit = {
-    Thread.sleep(100) // make sure Producer.nodeRef is not null
-    while (!cancelled) {
-      var sleep = 500 - Instant.now.toEpochMilli % 500
-      sleep = if (sleep < 10) sleep + 500 else sleep
-      Thread.sleep(sleep)
-
-      if (!cancelled) {
-        producer.produce() match {
-          case NotSynced(_, _) => log.debug(s"not synced")
-          case NotYet(npt, ct) => log.debug(s"Not yet, next produce time: $npt, current time: $ct")
-          case TimeMissed(tpt, ct) => log.debug(s"missed, this produce time: $tpt, current time: $ct")
-          case NotMyTurn(name, _) => log.debug(s"not my turn, ($name)")
-          case Failed(e) => log.error("error occurred when producing block", e)
-          case Success(time) => log.debug(s"BlockFinalizeProduceMessage sent. $time")
-        }
-      }
-    }
-  }
-}
 
 class Producer(settings: ConsensusSettings,
                peerHandlerManager: ActorRef)
               (implicit ec: ExecutionContext) extends Actor with ApexLogging {
 
-  private val task = new ProduceTask(this, peerHandlerManager)
-  private val nodeRef: ActorRef = context.parent
+  private val scheduler = context.system.scheduler
+  private val node = context.parent
 
-  private var latestHeader: BlockHeader = null
-  private var blockProducing = false
-  private var canProduce = true
+  private val blocksPerRound = settings.initialWitness.size * settings.producerRepetitions
+  private val minProducingTime = settings.produceInterval / 10
+  private val earlyMS = settings.produceInterval / 5
 
-  context.system.scheduler.scheduleOnce(Duration.ZERO, task)
+  private val delayOneBlock = blockDuration(1)
+  private val noDelay = blockDuration(0)
+
+  private var enableProduce = false
+
+  scheduleBegin()
 
   override def receive: Receive = {
     case ProducerStopMessage() => {
       log.info("stopping producer task")
-      task.cancel()
       context.stop(self)
-    }
-    case LatestHeaderMessage(header) => {
-      if (latestHeader != null && latestHeader.id.equals(header.id) == false) {
-        blockProducing = false
-      }
-      latestHeader = header
-      tryStartProduce(Instant.now.toEpochMilli)
     }
     case a: Any => {
       log.info(s"${sender().toString}, ${a.toString}")
     }
   }
 
-  def produce(): ProduceState = {
-    try {
-      val now: Long = Instant.now.toEpochMilli
+  private def scheduleBegin(duration: Option[FiniteDuration] = None): Unit = {
+    val dur = duration.orElse(noDelay).get
+    scheduler.scheduleOnce(dur, node, ProduceTask(beginProduce))
+  }
 
-      if (canProduce) {
-        tryProduce(now)
-      }
-      else {
-        val next = nextBlockTime()
-        if (next >= now) {
-          canProduce = true
-          tryProduce(now)
-        }
-        else {
-          NotSynced(next, now)
-        }
+  private def scheduleEnd(duration: Option[FiniteDuration] = None): Unit = {
+    val dur = duration.orElse(noDelay).get
+    scheduler.scheduleOnce(dur, node, ProduceTask(endProduce))
+  }
+
+  private def beginProduce(chain: Blockchain): Unit = {
+    if (!maybeProduce(chain)) {
+      scheduleBegin(delayOneBlock)
+    }
+  }
+
+  private def endProduce(chain: Blockchain): Unit = {
+    chain.produceBlockFinalize(Instant.now.toEpochMilli)
+    scheduleBegin()
+  }
+
+  private def maybeProduce(chain: Blockchain) = {
+    try {
+      if (enableProduce) {
+        producing(chain)
+        true
+      } else if (Instant.now.toEpochMilli <= nextTime(chain.getHeadTime)) {
+        enableProduce = true
+        producing(chain)
+        true
+      } else {
+        false
       }
     } catch {
-      case e: Throwable => Failed(e)
-    }
-  }
-
-  private def tryStartProduce(now: Long) = {
-    if (canProduce && blockProducing == false) {
-      val witness = ProducerUtil.getWitness(nextProduceTime(now, nextBlockTime()), settings)
-      if (witness.privkey.isDefined) {
-        log.debug(s"send BlockStartProduceMessage to Node. witness name is ${witness.name}")
-        nodeRef ! BlockStartProduceMessage(witness)
-        blockProducing = true
+      case e: Throwable => {
+        log.debug("begin produce failed", e)
+        false
       }
     }
   }
 
-  private def tryProduce(now: Long) = {
-    val next = nextBlockTime()
-    tryStartProduce(now)
-    if (now + settings.acceptableTimeError < next) {
-      NotYet(next, now)
-    }
-    else {
-      if (nextProduceTime(now, next) > next) {
-        //println(s"some blocks skipped")
-      }
-      val witness = ProducerUtil.getWitness(nextProduceTime(now, next), settings)
+  private def producing(chain: Blockchain) = {
+    val headTime = chain.getHeadTime
+    val now = Instant.now.toEpochMilli
+    if (headTime - now > settings.produceInterval) {
+      scheduleBegin(delayOneBlock)
+    } else {
+      val next = nextBlockTime(headTime, now)
+      //println(s"head: $headTime, now: $now, next: $next, delta: ${headTime - now}")
+      val witness = getWitness(next)
       if (witness.privkey.isEmpty) {
-        NotMyTurn(witness.name, witness.pubkey)
+        val now = Instant.now.toEpochMilli
+        val delay = calcDelay(now, next)
+        //println(delay)
+        scheduleBegin(delay)
+      } else {
+        chain.startProduceBlock(witness, next)
+        val now = Instant.now.toEpochMilli
+        val delay = calcDelay(now, next)
+        scheduleEnd(delay)
       }
-      else {
-        nodeRef ! BlockFinalizeProduceMessage(witness, nextProduceTime(now, next))
-        Success(now)
-      }
     }
   }
 
-  // the nextBlockTime is the expected time of next block based on current latest block
-  private def nextBlockTime(nextN: Int = 1): Long = {
-    val headTime = latestHeader.timeStamp
-    var slot = headTime / settings.produceInterval
-    slot += nextN
-    slot * settings.produceInterval
+  // the nextBlockTime is the expected time of next block based on current latest block time and current time
+  private def nextBlockTime(headTime: Long, now: Long): Long = {
+    var next = nextTime(math.max(headTime, now))
+    if (next - now < minProducingTime) {
+      next += settings.produceInterval
+    }
+    next
   }
 
-  // the nextProduceTime() maybe > nextBlockTime() in case some producer didn't produce,
-  // then there are missing gaps in the blocks
-  private def nextProduceTime(now: Long, next: Long): Long = {
-    if (now <= next) {
-      next
-    }
-    else {
-      val slot = now / settings.produceInterval
-      slot * settings.produceInterval
-    }
+  private def nextTime(time: Long) = {
+    time + settings.produceInterval - time % settings.produceInterval
   }
 
-  private def updateWitnessSchedule(nowSec: Long, witnesses: Array[Witness]): Array[Witness] = {
-    var newWitness = witnesses.clone()
-
-    val nowHi = new BigInteger(nowSec.toString).shiftLeft(32)
-    val param = new BigInteger("2685821657736338717")
-
-    for (i <- 0 to newWitness.size - 1) {
-      val ii = BigInteger.valueOf(i)
-      var k = ii.multiply(param).add(nowHi)
-      k = k.xor(k.shiftRight(12))
-      k = k.xor(k.shiftLeft(25))
-      k = k.xor(k.shiftRight(27))
-      k = k.multiply(param)
-
-      val jmax = newWitness.size - i;
-      val j = k.remainder(BigInteger.valueOf(jmax)).add(ii).intValue()
-
-      val a = newWitness(i)
-      val b = newWitness(j)
-      newWitness.update(i, b)
-      newWitness.update(j, a)
+  private def calcDelay(now: Long, next: Long): Option[FiniteDuration] = {
+    var delay = next - now
+    // produce last block in advance
+    val rest = restBlocks(next)
+    if (rest == 1) {
+      delay = if (delay < earlyMS) 0 else delay - earlyMS
     }
-    newWitness
+    //println(s"now: $now, next: $next, delay: $delay, delta: ${next - now}, rest: $rest")
+    calcDuration(delay.toInt)
+  }
+
+  private def restBlocks(time: Long): Int = {
+    (settings.producerRepetitions - time / settings.produceInterval % settings.producerRepetitions).toInt
+  }
+
+  private def blockDuration(blocks: Int = 1) = {
+    Some(FiniteDuration(blocks * settings.produceInterval * 1000, TimeUnit.MICROSECONDS))
+  }
+
+  private def calcDuration(delay: Int) = {
+    Some(FiniteDuration(delay * 1000, TimeUnit.MICROSECONDS))
+  }
+
+  private def getWitness(time: Long): Witness = {
+    val slot = time / settings.produceInterval % blocksPerRound
+    val index = slot / settings.producerRepetitions
+    //println(s"$slot $index")
+    settings.initialWitness(index.toInt)
   }
 }
 

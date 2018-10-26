@@ -132,6 +132,7 @@ class PeerHandlerManager(settings: NetworkSettings, timeProvider: NetworkTimePro
         log.info(s"从黑名单中得到握手 ${peer.socketAddress}")
       } else {
         if (peer.direction == Outgoing && isSelf(peer.socketAddress, peer.handshake.declaredAddress)) {
+          log.info("send CloseConnection")
           peer.connectionRef ! CloseConnection
         } else {
           if (peer.publicPeer) {

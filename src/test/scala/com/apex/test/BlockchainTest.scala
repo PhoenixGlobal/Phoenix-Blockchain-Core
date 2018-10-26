@@ -1,6 +1,6 @@
 package com.apex.test
 
-import com.apex.core.{Block, BlockHeader, Blockchain, LevelDBBlockchain}
+import com.apex.core._
 import com.apex.crypto.{BinaryData, UInt256}
 import com.apex.crypto.Ecdsa.{PrivateKey, PublicKey}
 import com.apex.settings._
@@ -10,6 +10,10 @@ import scala.reflect.io.Directory
 
 @Test
 class BlockchainTest {
+
+  private def onBlock(block: Block) = {}
+
+  private def onTrx(trx: Transaction) = {}
 
   private def createChain(path: String): LevelDBBlockchain = {
     val baseDir = s"BlockchainTest/$path"
@@ -35,7 +39,7 @@ class BlockchainTest {
         )
       )
     )
-    Blockchain.populate(chainSetting, consensusSettings)
+    Blockchain.populate(chainSetting, consensusSettings, Notification(onBlock, onTrx))
   }
 
   @Test

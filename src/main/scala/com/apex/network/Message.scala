@@ -176,30 +176,39 @@ object GetBlocksPayload {
 }
 
 object MessagePack {
-  def fromBytes(bytes: Array[Byte], addr: InetSocketAddress = null): NetworkMessage = {
-    val messageType = MessageType(bytes(0))
-    val data = bytes.drop(1)
-    messageType match {
-      case MessageType.Version => {
-        VersionMessage(BigInt(data).toInt)
+  def fromBytes(bytes: Array[Byte], addr: InetSocketAddress = null): Option[NetworkMessage] = {
+    try {
+      val messageType = MessageType(bytes(0))
+      val data = bytes.drop(1)
+      messageType match {
+        case MessageType.Version => {
+          Some(VersionMessage(BigInt(data).toInt))
+        }
+        case MessageType.GetBlocks => {
+          Some(GetBlocksMessage(GetBlocksPayload.fromBytes(data)))
+        }
+        case MessageType.Block => {
+          Some(BlockMessage(Block.fromBytes(data)))
+        }
+        case MessageType.Blocks => {
+          Some(BlocksMessage(BlocksPayload.fromBytes(data)))
+        }
+        case MessageType.Inventory => {
+          Some(InventoryMessage(InventoryPayload.fromBytes(data)))
+        }
+        case MessageType.Getdata => {
+          Some(GetDataMessage(InventoryPayload.fromBytes(data)))
+        }
+        case MessageType.Transactions => {
+          Some(TransactionsMessage(TransactionsPayload.fromBytes(data)))
+        }
       }
-      case MessageType.GetBlocks => {
-        GetBlocksMessage(GetBlocksPayload.fromBytes(data))
-      }
-      case MessageType.Block => {
-        BlockMessage(Block.fromBytes(data))
-      }
-      case MessageType.Blocks => {
-        BlocksMessage(BlocksPayload.fromBytes(data))
-      }
-      case MessageType.Inventory => {
-        InventoryMessage(InventoryPayload.fromBytes(data))
-      }
-      case MessageType.Getdata => {
-        GetDataMessage(InventoryPayload.fromBytes(data))
-      }
-      case MessageType.Transactions => {
-        TransactionsMessage(TransactionsPayload.fromBytes(data))
+    }
+    catch {
+      case e: Exception => {
+        System.err.println("Exception in MessagePack fromBytes(): " + e.getMessage())
+        e.printStackTrace()
+        None
       }
     }
   }

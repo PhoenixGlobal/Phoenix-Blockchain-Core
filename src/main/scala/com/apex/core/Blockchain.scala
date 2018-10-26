@@ -1,14 +1,16 @@
 package com.apex.core
 
 import java.nio.file.Path
+import java.time.Instant
 
 import com.apex.common.ApexLogging
 import com.apex.consensus.ProducerUtil
-import com.apex.settings.{ChainSettings, ConsensusSettings}
+import com.apex.settings.{ChainSettings, ConsensusSettings, Witness}
 import com.apex.crypto.Ecdsa.{PrivateKey, PublicKey, PublicKeyHash}
 import com.apex.crypto.{BinaryData, Crypto, Fixed8, MerkleTree, UInt160, UInt256}
 import com.apex.storage.{Batch, LevelDbStorage}
 import org.iq80.leveldb.WriteBatch
+
 import scala.collection.mutable
 import scala.collection.mutable.{ArrayBuffer, Map, Set}
 import scala.collection.immutable
@@ -38,18 +40,18 @@ trait Blockchain extends Iterable[Block] with ApexLogging {
 
   //def getBlockInForkBase(id: UInt256): Option[Block]
 
-  def containBlock(id: UInt256): Boolean
+  def containsBlock(id: UInt256): Boolean
 
   def getPendingTransaction(txid: UInt256): Option[Transaction]
 
   //  def produceBlock(producer: PublicKey, privateKey: PrivateKey, timeStamp: Long,
   //                   transactions: Seq[Transaction]): Option[Block]
 
-  def startProduceBlock(producer: PublicKey)
+  def startProduceBlock(producer: Witness, blockTime: Long): Unit
 
   def addTransaction(tx: Transaction): Boolean
 
-  def produceBlockFinalize(producer: PublicKey, privateKey: PrivateKey, timeStamp: Long): Option[Block]
+  def produceBlockFinalize(endTime: Long): Option[Block]
 
   def isProducingBlock(): Boolean
 
@@ -73,18 +75,34 @@ trait Blockchain extends Iterable[Block] with ApexLogging {
   def close()
 }
 
+case class Notification(onBlock: Block => Unit, onTransaction: Transaction => Unit)
+
 object Blockchain {
   //private var chain: LevelDBBlockchain = null
 
   //  final val Current: Blockchain = new LevelDBBlockchain()
-  def populate(chainSettings: ChainSettings, consensusSettings: ConsensusSettings): LevelDBBlockchain = {
-    new LevelDBBlockchain(chainSettings, consensusSettings)
+  def populate(chainSettings: ChainSettings, consensusSettings: ConsensusSettings, notification: Notification): LevelDBBlockchain = {
+    new LevelDBBlockchain(chainSettings, consensusSettings, notification)
   }
 
   //def getLevelDBBlockchain: LevelDBBlockchain = chain
 }
 
-class LevelDBBlockchain(chainSettings: ChainSettings, consensusSettings: ConsensusSettings) extends Blockchain {
+class PendingState {
+  var producer: Witness = _
+  var blockTime: Long = _
+  var startTime: Long = _
+
+  val txs = ArrayBuffer.empty[Transaction]
+
+  def set(producer: Witness, blockTime: Long) = {
+    this.producer = producer
+    this.blockTime = blockTime
+    this.startTime = Instant.now.toEpochMilli
+  }
+}
+
+class LevelDBBlockchain(chainSettings: ChainSettings, consensusSettings: ConsensusSettings, notification: Notification) extends Blockchain {
   private val genesisProducer = PublicKey(BinaryData(chainSettings.genesis.publicKey)) // TODO: read from settings
   private val genesisProducerPrivKey = new PrivateKey(BinaryData(chainSettings.genesis.privateKey))
 
@@ -104,7 +122,9 @@ class LevelDBBlockchain(chainSettings: ChainSettings, consensusSettings: Consens
 
   private val genesisCoinToAddress = PublicKeyHash.fromAddress(chainSettings.genesis.coinToAddr).get
   private val genesisTx = new Transaction(TransactionType.Miner, minerCoinFrom,
-    genesisCoinToAddress, "", minerAward, UInt256.Zero, 0, BinaryData.empty, BinaryData.empty)
+    genesisCoinToAddress, "", minerAward, UInt256.Zero, 0,
+    consensusSettings.fingerprint(),
+    BinaryData.empty)
 
   private val genesisBlockHeader: BlockHeader = BlockHeader.build(0,
     chainSettings.genesis.timeStamp, MerkleTree.root(Seq(genesisTx.id)), UInt256.Zero,
@@ -115,8 +135,10 @@ class LevelDBBlockchain(chainSettings: ChainSettings, consensusSettings: Consens
 
   //  private var latestProdState: ProducerStatus = null
 
-  private val pendingTxs = ArrayBuffer.empty[Transaction] //TODO: change to seq map // TODO: save to DB?
+  //  private val pendingTxs = ArrayBuffer.empty[Transaction] //TODO: change to seq map // TODO: save to DB?
   private val unapplyTxs = mutable.Map.empty[UInt256, Transaction] // TODO: save to DB?
+
+  private val pendingState = new PendingState
 
   populate()
 
@@ -183,29 +205,27 @@ class LevelDBBlockchain(chainSettings: ChainSettings, consensusSettings: Consens
     forkBase.get(height).map(_.block).orElse(blockBase.getBlock(height))
   }
 
-  //  override def getBlockInForkBase(id: UInt256): Option[Block] = {
-  //    forkBase.get(id).map(_.block.id).flatMap(getBlock)
-  //  }
-
-  override def containBlock(id: UInt256): Boolean = {
+  override def containsBlock(id: UInt256): Boolean = {
     forkBase.contains(id) || blockBase.containBlock(id)
   }
 
   def getPendingTransaction(txid: UInt256): Option[Transaction] = {
-    if (pendingTxs.map(_.id()).contains(txid)) {
-      pendingTxs.find(tx => tx.id().equals(txid))
+    if (pendingState.txs.map(_.id()).contains(txid)) {
+      pendingState.txs.find(tx => tx.id().equals(txid))
     }
     else {
       unapplyTxs.get(txid)
     }
   }
 
-  override def startProduceBlock(producer: PublicKey) = {
-    require(pendingTxs.isEmpty)
+  override def startProduceBlock(producer: Witness, blockTime: Long): Unit = {
+    require(pendingState.txs.isEmpty)
+    pendingState.set(producer, blockTime)
+    log.info(s"start block at: ${pendingState.startTime}")
 
     val forkHead = forkBase.head.get
     val minerTx = new Transaction(TransactionType.Miner, minerCoinFrom,
-      producer.pubKeyHash, "", minerAward, UInt256.Zero,
+      producer.pubkey.pubKeyHash, "", minerAward, UInt256.Zero,
       forkHead.block.height + 1,
       BinaryData(Crypto.randomBytes(8)), // add random bytes to distinct different blocks with same block index during debug in some cases
       BinaryData.empty
@@ -215,21 +235,21 @@ class LevelDBBlockchain(chainSettings: ChainSettings, consensusSettings: Consens
 
     val applied = applyTransaction(minerTx)
     require(applied)
-    pendingTxs.append(minerTx)
+    pendingState.txs.append(minerTx)
 
     unapplyTxs.foreach(p => addTransaction(p._2))
 
-    pendingTxs.foreach(tx => unapplyTxs.remove(tx.id))
+    pendingState.txs.foreach(tx => unapplyTxs.remove(tx.id))
   }
 
   override def isProducingBlock(): Boolean = {
-    !pendingTxs.isEmpty
+    !pendingState.txs.isEmpty
   }
 
   override def addTransaction(tx: Transaction): Boolean = {
     if (isProducingBlock()) {
       if (applyTransaction(tx)) {
-        pendingTxs.append(tx)
+        pendingState.txs.append(tx)
         true
       }
       else
@@ -243,34 +263,40 @@ class LevelDBBlockchain(chainSettings: ChainSettings, consensusSettings: Consens
     }
   }
 
-  override def produceBlockFinalize(producer: PublicKey, privateKey: PrivateKey,
-                                    timeStamp: Long): Option[Block] = {
-    require(!pendingTxs.isEmpty)
-
-    val forkHead = forkBase.head.get
-    val merkleRoot = MerkleTree.root(pendingTxs.map(_.id))
-
-    val header = BlockHeader.build(
-      forkHead.block.height + 1, timeStamp, merkleRoot,
-      forkHead.block.id, producer, privateKey)
-    val block = Block.build(header, pendingTxs.clone)
-    pendingTxs.clear()
-    if (tryInsertBlock(block, false)) {
-      Some(block)
-    } else {
+  override def produceBlockFinalize(endTime: Long): Option[Block] = {
+    if (pendingState.txs.isEmpty) {
+      log.info("block canceled")
       None
+    } else {
+      log.info(s"block time: ${pendingState.blockTime}, end time: $endTime, produce time: ${endTime - pendingState.startTime}")
+      val forkHead = forkBase.head.get
+      val merkleRoot = MerkleTree.root(pendingState.txs.map(_.id))
+      val privateKey = pendingState.producer.privkey.get
+      val publicKey = pendingState.producer.pubkey
+      val timeStamp = pendingState.blockTime
+      val header = BlockHeader.build(
+        forkHead.block.height + 1, timeStamp, merkleRoot,
+        forkHead.block.id, publicKey, privateKey)
+      val block = Block.build(header, pendingState.txs.clone)
+      pendingState.txs.clear()
+      if (tryInsertBlock(block, false)) {
+        notification.onBlock(block)
+        Some(block)
+      } else {
+        None
+      }
     }
   }
 
   override def tryInsertBlock(block: Block, doApply: Boolean): Boolean = {
     var inserted = false
 
-    if (!pendingTxs.isEmpty) {
-      pendingTxs.foreach(tx => {
+    if (!pendingState.txs.isEmpty) {
+      pendingState.txs.foreach(tx => {
         if (tx.txType != TransactionType.Miner)
           unapplyTxs += (tx.id -> tx)
       })
-      pendingTxs.clear()
+      pendingState.txs.clear()
 
       dataBase.rollBack()
     }
@@ -310,13 +336,15 @@ class LevelDBBlockchain(chainSettings: ChainSettings, consensusSettings: Consens
     inserted
   }
 
-  private def applyBlock(block: Block): Boolean = {
+  private def applyBlock(block: Block, verify: Boolean = true, enableSession: Boolean = true): Boolean = {
     var applied = true
     //    if (isPendingBlock) {
     //      rollBack()
     //    }
-    if (verifyBlock(block)) {
-      dataBase.startSession()
+    if (!verify || verifyBlock(block)) {
+      if (enableSession) {
+        dataBase.startSession()
+      }
       block.transactions.foreach(tx => {
         if (!applyTransaction(tx))
           applied = false
@@ -454,12 +482,9 @@ class LevelDBBlockchain(chainSettings: ChainSettings, consensusSettings: Consens
   }
 
   private def populate(): Unit = {
-    if (blockBase.head.isEmpty) {
-      blockBase.add(genesisBlock)
-    }
-
     if (forkBase.head.isEmpty) {
-      //tryInsertBlock(genesisBlock, true)
+      applyBlock(genesisBlock, false, false)
+      blockBase.add(genesisBlock)
       forkBase.add(genesisBlock)
     }
 
