@@ -1,6 +1,6 @@
 package com.apex.settings
 
-import java.io.File
+import java.io.{ByteArrayOutputStream, DataOutputStream, File}
 import java.net.InetSocketAddress
 
 import com.apex.common.ApexLogging
@@ -10,7 +10,7 @@ import com.typesafe.config.{Config, ConfigFactory}
 import net.ceedubs.ficus.Ficus._
 import net.ceedubs.ficus.readers.ArbitraryTypeReader._
 import net.ceedubs.ficus.readers.ValueReader
-
+import com.apex.crypto.Crypto.hash256
 import scala.concurrent.duration._
 
 case class RPCSettings(enabled: Boolean, host: String, port: Int)
@@ -64,7 +64,21 @@ case class ChainSettings(blockBase: BlockBaseSettings,
 case class ConsensusSettings(produceInterval: Int,
                              acceptableTimeError: Int,
                              producerRepetitions: Int,
-                             initialWitness: Array[Witness])
+                             initialWitness: Array[Witness]) {
+  def fingerprint(): BinaryData = {
+    val bs = new ByteArrayOutputStream()
+    val os = new DataOutputStream(bs)
+    os.writeInt(produceInterval)
+    os.writeInt(acceptableTimeError)
+    os.writeInt(producerRepetitions)
+    initialWitness.foreach(w => {
+      os.writeBytes(w.name)
+      os.writeBytes(w.pubkey.toString)
+      // do not include privkey
+    })
+    hash256(bs.toByteArray)
+  }
+}
 
 case class Witness(name: String,
                    pubkey: PublicKey,

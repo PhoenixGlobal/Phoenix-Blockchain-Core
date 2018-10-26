@@ -104,7 +104,9 @@ class LevelDBBlockchain(chainSettings: ChainSettings, consensusSettings: Consens
 
   private val genesisCoinToAddress = PublicKeyHash.fromAddress(chainSettings.genesis.coinToAddr).get
   private val genesisTx = new Transaction(TransactionType.Miner, minerCoinFrom,
-    genesisCoinToAddress, "", minerAward, UInt256.Zero, 0, BinaryData.empty, BinaryData.empty)
+    genesisCoinToAddress, "", minerAward, UInt256.Zero, 0,
+    consensusSettings.fingerprint(),
+    BinaryData.empty)
 
   private val genesisBlockHeader: BlockHeader = BlockHeader.build(0,
     chainSettings.genesis.timeStamp, MerkleTree.root(Seq(genesisTx.id)), UInt256.Zero,
