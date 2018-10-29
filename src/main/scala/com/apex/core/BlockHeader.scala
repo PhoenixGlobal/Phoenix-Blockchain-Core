@@ -22,6 +22,10 @@ class BlockHeader(val index: Int,
     }
   }
 
+  def shortId(): String = {
+    id.toString.substring(0, 7)
+  }
+
   override def hashCode(): Int = {
     return id.hashCode()
   }
