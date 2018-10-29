@@ -199,7 +199,7 @@ object Ecdsa {
 
     override def toString = toBin.toString
 
-    def toAddress: String = {
+    def address: String = {
       PublicKeyHash.toAddress(pubKeyHash.data)
     }
 

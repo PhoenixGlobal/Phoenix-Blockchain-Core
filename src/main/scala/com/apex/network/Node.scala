@@ -65,7 +65,7 @@ class Node(val settings: ApexSettings)
   }
 
   private def onBlock(block: Block): Unit = {
-    log.info(s"block (${block.height}, ${block.timeStamp}) produced by ${block.header.producer.toAddress.substring(0, 6)} ${block.id.toString.substring(0, 6)}")
+    log.info(s"block (${block.height}, ${block.timeStamp}) produced by ${block.header.producer.address.substring(0, 6)} ${block.id.toString.substring(0, 6)}")
     peerHandlerManager ! BlockMessage(block)
   }
 
