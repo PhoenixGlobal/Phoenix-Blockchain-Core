@@ -152,6 +152,8 @@ object TransactionsPayload {
   }
 }
 
+// hashStart:  block locator object; newest back to genesis block (dense to start, but then sparse)
+// hashStop:   hash of the last desired block; set to zero to get as many blocks as possible (500)
 class GetBlocksPayload(val hashStart: Seq[UInt256],
                        val hashStop: UInt256) extends com.apex.common.Serializable {
   def serialize(os: DataOutputStream) = {

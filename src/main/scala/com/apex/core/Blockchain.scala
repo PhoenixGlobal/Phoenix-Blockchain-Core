@@ -304,7 +304,7 @@ class LevelDBBlockchain(chainSettings: ChainSettings, consensusSettings: Consens
           latestHeader = block.header
         }
         else
-          log.error(s"Error during forkBase add block ${block.height()}  ${block.id()}")
+          log.error(s"Error during forkBase add block ${block.height()}  ${block.id.toString.substring(0, 7)}")
       }
       else if (applyBlock(block)) {
         if (forkBase.add(block)) {
@@ -312,15 +312,15 @@ class LevelDBBlockchain(chainSettings: ChainSettings, consensusSettings: Consens
           latestHeader = block.header
         }
         else
-          log.error(s"Error during forkBase add block ${block.height()}  ${block.id()}")
+          log.error(s"Error during forkBase add block ${block.height()}  ${block.id.toString.substring(0, 7)}")
       }
       else {
-        log.info(s"block ${block.height} ${block.id} apply error")
+        log.info(s"block ${block.height} ${block.id.toString.substring(0, 7)} apply error")
         //forkBase.removeFork(block.id)
       }
     }
     else {
-      log.info(s"received block try add to minor fork chain. block ${block.height} ${block.id}")
+      log.info(s"received block try add to minor fork chain. block ${block.height} ${block.id.toString.substring(0, 7)}")
       if (forkBase.add(block))
         inserted = true
       else
@@ -349,7 +349,7 @@ class LevelDBBlockchain(chainSettings: ChainSettings, consensusSettings: Consens
     else
       applied = false
     if (!applied) {
-      log.info(s"Block apply fail #${block.height()} ${block.id()}")
+      log.error(s"Block apply fail #${block.height()} ${block.id.toString.substring(0, 7)}")
       //TODO: dataBase.rollBack() ?
     }
     applied
@@ -512,7 +512,7 @@ class LevelDBBlockchain(chainSettings: ChainSettings, consensusSettings: Consens
 
   private def onConfirmed(block: Block): Unit = {
     if (block.height > 0) {
-      log.info(s"confirm block ${block.height} (${block.id})")
+      log.info(s"confirm block ${block.height} (${block.id.toString.substring(0, 7)})")
       dataBase.commit(block.height)
       blockBase.add(block)
     }
@@ -520,7 +520,7 @@ class LevelDBBlockchain(chainSettings: ChainSettings, consensusSettings: Consens
 
   private def onSwitch(from: Seq[ForkItem], to: Seq[ForkItem], switchState: SwitchState): SwitchResult = {
     def printChain(title: String, fork: Seq[ForkItem]): Unit = {
-      log.info(s"$title: ${fork.map(_.block.id.toString.substring(0, 6)).mkString(" <- ")}")
+      log.info(s"$title: ${fork.map(_.block.id.toString.substring(0, 7)).mkString(" <- ")}")
     }
 
     printChain("old chain", from)
