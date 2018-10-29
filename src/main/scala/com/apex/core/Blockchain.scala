@@ -1,19 +1,15 @@
 package com.apex.core
 
-import java.nio.file.Path
 import java.time.Instant
 
 import com.apex.common.ApexLogging
 import com.apex.consensus.ProducerUtil
-import com.apex.settings.{ChainSettings, ConsensusSettings, Witness}
 import com.apex.crypto.Ecdsa.{PrivateKey, PublicKey, PublicKeyHash}
 import com.apex.crypto.{BinaryData, Crypto, Fixed8, MerkleTree, UInt160, UInt256}
-import com.apex.storage.{Batch, LevelDbStorage}
-import org.iq80.leveldb.WriteBatch
+import com.apex.settings.{ChainSettings, ConsensusSettings, Witness}
 
-import scala.collection.mutable
-import scala.collection.mutable.{ArrayBuffer, Map, Set}
-import scala.collection.immutable
+import scala.collection.{immutable, mutable}
+import scala.collection.mutable.{ArrayBuffer, Set}
 
 case class ChainInfo(id: String)
 
@@ -127,8 +123,8 @@ class LevelDBBlockchain(chainSettings: ChainSettings, consensusSettings: Consens
     BinaryData.empty)
 
   private val genesisBlockHeader: BlockHeader = BlockHeader.build(0,
-    chainSettings.genesis.timeStamp, MerkleTree.root(Seq(genesisTx.id)), UInt256.Zero,
-    genesisProducer, genesisProducerPrivKey)
+    chainSettings.genesis.timeStamp.toEpochMilli, MerkleTree.root(Seq(genesisTx.id)),
+    UInt256.Zero, genesisProducer, genesisProducerPrivKey)
   private val genesisBlock: Block = Block.build(genesisBlockHeader, Seq(genesisTx))
 
   private var latestHeader: BlockHeader = genesisBlockHeader
