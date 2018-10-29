@@ -71,7 +71,7 @@ class AddressTest {
       print("priv key WIF format:    ");  println(privateKey.toWIF)
       print("pub key (compressed):   ");  println(privateKey.publicKey.toString)  // 1 + 32
       print("pub key hash160:        ");  println(privateKey.publicKey.pubKeyHash.toString)
-      print("Address:                ");  println(privateKey.publicKey.toAddress)
+      print("Address:                ");  println(privateKey.publicKey.address)
 
       println("======")
     }

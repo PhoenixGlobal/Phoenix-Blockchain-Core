@@ -2,6 +2,9 @@ package com.apex.settings
 
 import java.io.{ByteArrayOutputStream, DataOutputStream, File}
 import java.net.InetSocketAddress
+import java.text.SimpleDateFormat
+import java.time.Instant
+import java.util.Date
 
 import com.apex.common.ApexLogging
 import com.apex.crypto.BinaryData
@@ -11,6 +14,7 @@ import net.ceedubs.ficus.Ficus._
 import net.ceedubs.ficus.readers.ArbitraryTypeReader._
 import net.ceedubs.ficus.readers.ValueReader
 import com.apex.crypto.Crypto.hash256
+
 import scala.concurrent.duration._
 
 case class RPCSettings(enabled: Boolean, host: String, port: Int)
@@ -49,7 +53,7 @@ case class DataBaseSettings(dir: String, cacheEnabled: Boolean, cacheSize: Int)
 
 case class ForkBaseSettings(dir: String, cacheEnabled: Boolean, cacheSize: Int)
 
-case class GenesisSettings(timeStamp: Long,
+case class GenesisSettings(timeStamp: Instant,
                            publicKey: String,
                            privateKey: String,
                            coinToAddr: String)
@@ -94,6 +98,12 @@ object ApexSettings extends SettingsReaders with ApexLogging {
   implicit val publicKeyReader: ValueReader[PublicKey] = (cfg, path) => new PublicKey(Point(cfg.getString(path)))
 
   implicit val privateKeyReader: ValueReader[PrivateKey] = (cfg, path) => new PrivateKey(BinaryData(cfg.getString(path)))
+
+  implicit val dateReader: ValueReader[Instant] = (cfg, path) => {
+    val dateStr = cfg.getString(path)
+    val fmt = new SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss'Z'")
+    fmt.parse(dateStr).toInstant
+  }
 
   def read(configFilePath: String): ApexSettings = {
     val conf = readConfigFromPath(Some(configFilePath), configPath)

@@ -16,6 +16,10 @@ class Block(val header: BlockHeader,
     header.id
   }
 
+  def shortId(): String = {
+    header.shortId()
+  }
+
   def height(): Int = {
     header.index
   }

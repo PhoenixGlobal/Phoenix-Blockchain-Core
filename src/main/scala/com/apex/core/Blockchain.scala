@@ -1,19 +1,15 @@
 package com.apex.core
 
-import java.nio.file.Path
 import java.time.Instant
 
 import com.apex.common.ApexLogging
 import com.apex.consensus.ProducerUtil
-import com.apex.settings.{ChainSettings, ConsensusSettings, Witness}
 import com.apex.crypto.Ecdsa.{PrivateKey, PublicKey, PublicKeyHash}
 import com.apex.crypto.{BinaryData, Crypto, Fixed8, MerkleTree, UInt160, UInt256}
-import com.apex.storage.{Batch, LevelDbStorage}
-import org.iq80.leveldb.WriteBatch
+import com.apex.settings.{ChainSettings, ConsensusSettings, Witness}
 
-import scala.collection.mutable
-import scala.collection.mutable.{ArrayBuffer, Map, Set}
-import scala.collection.immutable
+import scala.collection.{immutable, mutable}
+import scala.collection.mutable.{ArrayBuffer, Set}
 
 case class ChainInfo(id: String)
 
@@ -127,8 +123,8 @@ class LevelDBBlockchain(chainSettings: ChainSettings, consensusSettings: Consens
     BinaryData.empty)
 
   private val genesisBlockHeader: BlockHeader = BlockHeader.build(0,
-    chainSettings.genesis.timeStamp, MerkleTree.root(Seq(genesisTx.id)), UInt256.Zero,
-    genesisProducer, genesisProducerPrivKey)
+    chainSettings.genesis.timeStamp.toEpochMilli, MerkleTree.root(Seq(genesisTx.id)),
+    UInt256.Zero, genesisProducer, genesisProducerPrivKey)
   private val genesisBlock: Block = Block.build(genesisBlockHeader, Seq(genesisTx))
 
   private var latestHeader: BlockHeader = genesisBlockHeader
@@ -221,7 +217,7 @@ class LevelDBBlockchain(chainSettings: ChainSettings, consensusSettings: Consens
   override def startProduceBlock(producer: Witness, blockTime: Long): Unit = {
     require(pendingState.txs.isEmpty)
     pendingState.set(producer, blockTime)
-    log.info(s"start block at: ${pendingState.startTime}")
+    log.debug(s"start block at: ${pendingState.startTime}")
 
     val forkHead = forkBase.head.get
     val minerTx = new Transaction(TransactionType.Miner, minerCoinFrom,
@@ -268,7 +264,7 @@ class LevelDBBlockchain(chainSettings: ChainSettings, consensusSettings: Consens
       log.info("block canceled")
       None
     } else {
-      log.info(s"block time: ${pendingState.blockTime}, end time: $endTime, produce time: ${endTime - pendingState.startTime}")
+      log.debug(s"block time: ${pendingState.blockTime}, end time: $endTime, produce time: ${endTime - pendingState.startTime}")
       val forkHead = forkBase.head.get
       val merkleRoot = MerkleTree.root(pendingState.txs.map(_.id))
       val privateKey = pendingState.producer.privkey.get
@@ -308,7 +304,7 @@ class LevelDBBlockchain(chainSettings: ChainSettings, consensusSettings: Consens
           latestHeader = block.header
         }
         else
-          log.error(s"Error during forkBase add block ${block.height()}  ${block.id()}")
+          log.error(s"Error during forkBase add block ${block.height()}  ${block.shortId}")
       }
       else if (applyBlock(block)) {
         if (forkBase.add(block)) {
@@ -316,15 +312,15 @@ class LevelDBBlockchain(chainSettings: ChainSettings, consensusSettings: Consens
           latestHeader = block.header
         }
         else
-          log.error(s"Error during forkBase add block ${block.height()}  ${block.id()}")
+          log.error(s"Error during forkBase add block ${block.height()}  ${block.shortId}")
       }
       else {
-        log.info(s"block ${block.height} ${block.id} apply error")
+        log.info(s"block ${block.height} ${block.shortId} apply error")
         //forkBase.removeFork(block.id)
       }
     }
     else {
-      log.info(s"received block try add to minor fork chain. block ${block.height} ${block.id}")
+      log.info(s"received block try add to minor fork chain. block ${block.height} ${block.shortId}")
       if (forkBase.add(block))
         inserted = true
       else
@@ -353,7 +349,7 @@ class LevelDBBlockchain(chainSettings: ChainSettings, consensusSettings: Consens
     else
       applied = false
     if (!applied) {
-      log.info(s"Block apply fail #${block.height()} ${block.id()}")
+      log.error(s"Block apply fail #${block.height()} ${block.shortId}")
       //TODO: dataBase.rollBack() ?
     }
     applied
@@ -516,7 +512,7 @@ class LevelDBBlockchain(chainSettings: ChainSettings, consensusSettings: Consens
 
   private def onConfirmed(block: Block): Unit = {
     if (block.height > 0) {
-      log.info(s"confirm block ${block.height} (${block.id})")
+      log.info(s"confirm block ${block.height} (${block.shortId})")
       dataBase.commit(block.height)
       blockBase.add(block)
     }
@@ -524,7 +520,7 @@ class LevelDBBlockchain(chainSettings: ChainSettings, consensusSettings: Consens
 
   private def onSwitch(from: Seq[ForkItem], to: Seq[ForkItem], switchState: SwitchState): SwitchResult = {
     def printChain(title: String, fork: Seq[ForkItem]): Unit = {
-      log.info(s"$title: ${fork.map(_.block.id.toString.substring(0, 6)).mkString(" <- ")}")
+      log.info(s"$title: ${fork.map(_.block.shortId).mkString(" <- ")}")
     }
 
     printChain("old chain", from)

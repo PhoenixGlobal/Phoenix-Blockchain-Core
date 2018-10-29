@@ -65,7 +65,7 @@ class Node(val settings: ApexSettings)
   }
 
   private def onBlock(block: Block): Unit = {
-    log.info(s"block (${block.height}, ${block.timeStamp}) produced by ${block.header.producer.toAddress.substring(0, 6)} ${block.id.toString.substring(0, 6)}")
+    log.info(s"block (${block.height}, ${block.timeStamp}) produced by ${block.header.producer.address.substring(0, 7)} ${block.shortId}")
     peerHandlerManager ! BlockMessage(block)
   }
 
@@ -98,8 +98,9 @@ class Node(val settings: ApexSettings)
       case GetBlocksCmd() => {
         val blockNum = chain.getHeight()
         val blocks = ArrayBuffer.empty[Block]
-        for (i <- 0 to blockNum) {
-          blocks.append(chain.getBlock(i).get)
+        for (i <- blockNum - 2 to blockNum) {
+          if (i >= 0)
+            blocks.append(chain.getBlock(i).get)
         }
         sender() ! blocks
       }
@@ -154,12 +155,25 @@ class Node(val settings: ApexSettings)
   }
 
   private def processGetBlocksMessage(msg: GetBlocksMessage) = {
+    def findLatestHash(hashs: Seq[UInt256]): UInt256 = {
+      var index = 0
+      var found = false
+      var latest = chain.getHeader(0).get.id
+      while (index < hashs.size && found == false) {
+        if (chain.containsBlock(hashs(index))) {
+          latest = hashs(index)
+          found = true
+        }
+        index += 1
+      }
+      latest
+    }
     //log.info("received GetBlocksMessage")
-    val hash = msg.blockHashs.hashStart(0)
-    if (hash.equals(UInt256.Zero)) {
+    if (msg.blockHashs.hashStart(0).equals(UInt256.Zero)) {
       sender() ! InventoryMessage(new InventoryPayload(InventoryType.Block, Seq(chain.getLatestHeader.id))).pack()
     }
     else {
+      val hash = findLatestHash(msg.blockHashs.hashStart)
       val hashs = ArrayBuffer.empty[UInt256]
       val hashCountMax = 10
       var hashCount = 0
@@ -170,7 +184,7 @@ class Node(val settings: ApexSettings)
         hashs.append(next.get)
         next = chain.getNextBlockId(next.get)
       }
-      //log.info("send InventoryMessage")
+      //log.info(s"send InventoryMessage, block hash count = ${hashs.size}")
       sender() ! InventoryMessage(new InventoryPayload(InventoryType.Block, hashs)).pack()
     }
   }
@@ -179,13 +193,12 @@ class Node(val settings: ApexSettings)
     log.debug(s"received a block #${msg.block.height} (${msg.block.id})")
     if (chain.tryInsertBlock(msg.block, true)) {
       peerHandlerManager ! InventoryMessage(new InventoryPayload(InventoryType.Block, Seq(msg.block.id())))
-      log.info(s"success insert block #${msg.block.height} (${msg.block.id})")
+      log.info(s"success insert block #${msg.block.height} (${msg.block.shortId})")
     } else {
-      log.error(s"failed insert block #${msg.block.height}, (${msg.block.id}) to db")
-      if (msg.block.height() > chain.getLatestHeader.index) {
-        // out of sync, try to get more blocks
-        log.info(s"send GetBlocksMessage")
-        sender() ! GetBlocksMessage(new GetBlocksPayload(Seq(chain.getLatestHeader.id), UInt256.Zero)).pack
+      log.error(s"failed insert block #${msg.block.height}, (${msg.block.shortId}) to db")
+      if (!chain.containsBlock(msg.block.id)) {
+        // out of sync, or there are fork chains, try to get more blocks
+        sendGetBlocksMessage()
       }
     }
   }
@@ -195,19 +208,19 @@ class Node(val settings: ApexSettings)
     var receivedNewBlock = false
     msg.blocks.blocks.foreach(block => {
       if (chain.tryInsertBlock(block, true)) {
-        log.info(s"success insert block #${block.height} (${block.id})")
+        log.info(s"success insert block #${block.height} (${block.shortId})")
         // no need to send INV during sync
         //peerHandlerManager ! InventoryMessage(new Inventory(InventoryType.Block, Seq(block.id())))
         receivedNewBlock = true
       } else {
-        log.error(s"failed insert block #${block.height}, (${block.id}) to db")
+        log.error(s"failed insert block #${block.height}, (${block.shortId}) to db")
         if (!chain.containsBlock(block.id))
           receivedNewBlock = true
       }
     })
     // try to get more new blocks
     if (receivedNewBlock)
-      sender() ! GetBlocksMessage(new GetBlocksPayload(Seq(chain.getLatestHeader.id), UInt256.Zero)).pack
+      sendGetBlocksMessage()
   }
 
   private def processTransactionsMessage(msg: TransactionsMessage) = {
@@ -231,7 +244,7 @@ class Node(val settings: ApexSettings)
       })
       if (newBlocks.size > 0) {
         log.debug(s"send GetDataMessage to request ${newBlocks.size} new blocks. ")
-        sender() ! GetDataMessage(new InventoryPayload(InventoryType.Block, newBlocks.toSeq)).pack
+        sender() ! GetDataMessage(new InventoryPayload(InventoryType.Block, newBlocks)).pack
       }
     }
     else if (inv.invType == InventoryType.Tx) {
@@ -275,6 +288,23 @@ class Node(val settings: ApexSettings)
         sender() ! TransactionsMessage(new TransactionsPayload(txs)).pack
       }
     }
+  }
+
+  private def sendGetBlocksMessage() = {
+    var index = chain.getHeight()
+    var step = 1
+    var count = 0
+    val blockLocatorHashes = ArrayBuffer.empty[UInt256]
+    while (index > 0) {
+      blockLocatorHashes.append(chain.getHeader(index).get.id)
+      count += 1
+      if (count > 10)
+        step *= 2
+      index -= step
+    }
+    blockLocatorHashes.append(chain.getHeader(0).get.id)
+    log.info(s"send GetBlocksMessage. Current status: ${chain.getHeight()} ${chain.getLatestHeader().shortId}")
+    sender() ! GetBlocksMessage(new GetBlocksPayload(blockLocatorHashes, UInt256.Zero)).pack
   }
 }
 
