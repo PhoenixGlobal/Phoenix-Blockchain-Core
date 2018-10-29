@@ -28,7 +28,7 @@ class Transaction(val txType: TransactionType.Value,
   }
 
   def fromAddress(): String = {
-    from.toAddress
+    from.address
   }
 
   def toAddress(): String = {
