@@ -1,5 +1,7 @@
 package com.apex.test
 
+import java.time.Instant
+
 import com.apex.core._
 import com.apex.crypto.{BinaryData, UInt256}
 import com.apex.crypto.Ecdsa.{PrivateKey, PublicKey}
@@ -23,7 +25,7 @@ class BlockchainTest {
       ForkBaseSettings(s"$baseDir/fork", false, 0),
       "03b4534b44d1da47e4b4a504a210401a583f860468dec766f507251a057594e682",
       10,
-      GenesisSettings(0,
+      GenesisSettings(Instant.EPOCH,
         "03b4534b44d1da47e4b4a504a210401a583f860468dec766f507251a057594e682",
         "7a93d447bffe6d89e690f529a3a0bdff8ff6169172458e04849ef1d4eafd7f86",
         "AP3YkgmCrctzg2iw2FzjhsnUqPyWDogud6x"
