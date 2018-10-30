@@ -57,7 +57,7 @@ class NetworkTimeProvider(ntpSettings: NetworkTimeProviderSettings)(implicit ec:
 
 
   def time(): NetworkTime.Time = {
-    checkUpdateRequired()
+    //checkUpdateRequired()   // NTP disabled
     NetworkTime.localWithOffset(offset.get())
   }
 }
