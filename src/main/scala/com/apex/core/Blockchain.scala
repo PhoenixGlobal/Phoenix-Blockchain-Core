@@ -320,11 +320,11 @@ class LevelDBBlockchain(chainSettings: ChainSettings, consensusSettings: Consens
       }
     }
     else {
-      log.info(s"received block try add to minor fork chain. block ${block.height} ${block.shortId}")
+      log.debug(s"received block try add to minor fork chain. block ${block.height} ${block.shortId}")
       if (forkBase.add(block))
         inserted = true
       else
-        log.info("add fail")
+        log.debug("add fail")
     }
     if (inserted) {
       block.transactions.foreach(tx => unapplyTxs.remove(tx.id))

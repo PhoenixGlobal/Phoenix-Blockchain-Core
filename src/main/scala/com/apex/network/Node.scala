@@ -151,7 +151,8 @@ class Node(val settings: ApexSettings)
   }
 
   private def processVersionMessage(msg: VersionMessage) = {
-
+    // first msg, start to sync
+    sendGetBlocksMessage()
   }
 
   private def processGetBlocksMessage(msg: GetBlocksMessage) = {
@@ -198,13 +199,14 @@ class Node(val settings: ApexSettings)
       log.error(s"failed insert block #${msg.block.height}, (${msg.block.shortId}) to db")
       if (!chain.containsBlock(msg.block.id)) {
         // out of sync, or there are fork chains, try to get more blocks
-        sendGetBlocksMessage()
+        if (msg.block.height - chain.getHeight < 100)  // do not send too many request during init sync
+          sendGetBlocksMessage()
       }
     }
   }
 
   private def processBlocksMessage(msg: BlocksMessage) = {
-    log.info(s"received ${msg.blocks.blocks.size} blocks, first is ${msg.blocks.blocks.head.shortId}")
+    log.info(s"received ${msg.blocks.blocks.size} blocks, first is ${msg.blocks.blocks.head.height} ${msg.blocks.blocks.head.shortId}")
     msg.blocks.blocks.foreach(block => {
       if (chain.tryInsertBlock(block, true)) {
         log.info(s"success insert block #${block.height} (${block.shortId})")
