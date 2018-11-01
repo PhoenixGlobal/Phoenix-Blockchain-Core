@@ -70,12 +70,6 @@ object Fixed8 {
   final val Ten: Fixed8 = new Fixed8(1000000000)
   final val Zero: Fixed8 = new Fixed8(0)
 
-  def sum(args: Fixed8*): Fixed8 = args.sum
-
-  def max(args: Fixed8*): Fixed8 = args.max
-
-  def min(args: Fixed8*): Fixed8 = args.min
-
   def deserialize(is: DataInputStream): Fixed8 = new Fixed8(is.readLong)
 
   def fromDecimal(d: BigDecimal): Fixed8 = {
