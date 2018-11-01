@@ -4,16 +4,16 @@ import java.io.{ByteArrayOutputStream, DataOutputStream, File}
 import java.net.InetSocketAddress
 import java.text.SimpleDateFormat
 import java.time.Instant
-import java.util.Date
+import java.util.TimeZone
 
 import com.apex.common.ApexLogging
 import com.apex.crypto.BinaryData
+import com.apex.crypto.Crypto.hash256
 import com.apex.crypto.Ecdsa.{Point, PrivateKey, PublicKey}
 import com.typesafe.config.{Config, ConfigFactory}
 import net.ceedubs.ficus.Ficus._
 import net.ceedubs.ficus.readers.ArbitraryTypeReader._
 import net.ceedubs.ficus.readers.ValueReader
-import com.apex.crypto.Crypto.hash256
 
 import scala.concurrent.duration._
 
@@ -102,6 +102,7 @@ object ApexSettings extends SettingsReaders with ApexLogging {
   implicit val dateReader: ValueReader[Instant] = (cfg, path) => {
     val dateStr = cfg.getString(path)
     val fmt = new SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss'Z'")
+    fmt.setTimeZone(TimeZone.getTimeZone("UTC"))
     fmt.parse(dateStr).toInstant
   }
 
