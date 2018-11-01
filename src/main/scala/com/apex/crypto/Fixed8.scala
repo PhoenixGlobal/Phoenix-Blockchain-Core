@@ -16,8 +16,9 @@ import com.apex.exceptions.OverflowException
 class Fixed8(val value: Long = 0) extends Serializable {
   def ceiling: Fixed8 = {
     val remainder = value % Fixed8.One.value
-    if (remainder == 0) return this
-    if (remainder > 0) {
+    if (remainder == 0)
+      this
+    else if (remainder > 0) {
       new Fixed8(value - remainder + Fixed8.One.value)
     } else {
       new Fixed8(value - remainder)
@@ -79,8 +80,9 @@ object Fixed8 {
 
   def fromDecimal(d: BigDecimal): Fixed8 = {
     val value = d * One.value
-    if (value < Long.MinValue || value > Long.MaxValue) throw new OverflowException
-    return new Fixed8(value.toLong)
+    if (value < Long.MinValue || value > Long.MaxValue)
+      throw new OverflowException
+    new Fixed8(value.toLong)
   }
 
   implicit object Fixed8Numeric extends Numeric[Fixed8] {

@@ -41,8 +41,10 @@ class Block(val header: BlockHeader,
   }
 
   def getTransaction(index: Int): Option[Transaction] = {
-    if (index < 0 || index >= transactions.length) return null
-    return Some(transactions(index))
+    if (index < 0 || index >= transactions.length)
+      null
+    else
+      Some(transactions(index))
   }
 
   override def serialize(os: DataOutputStream): Unit = {
@@ -61,14 +63,14 @@ object Block {
   }
 
   def build(header: BlockHeader, txs: Seq[Transaction]): Block = {
-    return new Block(header, txs)
+    new Block(header, txs)
   }
 
   def deserialize(is: DataInputStream): Block = {
     import com.apex.common.Serializable._
     val header = is.readObj(BlockHeader.deserialize)
     val txs = is.readSeq(Transaction.deserialize)
-    return new Block(header, txs)
+    new Block(header, txs)
   }
 
   def fromBytes(data: Array[Byte]): Block = {

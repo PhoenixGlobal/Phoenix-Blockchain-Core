@@ -191,7 +191,7 @@ class Node(val settings: ApexSettings)
   }
 
   private def processBlockMessage(msg: BlockMessage) = {
-    log.debug(s"received a block #${msg.block.height} (${msg.block.id})")
+    log.debug(s"received a block #${msg.block.height} (${msg.block.shortId})")
     if (chain.tryInsertBlock(msg.block, true)) {
       peerHandlerManager ! InventoryMessage(new InventoryPayload(InventoryType.Block, Seq(msg.block.id())))
       log.info(s"success insert block #${msg.block.height} (${msg.block.shortId})")
