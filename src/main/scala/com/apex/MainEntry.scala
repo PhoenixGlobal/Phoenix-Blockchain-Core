@@ -8,17 +8,20 @@
 
 package com.apex
 
+import java.util.concurrent.TimeUnit
+
 import akka.actor.ActorSystem
+import akka.pattern.ask
+import akka.util.Timeout
 import com.apex.common.ApexLogging
-import com.apex.consensus.ProducerRef
 import com.apex.network.rpc.RpcServer
 import com.apex.network.{NodeRef, NodeStopMessage}
 import com.apex.settings.ApexSettings
-import com.apex.utils.NetworkTimeProvider
 import net.sourceforge.argparse4j.ArgumentParsers
 import net.sourceforge.argparse4j.inf.{ArgumentParser, ArgumentParserException, Namespace}
 
-import scala.concurrent.ExecutionContext
+import scala.concurrent.duration.FiniteDuration
+import scala.concurrent.{Await, ExecutionContext}
 import scala.io.StdIn
 
 
@@ -27,6 +30,8 @@ object MainEntry extends ApexLogging {
   def main(args: Array[String]): Unit = {
     val ns = parseArgs(args)
     val settings = getApexSettings(ns)
+    println(settings.chain.genesis.timeStamp.toEpochMilli)
+    println(java.time.Instant.now.toEpochMilli)
 
     implicit val system = ActorSystem("APEX-NETWORK")
     implicit val executionContext: ExecutionContext = system.dispatcher
@@ -41,16 +46,13 @@ object MainEntry extends ApexLogging {
     StdIn.readLine() // let it run until user presses return
 
     if (settings.rpc.enabled) {
-      log.info("stopping rpc server")
+      // stopping rpc server
       RpcServer.stop()
     }
 
-    log.info("stopping node")
-    node ! NodeStopMessage()
-    // TODO: close network ...
-    Thread.sleep(1000) // TODO
-    log.info("quit")
-    System.exit(0)
+    //  stopping node
+    implicit val timeout = Timeout(30, TimeUnit.MICROSECONDS)
+    system.terminate.foreach(_ => log.info("quit"))
   }
 
   private def parseArgs(args: Array[String]): Namespace = {

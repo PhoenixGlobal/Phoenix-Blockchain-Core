@@ -132,7 +132,7 @@ class LevelDBStorageTest {
     assert(new String(last.getValue).equals("test10"))
   }
 
-  @Test
+//  @Test
   def testSession(): Unit = {
 
     def assertUncommittedSessions(levels: Seq[Int], min: Int, max: Int) = {
