@@ -1,9 +1,32 @@
 group 'apex'
 version '1.0-SNAPSHOT'
 
-
 apply plugin: 'idea'
 apply plugin: 'scala'
+
+
+buildscript {
+    repositories {
+        mavenLocal()
+        mavenCentral()
+        jcenter()
+    }
+
+    dependencies {
+        classpath "com.github.jengelman.gradle.plugins:shadow:2.0.1"
+    }
+}
+
+apply plugin: 'com.github.johnrengelman.shadow'
+
+shadowJar {
+    baseName = 'APEX-Blockchain-Core'
+    classifier = null
+    version = '1.0-SNAPSHOT'
+    transform(com.github.jengelman.gradle.plugins.shadow.transformers.AppendingTransformer) {
+        resource = 'reference.conf'
+    }
+}
 
 task "createDirs" << {
     sourceSets*.scala.srcDirs*.each { it.mkdirs() }
@@ -20,12 +43,12 @@ configurations {
     runtime.exclude group: 'org.apache.logging.log4j', module: 'log4j-slf4j-impl'
 }
 
-repositories{
+repositories {
     mavenCentral()
     mavenLocal()
 }
 
-dependencies{
+dependencies {
     compile "org.scala-lang:scala-library:2.12.3"
     compile "org.scala-lang:scala-compiler:2.12.3"
     compile "org.scala-lang:scala-reflect:2.12.3"
@@ -34,8 +57,8 @@ dependencies{
     compile "log4j:log4j:1.2.17"
     compile "org.bitlet:weupnp:0.1.4"
 
-    compile 'com.squareup.okhttp3:okhttp:3.10.0'
-    
+    compile "com.squareup.okhttp3:okhttp:3.10.0"
+
     compile "org.bouncycastle:bcprov-jdk15on:1.59"
 
     compile group: 'org.iq80.leveldb', name: 'leveldb', version: '0.10'
@@ -55,22 +78,22 @@ dependencies{
     compile group: 'com.typesafe.scala-logging', name: 'scala-logging_2.12', version: '3.9.0'
     testCompile group: 'org.scalacheck', name: 'scalacheck_2.12', version: '1.14.0'
     compile group: 'de.heikoseeberger', name: 'akka-http-circe_2.12', version: '1.21.0'
-    
+
 
     compile group: 'io.circe', name: 'circe-core_2.12', version: '0.8.0'
     compile group: 'io.circe', name: 'circe-generic_2.12', version: '0.8.0'
     compile group: 'io.circe', name: 'circe-parser_2.12', version: '0.8.0'
     compile group: 'commons-net', name: 'commons-net', version: '3.5'
-    
+
     compile group: 'org.whispersystems', name: 'curve25519-java', version: '0.2.4'
     compile group: 'com.typesafe', name: 'config', version: '1.3.2'
     compile group: 'org.scorexfoundation', name: 'iodb_2.12', version: '0.3.2'
-    compile group: 'net.sourceforge.argparse4j', name: 'argparse4j', version:'0.8.1'
+    compile group: 'net.sourceforge.argparse4j', name: 'argparse4j', version: '0.8.1'
     compile group: 'com.fasterxml.jackson.core', name: 'jackson-core', version: '2.9.1'
     compile group: 'com.fasterxml.jackson.core', name: 'jackson-annotations', version: '2.9.1'
     compile group: 'com.fasterxml.jackson.core', name: 'jackson-databind', version: '2.9.1'
     testCompile "junit:junit:4.11"
-	
+
 }
 
 jar {
@@ -89,12 +112,12 @@ task run(type: JavaExec, dependsOn: classes) {
     classpath configurations.runtime
 }
 
-task copyJar(type: Copy){
+task copyJar(type: Copy) {
     from configurations.runtime
-    into ('build/libs/lib')
+    into('build/libs/lib')
 }
 
-task release(type: Copy,dependsOn: [build,copyJar]) {
-    from  'conf'
-    into ('build/libs/conf')
+task release(type: Copy, dependsOn: [build, copyJar]) {
+    from 'conf'
+    into('build/libs/conf')
 }

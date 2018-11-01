@@ -55,13 +55,21 @@ class Node(val settings: ApexSettings)
     case _: NodeStopMessage => {
       log.info("stopping node")
       //TODO close connections
-      chain.close()
-      context.stop(self)
+      //      chain.close()
+      //      context.stop(peerHandlerManager)
+      //      context.stop(networkManager)
+      //      context.stop(producer)
+      //      context.stop(self)
     }
     case unknown: Any => {
       println("Unknown msg:")
       println(unknown)
     }
+  }
+
+  override def postStop(): Unit = {
+    chain.close()
+    super.postStop()
   }
 
   private def onBlock(block: Block): Unit = {
@@ -191,7 +199,7 @@ class Node(val settings: ApexSettings)
   }
 
   private def processBlockMessage(msg: BlockMessage) = {
-    log.debug(s"received a block #${msg.block.height} (${msg.block.id})")
+    log.debug(s"received a block #${msg.block.height} (${msg.block.shortId})")
     if (chain.tryInsertBlock(msg.block, true)) {
       peerHandlerManager ! InventoryMessage(new InventoryPayload(InventoryType.Block, Seq(msg.block.id())))
       log.info(s"success insert block #${msg.block.height} (${msg.block.shortId})")
@@ -199,7 +207,7 @@ class Node(val settings: ApexSettings)
       log.error(s"failed insert block #${msg.block.height}, (${msg.block.shortId}) to db")
       if (!chain.containsBlock(msg.block.id)) {
         // out of sync, or there are fork chains, try to get more blocks
-        if (msg.block.height - chain.getHeight < 100)  // do not send too many request during init sync
+        if (msg.block.height - chain.getHeight < 100) // do not send too many request during init sync
           sendGetBlocksMessage()
       }
     }

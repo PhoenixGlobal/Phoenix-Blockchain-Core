@@ -375,10 +375,10 @@ class LevelDBBlockchain(chainSettings: ChainSettings, consensusSettings: Consens
 
     if (txValid) {
       val fromBalance = (fromAccount.balances.toSeq ++ Seq((tx.assetId, -tx.amount))).groupBy(_._1)
-        .map(p => (p._1, Fixed8.sum(p._2.map(_._2).sum)))
+        .map(p => (p._1, p._2.map(_._2).sum))
         .filter(_._2.value > 0)
       val toBalance = (toAccount.balances.toSeq ++ Seq((tx.assetId, tx.amount))).groupBy(_._1)
-        .map(p => (p._1, Fixed8.sum(p._2.map(_._2).sum)))
+        .map(p => (p._1, p._2.map(_._2).sum))
         .filter(_._2.value > 0)
 
       dataBase.setAccount((tx.fromPubKeyHash(), new Account(true, fromAccount.name, fromBalance, fromAccount.nextNonce + 1)),

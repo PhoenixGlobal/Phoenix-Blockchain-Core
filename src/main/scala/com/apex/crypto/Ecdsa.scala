@@ -104,11 +104,13 @@ object Ecdsa {
       val decode = Base58Check.decode(wif).getOrElse(Array[Byte]())
       if (decode.length == 34) {
         // 1 bytes prefix + 32 bytes data + 1 byte 0x01 (+ 4 bytes checksum)
-        if (decode(33) == 0x01.toByte) {
-          return Some(PrivateKey(decode.slice(1, 33)))
-        }
+        if (decode(33) == 0x01.toByte)
+          Some(PrivateKey(decode.slice(1, 33)))
+        else
+          None
       }
-      return None
+      else
+        None
     }
   }
 
@@ -226,10 +228,13 @@ object Ecdsa {
         val decode = Base58Check.decode(address).getOrElse(Array[Byte]())
         if (decode.length == 22) {
           // 2 bytes prefix + 20 bytes data (+ 4 bytes checksum)
-          return Some(UInt160.fromBytes(decode.slice(2, 22)))
+          Some(UInt160.fromBytes(decode.slice(2, 22)))
         }
+        else
+          None
       }
-      return None
+      else
+        None
     }
   }
 

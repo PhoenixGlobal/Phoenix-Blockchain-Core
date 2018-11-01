@@ -108,11 +108,14 @@ class Producer(settings: ConsensusSettings,
         producing(chain)
         true
       } else {
+//        val curr = chain.getHeadTime
+//        val next = nextTime(curr)
+//        println(s"not synced, ${Instant.ofEpochMilli(curr).toString} ${Instant.ofEpochMilli(next).toString}")
         false
       }
     } catch {
       case e: Throwable => {
-        log.debug("begin produce failed", e)
+        log.error("begin produce failed", e)
         false
       }
     }
@@ -127,15 +130,16 @@ class Producer(settings: ConsensusSettings,
       val next = nextBlockTime(headTime, now)
       //println(s"head: $headTime, now: $now, next: $next, delta: ${headTime - now}")
       val witness = getWitness(next)
-      if (witness.privkey.isEmpty) {
+      val myTurn = witness.privkey.isDefined
+      if (!myTurn) {
         val now = Instant.now.toEpochMilli
-        val delay = calcDelay(now, next)
+        val delay = calcDelay(now, next, myTurn)
         //println(delay)
         scheduleBegin(delay)
       } else {
         chain.startProduceBlock(witness, next)
         val now = Instant.now.toEpochMilli
-        val delay = calcDelay(now, next)
+        val delay = calcDelay(now, next, myTurn)
         scheduleEnd(delay)
       }
     }
@@ -154,14 +158,14 @@ class Producer(settings: ConsensusSettings,
     time + settings.produceInterval - time % settings.produceInterval
   }
 
-  private def calcDelay(now: Long, next: Long): Option[FiniteDuration] = {
+  private def calcDelay(now: Long, next: Long, myTurn: Boolean = false): Option[FiniteDuration] = {
     var delay = next - now
     // produce last block in advance
     val rest = restBlocks(next)
-    if (rest == 1) {
-      delay = if (delay < earlyMS) 0 else delay - earlyMS
+    if (myTurn && rest == 1) {
+        delay = if (delay < earlyMS) 0 else delay - earlyMS
     }
-    //println(s"now: $now, next: $next, delay: $delay, delta: ${next - now}, rest: $rest")
+    println(s"now: $now, next: $next, delay: $delay, delta: ${next - now}, rest: $rest")
     calcDuration(delay.toInt)
   }
 

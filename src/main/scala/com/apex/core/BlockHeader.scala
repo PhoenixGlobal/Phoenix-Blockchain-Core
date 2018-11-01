@@ -27,7 +27,7 @@ class BlockHeader(val index: Int,
   }
 
   override def hashCode(): Int = {
-    return id.hashCode()
+    id.hashCode()
   }
 
   override def serialize(os: DataOutputStream): Unit = {

@@ -10,36 +10,30 @@ package com.apex.network.rpc
 
 import akka.actor.{ActorRef, ActorSystem}
 import akka.http.scaladsl.Http
-import akka.http.scaladsl.marshalling.{Marshaller, ToEntityMarshaller}
 import akka.http.scaladsl.model._
 import akka.http.scaladsl.server.Directives._
-import akka.http.scaladsl.marshallers.sprayjson.SprayJsonSupport._
-import akka.http.scaladsl.server.StandardRoute
 import akka.pattern.ask
 import akka.stream.ActorMaterializer
 import akka.util.Timeout
-import spray.json.DefaultJsonProtocol._
 import com.apex.common.ApexLogging
 import com.apex.core.{Account, Block}
-import com.apex.crypto.UInt256
 import com.apex.settings.RPCSettings
 import play.api.libs.json._
 
 import scala.collection.mutable.ArrayBuffer
-import scala.concurrent.duration.{Duration, _}
-import scala.concurrent.{Await, ExecutionContext, Future}
+import scala.concurrent.Future
+import scala.concurrent.duration._
 
 object RpcServer extends ApexLogging {
 
   implicit val system = ActorSystem("rpc")
+  implicit val executionContext = system.dispatcher
   implicit val materializer = ActorMaterializer()
-  implicit val timeout: Timeout = 5.seconds
+  implicit val timeout = Timeout(5.seconds)
 
   private var bindingFuture: Future[Http.ServerBinding] = null
 
   def run(rpcSettings: RPCSettings, nodeRef: ActorRef) = {
-    implicit val executionContext = system.dispatcher
-
     val route =
       path("getblock") {
         post {
@@ -121,16 +115,13 @@ object RpcServer extends ApexLogging {
         }
 
     bindingFuture = Http().bindAndHandle(route, rpcSettings.host, rpcSettings.port)
-    println(s"Server online at http://${rpcSettings.host}:${rpcSettings.port}/\n")
+//    println(s"Server online at http://${rpcSettings.host}:${rpcSettings.port}/\n")
     //  StdIn.readLine() // let it run until user presses return
   }
 
   def stop() = {
-    println(s"RpcServer stop")
-    if (bindingFuture != null) {
-      implicit val executionContext = system.dispatcher
-      bindingFuture.flatMap(_.unbind()).onComplete(_ => system.terminate())
-    }
+    log.info("stopping rpc server")
+    system.terminate.foreach(_ => log.info("rpc server stopped"))
   }
 
 }
