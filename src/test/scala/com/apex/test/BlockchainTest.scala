@@ -23,12 +23,12 @@ class BlockchainTest {
       BlockBaseSettings(s"$baseDir/block", false, 0),
       DataBaseSettings(s"$baseDir/data", false, 0),
       ForkBaseSettings(s"$baseDir/fork", false, 0),
-      "03b4534b44d1da47e4b4a504a210401a583f860468dec766f507251a057594e682",
       10,
       GenesisSettings(Instant.EPOCH,
         "03b4534b44d1da47e4b4a504a210401a583f860468dec766f507251a057594e682",
         "7a93d447bffe6d89e690f529a3a0bdff8ff6169172458e04849ef1d4eafd7f86",
-        "AP3YkgmCrctzg2iw2FzjhsnUqPyWDogud6x"
+        Array(CoinAirdrop("APEwS7ZiA4HNJAMznmjaupUtFLx73EhaGeS", 1.1),
+          CoinAirdrop("APLUf5g4YDghJTFZrkkLMjeZVkVDKxVMvW1", 2.2))
       )
     )
     val consensusSettings = ConsensusSettings(2000, 500, 1,

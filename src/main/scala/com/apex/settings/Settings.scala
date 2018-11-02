@@ -56,12 +56,11 @@ case class ForkBaseSettings(dir: String, cacheEnabled: Boolean, cacheSize: Int)
 case class GenesisSettings(timeStamp: Instant,
                            publicKey: String,
                            privateKey: String,
-                           coinToAddr: String)
+                           genesisCoinAirdrop: Array[CoinAirdrop])
 
 case class ChainSettings(blockBase: BlockBaseSettings,
                          dataBase: DataBaseSettings,
                          forkBase: ForkBaseSettings,
-                         minerCoinFrom: String,
                          minerAward: Double,
                          genesis: GenesisSettings)
 
@@ -83,6 +82,9 @@ case class ConsensusSettings(produceInterval: Int,
     hash256(bs.toByteArray)
   }
 }
+
+case class CoinAirdrop(addr: String,
+                      coins: Double)
 
 case class Witness(name: String,
                    pubkey: PublicKey,

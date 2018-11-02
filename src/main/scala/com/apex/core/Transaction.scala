@@ -103,7 +103,7 @@ object Transaction {
       Json.obj(
             "id" -> o.id.toString,
             "type" -> o.txType.toString,
-            "from" -> o.fromAddress,
+            "from" -> { if (o.txType == TransactionType.Miner) "" else o.fromAddress },
             "to" ->  o.toAddress,
             "toName" -> o.toName,
             "amount" -> o.amount.toString,
