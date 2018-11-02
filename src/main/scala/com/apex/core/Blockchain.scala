@@ -112,8 +112,10 @@ class LevelDBBlockchain(chainSettings: ChainSettings, consensusSettings: Consens
     onConfirmed,
     onSwitch)
 
-  // TODO: zero is not a valid pub key, need to work out other method
-  private val minerCoinFrom = PublicKey(BinaryData(chainSettings.minerCoinFrom)) // 33 bytes pub key
+  // the zero is not valid pub key, and the NULL is special to handle,
+  // so just set minerCoinFrom to any valid compressed pub key, it will not be seen by user
+  private val minerCoinFrom = PublicKey(BinaryData("02866facba8742cd702b302021a9588e78b3cd96599a3b1c85688d6dc0a72585e6")) // 33 bytes pub key
+
   private val minerAward = Fixed8.fromDecimal(chainSettings.minerAward)
 
   private val genesisCoinToAddress = PublicKeyHash.fromAddress(chainSettings.genesis.coinToAddr).get

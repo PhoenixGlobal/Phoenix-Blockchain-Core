@@ -61,7 +61,6 @@ case class GenesisSettings(timeStamp: Instant,
 case class ChainSettings(blockBase: BlockBaseSettings,
                          dataBase: DataBaseSettings,
                          forkBase: ForkBaseSettings,
-                         minerCoinFrom: String,
                          minerAward: Double,
                          genesis: GenesisSettings)
 

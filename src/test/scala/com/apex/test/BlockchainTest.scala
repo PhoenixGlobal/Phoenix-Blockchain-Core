@@ -23,7 +23,6 @@ class BlockchainTest {
       BlockBaseSettings(s"$baseDir/block", false, 0),
       DataBaseSettings(s"$baseDir/data", false, 0),
       ForkBaseSettings(s"$baseDir/fork", false, 0),
-      "03b4534b44d1da47e4b4a504a210401a583f860468dec766f507251a057594e682",
       10,
       GenesisSettings(Instant.EPOCH,
         "03b4534b44d1da47e4b4a504a210401a583f860468dec766f507251a057594e682",
