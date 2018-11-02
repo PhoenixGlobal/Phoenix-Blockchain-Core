@@ -118,18 +118,9 @@ class LevelDBBlockchain(chainSettings: ChainSettings, consensusSettings: Consens
 
   private val minerAward = Fixed8.fromDecimal(chainSettings.minerAward)
 
-  private val genesisCoinToAddress = PublicKeyHash.fromAddress(chainSettings.genesis.coinToAddr).get
-  private val genesisTx = new Transaction(TransactionType.Miner, minerCoinFrom,
-    genesisCoinToAddress, "", minerAward, UInt256.Zero, 0,
-    consensusSettings.fingerprint(),
-    BinaryData.empty)
+  private val genesisBlock: Block = buildGenesisBlock() //Block.build(genesisBlockHeader, genesisTxs)
 
-  private val genesisBlockHeader: BlockHeader = BlockHeader.build(0,
-    chainSettings.genesis.timeStamp.toEpochMilli, MerkleTree.root(Seq(genesisTx.id)),
-    UInt256.Zero, genesisProducer, genesisProducerPrivKey)
-  private val genesisBlock: Block = Block.build(genesisBlockHeader, Seq(genesisTx))
-
-  private var latestHeader: BlockHeader = genesisBlockHeader
+  private var latestHeader: BlockHeader = genesisBlock.header
 
   //  private var latestProdState: ProducerStatus = null
 
@@ -139,6 +130,22 @@ class LevelDBBlockchain(chainSettings: ChainSettings, consensusSettings: Consens
   private val pendingState = new PendingState
 
   populate()
+
+  private def buildGenesisBlock(): Block = {
+    val genesisTxs = ArrayBuffer.empty[Transaction]
+
+    chainSettings.genesis.genesisCoinAirdrop.foreach(airdrop => {
+      genesisTxs.append(new Transaction(TransactionType.Miner, minerCoinFrom,
+        PublicKeyHash.fromAddress(airdrop.addr).get, "", Fixed8.fromDecimal(airdrop.coins),
+        UInt256.Zero, 0, consensusSettings.fingerprint(), BinaryData.empty))
+    })
+
+    val genesisBlockHeader: BlockHeader = BlockHeader.build(0,
+      chainSettings.genesis.timeStamp.toEpochMilli, MerkleTree.root(genesisTxs.map(_.id)),
+      UInt256.Zero, genesisProducer, genesisProducerPrivKey)
+
+    Block.build(genesisBlockHeader, genesisTxs)
+  }
 
   override def Id: String = genesisBlock.id.toString
 
@@ -157,7 +164,7 @@ class LevelDBBlockchain(chainSettings: ChainSettings, consensusSettings: Consens
   }
 
   override def getHeight(): Int = {
-    forkBase.head.map(_.block.height).getOrElse(genesisBlockHeader.index)
+    forkBase.head.map(_.block.height).getOrElse(genesisBlock.height)
   }
 
   override def getHeadTime(): Long = {
@@ -166,11 +173,11 @@ class LevelDBBlockchain(chainSettings: ChainSettings, consensusSettings: Consens
   }
 
   override def getLatestHeader(): BlockHeader = {
-    forkBase.head.map(_.block.header).getOrElse(genesisBlockHeader)
+    forkBase.head.map(_.block.header).getOrElse(genesisBlock.header)
   }
 
   override def headTimeSinceGenesis(): Long = {
-    getLatestHeader.timeStamp - genesisBlockHeader.timeStamp
+    getLatestHeader.timeStamp - genesisBlock.header.timeStamp
   }
 
   override def getHeader(id: UInt256): Option[BlockHeader] = {
