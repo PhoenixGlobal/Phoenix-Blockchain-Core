@@ -242,9 +242,10 @@ class LevelDBBlockchain(chainSettings: ChainSettings, consensusSettings: Consens
     require(applied)
     pendingState.txs.append(minerTx)
 
-    unapplyTxs.foreach(p => addTransaction(p._2))
+    unapplyTxs.foreach(p => addTransaction(p._2)) // addTransaction() may fail
 
-    pendingState.txs.foreach(tx => unapplyTxs.remove(tx.id))
+    unapplyTxs.clear() // pendingState.txs.foreach(tx => unapplyTxs.remove(tx.id))
+
   }
 
   override def isProducingBlock(): Boolean = {
