@@ -2,6 +2,7 @@ package com.apex.core
 
 import java.time.Instant
 
+import akka.actor.ActorRef
 import com.apex.common.ApexLogging
 import com.apex.consensus.ProducerUtil
 import com.apex.crypto.Ecdsa.{PrivateKey, PublicKey, PublicKeyHash}
@@ -71,7 +72,25 @@ trait Blockchain extends Iterable[Block] with ApexLogging {
   def close()
 }
 
-case class Notification(onBlock: Block => Unit, onTransaction: Transaction => Unit)
+trait NotifyMessage
+
+case class NewBlockProducedNotify(block: Block) extends NotifyMessage
+case class BlockConfirmedNotify(block: Block) extends NotifyMessage
+
+case class Notification() extends ApexLogging {
+  private val listeners = ArrayBuffer.empty[ActorRef]
+
+  def register(actorRef : ActorRef) = {
+    listeners.append(actorRef)
+  }
+  def onNewBlockProduced(block: Block): Unit = {
+    log.info(s"block (${block.height}, ${block.timeStamp}) ${block.shortId} produced by ${block.header.producer.address.substring(0, 7)}")
+    listeners.foreach(actor => actor ! NewBlockProducedNotify(block))
+  }
+  def onBlockConfirmed(block: Block) = {
+
+  }
+}
 
 object Blockchain {
   //private var chain: LevelDBBlockchain = null
@@ -286,7 +305,7 @@ class LevelDBBlockchain(chainSettings: ChainSettings, consensusSettings: Consens
       val block = Block.build(header, pendingState.txs.clone)
       pendingState.txs.clear()
       if (tryInsertBlock(block, false)) {
-        notification.onBlock(block)
+        notification.onNewBlockProduced(block)
         Some(block)
       } else {
         None
@@ -504,7 +523,7 @@ class LevelDBBlockchain(chainSettings: ChainSettings, consensusSettings: Consens
 
     latestHeader = forkBase.head.get.block.header
 
-    log.info(s"populate() latest block ${latestHeader.index} ${latestHeader.id}")
+    log.info(s"populate() latest block ${latestHeader.index} ${latestHeader.shortId()}")
   }
 
   private def resolveSwitchFailure(state: SwitchState): Unit = {
