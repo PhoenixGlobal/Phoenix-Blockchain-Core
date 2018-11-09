@@ -17,6 +17,7 @@ import com.apex.core._
 import com.apex.crypto.UInt256
 import com.apex.network.peer.PeerHandlerManagerRef
 import com.apex.network.rpc._
+import com.apex.plugins.mongodb.MongodbPluginRef
 import com.apex.settings.ApexSettings
 import com.apex.utils.NetworkTimeProvider
 
@@ -41,8 +42,10 @@ class Node(val settings: ApexSettings)
 
   private val timeProvider = new NetworkTimeProvider(settings.ntp)
 
-  private val peerHandlerManager = PeerHandlerManagerRef(settings.network, timeProvider)
+  private val mongodbPlugin = MongodbPluginRef(settings)
+  notification.register(mongodbPlugin)
 
+  private val peerHandlerManager = PeerHandlerManagerRef(settings.network, timeProvider)
   notification.register(peerHandlerManager)
 
   private val networkManager = NetworkManagerRef(settings.network, chain.getChainInfo, timeProvider, peerHandlerManager)
