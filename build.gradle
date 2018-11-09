@@ -56,11 +56,9 @@ dependencies {
     compile "org.slf4j:slf4j-log4j12:1.8.0-beta1"
     compile "log4j:log4j:1.2.17"
     compile "org.bitlet:weupnp:0.1.4"
-
     compile "com.squareup.okhttp3:okhttp:3.10.0"
-
     compile "org.bouncycastle:bcprov-jdk15on:1.59"
-
+    compile group: 'org.mongodb.scala', name: 'mongo-scala-driver_2.12', version: '2.4.2'
     compile group: 'org.iq80.leveldb', name: 'leveldb', version: '0.10'
     compile group: 'org.iq80.leveldb', name: 'leveldb-api', version: '0.10'
     compile group: 'org.rocksdb', name: 'rocksdbjni', version: '5.5.1'

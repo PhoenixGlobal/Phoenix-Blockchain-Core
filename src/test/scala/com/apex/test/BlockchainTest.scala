@@ -13,10 +13,6 @@ import scala.reflect.io.Directory
 @Test
 class BlockchainTest {
 
-  private def onBlock(block: Block) = {}
-
-  private def onTrx(trx: Transaction) = {}
-
   private def createChain(path: String): LevelDBBlockchain = {
     val baseDir = s"BlockchainTest/$path"
     val chainSetting = ChainSettings(
@@ -41,7 +37,7 @@ class BlockchainTest {
         )
       )
     )
-    Blockchain.populate(chainSetting, consensusSettings, Notification(onBlock, onTrx))
+    Blockchain.populate(chainSetting, consensusSettings, Notification())
   }
 
   @Test

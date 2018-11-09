@@ -4,6 +4,7 @@ import java.net.InetSocketAddress
 
 import akka.actor.{Actor, ActorContext, ActorRef, ActorSystem, Props}
 import com.apex.common.ApexLogging
+import com.apex.core.NewBlockProducedNotify
 import com.apex.crypto.UInt256
 import com.apex.settings.{ApexSettings, NetworkSettings}
 import com.apex.utils.NetworkTimeProvider
@@ -98,20 +99,7 @@ class PeerHandlerManager(settings: NetworkSettings, timeProvider: NetworkTimePro
     //      //获取远程hangler，测发送消息
     //      val msg = Message[Unit](GetPeersSpec, Right(Unit), None)
     //      handler! msg
-    case msg: BlockMessage => {
-      //log.info("broadcasting BlockMessage")
-      connectedPeers.values.foreach(peer => {
-        log.debug(s"send block #${msg.block.height} (${msg.block.id}) to ${peer.toString}")
-        peer.connectionRef ! msg.pack()
-      })
-    }
-    case msg: InventoryMessage => {
-      //log.info("broadcasting InventoryMessage")
-      connectedPeers.values.foreach(peer => {
-        //log.info(s"send INV to ${peer.toString}")
-        peer.connectionRef ! msg.pack()
-      })
-    }
+
     case MessagePack(a, b, c) =>
       c match {
         case Some(address) => {
@@ -147,6 +135,20 @@ class PeerHandlerManager(settings: NetworkSettings, timeProvider: NetworkTimePro
           peer.connectionRef ! VersionMessage(0).pack
         }
       }
+    case NewBlockProducedNotify(block) => {
+      //log.info("broadcasting the new produced Block")
+      connectedPeers.values.foreach(peer => {
+        //log.debug(s"send block #${block.height} (${block.id}) to ${peer.toString}")
+        peer.connectionRef ! BlockMessage(block).pack()
+      })
+    }
+    case msg: InventoryMessage => {
+      //log.info("broadcasting InventoryMessage")
+      connectedPeers.values.foreach(peer => {
+        //log.info(s"send INV to ${peer.toString}")
+        peer.connectionRef ! msg.pack()
+      })
+    }
   }
 
   private def disconnected: Receive = {

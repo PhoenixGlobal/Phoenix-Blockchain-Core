@@ -17,6 +17,7 @@ import com.apex.core._
 import com.apex.crypto.UInt256
 import com.apex.network.peer.PeerHandlerManagerRef
 import com.apex.network.rpc._
+import com.apex.plugins.mongodb.MongodbPluginRef
 import com.apex.settings.ApexSettings
 import com.apex.utils.NetworkTimeProvider
 
@@ -35,13 +36,17 @@ class Node(val settings: ApexSettings)
           (implicit ec: ExecutionContext)
   extends Actor with ApexLogging {
 
-  private val notification = Notification(onBlock, onTransaction)
+  private val notification = Notification()
 
   private val chain = Blockchain.populate(settings.chain, settings.consensus, notification)
 
   private val timeProvider = new NetworkTimeProvider(settings.ntp)
 
+  private val mongodbPlugin = MongodbPluginRef(settings)
+  notification.register(mongodbPlugin)
+
   private val peerHandlerManager = PeerHandlerManagerRef(settings.network, timeProvider)
+  notification.register(peerHandlerManager)
 
   private val networkManager = NetworkManagerRef(settings.network, chain.getChainInfo, timeProvider, peerHandlerManager)
 
@@ -70,15 +75,6 @@ class Node(val settings: ApexSettings)
   override def postStop(): Unit = {
     chain.close()
     super.postStop()
-  }
-
-  private def onBlock(block: Block): Unit = {
-    log.info(s"block (${block.height}, ${block.timeStamp}) produced by ${block.header.producer.address.substring(0, 7)} ${block.shortId}")
-    peerHandlerManager ! BlockMessage(block)
-  }
-
-  private def onTransaction(trx: Transaction): Unit = {
-    log.info(trx.toString)
   }
 
   private def processAsyncTask(asyncTask: AsyncTask): Unit = {
