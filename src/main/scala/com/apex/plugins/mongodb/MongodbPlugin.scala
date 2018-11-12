@@ -26,9 +26,9 @@ class MongodbPlugin(settings: ApexSettings)
 
   private val mongoClient: MongoClient = MongoClient()
 
-  private val database: MongoDatabase = mongoClient.getDatabase("mydb")
+  private val database: MongoDatabase = mongoClient.getDatabase("apex")
 
-  private val collection: MongoCollection[Document] = database.getCollection("test")
+  private val collection: MongoCollection[Document] = database.getCollection("block")
 
   //collection.drop().results()
 
@@ -43,10 +43,11 @@ class MongodbPlugin(settings: ApexSettings)
         "id" -> block.id().toString,
         "timeStamp" -> BsonDateTime(block.timeStamp()),
         "prevBlock" -> block.prev().toString,
-        "txNum" -> block.transactions.size,
         "producer" -> block.header.producer.toString,
         "producerSig" -> block.header.producerSig.toString,
-        //transactions
+        "merkleRoot" -> block.header.merkleRoot.toString,
+        "txNum" -> block.transactions.size,
+        "transactions" -> block.transactions.map(tx => tx.id.toString),
         "createdAt" -> BsonDateTime(Instant.now.toEpochMilli),
         "confirmed" -> false)
 
