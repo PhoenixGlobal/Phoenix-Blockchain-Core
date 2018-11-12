@@ -4,7 +4,7 @@ import java.time.Instant
 
 import akka.actor.{Actor, ActorContext, ActorRef, Props}
 import com.apex.common.ApexLogging
-import com.apex.core.NewBlockProducedNotify
+import com.apex.core._
 
 import scala.collection.immutable.IndexedSeq
 import org.mongodb.scala._
@@ -28,7 +28,9 @@ class MongodbPlugin(settings: ApexSettings)
 
   private val database: MongoDatabase = mongoClient.getDatabase("apex")
 
-  private val collection: MongoCollection[Document] = database.getCollection("block")
+  private val blockCol: MongoCollection[Document] = database.getCollection("block")
+
+  private val txCol: MongoCollection[Document] = database.getCollection("tx")
 
   //collection.drop().results()
 
@@ -39,23 +41,65 @@ class MongodbPlugin(settings: ApexSettings)
 
   override def receive: Receive = {
     case NewBlockProducedNotify(block) => {
-      val newBlock: Document = Document("height" -> block.height(),
-        "id" -> block.id().toString,
+      val newBlock: Document = Document(
+        "height" -> block.height(),
+        "blockHash" -> block.id().toString,
         "timeStamp" -> BsonDateTime(block.timeStamp()),
         "prevBlock" -> block.prev().toString,
         "producer" -> block.header.producer.toString,
         "producerSig" -> block.header.producerSig.toString,
+        "version" -> block.header.version,
         "merkleRoot" -> block.header.merkleRoot.toString,
         "txNum" -> block.transactions.size,
-        "transactions" -> block.transactions.map(tx => tx.id.toString),
+        "txHashs" -> block.transactions.map(tx => tx.id.toString),
         "createdAt" -> BsonDateTime(Instant.now.toEpochMilli),
         "confirmed" -> false)
 
-      collection.insertOne(newBlock).results()
+      blockCol.insertOne(newBlock).results()
+
+      block.transactions.foreach(tx => addTransaction(tx, Some(block)))
+    }
+    case BlockConfirmedNotify(block) => {
+
     }
     case a: Any => {
       log.info(s"${sender().toString}, ${a.toString}")
     }
+  }
+
+  private def findBlock() = {
+
+  }
+
+  private def findTransaction() = {
+
+  }
+
+  private def addTransaction(tx: Transaction, block: Some[Block]) = {
+    var newTx: Document = Document(
+      "txHash" -> tx.id.toString,
+      "type" -> tx.txType.toString,
+      "from" -> { if (tx.txType == TransactionType.Miner) "" else tx.fromAddress },
+      "to" ->  tx.toAddress,
+      "toName" -> tx.toName,
+      "amount" -> tx.amount.toString,
+      "assetId" -> tx.assetId.toString,
+      "nonce" -> tx.nonce.toString,
+      "data" -> tx.data.toString,
+      "signature" -> tx.signature.toString,
+      "version" -> tx.version,
+      "createdAt" -> BsonDateTime(Instant.now.toEpochMilli),
+      "confirmed" -> false)
+
+    if (block.isDefined) {
+      newTx += ("refBlockHash" -> block.get.id.toString,
+                "refBlockHeight" -> block.get.height)
+    }
+    txCol.insertOne(newTx).results()
+  }
+
+  private def init() = {
+
   }
 }
 
