@@ -252,20 +252,23 @@ class LevelDBBlockchain(chainSettings: ChainSettings, consensusSettings: Consens
   }
 
   override def addTransaction(tx: Transaction): Boolean = {
+    var added = false
     if (isProducingBlock()) {
       if (applyTransaction(tx)) {
         pendingState.txs.append(tx)
-        true
+        added = true
       }
-      else
-        false
     }
     else {
       if (!unapplyTxs.contains(tx.id)) {
         unapplyTxs += (tx.id -> tx)
       }
-      true
+      added = true
     }
+    if (added) {
+      notification.onAddTransaction(tx)
+    }
+    added
   }
 
   override def produceBlockFinalize(endTime: Long): Option[Block] = {
@@ -525,6 +528,7 @@ class LevelDBBlockchain(chainSettings: ChainSettings, consensusSettings: Consens
       dataBase.commit(block.height)
       blockBase.add(block)
     }
+    notification.onBlockConfirmed(block)
   }
 
   private def onSwitch(from: Seq[ForkItem], to: Seq[ForkItem], switchState: SwitchState): SwitchResult = {

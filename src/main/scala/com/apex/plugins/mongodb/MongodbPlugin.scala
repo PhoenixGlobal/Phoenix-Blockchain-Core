@@ -30,7 +30,8 @@ class MongodbPlugin(settings: ApexSettings)
 
   private val blockCol: MongoCollection[Document] = database.getCollection("block")
 
-  private val txCol: MongoCollection[Document] = database.getCollection("tx")
+  private val txCol: MongoCollection[Document] = database.getCollection("transaction")
+
 
   //collection.drop().results()
 
@@ -38,6 +39,8 @@ class MongodbPlugin(settings: ApexSettings)
   //    "count" -> 1, "info" -> Document("x" -> 203, "y" -> 102))
   //
   //  collection.insertOne(doc).results()
+
+  init()
 
   override def receive: Receive = {
     case NewBlockProducedNotify(block) => {
@@ -60,6 +63,13 @@ class MongodbPlugin(settings: ApexSettings)
       block.transactions.foreach(tx => addTransaction(tx, Some(block)))
     }
     case BlockConfirmedNotify(block) => {
+
+      blockCol.updateOne(equal("blockHash", block.id.toString), set("confirmed", true)).results()
+      block.transactions.foreach(tx => {
+        txCol.updateOne(equal("txHash", tx.id.toString), set("confirmed", true)).results()
+        //txCol.updateOne(equal("txHash", tx.id.toString), set("refBlockHash", block.id.toString)).results()
+        //txCol.updateOne(equal("txHash", tx.id.toString), set("refBlockHeight", block.height)).results()
+      })
 
     }
     case a: Any => {
@@ -95,11 +105,33 @@ class MongodbPlugin(settings: ApexSettings)
       newTx += ("refBlockHash" -> block.get.id.toString,
                 "refBlockHeight" -> block.get.height)
     }
+    else {
+      newTx += ("refBlockHeight" -> Int.MaxValue)
+    }
     txCol.insertOne(newTx).results()
   }
 
   private def init() = {
+    log.info("init mongo")
 
+    try {
+      if (blockCol.countDocuments().headResult() == 0) {
+        log.info("creating mongo db")
+
+        blockCol.createIndex(ascending("height")).results()
+        blockCol.createIndex(ascending("blockHash")).results()
+
+        txCol.createIndex(ascending("txHash")).results()
+        txCol.createIndex(ascending("refBlockHeight")).results()
+        txCol.createIndex(ascending("from")).results()
+        txCol.createIndex(ascending("to")).results()
+      }
+    }
+    catch {
+      case e: Throwable => {
+        log.error(s"init mongo error: ${e.getMessage}")
+      }
+    }
   }
 }
 
