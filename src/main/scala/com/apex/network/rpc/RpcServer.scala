@@ -71,7 +71,7 @@ object RpcServer extends ApexLogging {
             }
           }
         } ~
-        path("getaccount") {
+        path("showaccount") { // getaccount
           post {
             entity(as[String]) { data =>
               Json.parse(data).validate[GetAccountCmd] match {
