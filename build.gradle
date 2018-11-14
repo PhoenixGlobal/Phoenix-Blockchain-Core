@@ -71,7 +71,6 @@ dependencies {
     compile "ch.megard:akka-http-cors_2.12:0.2.2"
     compile "com.google.guava:guava:14.0"
     compile group: 'org.rudogma', name: 'supertagged_2.12', version: '1.4'
-    compile "org.bouncycastle:bcprov-jdk15on:1.59"
     compile group: 'com.iheart', name: 'ficus_2.12', version: '1.4.3'
     compile group: 'com.typesafe.scala-logging', name: 'scala-logging_2.12', version: '3.9.0'
     testCompile group: 'org.scalacheck', name: 'scalacheck_2.12', version: '1.14.0'
