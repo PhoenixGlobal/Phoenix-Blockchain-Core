@@ -42,8 +42,8 @@ class Node(val settings: ApexSettings)
 
   private val timeProvider = new NetworkTimeProvider(settings.ntp)
 
-  private val mongodbPlugin = MongodbPluginRef(settings)
-  notification.register(mongodbPlugin)
+  //private val mongodbPlugin = MongodbPluginRef(settings)
+  //notification.register(mongodbPlugin)
 
   private val peerHandlerManager = PeerHandlerManagerRef(settings.network, timeProvider)
   notification.register(peerHandlerManager)

@@ -4,7 +4,7 @@ import java.time.Instant
 
 import akka.actor.{Actor, ActorContext, ActorRef, Props}
 import com.apex.common.ApexLogging
-import com.apex.core.NewBlockProducedNotify
+import com.apex.core._
 
 import scala.collection.immutable.IndexedSeq
 import org.mongodb.scala._
@@ -26,9 +26,12 @@ class MongodbPlugin(settings: ApexSettings)
 
   private val mongoClient: MongoClient = MongoClient()
 
-  private val database: MongoDatabase = mongoClient.getDatabase("mydb")
+  private val database: MongoDatabase = mongoClient.getDatabase("apex")
 
-  private val collection: MongoCollection[Document] = database.getCollection("test")
+  private val blockCol: MongoCollection[Document] = database.getCollection("block")
+
+  private val txCol: MongoCollection[Document] = database.getCollection("transaction")
+
 
   //collection.drop().results()
 
@@ -37,23 +40,97 @@ class MongodbPlugin(settings: ApexSettings)
   //
   //  collection.insertOne(doc).results()
 
+  init()
+
   override def receive: Receive = {
     case NewBlockProducedNotify(block) => {
-      val newBlock: Document = Document("height" -> block.height(),
-        "id" -> block.id().toString,
+      val newBlock: Document = Document(
+        "height" -> block.height(),
+        "blockHash" -> block.id().toString,
         "timeStamp" -> BsonDateTime(block.timeStamp()),
         "prevBlock" -> block.prev().toString,
-        "txNum" -> block.transactions.size,
         "producer" -> block.header.producer.toString,
         "producerSig" -> block.header.producerSig.toString,
-        //transactions
+        "version" -> block.header.version,
+        "merkleRoot" -> block.header.merkleRoot.toString,
+        "txNum" -> block.transactions.size,
+        "txHashs" -> block.transactions.map(tx => tx.id.toString),
         "createdAt" -> BsonDateTime(Instant.now.toEpochMilli),
         "confirmed" -> false)
 
-      collection.insertOne(newBlock).results()
+      blockCol.insertOne(newBlock).results()
+
+      block.transactions.foreach(tx => addTransaction(tx, Some(block)))
+    }
+    case BlockConfirmedNotify(block) => {
+
+      blockCol.updateOne(equal("blockHash", block.id.toString), set("confirmed", true)).results()
+      block.transactions.foreach(tx => {
+        txCol.updateOne(equal("txHash", tx.id.toString), set("confirmed", true)).results()
+        //txCol.updateOne(equal("txHash", tx.id.toString), set("refBlockHash", block.id.toString)).results()
+        //txCol.updateOne(equal("txHash", tx.id.toString), set("refBlockHeight", block.height)).results()
+      })
+
     }
     case a: Any => {
       log.info(s"${sender().toString}, ${a.toString}")
+    }
+  }
+
+  private def findBlock() = {
+
+  }
+
+  private def findTransaction() = {
+
+  }
+
+  private def addTransaction(tx: Transaction, block: Some[Block]) = {
+    var newTx: Document = Document(
+      "txHash" -> tx.id.toString,
+      "type" -> tx.txType.toString,
+      "from" -> { if (tx.txType == TransactionType.Miner) "" else tx.fromAddress },
+      "to" ->  tx.toAddress,
+      "toName" -> tx.toName,
+      "amount" -> tx.amount.toString,
+      "assetId" -> tx.assetId.toString,
+      "nonce" -> tx.nonce.toString,
+      "data" -> tx.data.toString,
+      "signature" -> tx.signature.toString,
+      "version" -> tx.version,
+      "createdAt" -> BsonDateTime(Instant.now.toEpochMilli),
+      "confirmed" -> false)
+
+    if (block.isDefined) {
+      newTx += ("refBlockHash" -> block.get.id.toString,
+                "refBlockHeight" -> block.get.height)
+    }
+    else {
+      newTx += ("refBlockHeight" -> Int.MaxValue)
+    }
+    txCol.insertOne(newTx).results()
+  }
+
+  private def init() = {
+    log.info("init mongo")
+
+    try {
+      if (blockCol.countDocuments().headResult() == 0) {
+        log.info("creating mongo db")
+
+        blockCol.createIndex(ascending("height")).results()
+        blockCol.createIndex(ascending("blockHash")).results()
+
+        txCol.createIndex(ascending("txHash")).results()
+        txCol.createIndex(ascending("refBlockHeight")).results()
+        txCol.createIndex(ascending("from")).results()
+        txCol.createIndex(ascending("to")).results()
+      }
+    }
+    catch {
+      case e: Throwable => {
+        log.error(s"init mongo error: ${e.getMessage}")
+      }
     }
   }
 }

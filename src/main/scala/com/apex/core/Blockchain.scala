@@ -72,26 +72,6 @@ trait Blockchain extends Iterable[Block] with ApexLogging {
   def close()
 }
 
-trait NotifyMessage
-
-case class NewBlockProducedNotify(block: Block) extends NotifyMessage
-case class BlockConfirmedNotify(block: Block) extends NotifyMessage
-
-case class Notification() extends ApexLogging {
-  private val listeners = ArrayBuffer.empty[ActorRef]
-
-  def register(actorRef : ActorRef) = {
-    listeners.append(actorRef)
-  }
-  def onNewBlockProduced(block: Block): Unit = {
-    log.info(s"block (${block.height}, ${block.timeStamp}) ${block.shortId} produced by ${block.header.producer.address.substring(0, 7)}")
-    listeners.foreach(actor => actor ! NewBlockProducedNotify(block))
-  }
-  def onBlockConfirmed(block: Block) = {
-
-  }
-}
-
 object Blockchain {
   //private var chain: LevelDBBlockchain = null
 
@@ -272,20 +252,23 @@ class LevelDBBlockchain(chainSettings: ChainSettings, consensusSettings: Consens
   }
 
   override def addTransaction(tx: Transaction): Boolean = {
+    var added = false
     if (isProducingBlock()) {
       if (applyTransaction(tx)) {
         pendingState.txs.append(tx)
-        true
+        added = true
       }
-      else
-        false
     }
     else {
       if (!unapplyTxs.contains(tx.id)) {
         unapplyTxs += (tx.id -> tx)
       }
-      true
+      added = true
     }
+    if (added) {
+      notification.onAddTransaction(tx)
+    }
+    added
   }
 
   override def produceBlockFinalize(endTime: Long): Option[Block] = {
@@ -545,6 +528,7 @@ class LevelDBBlockchain(chainSettings: ChainSettings, consensusSettings: Consens
       dataBase.commit(block.height)
       blockBase.add(block)
     }
+    notification.onBlockConfirmed(block)
   }
 
   private def onSwitch(from: Seq[ForkItem], to: Seq[ForkItem], switchState: SwitchState): SwitchResult = {
