@@ -266,7 +266,7 @@ class LevelDBBlockchain(chainSettings: ChainSettings, consensusSettings: Consens
       added = true
     }
     if (added) {
-      notification.onAddTransaction(tx)
+      notification.send(AddTransactionNotify(tx))
     }
     added
   }
@@ -288,7 +288,8 @@ class LevelDBBlockchain(chainSettings: ChainSettings, consensusSettings: Consens
       val block = Block.build(header, pendingState.txs.clone)
       pendingState.txs.clear()
       if (tryInsertBlock(block, false)) {
-        notification.onNewBlockProduced(block)
+        log.info(s"block (${block.height}, ${block.timeStamp}) ${block.shortId} produced by ${block.header.producer.address.substring(0, 7)}")
+        notification.send(NewBlockProducedNotify(block))
         Some(block)
       } else {
         None
@@ -528,7 +529,7 @@ class LevelDBBlockchain(chainSettings: ChainSettings, consensusSettings: Consens
       dataBase.commit(block.height)
       blockBase.add(block)
     }
-    notification.onBlockConfirmed(block)
+    notification.send(BlockConfirmedNotify(block))
   }
 
   private def onSwitch(from: Seq[ForkItem], to: Seq[ForkItem], switchState: SwitchState): SwitchResult = {

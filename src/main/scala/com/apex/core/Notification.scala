@@ -19,18 +19,7 @@ case class Notification() extends ApexLogging {
     listeners.append(actorRef)
   }
 
-  def onNewBlockProduced(block: Block): Unit = {
-    log.info(s"block (${block.height}, ${block.timeStamp}) ${block.shortId} produced by ${block.header.producer.address.substring(0, 7)}")
-    listeners.foreach(actor => actor ! NewBlockProducedNotify(block))
+  def send(notify: NotifyMessage) = {
+    listeners.foreach(actor => actor ! notify)
   }
-
-  def onBlockConfirmed(block: Block) = {
-    listeners.foreach(actor => actor ! BlockConfirmedNotify(block))
-  }
-
-  def onAddTransaction(tx: Transaction) = {
-    listeners.foreach(actor => actor ! AddTransactionNotify(tx))
-  }
-
-  //def send()
 }

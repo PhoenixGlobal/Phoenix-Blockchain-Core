@@ -32,35 +32,11 @@ class MongodbPlugin(settings: ApexSettings)
 
   private val txCol: MongoCollection[Document] = database.getCollection("transaction")
 
-
-  //collection.drop().results()
-
-  //  val doc: Document = Document("name" -> "MongoDB", "type" -> "database",
-  //    "count" -> 1, "info" -> Document("x" -> 203, "y" -> 102))
-  //
-  //  collection.insertOne(doc).results()
-
   init()
 
   override def receive: Receive = {
     case NewBlockProducedNotify(block) => {
-      val newBlock: Document = Document(
-        "height" -> block.height(),
-        "blockHash" -> block.id().toString,
-        "timeStamp" -> BsonDateTime(block.timeStamp()),
-        "prevBlock" -> block.prev().toString,
-        "producer" -> block.header.producer.toString,
-        "producerSig" -> block.header.producerSig.toString,
-        "version" -> block.header.version,
-        "merkleRoot" -> block.header.merkleRoot.toString,
-        "txNum" -> block.transactions.size,
-        "txHashs" -> block.transactions.map(tx => tx.id.toString),
-        "createdAt" -> BsonDateTime(Instant.now.toEpochMilli),
-        "confirmed" -> false)
-
-      blockCol.insertOne(newBlock).results()
-
-      block.transactions.foreach(tx => addTransaction(tx, Some(block)))
+      addBlock(block)
     }
     case BlockConfirmedNotify(block) => {
 
@@ -72,20 +48,50 @@ class MongodbPlugin(settings: ApexSettings)
       })
 
     }
+    case AddTransactionNotify(tx) => {
+      //log.info("AddTransactionNotify")
+      //addTransaction(tx, None)
+    }
     case a: Any => {
       log.info(s"${sender().toString}, ${a.toString}")
     }
   }
 
-  private def findBlock() = {
+  private def findBlock(block: Block) = {
 
   }
 
-  private def findTransaction() = {
-
+  private def findTransaction(tx: Transaction): Boolean = {
+    if (txCol.find(equal("txHash", tx.id.toString)).results().size > 0)
+      true
+    else
+      false
   }
 
-  private def addTransaction(tx: Transaction, block: Some[Block]) = {
+  private def addBlock(block: Block) = {
+    val newBlock: Document = Document(
+      "height" -> block.height(),
+      "blockHash" -> block.id().toString,
+      "timeStamp" -> BsonDateTime(block.timeStamp()),
+      "prevBlock" -> block.prev().toString,
+      "producer" -> block.header.producer.toString,
+      "producerSig" -> block.header.producerSig.toString,
+      "version" -> block.header.version,
+      "merkleRoot" -> block.header.merkleRoot.toString,
+      "txNum" -> block.transactions.size,
+      "txHashs" -> block.transactions.map(tx => tx.id.toString),
+      "createdAt" -> BsonDateTime(Instant.now.toEpochMilli),
+      "confirmed" -> false)
+
+    blockCol.insertOne(newBlock).results()
+
+    block.transactions.foreach(tx => {
+      //findTransaction(tx)
+      addTransaction(tx, Some(block))
+    })
+  }
+
+  private def addTransaction(tx: Transaction, block: Option[Block]) = {
     var newTx: Document = Document(
       "txHash" -> tx.id.toString,
       "type" -> tx.txType.toString,
