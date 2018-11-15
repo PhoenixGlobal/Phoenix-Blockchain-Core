@@ -265,9 +265,8 @@ class LevelDBBlockchain(chainSettings: ChainSettings, consensusSettings: Consens
       }
       added = true
     }
-    if (added) {
+    if (added)
       notification.send(AddTransactionNotify(tx))
-    }
     added
   }
 
@@ -306,7 +305,6 @@ class LevelDBBlockchain(chainSettings: ChainSettings, consensusSettings: Consens
           unapplyTxs += (tx.id -> tx)
       })
       pendingState.txs.clear()
-
       dataBase.rollBack()
     }
 
@@ -327,10 +325,10 @@ class LevelDBBlockchain(chainSettings: ChainSettings, consensusSettings: Consens
         else
           log.error(s"Error during forkBase add block ${block.height()}  ${block.shortId}")
       }
-      else {
+      else
         log.info(s"block ${block.height} ${block.shortId} apply error")
-        //forkBase.removeFork(block.id)
-      }
+      if (inserted)
+        notification.send(BlockAddedToHeadNotify(block))
     }
     else {
       log.debug(s"received block try add to minor fork chain. block ${block.height} ${block.shortId}")
@@ -495,6 +493,7 @@ class LevelDBBlockchain(chainSettings: ChainSettings, consensusSettings: Consens
       applyBlock(genesisBlock, false, false)
       blockBase.add(genesisBlock)
       forkBase.add(genesisBlock)
+      notification.send(BlockAddedToHeadNotify(genesisBlock))
     }
 
     require(forkBase.head.isDefined)
@@ -557,6 +556,7 @@ class LevelDBBlockchain(chainSettings: ChainSettings, consensusSettings: Consens
       from.foreach(item => applyBlock(item.block))
       SwitchResult(false, to(appliedCount))
     } else {
+      notification.send(ForkSwitchNotify(from, to))
       SwitchResult(true)
     }
   }

@@ -36,39 +36,46 @@ class MongodbPlugin(settings: ApexSettings)
 
   override def receive: Receive = {
     case NewBlockProducedNotify(block) => {
+
+    }
+    case BlockAddedToHeadNotify(block) => {
       addBlock(block)
     }
     case BlockConfirmedNotify(block) => {
-
       blockCol.updateOne(equal("blockHash", block.id.toString), set("confirmed", true)).results()
       block.transactions.foreach(tx => {
         txCol.updateOne(equal("txHash", tx.id.toString), set("confirmed", true)).results()
-        //txCol.updateOne(equal("txHash", tx.id.toString), set("refBlockHash", block.id.toString)).results()
-        //txCol.updateOne(equal("txHash", tx.id.toString), set("refBlockHeight", block.height)).results()
       })
-
     }
     case AddTransactionNotify(tx) => {
-      //log.info("AddTransactionNotify")
-      //addTransaction(tx, None)
+      if (findTransaction(tx) == false)
+        addTransaction(tx, None)
+    }
+    case ForkSwitchNotify(from, to) => {
+      from.foreach(item => removeBlock(item.block))
+      to.foreach(item => addBlock(item.block))
     }
     case a: Any => {
       log.info(s"${sender().toString}, ${a.toString}")
     }
   }
 
-  private def findBlock(block: Block) = {
-
+  private def findTransaction(tx: Transaction): Boolean = {
+    txCol.find(equal("txHash", tx.id.toString)).results().size > 0
   }
 
-  private def findTransaction(tx: Transaction): Boolean = {
-    if (txCol.find(equal("txHash", tx.id.toString)).results().size > 0)
-      true
-    else
-      false
+  private def removeBlock(block: Block) = {
+    log.debug(s"MongodbPlugin remove block ${block.height()}  ${block.shortId()}")
+    blockCol.deleteOne(equal("blockHash", block.id().toString)).results()
+    block.transactions.foreach(tx => {
+      txCol.updateOne(equal("txHash", tx.id.toString), set("refBlockHash", "")).results()
+      txCol.updateOne(equal("txHash", tx.id.toString), set("refBlockHeight", Int.MaxValue)).results()
+      txCol.updateOne(equal("txHash", tx.id.toString), set("confirmed", false)).results()
+    })
   }
 
   private def addBlock(block: Block) = {
+    log.debug(s"MongodbPlugin add block ${block.height()}  ${block.shortId()}")
     val newBlock: Document = Document(
       "height" -> block.height(),
       "blockHash" -> block.id().toString,
@@ -86,8 +93,12 @@ class MongodbPlugin(settings: ApexSettings)
     blockCol.insertOne(newBlock).results()
 
     block.transactions.foreach(tx => {
-      //findTransaction(tx)
-      addTransaction(tx, Some(block))
+      if (findTransaction(tx)) {
+        txCol.updateOne(equal("txHash", tx.id.toString), set("refBlockHash", block.id.toString)).results()
+        txCol.updateOne(equal("txHash", tx.id.toString), set("refBlockHeight", block.height)).results()
+      }
+      else
+        addTransaction(tx, Some(block))
     })
   }
 
