@@ -40,8 +40,10 @@ class Node(val settings: ApexSettings)
 
   private val timeProvider = new NetworkTimeProvider(settings.ntp)
 
-  //private val mongodbPlugin = MongodbPluginRef(settings)
-  //notification.register(mongodbPlugin)
+  if (settings.plugins.mongodb.enabled) {
+    val mongodbPlugin = MongodbPluginRef(settings)
+    notification.register(mongodbPlugin)
+  }
 
   private val chain = Blockchain.populate(settings.chain, settings.consensus, notification)
 
@@ -50,7 +52,7 @@ class Node(val settings: ApexSettings)
 
   private val networkManager = NetworkManagerRef(settings.network, chain.getChainInfo, timeProvider, peerHandlerManager)
 
-  private val producer = ProducerRef(settings.consensus, peerHandlerManager)
+  private val producer = ProducerRef(settings.consensus)
 
   override def receive: Receive = {
     case task: AsyncTask => processAsyncTask(task)

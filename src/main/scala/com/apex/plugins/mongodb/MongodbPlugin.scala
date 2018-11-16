@@ -24,7 +24,7 @@ import scala.concurrent.ExecutionContext
 class MongodbPlugin(settings: ApexSettings)
                    (implicit ec: ExecutionContext) extends Actor with ApexLogging {
 
-  private val mongoClient: MongoClient = MongoClient()
+  private val mongoClient: MongoClient = MongoClient(settings.plugins.mongodb.uri)
 
   private val database: MongoDatabase = mongoClient.getDatabase("apex")
 

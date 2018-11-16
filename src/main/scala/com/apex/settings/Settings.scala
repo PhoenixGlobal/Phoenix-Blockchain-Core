@@ -45,7 +45,8 @@ case class ApexSettings(network: NetworkSettings,
                         ntp: NetworkTimeProviderSettings,
                         consensus: ConsensusSettings,
                         chain: ChainSettings,
-                        rpc: RPCSettings)
+                        rpc: RPCSettings,
+                        plugins: PluginsSettings)
 
 case class BlockBaseSettings(dir: String, cacheEnabled: Boolean, cacheSize: Int)
 
@@ -63,6 +64,9 @@ case class ChainSettings(blockBase: BlockBaseSettings,
                          forkBase: ForkBaseSettings,
                          minerAward: Double,
                          genesis: GenesisSettings)
+
+case class PluginsSettings(mongodb: MongodbSettings)
+case class MongodbSettings(enabled: Boolean, uri: String)
 
 case class ConsensusSettings(produceInterval: Int,
                              acceptableTimeError: Int,
