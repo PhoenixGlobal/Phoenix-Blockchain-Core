@@ -47,7 +47,6 @@ class Producer(settings: ConsensusSettings)
   private val scheduler = context.system.scheduler
   private val node = context.parent
 
-  private val blocksPerRound = settings.initialWitness.size * settings.producerRepetitions
   private val minProducingTime = settings.produceInterval / 10
   private val earlyMS = settings.produceInterval / 5
 
@@ -85,7 +84,7 @@ class Producer(settings: ConsensusSettings)
   }
 
   private def endProduce(chain: Blockchain): Unit = {
-    chain.produceBlockFinalize(Instant.now.toEpochMilli)
+    chain.produceBlockFinalize()
     scheduleBegin()
   }
 
@@ -120,7 +119,7 @@ class Producer(settings: ConsensusSettings)
     } else {
       val next = nextBlockTime(headTime, now)
       //println(s"head: $headTime, now: $now, next: $next, delta: ${headTime - now}")
-      val witness = getWitness(next)
+      val witness = ProducerUtil.getWitness(next, settings)
       val myTurn = witness.privkey.isDefined
       if (!myTurn) {
         val now = Instant.now.toEpochMilli
@@ -156,7 +155,7 @@ class Producer(settings: ConsensusSettings)
     if (myTurn && rest == 1) {
         delay = if (delay < earlyMS) 0 else delay - earlyMS
     }
-    println(s"now: $now, next: $next, delay: $delay, delta: ${next - now}, rest: $rest")
+    //log.info(s"now: $now, next: $next, delay: $delay, delta: ${next - now}, rest: $rest")
     calcDuration(delay.toInt)
   }
 
@@ -170,13 +169,6 @@ class Producer(settings: ConsensusSettings)
 
   private def calcDuration(delay: Int) = {
     Some(FiniteDuration(delay * 1000, TimeUnit.MICROSECONDS))
-  }
-
-  private def getWitness(time: Long): Witness = {
-    val slot = time / settings.produceInterval % blocksPerRound
-    val index = slot / settings.producerRepetitions
-    //println(s"$slot $index")
-    settings.initialWitness(index.toInt)
   }
 }
 
