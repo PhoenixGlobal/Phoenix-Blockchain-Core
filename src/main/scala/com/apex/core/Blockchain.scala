@@ -288,7 +288,7 @@ class LevelDBBlockchain(chainSettings: ChainSettings, consensusSettings: Consens
       val block = Block.build(header, pendingState.txs.clone)
       pendingState.txs.clear()
       if (tryInsertBlock(block, false)) {
-        log.info(s"block (${block.height}, ${block.timeStamp}) ${block.shortId} produced by ${block.header.producer.address.substring(0, 7)}")
+        log.info(s"block #${block.height} ${block.shortId} produced by ${block.header.producer.address.substring(0, 7)} ${block.header.timeString()}")
         notification.send(NewBlockProducedNotify(block))
         Some(block)
       } else {
@@ -417,20 +417,15 @@ class LevelDBBlockchain(chainSettings: ChainSettings, consensusSettings: Consens
 
   private def verifyTxTypeAndSignature(txs: Seq[Transaction]): Boolean = {
     var isValid = true
-    var index = 0
+    var minerTxNum = 0
     txs.foreach(tx => {
-      if (index == 0) {
-        if (tx.txType != TransactionType.Miner)
-          isValid = false
-      }
-      else {
-        if (tx.txType == TransactionType.Miner)
-          isValid = false
-        else if (!tx.verifySignature())
-          isValid = false
-      }
-      index += 1
+      if (tx.txType == TransactionType.Miner)
+        minerTxNum += 1
+      else if (!tx.verifySignature())
+        isValid = false
     })
+    if (minerTxNum > 1)
+      isValid = false
     isValid
   }
 

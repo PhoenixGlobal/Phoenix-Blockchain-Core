@@ -94,6 +94,7 @@ class Producer(settings: ConsensusSettings)
         producing(chain)
         true
       } else if (Instant.now.toEpochMilli <= nextTime(chain.getHeadTime)) {
+        log.info("now set enableProduce to true")
         enableProduce = true
         producing(chain)
         true

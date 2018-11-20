@@ -2,6 +2,7 @@ package com.apex.test
 
 import java.time.Instant
 
+import com.apex.consensus.ProducerUtil
 import com.apex.core._
 import com.apex.crypto.{BinaryData, Ecdsa, Fixed8, UInt160, UInt256}
 import com.apex.crypto.Ecdsa.{PrivateKey, PublicKey}
@@ -25,7 +26,41 @@ import scala.reflect.io.Directory
 //pub key hash160:        2ee607c3ed304353dd8a2d16636b46bd91d11152
 //Address:                AP6EUsRV9DCvbywpDFLXS3JhjRryFPe9Qo8
 //======
-
+//3
+//priv key raw:           43427dd5def74e97ab0409eaec3d64aff0557707a6edc1004d1c6e08ea705b45
+//priv key WIF format:    KyUTLv2BeP9SJD6Sa8aHBVmuRkgw9eThjNGJDE4PySEgf2TvCQCn
+//pub key (compressed):   03d7a23792639a9824d1013151711b521653f0c72563d69481bd914db75b03309d
+//pub key hash160:        00d08ce14267fbce154d2983b8723dd5ad2addd5
+//Address:                AP22p497htDs1SKXHjwyCgrYuFtTgcP5F5w
+//======
+//4
+//priv key raw:           adc2a556a1a1726ecce71eb38e306914af4d82f547a545eed677ba555409932f
+//priv key WIF format:    L33Uh9L35pSoEqBPP43U6rQcD2xMpJ7F4b3QMjUMAL6HZhxUqEGq
+//pub key (compressed):   03f5bb4aa2a0773d658e9df51865ffbfd41f98891bd1994337afae4dc27c1d1927
+//pub key hash160:        da55e4f6f216187259e7bc56cbb1587edc5156b4
+//Address:                APMrxRgE3ZBqw9nC249175AvjUcmYMCq7XX
+//======
+//5
+//priv key raw:           2cd68534541d6babbc8edb7a15036f8cee5f3506d667aecc022ffa1ea1b1b269
+//priv key WIF format:    KxisR46MUfkekvgfuuydTD91avsjxhoqs5S6Ech2uiG21RDUEbna
+//pub key (compressed):   03300f032f1d130956f0ff994cbd52cab3fc4167c0f6e96f1b5714da10ed51c1bd
+//pub key hash160:        63d15a28a09748540eca07aeabf3b831b3056ebe
+//Address:                APB4Hur58nvWWHuSE5qNQFWYPjZaKZetFAe
+//======
+//6
+//priv key raw:           0c165d5428409eef6e025d6fe827b3b0f595f5a1cc4051c9ff43a7f1e20fed56
+//priv key WIF format:    KwdCy3jFbU5MK4ZMbgKLTDkenhQgCU44hevVVXAv7ZUZRYJypqCB
+//pub key (compressed):   034a79dcbd7b6da30739516f00e0be2e8c511a9ee446cc7362b8a441504ec0e7bf
+//pub key hash160:        3a01649c803b08d4a3522c3ca49dedf687d576f9
+//Address:                AP7FD5j2aPj83dmb3xSJZVVJ1JwNLry74xa
+//======
+//7
+//priv key raw:           29e286f51e12df09f46b451d606650a0cce4b0d6d42a5d2e5450ab7c8b58a2c3
+//priv key WIF format:    Kxd8UDvptjG4AcT7k2ULe8tVkmfK5naXKc3gzrvRtg6msGLA3xLY
+//pub key (compressed):   03a549ab71a681d09bd090ed67bad589e55b582a2bbbdf3fb7d68ad3a71bfee211
+//pub key hash160:        3252379053bf9f8827896cf0a5ff2cbd6fdca06f
+//Address:                AP6YaVweecsk2sLRpSdUEwiQ2yE9WvitBtr
+//======
 
 @Test
 class BlockchainTest {
@@ -43,12 +78,17 @@ class BlockchainTest {
 
   val _acct1 = Ecdsa.PrivateKey.fromWIF("KwmuSp41VWBtGSWaQQ82ZRRSFzkJVTAyuDLQ9NzP9CPqLWirh4UQ").get
   val _acct2 = Ecdsa.PrivateKey.fromWIF("L32JpLopG2hWjEMSCkAjS1nUnPixVrDTPqFAGYbddQrtUjRfkjEP").get
+  val _acct3 = Ecdsa.PrivateKey.fromWIF("KyUTLv2BeP9SJD6Sa8aHBVmuRkgw9eThjNGJDE4PySEgf2TvCQCn").get
 
   private def makeTx(from: PrivateKey,
                      to: UInt160,
+                     amount: Fixed8,
                      nonce: Long,
-                     amount: Fixed8) = {
+                     txType: TransactionType.Value = TransactionType.Transfer) = {
 
+    val tx = new Transaction(txType, from.publicKey, to, "", amount, UInt256.Zero, nonce, "", "")
+    tx.sign(from)
+    tx
   }
 
   private def createChain(path: String): LevelDBBlockchain = {
@@ -88,6 +128,35 @@ class BlockchainTest {
       val balance2 = chain.getBalance(_acct2.publicKey.pubKeyHash)
       assert(balance2.get.get(UInt256.Zero).get == Fixed8.fromDecimal(234.2).value)
 
+      var blockTime = chain.getHeadTime() + _consensusSettings.produceInterval
+      chain.startProduceBlock(ProducerUtil.getWitness(blockTime, _consensusSettings), blockTime)
+
+      assert(chain.isProducingBlock())
+
+      // not enough coin
+      assert(!chain.addTransaction(makeTx(_acct1, UInt160.Zero, Fixed8.fromDecimal(123.13), 0)))
+      // not enough coin
+      assert(!chain.addTransaction(makeTx(_acct3, UInt160.Zero, Fixed8.fromDecimal(1), 0)))
+      // wrong nonce
+      assert(!chain.addTransaction(makeTx(_acct1, UInt160.Zero, Fixed8.fromDecimal(123), 1)))
+      assert(chain.addTransaction(makeTx(_acct1, UInt160.Zero, Fixed8.fromDecimal(1), 0)))
+      assert(!chain.addTransaction(makeTx(_acct1, UInt160.Zero, Fixed8.fromDecimal(2), 0)))
+      assert(chain.addTransaction(makeTx(_acct1, UInt160.Zero, Fixed8.fromDecimal(2), 1)))
+      assert(chain.addTransaction(makeTx(_acct1, _acct3.publicKey.pubKeyHash, Fixed8.fromDecimal(100), 2)))
+      assert(!chain.addTransaction(makeTx(_acct1, UInt160.Zero, Fixed8.fromDecimal(20.121), 3)))
+      assert(chain.addTransaction(makeTx(_acct1, UInt160.Zero, Fixed8.fromDecimal(20.02), 3)))
+
+      assert(!chain.addTransaction(makeTx(_acct3, UInt160.Zero, Fixed8.fromDecimal(100.1), 0)))
+      assert(chain.addTransaction(makeTx(_acct3, UInt160.Zero, Fixed8.fromDecimal(80), 0)))
+
+      val block1 = chain.produceBlockFinalize()
+      assert(block1.isDefined)
+      assert(block1.get.transactions.size == 6)
+      assert(!chain.isProducingBlock())
+      assert(chain.getHeight() == 1)
+      assert(chain.getHeadTime() == blockTime)
+      assert(chain.getBalance(_acct3.publicKey.pubKeyHash).get.get(UInt256.Zero).get == Fixed8.fromDecimal(20).value)
+      assert(chain.getBalance(_acct1.publicKey.pubKeyHash).get.get(UInt256.Zero).get == Fixed8.fromDecimal(0.1).value)
 
     }
     finally {

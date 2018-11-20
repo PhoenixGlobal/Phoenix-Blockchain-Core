@@ -1,7 +1,8 @@
 package com.apex.core
 
 import java.io.{ByteArrayInputStream, ByteArrayOutputStream, DataInputStream, DataOutputStream}
-
+import java.time.{Instant, ZoneId, ZonedDateTime}
+import java.time.format.DateTimeFormatter
 import com.apex.crypto.Ecdsa.{PrivateKey, PublicKey}
 import com.apex.crypto.{BinaryData, Crypto, UInt256}
 import play.api.libs.json.{JsValue, Json, Writes}
@@ -20,6 +21,12 @@ class BlockHeader(val index: Int,
       case that: BlockHeader => id.equals(that.id)
       case _ => false
     }
+  }
+
+  def timeString(): String = {
+    val zonedDateTimeUtc = ZonedDateTime.ofInstant(Instant.ofEpochMilli(timeStamp), ZoneId.of("UTC"))
+    val dateTimeFormatter = DateTimeFormatter.ofPattern("yyyy.MM.dd HH:mm:ss,SSS") // DateTimeFormatter.ISO_OFFSET_DATE_TIME
+    dateTimeFormatter.format(zonedDateTimeUtc)
   }
 
   def shortId(): String = {
@@ -81,6 +88,7 @@ object BlockHeader {
       "id" -> o.id.toString,
       "index" -> o.index,
       "timeStamp" -> o.timeStamp,
+      "time" -> o.timeString(),
       "merkleRoot" -> o.merkleRoot.toString,
       "prevBlock" -> o.prevBlock.toString,
       "producer" -> o.producer.toString,
