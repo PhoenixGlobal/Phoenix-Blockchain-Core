@@ -24,7 +24,7 @@ import scala.concurrent.ExecutionContext
 class MongodbPlugin(settings: ApexSettings)
                    (implicit ec: ExecutionContext) extends Actor with ApexLogging {
 
-  private val mongoClient: MongoClient = MongoClient()
+  private val mongoClient: MongoClient = MongoClient(settings.plugins.mongodb.uri)
 
   private val database: MongoDatabase = mongoClient.getDatabase("apex")
 
@@ -70,6 +70,7 @@ class MongodbPlugin(settings: ApexSettings)
     block.transactions.foreach(tx => {
       txCol.updateOne(equal("txHash", tx.id.toString), set("refBlockHash", "")).results()
       txCol.updateOne(equal("txHash", tx.id.toString), set("refBlockHeight", Int.MaxValue)).results()
+      txCol.updateOne(equal("txHash", tx.id.toString), set("refBlockTime", BsonDateTime(0))).results()
       txCol.updateOne(equal("txHash", tx.id.toString), set("confirmed", false)).results()
     })
   }
@@ -96,6 +97,7 @@ class MongodbPlugin(settings: ApexSettings)
       if (findTransaction(tx)) {
         txCol.updateOne(equal("txHash", tx.id.toString), set("refBlockHash", block.id.toString)).results()
         txCol.updateOne(equal("txHash", tx.id.toString), set("refBlockHeight", block.height)).results()
+        txCol.updateOne(equal("txHash", tx.id.toString), set("refBlockTime", BsonDateTime(block.timeStamp()))).results()
       }
       else
         addTransaction(tx, Some(block))
@@ -120,7 +122,8 @@ class MongodbPlugin(settings: ApexSettings)
 
     if (block.isDefined) {
       newTx += ("refBlockHash" -> block.get.id.toString,
-                "refBlockHeight" -> block.get.height)
+                "refBlockHeight" -> block.get.height,
+                "refBlockTime" -> BsonDateTime(block.get.timeStamp()))
     }
     else {
       newTx += ("refBlockHeight" -> Int.MaxValue)
@@ -140,6 +143,7 @@ class MongodbPlugin(settings: ApexSettings)
 
         txCol.createIndex(ascending("txHash")).results()
         txCol.createIndex(ascending("refBlockHeight")).results()
+        txCol.createIndex(ascending("refBlockTime")).results()
         txCol.createIndex(ascending("from")).results()
         txCol.createIndex(ascending("to")).results()
       }

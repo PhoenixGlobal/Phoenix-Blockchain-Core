@@ -28,35 +28,25 @@ import scala.concurrent.duration.FiniteDuration
 trait ProduceState
 
 case class NotSynced(nextProduceTime: Long, currTime: Long) extends ProduceState
-
 case class NotYet(nextProduceTime: Long, currTime: Long) extends ProduceState
-
 case class NotMyTurn(producer: String, pubKey: PublicKey) extends ProduceState
-
 case class TimeMissed(thisProduceTime: Long, currTime: Long) extends ProduceState
-
 case class Success(time: Long) extends ProduceState
-
 case class Failed(e: Throwable) extends ProduceState
 
 trait ProducerMessage
 
 case class ProducerStopMessage() extends ProducerMessage
+//case class NodeIsAliveMessage(node: ActorRef) extends ProducerMessage
+//case class BlockStartProduceMessage(witness: Witness) extends ProducerMessage
+//case class BlockFinalizeProduceMessage(witness: Witness, timeStamp: Long) extends ProducerMessage
 
-case class NodeIsAliveMessage(node: ActorRef) extends ProducerMessage
-
-case class BlockStartProduceMessage(witness: Witness) extends ProducerMessage
-
-case class BlockFinalizeProduceMessage(witness: Witness, timeStamp: Long) extends ProducerMessage
-
-class Producer(settings: ConsensusSettings,
-               peerHandlerManager: ActorRef)
+class Producer(settings: ConsensusSettings)
               (implicit ec: ExecutionContext) extends Actor with ApexLogging {
 
   private val scheduler = context.system.scheduler
   private val node = context.parent
 
-  private val blocksPerRound = settings.initialWitness.size * settings.producerRepetitions
   private val minProducingTime = settings.produceInterval / 10
   private val earlyMS = settings.produceInterval / 5
 
@@ -94,7 +84,7 @@ class Producer(settings: ConsensusSettings,
   }
 
   private def endProduce(chain: Blockchain): Unit = {
-    chain.produceBlockFinalize(Instant.now.toEpochMilli)
+    chain.produceBlockFinalize()
     scheduleBegin()
   }
 
@@ -104,6 +94,7 @@ class Producer(settings: ConsensusSettings,
         producing(chain)
         true
       } else if (Instant.now.toEpochMilli <= nextTime(chain.getHeadTime)) {
+        log.info("now set enableProduce to true")
         enableProduce = true
         producing(chain)
         true
@@ -129,7 +120,7 @@ class Producer(settings: ConsensusSettings,
     } else {
       val next = nextBlockTime(headTime, now)
       //println(s"head: $headTime, now: $now, next: $next, delta: ${headTime - now}")
-      val witness = getWitness(next)
+      val witness = ProducerUtil.getWitness(next, settings)
       val myTurn = witness.privkey.isDefined
       if (!myTurn) {
         val now = Instant.now.toEpochMilli
@@ -165,7 +156,7 @@ class Producer(settings: ConsensusSettings,
     if (myTurn && rest == 1) {
         delay = if (delay < earlyMS) 0 else delay - earlyMS
     }
-    println(s"now: $now, next: $next, delay: $delay, delta: ${next - now}, rest: $rest")
+    //log.info(s"now: $now, next: $next, delay: $delay, delta: ${next - now}, rest: $rest")
     calcDuration(delay.toInt)
   }
 
@@ -179,13 +170,6 @@ class Producer(settings: ConsensusSettings,
 
   private def calcDuration(delay: Int) = {
     Some(FiniteDuration(delay * 1000, TimeUnit.MICROSECONDS))
-  }
-
-  private def getWitness(time: Long): Witness = {
-    val slot = time / settings.produceInterval % blocksPerRound
-    val index = slot / settings.producerRepetitions
-    //println(s"$slot $index")
-    settings.initialWitness(index.toInt)
   }
 }
 
@@ -218,21 +202,18 @@ object ProducerUtil {
 }
 
 object ProducerRef {
-  def props(settings: ConsensusSettings,
-            peerHandlerManager: ActorRef)
+  def props(settings: ConsensusSettings)
            (implicit ec: ExecutionContext): Props = {
-    Props(new Producer(settings, peerHandlerManager))
+    Props(new Producer(settings))
   }
 
-  def apply(settings: ConsensusSettings,
-            peerHandlerManager: ActorRef)
+  def apply(settings: ConsensusSettings)
            (implicit system: ActorContext, ec: ExecutionContext): ActorRef = {
-    system.actorOf(props(settings, peerHandlerManager))
+    system.actorOf(props(settings))
   }
 
-  def apply(settings: ConsensusSettings,
-            peerHandlerManager: ActorRef, name: String)
+  def apply(settings: ConsensusSettings, name: String)
            (implicit system: ActorContext, ec: ExecutionContext): ActorRef = {
-    system.actorOf(props(settings, peerHandlerManager), name)
+    system.actorOf(props(settings), name)
   }
 }

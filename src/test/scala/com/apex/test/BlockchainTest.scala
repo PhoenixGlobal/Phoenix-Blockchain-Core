@@ -2,16 +2,94 @@ package com.apex.test
 
 import java.time.Instant
 
+import com.apex.consensus.ProducerUtil
 import com.apex.core._
-import com.apex.crypto.{BinaryData, UInt256}
+import com.apex.crypto.{BinaryData, Ecdsa, Fixed8, UInt160, UInt256}
 import com.apex.crypto.Ecdsa.{PrivateKey, PublicKey}
 import com.apex.settings._
 import org.junit.{AfterClass, Test}
 
 import scala.reflect.io.Directory
 
+//======
+//1
+//priv key raw:           108fd85be78e0dcc96b93c9c53c30281115ee453e9c472654fad985dcd7b91db
+//priv key WIF format:    KwmuSp41VWBtGSWaQQ82ZRRSFzkJVTAyuDLQ9NzP9CPqLWirh4UQ
+//pub key (compressed):   024f3076ac9b2b8ef8bf1c303c3ac3057472c9fa391df62c543789f34017168c62
+//pub key hash160:        c98bae4cc033c7e7bce053ebaa926bd61c120454
+//Address:                APLLBNZjMq4tFANSNHsEoXwGJ7NVfi4BxUa
+//======
+//2
+//priv key raw:           ad28867b93d8be8558d61ee58e971117142aefd28ebb54bf4f20792bfb7fab25
+//priv key WIF format:    L32JpLopG2hWjEMSCkAjS1nUnPixVrDTPqFAGYbddQrtUjRfkjEP
+//pub key (compressed):   02add2d02786ba350148aee109e67495d6c4c2dccd9b5aaa57ad866d7b6105ac8f
+//pub key hash160:        2ee607c3ed304353dd8a2d16636b46bd91d11152
+//Address:                AP6EUsRV9DCvbywpDFLXS3JhjRryFPe9Qo8
+//======
+//3
+//priv key raw:           43427dd5def74e97ab0409eaec3d64aff0557707a6edc1004d1c6e08ea705b45
+//priv key WIF format:    KyUTLv2BeP9SJD6Sa8aHBVmuRkgw9eThjNGJDE4PySEgf2TvCQCn
+//pub key (compressed):   03d7a23792639a9824d1013151711b521653f0c72563d69481bd914db75b03309d
+//pub key hash160:        00d08ce14267fbce154d2983b8723dd5ad2addd5
+//Address:                AP22p497htDs1SKXHjwyCgrYuFtTgcP5F5w
+//======
+//4
+//priv key raw:           adc2a556a1a1726ecce71eb38e306914af4d82f547a545eed677ba555409932f
+//priv key WIF format:    L33Uh9L35pSoEqBPP43U6rQcD2xMpJ7F4b3QMjUMAL6HZhxUqEGq
+//pub key (compressed):   03f5bb4aa2a0773d658e9df51865ffbfd41f98891bd1994337afae4dc27c1d1927
+//pub key hash160:        da55e4f6f216187259e7bc56cbb1587edc5156b4
+//Address:                APMrxRgE3ZBqw9nC249175AvjUcmYMCq7XX
+//======
+//5
+//priv key raw:           2cd68534541d6babbc8edb7a15036f8cee5f3506d667aecc022ffa1ea1b1b269
+//priv key WIF format:    KxisR46MUfkekvgfuuydTD91avsjxhoqs5S6Ech2uiG21RDUEbna
+//pub key (compressed):   03300f032f1d130956f0ff994cbd52cab3fc4167c0f6e96f1b5714da10ed51c1bd
+//pub key hash160:        63d15a28a09748540eca07aeabf3b831b3056ebe
+//Address:                APB4Hur58nvWWHuSE5qNQFWYPjZaKZetFAe
+//======
+//6
+//priv key raw:           0c165d5428409eef6e025d6fe827b3b0f595f5a1cc4051c9ff43a7f1e20fed56
+//priv key WIF format:    KwdCy3jFbU5MK4ZMbgKLTDkenhQgCU44hevVVXAv7ZUZRYJypqCB
+//pub key (compressed):   034a79dcbd7b6da30739516f00e0be2e8c511a9ee446cc7362b8a441504ec0e7bf
+//pub key hash160:        3a01649c803b08d4a3522c3ca49dedf687d576f9
+//Address:                AP7FD5j2aPj83dmb3xSJZVVJ1JwNLry74xa
+//======
+//7
+//priv key raw:           29e286f51e12df09f46b451d606650a0cce4b0d6d42a5d2e5450ab7c8b58a2c3
+//priv key WIF format:    Kxd8UDvptjG4AcT7k2ULe8tVkmfK5naXKc3gzrvRtg6msGLA3xLY
+//pub key (compressed):   03a549ab71a681d09bd090ed67bad589e55b582a2bbbdf3fb7d68ad3a71bfee211
+//pub key hash160:        3252379053bf9f8827896cf0a5ff2cbd6fdca06f
+//Address:                AP6YaVweecsk2sLRpSdUEwiQ2yE9WvitBtr
+//======
+
 @Test
 class BlockchainTest {
+
+  val _produceInterval = 2000
+
+  val _witness1 = Witness("init1",
+    PublicKey("022ac01a1ea9275241615ea6369c85b41e2016abc47485ec616c3c583f1b92a5c8"),
+    Some(new PrivateKey(BinaryData("efc382ccc0358f468c2a80f3738211be98e5ae419fc0907cb2f51d3334001471"))))
+  val _witness2 = Witness("init2",
+    PublicKey("022ac01a1ea9275241615ea6369c85b41e2016abc47485ec616c3c583f1b92a5c8"),
+    Some(new PrivateKey(BinaryData("efc382ccc0358f468c2a80f3738211be98e5ae419fc0907cb2f51d3334001471"))))
+
+  val _consensusSettings = ConsensusSettings(_produceInterval, 500, 1, Array(_witness1, _witness2))
+
+  val _acct1 = Ecdsa.PrivateKey.fromWIF("KwmuSp41VWBtGSWaQQ82ZRRSFzkJVTAyuDLQ9NzP9CPqLWirh4UQ").get
+  val _acct2 = Ecdsa.PrivateKey.fromWIF("L32JpLopG2hWjEMSCkAjS1nUnPixVrDTPqFAGYbddQrtUjRfkjEP").get
+  val _acct3 = Ecdsa.PrivateKey.fromWIF("KyUTLv2BeP9SJD6Sa8aHBVmuRkgw9eThjNGJDE4PySEgf2TvCQCn").get
+
+  private def makeTx(from: PrivateKey,
+                     to: UInt160,
+                     amount: Fixed8,
+                     nonce: Long,
+                     txType: TransactionType.Value = TransactionType.Transfer) = {
+
+    val tx = new Transaction(txType, from.publicKey, to, "", amount, UInt256.Zero, nonce, "", "")
+    tx.sign(from)
+    tx
+  }
 
   private def createChain(path: String): LevelDBBlockchain = {
     val baseDir = s"BlockchainTest/$path"
@@ -23,44 +101,74 @@ class BlockchainTest {
       GenesisSettings(Instant.EPOCH,
         "03b4534b44d1da47e4b4a504a210401a583f860468dec766f507251a057594e682",
         "7a93d447bffe6d89e690f529a3a0bdff8ff6169172458e04849ef1d4eafd7f86",
-        Array(CoinAirdrop("APEwS7ZiA4HNJAMznmjaupUtFLx73EhaGeS", 1.1),
-          CoinAirdrop("APLUf5g4YDghJTFZrkkLMjeZVkVDKxVMvW1", 2.2))
+        Array(CoinAirdrop(_acct1.publicKey.address, 123.12),
+          CoinAirdrop(_acct2.publicKey.address, 234.2))
       )
     )
-    val consensusSettings = ConsensusSettings(2000, 500, 1,
-      Array(
-        Witness("init1", PublicKey("022ac01a1ea9275241615ea6369c85b41e2016abc47485ec616c3c583f1b92a5c8"),
-          Some(new PrivateKey(BinaryData("efc382ccc0358f468c2a80f3738211be98e5ae419fc0907cb2f51d3334001471")))
-        ),
-        Witness("init2", PublicKey("022ac01a1ea9275241615ea6369c85b41e2016abc47485ec616c3c583f1b92a5c8"),
-          Some(new PrivateKey(BinaryData("efc382ccc0358f468c2a80f3738211be98e5ae419fc0907cb2f51d3334001471")))
-        )
-      )
-    )
-    Blockchain.populate(chainSetting, consensusSettings, Notification())
+
+    Blockchain.populate(chainSetting, _consensusSettings, Notification())
   }
 
   @Test
-  def testTryInsertBlock1(): Unit = {
-    val chain = createChain("TryInsertBlock1")
+  def testCreateChain(): Unit = {
+    val chain = createChain("testCreateChain")
     try {
-      val header = BlockHeader.build(
-        1, 0, UInt256.Zero,
-        UInt256.Zero, PublicKey("022ac01a1ea9275241615ea6369c85b41e2016abc47485ec616c3c583f1b92a5c8"),
-        new PrivateKey(BinaryData("efc382ccc0358f468c2a80f3738211be98e5ae419fc0907cb2f51d3334001471")))
-      val block = Block.build(header, Seq.empty)
-      assert(chain.tryInsertBlock(block, true) == false)
+      //      val header = BlockHeader.build(
+      //        1, 0, UInt256.Zero,
+      //        UInt256.Zero, PublicKey("022ac01a1ea9275241615ea6369c85b41e2016abc47485ec616c3c583f1b92a5c8"),
+      //        new PrivateKey(BinaryData("efc382ccc0358f468c2a80f3738211be98e5ae419fc0907cb2f51d3334001471")))
+      //      val block = Block.build(header, Seq.empty)
+      //      assert(chain.tryInsertBlock(block, true) == false)
+
+      assert(chain.getHeight() == 0)
+
+      val balance1 = chain.getBalance(_acct1.publicKey.pubKeyHash)
+      assert(balance1.get.get(UInt256.Zero).get == Fixed8.fromDecimal(123.12).value)
+
+      val balance2 = chain.getBalance(_acct2.publicKey.pubKeyHash)
+      assert(balance2.get.get(UInt256.Zero).get == Fixed8.fromDecimal(234.2).value)
+
+      var blockTime = chain.getHeadTime() + _consensusSettings.produceInterval
+      chain.startProduceBlock(ProducerUtil.getWitness(blockTime, _consensusSettings), blockTime)
+
+      assert(chain.isProducingBlock())
+
+      // not enough coin
+      assert(!chain.addTransaction(makeTx(_acct1, UInt160.Zero, Fixed8.fromDecimal(123.13), 0)))
+      // not enough coin
+      assert(!chain.addTransaction(makeTx(_acct3, UInt160.Zero, Fixed8.fromDecimal(1), 0)))
+      // wrong nonce
+      assert(!chain.addTransaction(makeTx(_acct1, UInt160.Zero, Fixed8.fromDecimal(123), 1)))
+      assert(chain.addTransaction(makeTx(_acct1, UInt160.Zero, Fixed8.fromDecimal(1), 0)))
+      assert(!chain.addTransaction(makeTx(_acct1, UInt160.Zero, Fixed8.fromDecimal(2), 0)))
+      assert(chain.addTransaction(makeTx(_acct1, UInt160.Zero, Fixed8.fromDecimal(2), 1)))
+      assert(chain.addTransaction(makeTx(_acct1, _acct3.publicKey.pubKeyHash, Fixed8.fromDecimal(100), 2)))
+      assert(!chain.addTransaction(makeTx(_acct1, UInt160.Zero, Fixed8.fromDecimal(20.121), 3)))
+      assert(chain.addTransaction(makeTx(_acct1, UInt160.Zero, Fixed8.fromDecimal(20.02), 3)))
+
+      assert(!chain.addTransaction(makeTx(_acct3, UInt160.Zero, Fixed8.fromDecimal(100.1), 0)))
+      assert(chain.addTransaction(makeTx(_acct3, UInt160.Zero, Fixed8.fromDecimal(80), 0)))
+
+      val block1 = chain.produceBlockFinalize()
+      assert(block1.isDefined)
+      assert(block1.get.transactions.size == 6)
+      assert(!chain.isProducingBlock())
+      assert(chain.getHeight() == 1)
+      assert(chain.getHeadTime() == blockTime)
+      assert(chain.getBalance(_acct3.publicKey.pubKeyHash).get.get(UInt256.Zero).get == Fixed8.fromDecimal(20).value)
+      assert(chain.getBalance(_acct1.publicKey.pubKeyHash).get.get(UInt256.Zero).get == Fixed8.fromDecimal(0.1).value)
+
     }
     finally {
       chain.close()
     }
   }
-  
 }
 
 object BlockchainTest {
   @AfterClass
   def cleanUp: Unit = {
+    println("clean Directory")
     Directory("BlockchainTest").deleteRecursively()
   }
 }

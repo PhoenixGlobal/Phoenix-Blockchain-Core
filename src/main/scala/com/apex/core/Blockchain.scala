@@ -48,7 +48,7 @@ trait Blockchain extends Iterable[Block] with ApexLogging {
 
   def addTransaction(tx: Transaction): Boolean
 
-  def produceBlockFinalize(endTime: Long): Option[Block]
+  def produceBlockFinalize(): Option[Block]
 
   def isProducingBlock(): Boolean
 
@@ -223,7 +223,7 @@ class LevelDBBlockchain(chainSettings: ChainSettings, consensusSettings: Consens
   }
 
   override def startProduceBlock(producer: Witness, blockTime: Long): Unit = {
-    require(pendingState.txs.isEmpty)
+    require(!isProducingBlock())
     pendingState.set(producer, blockTime)
     log.debug(s"start block at: ${pendingState.startTime}")
 
@@ -270,8 +270,9 @@ class LevelDBBlockchain(chainSettings: ChainSettings, consensusSettings: Consens
     added
   }
 
-  override def produceBlockFinalize(endTime: Long): Option[Block] = {
-    if (pendingState.txs.isEmpty) {
+  override def produceBlockFinalize(): Option[Block] = {
+    val endTime = Instant.now.toEpochMilli
+    if (!isProducingBlock()) {
       log.info("block canceled")
       None
     } else {
@@ -287,7 +288,7 @@ class LevelDBBlockchain(chainSettings: ChainSettings, consensusSettings: Consens
       val block = Block.build(header, pendingState.txs.clone)
       pendingState.txs.clear()
       if (tryInsertBlock(block, false)) {
-        log.info(s"block (${block.height}, ${block.timeStamp}) ${block.shortId} produced by ${block.header.producer.address.substring(0, 7)}")
+        log.info(s"block #${block.height} ${block.shortId} produced by ${block.header.producer.address.substring(0, 7)} ${block.header.timeString()}")
         notification.send(NewBlockProducedNotify(block))
         Some(block)
       } else {
@@ -298,8 +299,7 @@ class LevelDBBlockchain(chainSettings: ChainSettings, consensusSettings: Consens
 
   override def tryInsertBlock(block: Block, doApply: Boolean): Boolean = {
     var inserted = false
-
-    if (!pendingState.txs.isEmpty) {
+    if (isProducingBlock()) {
       pendingState.txs.foreach(tx => {
         if (tx.txType != TransactionType.Miner)
           unapplyTxs += (tx.id -> tx)
@@ -349,19 +349,19 @@ class LevelDBBlockchain(chainSettings: ChainSettings, consensusSettings: Consens
     //      rollBack()
     //    }
     if (!verify || verifyBlock(block)) {
-      if (enableSession) {
+      if (enableSession)
         dataBase.startSession()
-      }
       block.transactions.foreach(tx => {
-        if (!applyTransaction(tx))
+        if (applied && !applyTransaction(tx))
           applied = false
       })
+      if (enableSession && !applied)
+        dataBase.rollBack()
     }
     else
       applied = false
     if (!applied) {
       log.error(s"Block apply fail #${block.height()} ${block.shortId}")
-      //TODO: dataBase.rollBack() ?
     }
     applied
   }
@@ -407,7 +407,7 @@ class LevelDBBlockchain(chainSettings: ChainSettings, consensusSettings: Consens
     }
     else if (!block.merkleRoot().equals(block.header.merkleRoot))
       false
-    else if (!block.transactions.forall(verifyTransaction))
+    else if (!verifyTxTypeAndSignature(block.transactions))
       false
     else if (!verifyRegisterNames(block.transactions))
       false
@@ -415,28 +415,28 @@ class LevelDBBlockchain(chainSettings: ChainSettings, consensusSettings: Consens
       true
   }
 
-  // TODO: merge with applyTransaction()
-  private def verifyTransaction(tx: Transaction): Boolean = {
-    def checkAmount(): Boolean = {
-      // TODO
-      true
-    }
-
-    if (tx.txType == TransactionType.Miner) {
-      // TODO check miner and only one miner tx
-      true
-    }
-    else {
-      var isValid = tx.verifySignature()
-      // More TODO
-      isValid && checkAmount()
-    }
+  private def verifyTxTypeAndSignature(txs: Seq[Transaction]): Boolean = {
+    var isValid = true
+    var minerTxNum = 0
+    txs.foreach(tx => {
+      if (tx.txType == TransactionType.Miner)
+        minerTxNum += 1
+      else if (!tx.verifySignature())
+        isValid = false
+    })
+    if (minerTxNum > 1)
+      isValid = false
+    isValid
   }
 
   private def verifyHeader(header: BlockHeader): Boolean = {
     val prevBlock = forkBase.get(header.prevBlock)
     if (prevBlock.isEmpty) {
       log.info("verifyHeader error: prevBlock not found")
+      false
+    }
+    else if (header.timeStamp <= prevBlock.get.block.header.timeStamp) {
+      log.info(s"verifyHeader error: timeStamp not valid  ${header.timeStamp}  ${prevBlock.get.block.header.timeStamp}")
       false
     }
     else if (header.index != prevBlock.get.block.height() + 1) {
