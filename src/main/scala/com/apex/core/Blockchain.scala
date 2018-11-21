@@ -119,10 +119,6 @@ class LevelDBBlockchain(chainSettings: ChainSettings, consensusSettings: Consens
 
   private val genesisBlock: Block = buildGenesisBlock() //Block.build(genesisBlockHeader, genesisTxs)
 
-  private var latestHeader: BlockHeader = genesisBlock.header
-
-  //  private var latestProdState: ProducerStatus = null
-
   //  private val pendingTxs = ArrayBuffer.empty[Transaction] //TODO: change to seq map // TODO: save to DB?
   private val unapplyTxs = mutable.Map.empty[UInt256, Transaction] // TODO: save to DB?
 
@@ -167,7 +163,6 @@ class LevelDBBlockchain(chainSettings: ChainSettings, consensusSettings: Consens
   }
 
   override def getHeadTime(): Long = {
-    //    latestHeader.timeStamp
     forkBase.head.map(_.block.timeStamp).getOrElse(0)
   }
 
@@ -310,18 +305,14 @@ class LevelDBBlockchain(chainSettings: ChainSettings, consensusSettings: Consens
 
     if (forkBase.head.get.block.id.equals(block.prev())) {
       if (doApply == false) { // check first !
-        if (forkBase.add(block)) {
+        if (forkBase.add(block))
           inserted = true
-          latestHeader = block.header
-        }
         else
           log.error(s"Error during forkBase add block ${block.height()}  ${block.shortId}")
       }
       else if (applyBlock(block)) {
-        if (forkBase.add(block)) {
+        if (forkBase.add(block))
           inserted = true
-          latestHeader = block.header
-        }
         else
           log.error(s"Error during forkBase add block ${block.height()}  ${block.shortId}")
       }
@@ -419,8 +410,11 @@ class LevelDBBlockchain(chainSettings: ChainSettings, consensusSettings: Consens
     var isValid = true
     var minerTxNum = 0
     txs.foreach(tx => {
-      if (tx.txType == TransactionType.Miner)
+      if (tx.txType == TransactionType.Miner) {
         minerTxNum += 1
+        if (tx.amount.value != minerAward.value)
+          isValid = false
+      }
       else if (!tx.verifySignature())
         isValid = false
     })
@@ -431,24 +425,29 @@ class LevelDBBlockchain(chainSettings: ChainSettings, consensusSettings: Consens
 
   private def verifyHeader(header: BlockHeader): Boolean = {
     val prevBlock = forkBase.get(header.prevBlock)
+    val now = Instant.now.toEpochMilli
     if (prevBlock.isEmpty) {
-      log.info("verifyHeader error: prevBlock not found")
+      log.error("verifyHeader error: prevBlock not found")
       false
     }
     else if (header.timeStamp <= prevBlock.get.block.header.timeStamp) {
-      log.info(s"verifyHeader error: timeStamp not valid  ${header.timeStamp}  ${prevBlock.get.block.header.timeStamp}")
+      log.error(s"verifyHeader error: timeStamp not valid  ${header.timeStamp}  ${prevBlock.get.block.header.timeStamp}")
+      false
+    }
+    else if (header.timeStamp - now > 2000) {
+      log.error(s"verifyHeader error: timeStamp too far in future. now=$now timeStamp=${header.timeStamp}")
       false
     }
     else if (header.index != prevBlock.get.block.height() + 1) {
-      log.info(s"verifyHeader error: index error ${header.index} ${prevBlock.get.block.height()}")
+      log.error(s"verifyHeader error: index error ${header.index} ${prevBlock.get.block.height()}")
       false
     }
     else if (!ProducerUtil.isProducerValid(header.timeStamp, header.producer, consensusSettings)) {
-      log.info("verifyHeader error: producer not valid")
+      log.error("verifyHeader error: producer not valid")
       false
     }
     else if (!header.verifySig()) {
-      log.info("verifyHeader error: verifySig fail")
+      log.error("verifyHeader error: verifySig fail")
       false
     }
     else {
@@ -504,7 +503,7 @@ class LevelDBBlockchain(chainSettings: ChainSettings, consensusSettings: Consens
 
     require(forkBase.head.map(_.block.height).get >= blockBase.head.map(_.index).get)
 
-    latestHeader = forkBase.head.get.block.header
+    val latestHeader = forkBase.head.get.block.header
 
     log.info(s"populate() latest block ${latestHeader.index} ${latestHeader.shortId()}")
   }

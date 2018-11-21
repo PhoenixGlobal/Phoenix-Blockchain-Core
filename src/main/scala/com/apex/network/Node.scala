@@ -104,7 +104,7 @@ class Node(val settings: ApexSettings)
       case GetBlocksCmd() => {
         val blockNum = chain.getHeight()
         val blocks = ArrayBuffer.empty[Block]
-        for (i <- blockNum - 2 to blockNum) {
+        for (i <- blockNum - 5 to blockNum) {
           if (i >= 0)
             blocks.append(chain.getBlock(i).get)
         }

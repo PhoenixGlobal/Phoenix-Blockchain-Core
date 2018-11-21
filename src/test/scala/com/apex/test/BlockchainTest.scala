@@ -4,11 +4,12 @@ import java.time.Instant
 
 import com.apex.consensus.ProducerUtil
 import com.apex.core._
-import com.apex.crypto.{BinaryData, Ecdsa, Fixed8, UInt160, UInt256}
+import com.apex.crypto.{BinaryData, Crypto, Ecdsa, Fixed8, MerkleTree, UInt160, UInt256}
 import com.apex.crypto.Ecdsa.{PrivateKey, PublicKey}
 import com.apex.settings._
 import org.junit.{AfterClass, Test}
 
+import scala.collection.mutable.ArrayBuffer
 import scala.reflect.io.Directory
 
 //======
@@ -65,20 +66,30 @@ import scala.reflect.io.Directory
 @Test
 class BlockchainTest {
 
+  Directory("BlockchainTest").deleteRecursively()
+
   val _produceInterval = 2000
+
+  val _minerAward: Double = 12.3
 
   val _witness1 = Witness("init1",
     PublicKey("022ac01a1ea9275241615ea6369c85b41e2016abc47485ec616c3c583f1b92a5c8"),
     Some(new PrivateKey(BinaryData("efc382ccc0358f468c2a80f3738211be98e5ae419fc0907cb2f51d3334001471"))))
   val _witness2 = Witness("init2",
-    PublicKey("022ac01a1ea9275241615ea6369c85b41e2016abc47485ec616c3c583f1b92a5c8"),
-    Some(new PrivateKey(BinaryData("efc382ccc0358f468c2a80f3738211be98e5ae419fc0907cb2f51d3334001471"))))
+    PublicKey("03c3333373adc0636b1d67d4bca3d8b34a53d663698119369981e67866250d3a74"),
+    Some(new PrivateKey(BinaryData("cc7b7fa6e706944fa2d75652065f95ef2f364316e172601320655aac0e648165"))))
+  val _witness3 = Witness("init3",
+    PublicKey("020550de6ce7ed53ff018cccf1095893edba43f798252d6983e0fd2ca5af3ee0da"),
+    Some(new PrivateKey(BinaryData("db71fe7c0ac4ca3e8cef95bf55cf535eaa8fe0c80d18e0cb19af8d7071b8a184"))))
 
   val _consensusSettings = ConsensusSettings(_produceInterval, 500, 1, Array(_witness1, _witness2))
 
   val _acct1 = Ecdsa.PrivateKey.fromWIF("KwmuSp41VWBtGSWaQQ82ZRRSFzkJVTAyuDLQ9NzP9CPqLWirh4UQ").get
   val _acct2 = Ecdsa.PrivateKey.fromWIF("L32JpLopG2hWjEMSCkAjS1nUnPixVrDTPqFAGYbddQrtUjRfkjEP").get
   val _acct3 = Ecdsa.PrivateKey.fromWIF("KyUTLv2BeP9SJD6Sa8aHBVmuRkgw9eThjNGJDE4PySEgf2TvCQCn").get
+  val _acct4 = Ecdsa.PrivateKey.fromWIF("L33Uh9L35pSoEqBPP43U6rQcD2xMpJ7F4b3QMjUMAL6HZhxUqEGq").get
+
+  private val minerCoinFrom = PublicKey(BinaryData("02866facba8742cd702b302021a9588e78b3cd96599a3b1c85688d6dc0a72585e6"))
 
   private def makeTx(from: PrivateKey,
                      to: UInt160,
@@ -91,13 +102,38 @@ class BlockchainTest {
     tx
   }
 
+  private def makeBlock(preBlock: Block,
+                        txs: Seq[Transaction],
+                        award: Double = _minerAward): Block = {
+    val blockTime = preBlock.header.timeStamp + _consensusSettings.produceInterval
+    val miner = ProducerUtil.getWitness(blockTime, _consensusSettings)
+
+    val minerTx = new Transaction(TransactionType.Miner, minerCoinFrom,
+      miner.pubkey.pubKeyHash, "", Fixed8.fromDecimal(award), UInt256.Zero,
+      preBlock.height + 1,
+      BinaryData(Crypto.randomBytes(8)), // add random bytes to distinct different blocks with same block index during debug in some cases
+      BinaryData.empty
+    )
+
+    val allTxs = ArrayBuffer.empty[Transaction]
+
+    allTxs.append(minerTx)
+    txs.foreach(allTxs.append(_))
+
+    val header: BlockHeader = BlockHeader.build(preBlock.header.index + 1,
+      blockTime, MerkleTree.root(allTxs.map(_.id)),
+      preBlock.id(), miner.pubkey, miner.privkey.get)
+
+    Block.build(header, allTxs)
+  }
+
   private def createChain(path: String): LevelDBBlockchain = {
     val baseDir = s"BlockchainTest/$path"
     val chainSetting = ChainSettings(
       BlockBaseSettings(s"$baseDir/block", false, 0),
       DataBaseSettings(s"$baseDir/data", false, 0),
       ForkBaseSettings(s"$baseDir/fork", false, 0),
-      10,
+      _minerAward,
       GenesisSettings(Instant.EPOCH,
         "03b4534b44d1da47e4b4a504a210401a583f860468dec766f507251a057594e682",
         "7a93d447bffe6d89e690f529a3a0bdff8ff6169172458e04849ef1d4eafd7f86",
@@ -157,6 +193,30 @@ class BlockchainTest {
       assert(chain.getHeadTime() == blockTime)
       assert(chain.getBalance(_acct3.publicKey.pubKeyHash).get.get(UInt256.Zero).get == Fixed8.fromDecimal(20).value)
       assert(chain.getBalance(_acct1.publicKey.pubKeyHash).get.get(UInt256.Zero).get == Fixed8.fromDecimal(0.1).value)
+
+      val block2 = makeBlock(block1.get, Seq(makeTx(_acct3, _acct4.publicKey.pubKeyHash, Fixed8.fromDecimal(11), 1)))
+      assert(chain.tryInsertBlock(block2, true))
+
+      assert(chain.getBalance(_acct4.publicKey.pubKeyHash).get.get(UInt256.Zero).get == Fixed8.fromDecimal(11).value)
+
+      assert(chain.getBalance(_acct3.publicKey.pubKeyHash).get.get(UInt256.Zero).get == Fixed8.fromDecimal(9).value)
+
+      assert(!chain.tryInsertBlock(makeBlock(block2, Seq.empty[Transaction], _minerAward + 0.1), true))
+
+      val block22 = makeBlock(block1.get, Seq.empty[Transaction])
+      assert(chain.tryInsertBlock(block22, true))
+
+      assert(chain.head.id() == block2.id())
+      assert(chain.getLatestHeader().id() == block2.id())
+
+      val block33 = makeBlock(block22, Seq.empty[Transaction])
+      assert(chain.tryInsertBlock(block33, true))
+
+      assert(chain.head.id() == block33.id())
+      assert(chain.getLatestHeader().id() == block33.id())
+
+      assert(chain.getBalance(_acct3.publicKey.pubKeyHash).get.get(UInt256.Zero).get == Fixed8.fromDecimal(20).value)
+      assert(chain.getBalance(_acct4.publicKey.pubKeyHash).isEmpty)
 
     }
     finally {
