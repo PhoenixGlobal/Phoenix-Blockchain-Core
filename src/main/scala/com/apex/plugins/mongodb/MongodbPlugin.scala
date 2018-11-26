@@ -140,6 +140,7 @@ class MongodbPlugin(settings: ApexSettings)
 
         blockCol.createIndex(ascending("height")).results()
         blockCol.createIndex(ascending("blockHash")).results()
+        blockCol.createIndex(ascending("timeStamp")).results()
 
         txCol.createIndex(ascending("txHash")).results()
         txCol.createIndex(ascending("refBlockHeight")).results()
