@@ -322,9 +322,10 @@ class LevelDBBlockchain(chainSettings: ChainSettings, consensusSettings: Consens
         notification.send(BlockAddedToHeadNotify(block))
     }
     else {
-      log.debug(s"received block try add to minor fork chain. block ${block.height} ${block.shortId}")
-      if (forkBase.add(block))
+      if (forkBase.add(block)) {
+        log.info(s"received block added to minor fork chain. block ${block.height} ${block.shortId}")
         inserted = true
+      }
       else
         log.debug("add fail")
     }

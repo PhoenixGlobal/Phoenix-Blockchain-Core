@@ -54,6 +54,7 @@ class MongodbPlugin(settings: ApexSettings)
         addTransaction(tx, None)
     }
     case ForkSwitchNotify(from, to) => {
+      log.info("MongodbPlugin got ForkSwitchNotify")
       from.foreach(item => removeBlock(item.block))
       to.foreach(item => addBlock(item.block))
     }
@@ -67,19 +68,20 @@ class MongodbPlugin(settings: ApexSettings)
   }
 
   private def removeBlock(block: Block) = {
-    log.debug(s"MongodbPlugin remove block ${block.height()}  ${block.shortId()}")
+    log.info(s"MongodbPlugin remove block ${block.height()}  ${block.shortId()}")
     blockCol.deleteOne(equal("blockHash", block.id().toString)).results()
     block.transactions.foreach(tx => {
-      txCol.updateOne(equal("txHash", tx.id.toString), set("refBlockHash", "")).results()
-      txCol.updateOne(equal("txHash", tx.id.toString), set("refBlockHeight", Int.MaxValue)).results()
-      txCol.updateOne(equal("txHash", tx.id.toString), set("refBlockTime", BsonDateTime(0))).results()
-      txCol.updateOne(equal("txHash", tx.id.toString), set("confirmed", false)).results()
+      //txCol.updateOne(equal("txHash", tx.id.toString), set("refBlockHash", "")).results()
+      //txCol.updateOne(equal("txHash", tx.id.toString), set("refBlockHeight", Int.MaxValue)).results()
+      //txCol.updateOne(equal("txHash", tx.id.toString), set("refBlockTime", BsonDateTime(0))).results()
+      //txCol.updateOne(equal("txHash", tx.id.toString), set("confirmed", false)).results()
+      txCol.deleteOne(equal("txHash", tx.id.toString)).results()
     })
     updateTps(block, false)
   }
 
   private def addBlock(block: Block) = {
-    log.debug(s"MongodbPlugin add block ${block.height()}  ${block.shortId()}")
+    log.info(s"MongodbPlugin add block ${block.height()}  ${block.shortId()}")
     val newBlock: Document = Document(
       "height" -> block.height(),
       "blockHash" -> block.id().toString,
