@@ -98,18 +98,29 @@ class PendingState {
 }
 
 class LevelDBBlockchain(chainSettings: ChainSettings, consensusSettings: ConsensusSettings, notification: Notification) extends Blockchain {
+
+  log.info("LevelDBBlockchain starting")
+
   private val genesisProducer = PublicKey(BinaryData(chainSettings.genesis.publicKey)) // TODO: read from settings
   private val genesisProducerPrivKey = new PrivateKey(BinaryData(chainSettings.genesis.privateKey))
 
+  log.info("creating BlockBase")
+
   private val blockBase = new BlockBase(chainSettings.blockBase)
 
+  log.info("creating DataBase")
+
   private val dataBase = new DataBase(chainSettings.dataBase)
+
+  log.info("creating ForkBase")
 
   private val forkBase = new ForkBase(
     chainSettings.forkBase,
     consensusSettings.initialWitness,
     onConfirmed,
     onSwitch)
+
+  log.info("creating Genesis Block")
 
   // the zero is not valid pub key, and the NULL is special to handle,
   // so just set minerCoinFrom to any valid compressed pub key, it will not be seen by user
@@ -168,6 +179,10 @@ class LevelDBBlockchain(chainSettings: ChainSettings, consensusSettings: Consens
 
   override def getLatestHeader(): BlockHeader = {
     forkBase.head.map(_.block.header).getOrElse(genesisBlock.header)
+  }
+
+  def getConfirmedHeader(): Option[BlockHeader] = {
+    blockBase.head()
   }
 
   override def headTimeSinceGenesis(): Long = {
@@ -489,6 +504,7 @@ class LevelDBBlockchain(chainSettings: ChainSettings, consensusSettings: Consens
   }
 
   private def populate(): Unit = {
+    log.info("chain populate")
     if (forkBase.head.isEmpty) {
       applyBlock(genesisBlock, false, false)
       blockBase.add(genesisBlock)
