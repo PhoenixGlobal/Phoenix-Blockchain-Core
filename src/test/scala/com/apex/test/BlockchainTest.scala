@@ -254,8 +254,8 @@ class BlockchainTest {
 
 
   @Test
-  def testChainFork(): Unit = {
-    val chain = createChain("testChainFork")
+  def testChainFork1(): Unit = {
+    val chain = createChain("testChainFork1")
     try {
       //      val header = BlockHeader.build(
       //        1, 0, UInt256.Zero,
@@ -328,15 +328,19 @@ class BlockchainTest {
       assert(chain.tryInsertBlock(block6, true))
 
       assert(chain.getHeight() == 6)
-      assert(chain.getLatestHeader().id() == block999.get.id())
+      assert(chain.getLatestHeader().id() == block6.id())
 
       val block7 = makeBlockByTime(block6, time10)                  // b
       assert(chain.tryInsertBlock(block7, true))
+
+      assert(chain.getLatestHeader().id() == block7.id())
+      assert(chain.getConfirmedHeader().get.id() == block3.id())
 
       val block8 = makeBlockByTime(block7, time11)                  // c
       assert(chain.tryInsertBlock(block8, true))
 
       assert(chain.getHeight() == 8)
+      assert(chain.getConfirmedHeader().get.id() == block3.id())
 
       val block9 = makeBlockByTime(block8, time13)                  // a
       assert(chain.tryInsertBlock(block9, true))
@@ -349,16 +353,109 @@ class BlockchainTest {
       val block11 = makeBlockByTime(block10, time15)                  // c
       assert(chain.tryInsertBlock(block11, true))
 
+      assert(chain.getConfirmedHeader().get.id() == block8.id())
 
       assert(chain.getHeight() == 11)
-
-
 
     }
     finally {
       chain.close()
     }
   }
+
+
+  @Test
+  def testChainFork2(): Unit = {
+    val chain = createChain("testChainFork2")
+    try {
+      //      val header = BlockHeader.build(
+      //        1, 0, UInt256.Zero,
+      //        UInt256.Zero, PublicKey("022ac01a1ea9275241615ea6369c85b41e2016abc47485ec616c3c583f1b92a5c8"),
+      //        new PrivateKey(BinaryData("efc382ccc0358f468c2a80f3738211be98e5ae419fc0907cb2f51d3334001471")))
+      //      val block = Block.build(header, Seq.empty)
+      //      assert(chain.tryInsertBlock(block, true) == false)
+
+      assert(chain.getHeight() == 0)
+
+      var blockTime = chain.getHeadTime() + _consensusSettings.produceInterval
+      chain.startProduceBlock(ProducerUtil.getWitness(blockTime, _consensusSettings), blockTime)
+
+      assert(chain.isProducingBlock())
+
+
+      val block1 = chain.produceBlockFinalize()
+      assert(block1.isDefined)
+
+      val time1 = block1.get.header.timeStamp     // A
+      val time2 = time1 + _consensusSettings.produceInterval  // B
+      val time3 = time2 + _consensusSettings.produceInterval  // C
+      val time4 = time3 + _consensusSettings.produceInterval  // D
+
+      val time5 = time4 + _consensusSettings.produceInterval   // a
+      val time6 = time5 + _consensusSettings.produceInterval   // b
+      val time7 = time6 + _consensusSettings.produceInterval   // c
+      val time8 = time7 + _consensusSettings.produceInterval   // d
+
+      val time9 = time8 + _consensusSettings.produceInterval   // a
+      val time10 = time9 + _consensusSettings.produceInterval  // b
+      val time11 = time10 + _consensusSettings.produceInterval  // c
+      val time12 = time11 + _consensusSettings.produceInterval
+
+      val time13 = time12 + _consensusSettings.produceInterval
+      val time14 = time13 + _consensusSettings.produceInterval
+      val time15 = time14 + _consensusSettings.produceInterval
+      val time16 = time15 + _consensusSettings.produceInterval
+
+
+      assert(!chain.isProducingBlock())
+
+      val block2 = makeBlockByTime(block1.get, time2)
+      assert(chain.tryInsertBlock(block2, true))   // b
+
+      val block3 = makeBlockByTime(block2, time3)
+      assert(chain.tryInsertBlock(block3, true))   // c
+
+      val block9999 = makeBlockByTime(block3, time5)
+      assert(chain.tryInsertBlock(block9999, true))   // a
+
+      assert(chain.getConfirmedHeader().get.id() == block1.get.id())
+      assert(chain.getHeight() == 4)
+      assert(chain.getLatestHeader().id() == block9999.id())
+
+      val block4 = makeBlockByTime(block3, time4)
+      assert(chain.tryInsertBlock(block4, true))   // d
+
+      assert(chain.getConfirmedHeader().get.id() == block1.get.id())
+      assert(chain.getHeight() == 4)
+      assert(chain.getLatestHeader().id() == block9999.id())
+
+      val block5 = makeBlockByTime(block4, time7)
+      assert(chain.tryInsertBlock(block5, true))   // c
+
+      assert(chain.getConfirmedHeader().get.id() == block1.get.id())
+      assert(chain.getHeight() == 5)
+      assert(chain.getLatestHeader().id() == block5.id())
+
+
+      val block6 = makeBlockByTime(block5, time8)
+      assert(chain.tryInsertBlock(block6, true))   // d
+
+      assert(chain.getConfirmedHeader().get.id() == block1.get.id())
+      assert(chain.getHeight() == 6)
+      assert(chain.getLatestHeader().id() == block6.id())
+
+      val block7 = makeBlockByTime(block6, time9)
+      assert(chain.tryInsertBlock(block7, true))   // a
+
+      assert(chain.getConfirmedHeader().get.id() == block4.id())
+      assert(chain.getHeight() == 7)
+      assert(chain.getLatestHeader().id() == block7.id())
+    }
+    finally {
+      chain.close()
+    }
+  }
+
 
 }
 
