@@ -43,6 +43,10 @@ object Crypto {
      MessageDigest.getInstance("SHA-256").digest(data)
   }
 
+  def sha3(data: Array[Byte]): Array[Byte] = {
+    MessageDigest.getInstance("ETH-KECCAK-256", "SC").digest(data)
+  }
+
   def sign(message: Array[Byte], privateKey: Array[Byte]): Array[Byte] = {
      Ecdsa.encodeSignature(Ecdsa.sign(sha256(message), Ecdsa.PrivateKey(BinaryData(privateKey))))
   }

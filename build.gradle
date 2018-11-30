@@ -46,6 +46,11 @@ configurations {
 repositories {
     mavenCentral()
     mavenLocal()
+
+
+    maven { url "https://oss.jfrog.org/libs-snapshot/" }
+    maven { url "https://dl.bintray.com/ethereum/maven/" }
+    maven { url "https://repo.spring.io/libs-snapshot" }
 }
 
 dependencies {
@@ -76,7 +81,6 @@ dependencies {
     testCompile group: 'org.scalacheck', name: 'scalacheck_2.12', version: '1.14.0'
     compile group: 'de.heikoseeberger', name: 'akka-http-circe_2.12', version: '1.21.0'
 
-
     compile group: 'io.circe', name: 'circe-core_2.12', version: '0.8.0'
     compile group: 'io.circe', name: 'circe-generic_2.12', version: '0.8.0'
     compile group: 'io.circe', name: 'circe-parser_2.12', version: '0.8.0'
@@ -86,9 +90,9 @@ dependencies {
     compile group: 'com.typesafe', name: 'config', version: '1.3.2'
     compile group: 'org.scorexfoundation', name: 'iodb_2.12', version: '0.3.2'
     compile group: 'net.sourceforge.argparse4j', name: 'argparse4j', version: '0.8.1'
-    compile group: 'com.fasterxml.jackson.core', name: 'jackson-core', version: '2.9.1'
-    compile group: 'com.fasterxml.jackson.core', name: 'jackson-annotations', version: '2.9.1'
-    compile group: 'com.fasterxml.jackson.core', name: 'jackson-databind', version: '2.9.1'
+    
+    compile "com.madgag.spongycastle:core:1.58.0.0" // for SHA3 and SECP256K1
+    compile "com.madgag.spongycastle:prov:1.58.0.0" // for SHA3 and SECP256K1
     testCompile "junit:junit:4.11"
 
 }

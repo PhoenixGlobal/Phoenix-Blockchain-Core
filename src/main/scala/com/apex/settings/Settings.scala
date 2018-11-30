@@ -17,6 +17,19 @@ import net.ceedubs.ficus.readers.ValueReader
 
 import scala.concurrent.duration._
 
+case class ContractSettings(dumpBlock: Long,
+                            vmTrace: Boolean,
+                            eip145: Boolean,
+                            eip161: Boolean,
+                            eip198: Boolean,
+                            eip206: Boolean,
+                            eip211: Boolean,
+                            eip212: Boolean,
+                            eip213: Boolean,
+                            eip214: Boolean,
+                            eip1014: Boolean,
+                            eip1052: Boolean)
+
 case class RPCSettings(enabled: Boolean, host: String, port: Int)
 
 case class NetworkSettings(nodeName: String,
