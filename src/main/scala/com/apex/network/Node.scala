@@ -36,6 +36,8 @@ class Node(val settings: ApexSettings)
           (implicit ec: ExecutionContext)
   extends Actor with ApexLogging {
 
+  log.info("Node starting")
+
   private val notification = Notification()
 
   private val timeProvider = new NetworkTimeProvider(settings.ntp)

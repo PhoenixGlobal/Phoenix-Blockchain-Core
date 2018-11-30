@@ -29,8 +29,10 @@ class MongodbPlugin(settings: ApexSettings)
   private val database: MongoDatabase = mongoClient.getDatabase("apex")
 
   private val blockCol: MongoCollection[Document] = database.getCollection("block")
-
   private val txCol: MongoCollection[Document] = database.getCollection("transaction")
+  private val accountCol: MongoCollection[Document] = database.getCollection("account")
+  private val tpsHourCol: MongoCollection[Document] = database.getCollection("tps_hour")
+  private val tpsTenSecCol: MongoCollection[Document] = database.getCollection("tps_tensec")
 
   init()
 
@@ -52,6 +54,7 @@ class MongodbPlugin(settings: ApexSettings)
         addTransaction(tx, None)
     }
     case ForkSwitchNotify(from, to) => {
+      log.info("MongodbPlugin got ForkSwitchNotify")
       from.foreach(item => removeBlock(item.block))
       to.foreach(item => addBlock(item.block))
     }
@@ -65,18 +68,20 @@ class MongodbPlugin(settings: ApexSettings)
   }
 
   private def removeBlock(block: Block) = {
-    log.debug(s"MongodbPlugin remove block ${block.height()}  ${block.shortId()}")
+    log.info(s"MongodbPlugin remove block ${block.height()}  ${block.shortId()}")
     blockCol.deleteOne(equal("blockHash", block.id().toString)).results()
     block.transactions.foreach(tx => {
-      txCol.updateOne(equal("txHash", tx.id.toString), set("refBlockHash", "")).results()
-      txCol.updateOne(equal("txHash", tx.id.toString), set("refBlockHeight", Int.MaxValue)).results()
-      txCol.updateOne(equal("txHash", tx.id.toString), set("refBlockTime", BsonDateTime(0))).results()
-      txCol.updateOne(equal("txHash", tx.id.toString), set("confirmed", false)).results()
+      //txCol.updateOne(equal("txHash", tx.id.toString), set("refBlockHash", "")).results()
+      //txCol.updateOne(equal("txHash", tx.id.toString), set("refBlockHeight", Int.MaxValue)).results()
+      //txCol.updateOne(equal("txHash", tx.id.toString), set("refBlockTime", BsonDateTime(0))).results()
+      //txCol.updateOne(equal("txHash", tx.id.toString), set("confirmed", false)).results()
+      txCol.deleteOne(equal("txHash", tx.id.toString)).results()
     })
+    updateTps(block, false)
   }
 
   private def addBlock(block: Block) = {
-    log.debug(s"MongodbPlugin add block ${block.height()}  ${block.shortId()}")
+    log.info(s"MongodbPlugin add block ${block.height()}  ${block.shortId()}")
     val newBlock: Document = Document(
       "height" -> block.height(),
       "blockHash" -> block.id().toString,
@@ -98,10 +103,43 @@ class MongodbPlugin(settings: ApexSettings)
         txCol.updateOne(equal("txHash", tx.id.toString), set("refBlockHash", block.id.toString)).results()
         txCol.updateOne(equal("txHash", tx.id.toString), set("refBlockHeight", block.height)).results()
         txCol.updateOne(equal("txHash", tx.id.toString), set("refBlockTime", BsonDateTime(block.timeStamp()))).results()
+        updateAccout(tx, block)
       }
       else
         addTransaction(tx, Some(block))
     })
+    updateTps(block, true)
+  }
+
+  private def updateAccout(tx: Transaction, block: Block) = {
+    val option = UpdateOptions()
+    option.upsert(true)
+    if (tx.fromAddress().length > 0) {
+      accountCol.updateOne(equal("address", tx.fromAddress()), set("timeStamp", BsonDateTime(block.timeStamp())), option).results()
+    }
+    accountCol.updateOne(equal("address", tx.toAddress()), set("timeStamp", BsonDateTime(block.timeStamp())), option).results()
+  }
+
+  private def updateTps(block: Block, isIncrease: Boolean) = {
+    val option = UpdateOptions()
+    option.upsert(true)
+
+    val tenSec: Long = 10000
+    val oneHour: Long = 3600000
+
+    val time10s: Long = block.header.timeStamp / tenSec * tenSec
+    val timeHour: Long = block.header.timeStamp / oneHour * oneHour
+
+    if (isIncrease)
+      tpsHourCol.updateOne(equal("timeStamp", BsonDateTime(timeHour)), inc("txs", block.transactions.size), option).results()
+    else
+      tpsHourCol.updateOne(equal("timeStamp", BsonDateTime(timeHour)), inc("txs", -block.transactions.size), option).results()
+
+    if (isIncrease)
+      tpsTenSecCol.updateOne(equal("timeStamp", BsonDateTime(time10s)), inc("txs", block.transactions.size), option).results()
+    else
+      tpsTenSecCol.updateOne(equal("timeStamp", BsonDateTime(time10s)), inc("txs", -block.transactions.size), option).results()
+
   }
 
   private def addTransaction(tx: Transaction, block: Option[Block]) = {
@@ -124,6 +162,7 @@ class MongodbPlugin(settings: ApexSettings)
       newTx += ("refBlockHash" -> block.get.id.toString,
                 "refBlockHeight" -> block.get.height,
                 "refBlockTime" -> BsonDateTime(block.get.timeStamp()))
+      updateAccout(tx, block.get)
     }
     else {
       newTx += ("refBlockHeight" -> Int.MaxValue)
@@ -143,9 +182,15 @@ class MongodbPlugin(settings: ApexSettings)
 
         txCol.createIndex(ascending("txHash")).results()
         txCol.createIndex(ascending("refBlockHeight")).results()
-        txCol.createIndex(ascending("refBlockTime")).results()
         txCol.createIndex(ascending("from")).results()
         txCol.createIndex(ascending("to")).results()
+
+        accountCol.createIndex(ascending("address")).results()
+        accountCol.createIndex(ascending("timeStamp")).results()
+
+        tpsHourCol.createIndex(ascending("timeStamp")).results()
+
+        tpsTenSecCol.createIndex(ascending("timeStamp")).results()
       }
     }
     catch {

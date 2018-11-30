@@ -42,8 +42,10 @@ object MainEntry extends ApexLogging {
       RpcServer.run(settings.rpc, node)
     }
 
-    System.out.println("Press RETURN to stop...")
-    StdIn.readLine() // let it run until user presses return
+    //temp
+    while (true) {
+      Thread.sleep(50000000)
+    }
 
     if (settings.rpc.enabled) {
       // stopping rpc server

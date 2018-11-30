@@ -575,7 +575,7 @@ class ForkBase(settings: ForkBaseSettings,
     val branch = newItem.master
     indexByHeight.remove(height, !branch)
       .map(_.filterNot(_.equals(id)))
-      .foreach(_.foreach(id => indexByHeight.put(height, branch, id)))
+      .foreach(_.foreach(id => indexByHeight.put(height, !branch, id)))
     indexByHeight.put(height, branch, id)
     indexById.put(id, newItem)
   }
