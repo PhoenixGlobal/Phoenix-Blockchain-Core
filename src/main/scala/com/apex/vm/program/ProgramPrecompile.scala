@@ -25,11 +25,58 @@
 
 package com.apex.vm.program
 
-class ProgramPrecompile {
-  private val version = 1
+import java.io.{DataInputStream, DataOutputStream}
 
-  private val jumpdest = Set.empty[Int]
+import org.apex.vm.OpCode
+
+class ProgramPrecompile extends com.apex.common.Serializable {
+
+  import ProgramPrecompile._
+
+  private val jumpdest = collection.mutable.Set.empty[Int]
 
   def hasJumpDest(pc: Int): Boolean = jumpdest.contains(pc)
 
+  override def serialize(os: DataOutputStream): Unit = {
+    import com.apex.common.Serializable._
+    os.writeVarInt(version)
+    os.writeVarInt(jumpdest.size)
+    jumpdest.foreach(os.writeVarInt)
+  }
+}
+
+object ProgramPrecompile {
+  private val version = 1
+
+  def deserialize(is: DataInputStream): ProgramPrecompile = {
+    import com.apex.common.Serializable._
+    val ver = is.readVarInt
+    if (ver != version) {
+      null
+    } else {
+      val ret = new ProgramPrecompile
+      for (_ <- 1 to is.readVarInt) {
+        ret.jumpdest.add(is.readVarInt)
+      }
+      ret
+    }
+  }
+
+  def compile(ops: Array[Byte]): ProgramPrecompile = {
+    val ret = new ProgramPrecompile
+    var i = 0
+    while (i < ops.length) {
+      try {
+        val op = OpCode(ops(i))
+        if (op == OpCode.JUMPDEST) ret.jumpdest.add(i)
+        if (op.value >= OpCode.PUSH1.value && op.value <= OpCode.PUSH32.value) {
+          i += op.value - OpCode.PUSH1.value + 1
+        }
+      } catch {
+        case _: NoSuchElementException =>
+      }
+      i += 1
+    }
+    ret
+  }
 }
