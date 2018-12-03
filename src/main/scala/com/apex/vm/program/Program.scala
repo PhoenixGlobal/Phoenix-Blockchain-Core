@@ -30,14 +30,15 @@ import java.util
 
 import com.apex.common.ApexLogging
 import com.apex.core.DataBase
+import com.apex.settings.ContractSettings
 import com.apex.vm.exceptions._
 import com.apex.vm.program.invoke.ProgramInvoke
 import com.apex.vm.program.listener.{CompositeProgramListener, ProgramListenerAware, ProgramStorageChangeListener}
 import com.apex.vm.program.trace.{ProgramTrace, ProgramTraceListener}
-import com.apex.vm.{DataWord, MessageCall, PrecompiledContract, Stack}
+import com.apex.vm.{DataWord, MessageCall, PrecompiledContract}
 import org.apex.vm.OpCode
 
-class Program(val dataBase: DataBase, ops: Array[Byte], invoke: ProgramInvoke) extends ApexLogging {
+class Program(settings: ContractSettings, ops: Array[Byte], invoke: ProgramInvoke) extends ApexLogging {
   private final val MAX_STACKSIZE = 1024
   /**
     * This attribute defines the number of recursive calls allowed in the EVM
@@ -48,7 +49,7 @@ class Program(val dataBase: DataBase, ops: Array[Byte], invoke: ProgramInvoke) e
   private final val MAX_DEPTH = 1024
 
   private var listener: ProgramOutListener = _
-  private var traceListener: ProgramTraceListener = _
+  private var traceListener: ProgramTraceListener = new ProgramTraceListener(settings.vmTrace)
   private val storageDiffListener = new ProgramStorageChangeListener
   private val programListener = new CompositeProgramListener
 
@@ -57,6 +58,8 @@ class Program(val dataBase: DataBase, ops: Array[Byte], invoke: ProgramInvoke) e
 
   private val memory = setupProgramListener(new Memory)
   private val stack: Stack = setupProgramListener(new Stack)
+
+  private var programPrecompile: ProgramPrecompile = _
 
   private var returnDataBuffer: Array[Byte] = _
   private var previouslyExecutedOp: Byte = _
@@ -255,7 +258,7 @@ class Program(val dataBase: DataBase, ops: Array[Byte], invoke: ProgramInvoke) e
   //  def getStorage: Repository = this.storage
 
   /**
-    * Create contract for {@link OpCode#CREATE}
+    * Create contract for OpCode#CREATE
     *
     * @param value    Endowment
     * @param memStart Code memory offset
@@ -276,7 +279,7 @@ class Program(val dataBase: DataBase, ops: Array[Byte], invoke: ProgramInvoke) e
   }
 
   /**
-    * Create contract for {@link OpCode#CREATE2}
+    * Create contract for OpCode#CREATE2
     *
     * @param value    Endowment
     * @param memStart Code memory offset
@@ -367,7 +370,14 @@ class Program(val dataBase: DataBase, ops: Array[Byte], invoke: ProgramInvoke) e
   }
 
   def fullTrace(): Unit = {
-    //TODO
+    //    if (log.isTraceEnabled || listener != null) {
+    //      val stackData = new StringBuilder
+    //      for (i <- 0 to stack.size - 1) {
+    //        stackData.append(" ").append(stack.get(i))
+    //        if (i < stack.size - 1) stackData.append("\n")
+    //      }
+    //      if (stackData.length > 0) stackData.insert(0, "\n")
+    //    }
   }
 
   def saveOpTrace(): Unit = {
@@ -406,6 +416,10 @@ class Program(val dataBase: DataBase, ops: Array[Byte], invoke: ProgramInvoke) e
     result.resetFutureRefund()
   }
 
+  def addListener(outListener: ProgramOutListener): Unit = {
+    listener = outListener
+  }
+
   def verifyJumpDest(nextPC: DataWord): Int = {
     if (nextPC.bytesOccupied > 4) {
       throw Program.badJumpDestination(-1)
@@ -419,7 +433,10 @@ class Program(val dataBase: DataBase, ops: Array[Byte], invoke: ProgramInvoke) e
   }
 
   def getProgramPrecompile(): ProgramPrecompile = {
-    throw new NotImplementedError
+    if (programPrecompile == null) {
+      programPrecompile = ProgramPrecompile.compile(ops)
+    }
+    programPrecompile
   }
 
   def callToPrecompiledAddress(msg: MessageCall, contract: PrecompiledContract): Unit = {
