@@ -26,11 +26,13 @@
 
 package com.apex.vm
 
+import com.apex.core.{BlockBase, DataBase}
 import com.apex.crypto.Crypto
 import com.apex.exceptions.InvalidOperationException
 import com.apex.settings.ContractSettings
 import com.apex.vm.hook.VMHook
 import com.apex.vm.program.Program
+import com.apex.vm.program.invoke.ProgramInvoke
 import com.apex.vm.program.trace.LogInfo
 import org.apex.vm._
 import sun.reflect.generics.reflectiveObjects.NotImplementedException
@@ -109,9 +111,7 @@ class VM(settings: ContractSettings, hook: VMHook) extends com.apex.common.ApexL
 
       // Calculate fees and spend gas
       op.code match {
-        case OpCode.STOP => {
-          gasCost = GasCost.STOP
-        }
+        case OpCode.STOP => gasCost = GasCost.STOP
         case OpCode.SUICIDE => {
           gasCost = GasCost.SUICIDE
         }
@@ -208,6 +208,7 @@ class VM(settings: ContractSettings, hook: VMHook) extends com.apex.common.ApexL
           val bytesOccupied = exp.bytesOccupied
           gasCost = GasCost.EXP_GAS + GasCost.EXP_BYTE_GAS * bytesOccupied
         }
+        case _ => {}
       }
 
       //DEBUG System.out.println(" OP IS " + op.name() + " GASCOST IS " + gasCost + " NUM IS " + op.asInt());
@@ -853,6 +854,7 @@ class VM(settings: ContractSettings, hook: VMHook) extends com.apex.common.ApexL
 
           program.stop()
         }
+        case _ => {}
       }
 
       program.setPreviouslyExecutedOp(op.code.value)
