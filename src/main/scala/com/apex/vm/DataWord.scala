@@ -30,7 +30,7 @@ import java.util
 import java.util.Arrays
 
 import org.bouncycastle.util.encoders.DecoderException
-import org.spongycastle.util.encoders.{Encoder, HexEncoder}
+import org.spongycastle.util.encoders.{Encoder, Hex, HexEncoder}
 
 class DataWord(val data: Array[Byte]) {
 
@@ -374,15 +374,16 @@ object DataWord {
   val ONE: DataWord = DataWord.of(1.toByte)
 
   def of(data: String): DataWord = {
-    val bOut = new ByteArrayOutputStream
-    try {
-      encoder.decode(data, bOut)
-    } catch {
-      case e: Exception =>
-        throw new Exception(s"exception decoding Hex string: ${e.getMessage}", e)
-    }
-
-    of(bOut.toByteArray.toHex)
+    //    val bOut = new ByteArrayOutputStream
+    //    try {
+    //      encoder.decode(data, bOut)
+    //    } catch {
+    //      case e: Exception =>
+    //        throw new Exception(s"exception decoding Hex string: ${e.getMessage}", e)
+    //    }
+    //
+    //    of(bOut.toByteArray.toHex)
+    of(Hex.decode(data))
   }
 
   def of(num: Byte): DataWord = {
