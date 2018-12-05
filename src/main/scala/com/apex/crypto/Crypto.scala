@@ -56,6 +56,12 @@ object Crypto {
     keccak256(data)
   }
 
+//  def sha3omit12(data: Array[Byte]): Array[Byte] = {
+//    // the sha3 used in ethereum is actually keccak256
+//    val hash = keccak256(data)
+//    Array.copyo
+//  }
+
   def sign(message: Array[Byte], privateKey: Array[Byte]): Array[Byte] = {
      Ecdsa.encodeSignature(Ecdsa.sign(sha256(message), Ecdsa.PrivateKey(BinaryData(privateKey))))
   }

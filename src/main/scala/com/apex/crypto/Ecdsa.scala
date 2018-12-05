@@ -361,4 +361,28 @@ object Ecdsa {
       (r, s)
     }
   }
+
+  private def recoverPoint(x: BigInteger): (Point, Point) = {
+    val x1 = Ecdsa.curve.getCurve.fromBigInteger(x)
+    val square = x1.square().add(Ecdsa.curve.getCurve.getA).multiply(x1).add(Ecdsa.curve.getCurve.getB)
+    val y1 = square.sqrt()
+    val y2 = y1.negate()
+    val R1 = Ecdsa.curve.getCurve.createPoint(x1.toBigInteger, y1.toBigInteger).normalize()
+    val R2 = Ecdsa.curve.getCurve.createPoint(x1.toBigInteger, y2.toBigInteger).normalize()
+    if (y1.testBitZero()) (R2, R1) else (R1, R2)
+  }
+
+  def recoverPublicKey(t: (BigInteger, BigInteger), message: BinaryData): (PublicKey, PublicKey) = {
+    val (r, s) = t
+    val m = new BigInteger(1, message)
+
+    val (p1, p2) = recoverPoint(r)
+    val Q1 = (p1.multiply(s).subtract(Ecdsa.curve.getG.multiply(m))).multiply(r.modInverse(Ecdsa.curve.getN))
+    val Q2 = (p2.multiply(s).subtract(Ecdsa.curve.getG.multiply(m))).multiply(r.modInverse(Ecdsa.curve.getN))
+    (PublicKey(Q1), PublicKey(Q2))
+  }
+
+  def recoverPublicKey(sig: BinaryData, message: BinaryData): (PublicKey, PublicKey) = {
+    recoverPublicKey(Ecdsa.decodeSignature(sig), message)
+  }
 }

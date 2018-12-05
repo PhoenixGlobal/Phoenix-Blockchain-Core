@@ -105,7 +105,7 @@ class Sha256 extends PrecompiledContract {
 
   override def execute(data: Array[Byte]): (Boolean, Array[Byte]) = {
     if (data == null) {
-      (true, Array.emptyByteArray)
+      (true, Crypto.sha256(new Array[Byte](0)))
     } else {
       (true, Crypto.sha256(data))
     }
