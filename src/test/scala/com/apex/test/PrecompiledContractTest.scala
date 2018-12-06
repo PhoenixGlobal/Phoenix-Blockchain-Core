@@ -12,7 +12,7 @@ package com.apex.test
 
 import com.apex.settings.{ContractSettings, DataBaseSettings}
 import com.apex.vm.{DataWord, PrecompiledContracts, VM}
-import org.junit.Assert.assertEquals
+import org.junit.Assert.{assertArrayEquals, assertEquals}
 import org.junit.Test
 import org.spongycastle.util.encoders.Hex
 
@@ -20,6 +20,16 @@ import org.spongycastle.util.encoders.Hex
 class PrecompiledContractTest {
 
   val vmSettings = ContractSettings(0, false, false, false, false, true, false, false, false, false, false, false)
+
+  @Test
+  def identityTest1(): Unit = {
+    val addr = DataWord.of("0000000000000000000000000000000000000000000000000000000000000004")
+    val contract = PrecompiledContracts.getContractForAddress(addr, vmSettings)
+    val data = Hex.decode("112233445566")
+    val expected = Hex.decode("112233445566")
+    val result = contract.execute(data)._2
+    assertArrayEquals(expected, result)
+  }
 
   @Test
   def sha256Test1: Unit = {

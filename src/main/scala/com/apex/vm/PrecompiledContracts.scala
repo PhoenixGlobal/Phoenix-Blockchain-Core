@@ -25,7 +25,10 @@
 
 package com.apex.vm
 
-import com.apex.crypto.Crypto
+import akka.util.ByteString
+
+import scala.util.Try
+import com.apex.crypto.{Crypto, ECDSASignature}
 import com.apex.settings.ContractSettings
 
 object PrecompiledContracts {
@@ -134,29 +137,39 @@ class ECRecover extends PrecompiledContract {
   override def getGasForData(data: Array[Byte]): Long = 3000
 
   override def execute(data: Array[Byte]): (Boolean, Array[Byte]) = {
+
+    def padLeft(bytes: ByteString, length: Int, byte: Byte = 0): ByteString = {
+      val l = math.max(0, length - bytes.length)
+      val fill = Seq.fill[Byte](l)(byte)
+      fill ++: bytes
+    }
+
     val h = new Array[Byte](32)
     val v = new Array[Byte](32)
     val r = new Array[Byte](32)
     val s = new Array[Byte](32)
 
-    var out: DataWord = null
+    var out: ByteString = null
     try {
       System.arraycopy(data, 0, h, 0, 32)
       System.arraycopy(data, 32, v, 0, 32)
       System.arraycopy(data, 64, r, 0, 32)
-      //      val sLength = if (data.length < 128) data.length - 96 else 32
-      //      System.arraycopy(data, 96, s, 0, sLength)
-      //      val signature = ECKey.ECDSASignature.fromComponents(r, s, v(31))
-      //      if (validateV(v) && signature.validateComponents) {
-      //        out = DataWord.of(ECKey.signatureToAddress(h, signature))
-      //      }
+      val sLength = if (data.length < 128) data.length - 96 else 32
+      System.arraycopy(data, 96, s, 0, sLength)
+
+      val recovered = Try(ECDSASignature(ByteString(r), ByteString(s), v.last).publicKey(h)).getOrElse(None)
+      out = recovered.map { bytes =>
+        val hash = Crypto.keccak256(bytes).slice(12, 32)
+        padLeft(ByteString(hash), 32)
+      }.getOrElse(ByteString.empty)
+
     } catch {
       case _: Throwable => {}
     }
     if (out == null) {
       (true, Array.empty)
     } else {
-      (true, out.getData)
+      (true, out.toArray)
     }
   }
 
