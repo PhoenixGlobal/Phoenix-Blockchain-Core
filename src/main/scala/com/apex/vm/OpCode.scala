@@ -718,6 +718,6 @@ object OpCode extends Enumeration {
   implicit class Extension(code: OpCode.Value) {
     def value: Byte = code.id.toByte
 
-    def name: String = code.name
+    def name: String = code.toString
   }
 }

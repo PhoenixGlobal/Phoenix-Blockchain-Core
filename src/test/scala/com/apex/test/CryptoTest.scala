@@ -35,6 +35,22 @@ class CryptoTest {
      assert(hash sameElements BinaryData("0b7c28c9b7290c98d7438e70b3d3f7c848fbd7d1dc194ff83f4f7cc9b1378e98"))     
   }
   @Test
+  def testSha3 = {
+    assert(Crypto.sha3("horse".getBytes) sameElements
+      BinaryData("c87f65ff3f271bf5dc8643484f66b200109caffe4bf98c4cb393dc35740b28c0"))
+
+    assert(Crypto.sha3("cow".getBytes) sameElements
+      BinaryData("c85ef7d79691fe79573b1a7064c19c1a9819ebdbd1faaab1a8ec92344438aaf4"))
+  }
+  @Test
+  def testSha3_real = {
+    assert(Crypto.sha3_real("".getBytes) sameElements
+      BinaryData("a7ffc6f8bf1ed76651c14756a061d662f580ff4de43b49fa82d80a4b80f8434a"))
+
+    assert(Crypto.sha3_real("abc".getBytes) sameElements
+      BinaryData("3a985da74fe225b2045c172d6bd390bd855f086e3e9d525b46bfe24511431532"))
+  }
+  @Test
   def testRIPEMD160 = {
      val data = "Rosetta Code".getBytes("US-ASCII")
      val hash = Crypto.RIPEMD160(data)

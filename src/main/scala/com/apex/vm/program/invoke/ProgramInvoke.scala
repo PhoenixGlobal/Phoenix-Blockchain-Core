@@ -25,6 +25,7 @@
 
 package com.apex.vm.program.invoke
 
+import com.apex.core.{BlockBase, DataBase}
 import com.apex.vm.DataWord
 
 trait ProgramInvoke {
@@ -68,11 +69,11 @@ trait ProgramInvoke {
 
   def getCallDeep: Int
 
-//  def getRepository: Repository
-//
-//  def getOrigRepository: Repository
-//
-//  def getBlockStore: BlockStore
+  def getRepository: DataBase
+
+  def getOrigRepository: DataBase
+
+  def getBlockStore: BlockBase
 
   def isStaticCall: Boolean
 }

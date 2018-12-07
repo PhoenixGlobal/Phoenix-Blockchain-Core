@@ -30,7 +30,7 @@ import java.util
 import java.util.Arrays
 
 import org.bouncycastle.util.encoders.DecoderException
-import org.spongycastle.util.encoders.{Encoder, HexEncoder}
+import org.spongycastle.util.encoders.{Encoder, Hex, HexEncoder}
 
 class DataWord(val data: Array[Byte]) {
 
@@ -349,7 +349,7 @@ class DataWord(val data: Array[Byte]) {
   override def hashCode: Int = java.util.Arrays.hashCode(data)
 
   override def equals(obj: scala.Any): Boolean = {
-    this == obj || (obj match {
+    super.equals(obj) || (obj match {
       case that: DataWord => data.sameElements(that.data)
       case _ => false
     })
@@ -374,19 +374,20 @@ object DataWord {
   val ONE: DataWord = DataWord.of(1.toByte)
 
   def of(data: String): DataWord = {
-    val bOut = new ByteArrayOutputStream
-    try {
-      encoder.decode(data, bOut)
-    } catch {
-      case e: Exception =>
-        throw new Exception(s"exception decoding Hex string: ${e.getMessage}", e)
-    }
-
-    of(bOut.toByteArray.toHex)
+    //    val bOut = new ByteArrayOutputStream
+    //    try {
+    //      encoder.decode(data, bOut)
+    //    } catch {
+    //      case e: Exception =>
+    //        throw new Exception(s"exception decoding Hex string: ${e.getMessage}", e)
+    //    }
+    //
+    //    of(bOut.toByteArray.toHex)
+    of(Hex.decode(data))
   }
 
   def of(num: Byte): DataWord = {
-    val bb = Array[Byte](32)
+    val bb = new Array[Byte](32)
     bb(31) = num
     new DataWord(bb)
   }
@@ -406,14 +407,14 @@ object DataWord {
       } else if (valueBits <= 8 && data(data.length - 1) == 0) {
         ONE
       } else {
-        if (data.length == 32) {
+        if (data.length > 32) {
+          throw new RuntimeException(s"Data word can't exceed 32 bytes: 0x${data.toHex}")
+        } else if (data.length == 32) {
           new DataWord(util.Arrays.copyOf(data, data.length))
-        } else if (data.length <= 32) {
+        } else {
           val bytes = new Array[Byte](32)
           System.arraycopy(data, 0, bytes, 32 - data.length, data.length)
           new DataWord(bytes)
-        } else {
-          throw new RuntimeException(s"Data word can't exceed 32 bytes: 0x${data.toHex}")
         }
       }
     }
