@@ -11,7 +11,7 @@ package com.apex.crypto
 import java.security.{MessageDigest, Security, SecureRandom}
 import javax.crypto.Cipher
 import javax.crypto.spec.{SecretKeySpec, IvParameterSpec}
-import org.bouncycastle.crypto.digests.{RIPEMD160Digest, KeccakDigest}
+import org.bouncycastle.crypto.digests.{RIPEMD160Digest, KeccakDigest, SHA3Digest}
 import org.bouncycastle.jce.provider.BouncyCastleProvider
 
 
@@ -54,6 +54,14 @@ object Crypto {
   def sha3(data: Array[Byte]): Array[Byte] = {
     // the sha3 used in ethereum is actually keccak256
     keccak256(data)
+  }
+
+  def sha3_real(data: Array[Byte]): Array[Byte] = {
+    val messageDigest = new SHA3Digest(256)
+    messageDigest.update(data, 0, data.length)
+    val out = Array.fill[Byte](messageDigest.getDigestSize())(0)
+    messageDigest.doFinal(out, 0)
+    out
   }
 
 //  def sha3omit12(data: Array[Byte]): Array[Byte] = {
