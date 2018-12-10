@@ -44,10 +44,10 @@ class CryptoTest {
   }
   @Test
   def testSha3_real = {
-    assert(Crypto.sha3_real("".getBytes) sameElements
+    assert(Crypto.sha3_standard("".getBytes) sameElements
       BinaryData("a7ffc6f8bf1ed76651c14756a061d662f580ff4de43b49fa82d80a4b80f8434a"))
 
-    assert(Crypto.sha3_real("abc".getBytes) sameElements
+    assert(Crypto.sha3_standard("abc".getBytes) sameElements
       BinaryData("3a985da74fe225b2045c172d6bd390bd855f086e3e9d525b46bfe24511431532"))
   }
   @Test

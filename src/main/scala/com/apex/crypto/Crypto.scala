@@ -56,7 +56,7 @@ object Crypto {
     keccak256(data)
   }
 
-  def sha3_real(data: Array[Byte]): Array[Byte] = {
+  def sha3_standard(data: Array[Byte]): Array[Byte] = {
     val messageDigest = new SHA3Digest(256)
     messageDigest.update(data, 0, data.length)
     val out = Array.fill[Byte](messageDigest.getDigestSize())(0)
