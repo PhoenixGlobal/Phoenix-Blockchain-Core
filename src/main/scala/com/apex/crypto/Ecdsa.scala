@@ -112,9 +112,14 @@ object Ecdsa {
       else
         None
     }
+
+    def deserialize(is: DataInputStream): PrivateKey = {
+      import com.apex.common.Serializable._
+      PrivateKey(is.readByteArray)
+    }
   }
 
-  case class PrivateKey(value: Scalar, compressed: Boolean = true) {
+  case class PrivateKey(value: Scalar, compressed: Boolean = true) extends com.apex.common.Serializable {
 
     def publicKey: PublicKey = PublicKey(value.toPoint, compressed)
 
@@ -126,6 +131,11 @@ object Ecdsa {
     def toWIF: String = {
       // always treat as compressed key, do NOT use uncompressed key
       PrivateKey.toWIF(value.toBin)
+    }
+
+    override def serialize(os: DataOutputStream): Unit = {
+      import com.apex.common.Serializable._
+      os.writeByteArray(toBin)
     }
 
     override def toString = toBin.toString
