@@ -18,6 +18,10 @@ object BN128Fp2 {
     else return null
 
   }
+
+  def create(x: Fp2, y: Fp2, z: Fp2): BN128[Fp2] = {
+    new BN128Fp2(x, y, z)
+  }
 }
 
 class BN128Fp2 protected(override val x: Fp2, override val y: Fp2, override val z: Fp2) extends BN128[Fp2](x, y, z) {

@@ -86,6 +86,16 @@ package object vm {
     def parseWord(idx: Int): Array[Byte] = data.parseBytes(32 * idx, 32)
 
     /**
+      * Parses 32-bytes word from given input.
+      * Uses {@link #parseBytes(byte[], int, int)} method,
+      * thus, result will be right-padded with zero bytes if there is not enough bytes in {@code input}
+      *
+      * @param idx an index of the word starting from { @code 0}
+      * @param offset an offset in { @code input} array to start parsing from
+      */
+    def parseWord(offset: Int, idx: Int): Array[Byte] = data.parseBytes(offset + 32 * idx, 32)
+
+    /**
       * Cast hex encoded value from byte[] to BigInteger
       * null is parsed like byte[0]
       */

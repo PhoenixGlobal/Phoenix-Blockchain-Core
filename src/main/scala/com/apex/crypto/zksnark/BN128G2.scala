@@ -24,17 +24,22 @@ object BN128G2 {
   }
 
   private[zksnark] val FR_NEG_ONE = BigInteger.ONE.negate.mod(R)
+
+  def apply(x: Fp2, y: Fp2, z: Fp2): BN128G2 = {
+    new BN128G2(BN128Fp2.create(x, y, z))
+  }
+
 }
 
 class BN128G2 private[zksnark](val p: BN128[Fp2]) extends BN128Fp2(p.x, p.y, p.z) {
   override def toAffine = new BN128G2(super.toAffine)
 
-//  private[zksnark] def mulByP = {
-//    val rx = TWIST_MUL_BY_P_X.mul(x.frobeniusMap(1))
-//    val ry = TWIST_MUL_BY_P_Y.mul(y.frobeniusMap(1))
-//    val rz = z.frobeniusMap(1)
-//    new BN128G2(rx, ry, rz)
-//  }
+  private[zksnark] def mulByP(): BN128G2 = {
+    val rx = TWIST_MUL_BY_P_X.mul(x.frobeniusMap(1))
+    val ry = TWIST_MUL_BY_P_Y.mul(y.frobeniusMap(1))
+    val rz = z.frobeniusMap(1)
+    BN128G2(rx, ry, rz)
+  }
 
 }
 

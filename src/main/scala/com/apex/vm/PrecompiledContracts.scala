@@ -25,7 +25,10 @@
 
 package com.apex.vm
 
+import java.math.BigInteger
+
 import akka.util.ByteString
+import com.apex.crypto.zksnark.{BN128Fp, BN128G1, BN128G2, PairingCheck}
 
 import scala.util.Try
 import com.apex.crypto.{Crypto, ECDSASignature}
@@ -62,6 +65,15 @@ object PrecompiledContracts {
     else if (address == altBN128MulAddr && settings.eip213) altBN128Mul
     else if (address == altBN128PairingAddr && settings.eip212) altBN128Pairing
     else null
+  }
+
+  def encodeRes(w1: Array[Byte], w2: Array[Byte]): Array[Byte] = {
+    val res = new Array[Byte](64)
+    val ww1 = w1.stripLeadingZeroes
+    val ww2 = w2.stripLeadingZeroes
+    System.arraycopy(ww1, 0, res, 32 - ww1.length, ww1.length)
+    System.arraycopy(ww2, 0, res, 64 - ww2.length, ww2.length)
+    res
   }
 }
 
@@ -182,7 +194,6 @@ class ECRecover extends PrecompiledContract {
   }
 }
 
-
 /**
   * Computes modular exponentiation on big numbers
   *
@@ -299,7 +310,19 @@ class BN128Addition extends PrecompiledContract {
     val y1 = data.parseWord(1)
     val x2 = data.parseWord(2)
     val y2 = data.parseWord(3)
-    throw new NotImplementedError
+
+    val p1 = BN128Fp.create(x1, y1)
+    if (p1 == null)
+      (false, Array.emptyByteArray)
+    else {
+      val p2 = BN128Fp.create(x2, y2)
+      if (p2 == null)
+        (false, Array.emptyByteArray)
+      else {
+        val res = p1.add(p2).toEthNotation
+        (true, PrecompiledContracts.encodeRes(res.x.bytes, res.y.bytes))
+      }
+    }
   }
 }
 
@@ -320,7 +343,24 @@ class BN128Addition extends PrecompiledContract {
 class BN128Multiplication extends PrecompiledContract {
   override def getGasForData(data: Array[Byte]) = 40000
 
-  override def execute(data: Array[Byte]) = throw new NotImplementedError
+  private def toBI(data: Array[Byte]) = new BigInteger(1, data)
+
+  override def execute(in: Array[Byte]): (Boolean, Array[Byte]) = {
+
+    val data = if (in == null) Array.emptyByteArray else in
+
+    val x = data.parseWord(0)
+    val y = data.parseWord(1)
+
+    val s = data.parseWord(2)
+
+    val p = BN128Fp.create(x, y)
+    if (p == null) return (false, Array.emptyByteArray)
+
+    val res = p.mul(toBI(s)).toEthNotation
+
+    return (true, PrecompiledContracts.encodeRes(res.x.bytes, res.y.bytes))
+  }
 }
 
 /**
@@ -347,7 +387,48 @@ class BN128Pairing extends PrecompiledContract {
 
   override def getGasForData(data: Array[Byte]): Long = if (data == null) 100000 else 80000 * (data.length / PAIR_SIZE) + 100000
 
-  override def execute(data: Array[Byte]): (Boolean, Array[Byte]) = {
-    throw new NotImplementedError
+  override def execute(in: Array[Byte]): (Boolean, Array[Byte])  = {
+
+    val data = if (in == null) Array.emptyByteArray else in
+
+    // fail if input len is not a multiple of PAIR_SIZE
+    if (data.length % PAIR_SIZE > 0) return (false, Array.emptyByteArray)
+
+    val check = new PairingCheck
+
+    // iterating over all pairs
+    var offset = 0
+    while ( {
+      offset < data.length
+    }) {
+      val pair = decodePair(data, offset)
+      // fail if decoding has failed
+      if (pair == null) return (false, Array.emptyByteArray)
+      check.addPair(pair._1, pair._2)
+
+      offset += PAIR_SIZE
+    }
+
+    check.run()
+    val result = check.result
+
+    (true, DataWord.of(result).getData)
+  }
+
+  private def decodePair(in: Array[Byte], offset: Int): (BN128G1, BN128G2) = {
+    val x = in.parseWord(offset, 0)
+    val y = in.parseWord(offset, 1)
+    val p1 = BN128G1.create(x, y)
+    // fail if point is invalid
+    if (p1 == null) return null
+    // (b, a)
+    val b = in.parseWord(offset, 2)
+    val a = in.parseWord(offset, 3)
+    // (d, c)
+    val d = in.parseWord(offset, 4)
+    val c = in.parseWord(offset, 5)
+    val p2 = BN128G2.create(a, b, c, d)
+    if (p2 == null) return null
+    (p1, p2)
   }
 }
