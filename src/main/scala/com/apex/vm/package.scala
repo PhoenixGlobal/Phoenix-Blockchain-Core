@@ -28,16 +28,8 @@ package object vm {
   }
 
   implicit class ByteArrayExtension(data: Array[Byte]) {
-    def firstNonZeroByte: Int = {
-      var j = 0
-      for (i <- 0 to data.length - 1 if data(i) == 0) {
-        j += 1
-      }
-      if (j < data.length) j else -1
-    }
-
     def numberOfLeadingZeros: Int = {
-      val i = data.firstNonZeroByte
+      val i = data.indexWhere(_ != 0)
       if (i == -1) {
         data.length * 8
       } else {
@@ -50,7 +42,7 @@ package object vm {
       if (data == null) {
         null
       } else {
-        val firstNonZero = data.firstNonZeroByte
+        val firstNonZero = data.indexWhere(_ != 0)
         firstNonZero match {
           case -1 => Array.empty
           case 0 => data
