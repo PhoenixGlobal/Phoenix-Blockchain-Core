@@ -43,7 +43,7 @@ class CryptoTest {
       BinaryData("c85ef7d79691fe79573b1a7064c19c1a9819ebdbd1faaab1a8ec92344438aaf4"))
   }
   @Test
-  def testSha3_real = {
+  def testSha3_standard = {
     assert(Crypto.sha3_standard("".getBytes) sameElements
       BinaryData("a7ffc6f8bf1ed76651c14756a061d662f580ff4de43b49fa82d80a4b80f8434a"))
 
