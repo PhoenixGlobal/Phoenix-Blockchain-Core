@@ -10,9 +10,16 @@ import org.fusesource.leveldbjni.JniDBFactory._
 import org.iq80.leveldb._
 
 import scala.collection.mutable.{ListBuffer, Map}
+import scala.util.Try
 
 class LevelDbStorage(private val db: DB) extends Storage[Array[Byte], Array[Byte]] with ApexLogging {
   private lazy val sessionMgr = new SessionManager(db)
+
+  private val actions = ListBuffer.empty[() => Unit]
+
+  def onRollback(action: () => Unit): Unit = {
+    actions.append(action)
+  }
 
   override def get(key: Array[Byte]): Option[Array[Byte]] = {
     val opt = new ReadOptions().fillCache(true)
@@ -98,6 +105,7 @@ class LevelDbStorage(private val db: DB) extends Storage[Array[Byte], Array[Byte
   }
 
   override def rollBack(): Unit = {
+    actions.foreach(action => Try(action()))
     sessionMgr.rollBack()
   }
 
