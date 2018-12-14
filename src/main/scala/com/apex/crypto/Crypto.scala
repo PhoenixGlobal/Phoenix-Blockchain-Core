@@ -8,11 +8,10 @@
 
 package com.apex.crypto
 
-import java.security.{MessageDigest, Security, SecureRandom}
+import java.security.{MessageDigest, SecureRandom}
 import javax.crypto.Cipher
-import javax.crypto.spec.{SecretKeySpec, IvParameterSpec}
-import org.bouncycastle.crypto.digests.{RIPEMD160Digest, KeccakDigest, SHA3Digest}
-import org.bouncycastle.jce.provider.BouncyCastleProvider
+import javax.crypto.spec.{IvParameterSpec, SecretKeySpec}
+import org.bouncycastle.crypto.digests.{KeccakDigest, RIPEMD160Digest, SHA3Digest}
 
 
 object Crypto {
@@ -85,19 +84,17 @@ object Crypto {
   }
 
   def AesEncrypt(data: Array[Byte], key: Array[Byte], iv: Array[Byte]): Array[Byte] = {
-     Security.addProvider(new org.bouncycastle.jce.provider.BouncyCastleProvider())
-     val secretKeySpec = new SecretKeySpec(key, "AES")
-     val aes = Cipher.getInstance("AES/CBC/PKCS5PADDING", BouncyCastleProvider.PROVIDER_NAME)
-     aes.init(Cipher.ENCRYPT_MODE, secretKeySpec, new IvParameterSpec(iv))
-     aes.doFinal(data)
+    val secretKeySpec = new SecretKeySpec(key, "AES")
+    val cipher = Cipher.getInstance("AES/CBC/PKCS5Padding")
+    cipher.init(Cipher.ENCRYPT_MODE, secretKeySpec, new IvParameterSpec(iv))
+    cipher.doFinal(data)
   }
 
   def AesDecrypt(data: Array[Byte], key: Array[Byte], iv: Array[Byte]): Array[Byte] = {
-     Security.addProvider(new org.bouncycastle.jce.provider.BouncyCastleProvider())
-     val secretKeySpec = new SecretKeySpec(key, "AES")
-     val aes = Cipher.getInstance("AES/CBC/PKCS5PADDING", BouncyCastleProvider.PROVIDER_NAME)
-     aes.init(Cipher.DECRYPT_MODE, secretKeySpec, new IvParameterSpec(iv))
-     aes.doFinal(data)
+    val secretKeySpec = new SecretKeySpec(key, "AES")
+    val cipher = Cipher.getInstance("AES/CBC/PKCS5PADDING")
+    cipher.init(Cipher.DECRYPT_MODE, secretKeySpec, new IvParameterSpec(iv))
+    cipher.doFinal(data)
   }
 }
 
