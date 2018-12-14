@@ -191,11 +191,14 @@ object Ecdsa {
   implicit def ecpoint2point(value: ECPoint): Point = Point(value)
 
   object PublicKey {
+    implicit val deserializer: DataInputStream => PublicKey = deserialize
+
     def apply(data: BinaryData): PublicKey = data.length match {
       //case 65 if data.head == 4 => new PublicKey(Point(data), false)
       //case 65 if data.head == 6 || data.head == 7 => new PublicKey(Point(data), false)
       case 33 if data.head == 2 || data.head == 3 => new PublicKey(Point(data), true)
     }
+
     def deserialize(is: DataInputStream): PublicKey = {
       import com.apex.common.Serializable._
       PublicKey(is.readByteArray)
