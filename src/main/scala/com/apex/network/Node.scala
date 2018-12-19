@@ -238,7 +238,7 @@ class Node(val settings: ApexSettings)
   }
 
   private def processTransactionsMessage(msg: TransactionsMessage) = {
-    log.info(s"received ${msg.txs.txs.size} transactions from network")
+    log.debug(s"received ${msg.txs.txs.size} transactions from network")
     //producer ! ReceivedNewTransactions(txsPayload.txs)
     msg.txs.txs.foreach(tx => {
       if (tx.verifySignature())
