@@ -318,6 +318,8 @@ class Node(val settings: ApexSettings)
       count += 1
       if (count > 10)
         step *= 2
+      if (step > 7200)
+        step = 7200
       index -= step
     }
     blockLocatorHashes.append(chain.getHeader(0).get.id)
