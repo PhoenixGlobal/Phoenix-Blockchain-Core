@@ -12,6 +12,7 @@ package com.apex
 
 import java.nio.ByteBuffer
 
+import com.apex.crypto.UInt160
 import org.bouncycastle.util.encoders.Hex
 
 package object vm {
@@ -105,6 +106,10 @@ package object vm {
       } else {
         ""
       }
+    }
+
+    def toAddr: UInt160 = {
+      UInt160.fromBytes(data)
     }
   }
 

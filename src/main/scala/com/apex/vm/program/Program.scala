@@ -30,6 +30,7 @@ import java.util
 
 import com.apex.common.ApexLogging
 import com.apex.core.DataBase
+import com.apex.crypto.UInt160
 import com.apex.settings.ContractSettings
 import com.apex.vm.exceptions._
 import com.apex.vm.program.invoke.ProgramInvoke
@@ -66,6 +67,8 @@ class Program(settings: ContractSettings, ops: Array[Byte], invoke: ProgramInvok
   private var stopped: Boolean = _
   private var lastOp: Byte = _
   private var pc: Int = _
+
+  import com.apex.vm._
 
   def getCurrentOp(): Byte = if (ops.isEmpty) 0 else ops(pc)
 
@@ -138,7 +141,7 @@ class Program(settings: ContractSettings, ops: Array[Byte], invoke: ProgramInvok
 
   def getGasLong: Long = invoke.getGasLong - result.getGasUsed
 
-  def getGas: DataWord = DataWord.of((invoke.getGasLong - result.getGasUsed).toByte)
+  def getGas: DataWord = DataWord.of(invoke.getGasLong - result.getGasUsed)
 
   def getPC: Int = pc
 
@@ -206,9 +209,7 @@ class Program(settings: ContractSettings, ops: Array[Byte], invoke: ProgramInvok
   def getCode: Array[Byte] = ops
 
   def getCodeAt(address: DataWord): Array[Byte] = {
-    //    val code = invoke.getRepository.getCode(address.getLast20Bytes)
-    //    nullToEmpty(code)
-    throw new NotImplementedError
+    invoke.getRepository.getCode(address.getLast20Bytes.toAddr)
   }
 
   def getCodeHashAt(address: DataWord): Array[Byte] = {
@@ -346,8 +347,9 @@ class Program(settings: ContractSettings, ops: Array[Byte], invoke: ProgramInvok
   }
 
   def storageLoad(key: DataWord): DataWord = {
-    //getStorage.getStorageValue(getOwnerAddress.getLast20Bytes, key)
-    throw new NotImplementedError
+    val address = getOwnerAddress.getLast20Bytes.toAddr
+    val value = invoke.getRepository.getContractState(address, key.data)
+    DataWord.of(value)
   }
 
   def storageSave(word1: DataWord, word2: DataWord): Unit = {
@@ -355,18 +357,17 @@ class Program(settings: ContractSettings, ops: Array[Byte], invoke: ProgramInvok
   }
 
   def storageSave(key: Array[Byte], value: Array[Byte]): Unit = {
-    val keyWord = DataWord.of(key)
-    val valWord = DataWord.of(value)
-    //getStorage.addStorageRow(getOwnerAddress.getLast20Bytes, keyWord, valWord)
-    throw new NotImplementedError
+    val address = getOwnerAddress.getLast20Bytes.toAddr
+    invoke.getRepository.saveContractState(address, key, value)
   }
 
   /**
     * @return current Storage data for key
     */
   def getCurrentValue(key: DataWord): DataWord = {
-    //getStorage.getStorageValue(getOwnerAddress.getLast20Bytes, key)
-    throw new NotImplementedError
+    val address = getOwnerAddress.getLast20Bytes.toAddr
+    val value = invoke.getRepository.getContractState(address, key.data)
+    DataWord.of(value)
   }
 
   def fullTrace(): Unit = {
