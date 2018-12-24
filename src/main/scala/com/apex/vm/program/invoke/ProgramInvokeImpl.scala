@@ -13,7 +13,7 @@ package com.apex.vm.program.invoke
 import com.apex.core.{BlockBase, DataBase}
 import com.apex.vm.DataWord
 
-class ProgramInvokeImpl(address: DataWord, origin: DataWord, caller: DataWord, balance: DataWord, gasPrice: DataWord, gas: DataWord, callValue: DataWord, msgData: Array[Byte], lastHash: DataWord, coinbase: DataWord, timestamp: DataWord, number: DataWord, difficulty: DataWord, gaslimit: DataWord, repository: DataBase, origRepository: DataBase, callDeep: Int, blockStore: BlockBase, staticCall: Boolean, testingSuite: Boolean) extends ProgramInvoke {
+class ProgramInvokeImpl(address: DataWord, origin: DataWord, caller: DataWord, balance: DataWord, gasPrice: DataWord, gas: DataWord, callValue: DataWord, msgData: Array[Byte], lastHash: DataWord, coinbase: DataWord, timestamp: DataWord, number: DataWord, difficulty: DataWord, gaslimit: DataWord, repository: DataBase, origRepository: DataBase, blockStore: BlockBase, callDeep: Int = 0, staticCall: Boolean = false, testingSuite: Boolean = false, byTx: Boolean = true) extends ProgramInvoke {
 
   /** ***************/
   /** *  msg data ***/
@@ -114,7 +114,7 @@ class ProgramInvokeImpl(address: DataWord, origin: DataWord, caller: DataWord, b
   /*     GASLIMIT op    */
   override def getGaslimit: DataWord = gaslimit
 
-  override def byTransaction: Boolean = byTransaction
+  override def byTransaction: Boolean = byTx
 
   override def byTestingSuite: Boolean = testingSuite
 

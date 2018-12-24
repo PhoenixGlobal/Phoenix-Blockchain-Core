@@ -19,6 +19,8 @@ object UInt160 {
   final val Size: Int = 20
   final val Zero: UInt160 = UInt160.fromBytes(Array.fill(Size)(0.toByte))
 
+  implicit val deserializer: DataInputStream => UInt160 = deserialize
+
   def fromBytes(bytes: Array[Byte]): UInt160 = {
     require(bytes.length == 20)
     new UInt160(bytes)

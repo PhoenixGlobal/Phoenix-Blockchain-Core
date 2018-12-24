@@ -78,10 +78,7 @@ object VMTest {
       DataWord.ZERO,
       dataBase,
       null,
-      0,
-      null,
-      false,
-      false)
+      null)
   }
 
   @AfterClass
