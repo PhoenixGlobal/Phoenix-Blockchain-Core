@@ -16,12 +16,12 @@ import java.io.{DataInputStream, DataOutputStream}
 
 import com.apex.crypto.Ecdsa.PublicKey
 
-class Contract(val account: PublicKey,
-               val code: Array[Byte],
-               val name: String = "",
-               val author: String = "",
-               val email: String = "",
-               val description: String = "") extends com.apex.common.Serializable {
+case class Contract(account: PublicKey,
+               code: Array[Byte],
+               name: String = "",
+               author: String = "",
+               email: String = "",
+               description: String = "") extends com.apex.common.Serializable {
 
   import Contract._
 
@@ -44,13 +44,33 @@ object Contract {
     import com.apex.common.Serializable._
     // TODO check version
     is.readInt
-    new Contract(
+    Contract(
       account = is.readObj[PublicKey],
       code = is.readByteArray,
       name = is.readString(),
       author = is.readString(),
       email = is.readString(),
       description = is.readString()
+    )
+  }
+}
+
+case class ContractState(owner: PublicKey, key: Array[Byte], value: Array[Byte]) extends com.apex.common.Serializable {
+  override def serialize(os: DataOutputStream): Unit = {
+    import com.apex.common.Serializable._
+    os.write(owner)
+    os.writeByteArray(key)
+    os.writeByteArray(value)
+  }
+}
+
+object ContractState {
+  def deserialize(is: DataInputStream): ContractState = {
+    import com.apex.common.Serializable._
+    ContractState(
+      is.readObj[PublicKey],
+      is.readByteArray,
+      is.readByteArray
     )
   }
 }
