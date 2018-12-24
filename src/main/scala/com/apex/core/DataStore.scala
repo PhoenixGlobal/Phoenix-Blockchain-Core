@@ -5,11 +5,7 @@ import java.io.{ByteArrayInputStream, ByteArrayOutputStream, DataInputStream, Da
 import com.apex.common.{Cache, LRUCache, Serializable}
 import com.apex.crypto.Ecdsa.PublicKey
 import com.apex.crypto.{UInt160, UInt256}
-import com.apex.exceptions.UnExpectedError
-import com.apex.storage.{Batch, LevelDbStorage, PersistentStack}
-import org.iq80.leveldb.{ReadOptions, WriteBatch}
-
-import scala.collection.mutable.ListBuffer
+import com.apex.storage.{Batch, LevelDbStorage}
 
 class BlockStore(db: LevelDbStorage, capacity: Int)
   extends StoreBase[UInt256, Block](db, capacity)
@@ -40,6 +36,18 @@ class ContractStore(db: LevelDbStorage, capacity: Int)
     with ContractPrefix
     with UInt160Key
     with ContractValue
+
+class ContractStateStore(db: LevelDbStorage, capacity: Int)
+  extends StoreBase[Array[Byte], Array[Byte]](db, capacity)
+    with ContractStatePrefix
+    with ByteArrayKey
+    with ByteArrayValue
+
+class ReceiptStore(db: LevelDbStorage, capacity:Int)
+  extends StoreBase[UInt256, TransactionReceipt](db, capacity)
+    with ReceiptPrefix
+    with UInt256Key
+    with ReceiptValue
 
 class HeightStore(db: LevelDbStorage, capacity: Int)
   extends StoreBase[Int, UInt256](db, capacity)
@@ -99,7 +107,8 @@ object DataType extends Enumeration {
   val Block = Value(0x04)
   val ForkItem = Value(0x05)
   val Contract = Value(0x06)
-  val Variable = Value(0x07)
+  val ContractState = Value(0x07)
+  val Receipt = Value(0x08)
 }
 
 object IndexType extends Enumeration {
@@ -156,6 +165,14 @@ trait AccountPrefix extends DataPrefix {
 
 trait ContractPrefix extends DataPrefix {
   override val dataType: DataType.Value = DataType.Contract
+}
+
+trait ContractStatePrefix extends DataPrefix {
+  override val dataType: DataType.Value = DataType.ContractState
+}
+
+trait ReceiptPrefix extends DataPrefix {
+  override val dataType: DataType.Value = DataType.Receipt
 }
 
 trait ForkItemPrefix extends DataPrefix {
@@ -221,6 +238,10 @@ trait StringKey extends KeyConverterProvider[String] {
   override val keyConverter: Converter[String] = new StringConverter
 }
 
+trait ByteArrayKey extends KeyConverterProvider[Array[Byte]] {
+  override val keyConverter: Converter[Array[Byte]] = new ByteArrayConverter
+}
+
 trait UInt160Key extends KeyConverterProvider[UInt160] {
   override val keyConverter: Converter[UInt160] = new SerializableConverter(UInt160.deserialize)
 }
@@ -233,6 +254,10 @@ trait PublicKeyKey extends KeyConverterProvider[PublicKey] {
   override val keyConverter: Converter[PublicKey] = new SerializableConverter(PublicKey.deserialize)
 }
 
+trait ContractStateKey extends KeyConverterProvider[Array[Byte]] {
+  override val keyConverter: Converter[Array[Byte]] = new ByteArrayConverter
+}
+
 //trait UTXOKeyKey extends KeyConverterProvider[UTXOKey] {
 //  override val keyConverter: Converter[UTXOKey] = new SerializableConverter(UTXOKey.deserialize)
 //}
@@ -243,6 +268,10 @@ trait IntValue extends ValueConverterProvider[Int] {
 
 trait StringValue extends ValueConverterProvider[String] {
   override val valConverter: Converter[String] = new StringConverter
+}
+
+trait ByteArrayValue extends ValueConverterProvider[Array[Byte]] {
+  override val valConverter: Converter[Array[Byte]] = new ByteArrayConverter
 }
 
 trait UInt160Value extends ValueConverterProvider[UInt160] {
@@ -271,6 +300,14 @@ trait AccountValue extends ValueConverterProvider[Account] {
 
 trait ContractValue extends ValueConverterProvider[Contract]{
   override val valConverter: Converter[Contract] = new SerializableConverter(Contract.deserialize)
+}
+
+trait ContractStateValue extends ValueConverterProvider[ContractState]{
+  override val valConverter: Converter[ContractState] = new SerializableConverter(ContractState.deserialize)
+}
+
+trait ReceiptValue extends ValueConverterProvider[TransactionReceipt]{
+  override val valConverter: Converter[TransactionReceipt] = new SerializableConverter(TransactionReceipt.deserialize)
 }
 
 trait ForkItemValue extends ValueConverterProvider[ForkItem] {
@@ -314,6 +351,18 @@ class StringConverter extends Converter[String] {
   override def serializer(key: String, os: DataOutputStream): Unit = {
     import com.apex.common.Serializable._
     os.writeString(key)
+  }
+}
+
+class ByteArrayConverter extends Converter[Array[Byte]] {
+  override def deserializer(is: DataInputStream): Array[Byte] = {
+    import com.apex.common.Serializable._
+    is.readByteArray
+  }
+
+  override def serializer(key: Array[Byte], os: DataOutputStream): Unit = {
+    import com.apex.common.Serializable._
+    os.writeByteArray(key)
   }
 }
 
