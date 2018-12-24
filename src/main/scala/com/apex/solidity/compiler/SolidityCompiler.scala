@@ -9,8 +9,6 @@ import java.io.InputStreamReader
 import java.io.Serializable
 import java.nio.file.Path
 import java.util
-import java.util.{ArrayList, Arrays, List}
-import java.util.stream.Collectors.toList
 
 import com.apex.solidity.compiler.SolidityCompiler._
 
@@ -41,7 +39,7 @@ object SolidityCompiler {
     override def toString: String = name
   }
 
-  class ListOption (var name: String, val values: Seq[CompilerOption]) extends CompilerOption {
+  class ListOption (var name: String, val values: Seq[Any]) extends CompilerOption {
     override def getValue: String = {
       val result = new StringBuilder
       import scala.collection.JavaConversions._
@@ -75,10 +73,33 @@ object SolidityCompiler {
     override def getName: String = name
   }
 
-  class CombinedJson(override val values: Seq[CompilerOption]) extends ListOption("combined-json", values) {
+  class CombinedJson(override val values: Seq[Any]) extends ListOption("combined-json", values) {
   }
 
-  class AllowPaths(override val values: Seq[CompilerOption]) extends ListOption("allow-paths", values) {
+  class AllowPaths(override val values: Seq[Any]) extends ListOption("allow-paths", values) {
+  }
+
+  @throws[IOException]
+  def runGetVersionOutput: String = {
+    val commandParts = new util.ArrayList[String]
+    commandParts.add(getInstance.solc.getExecutable.getCanonicalPath)
+    commandParts.add("--" + Options.VERSION.getName)
+    val processBuilder = new ProcessBuilder(commandParts).directory(getInstance.solc.getExecutable.getParentFile)
+    processBuilder.environment.put("LD_LIBRARY_PATH", getInstance.solc.getExecutable.getParentFile.getCanonicalPath)
+    val process = processBuilder.start
+    val error = new ParallelReader(process.getErrorStream)
+    val output = new ParallelReader(process.getInputStream)
+    error.start()
+    output.start()
+    try
+      process.waitFor
+    catch {
+      case e: InterruptedException =>
+        throw new RuntimeException(e)
+    }
+    if (process.exitValue == 0)
+      return output.getContent
+    throw new RuntimeException("Problem getting solc version: " + error.getContent)
   }
 
   object Options {
@@ -93,18 +114,13 @@ object SolidityCompiler {
     val VERSION   = new NameOnlyOption("version")
   }
 
-}
-
-class SolidityCompiler {
-
-  private var solc: Solc = new Solc()
-
-  @throws[IOException]
-  def compile(sourceDirectory: File, combinedJson: Boolean, options: Seq[CompilerOption]): Result = {
-    getInstance.compileSrc(sourceDirectory, false, combinedJson, options)
+  def getInstance: SolidityCompiler = {
+    if (SolidityCompiler.INSTANCE == null)
+      SolidityCompiler.INSTANCE = new SolidityCompiler()
+    SolidityCompiler.INSTANCE
   }
 
-  private class ParallelReader private[compiler](var stream: InputStream) extends Thread {
+  class ParallelReader private[compiler](var stream: InputStream) extends Thread {
     private val content = new StringBuilder
 
     def getContent: String = getContent(true)
@@ -145,9 +161,20 @@ class SolidityCompiler {
   }
 
   @throws[IOException]
-  def compile(source: Array[Byte], combinedJson: Boolean, options: CompilerOption*): Result = {
+  def compile(sourceDirectory: File, combinedJson: Boolean, options: Seq[CompilerOption]): Result = {
+    getInstance.compileSrc(sourceDirectory, false, combinedJson, options)
+  }
+
+  @throws[IOException]
+  def compile(source: Array[Byte], combinedJson: Boolean, options: Seq[CompilerOption]): Result = {
     getInstance.compileSrc(source, false, combinedJson, options)
   }
+
+}
+
+class SolidityCompiler {
+
+  private var solc: Solc = new Solc()
 
   @throws[IOException]
   def compileSrc(source: File, optimize: Boolean, combinedJson: Boolean, options: Seq[CompilerOption]): Result = {
@@ -174,7 +201,8 @@ class SolidityCompiler {
   private def prepareCommandOptions(optimize: Boolean, combinedJson: Boolean, options: Seq[CompilerOption]) = {
     val commandParts = new util.ArrayList[String]
     commandParts.add(solc.getExecutable.getCanonicalPath)
-    if (optimize) commandParts.add("--" + Options.OPTIMIZE.getName)
+    if (optimize)
+      commandParts.add("--" + Options.OPTIMIZE.getName)
     if (combinedJson) {
       val combinedJsonOption = new CombinedJson(options.filter(_.isInstanceOf[OutputOption]))
       commandParts.add("--" + combinedJsonOption.getName)
@@ -186,26 +214,26 @@ class SolidityCompiler {
         if (option.isInstanceOf[OutputOption])
           commandParts.add("--" + option.getName)
       }
-      for (option <- getElementsOf[OutputOption](options)) {
+      for (option <- options.filter(p => p.isInstanceOf[OutputOption])) {
         commandParts.add("--" + option.getName)
       }
     }
     import scala.collection.JavaConversions._
-    for (option <- getElementsOf[ListOption](options)) {
+    for (option <- options.filter(p => p.isInstanceOf[ListOption])) {
       commandParts.add("--" + option.getName)
       commandParts.add(option.getValue)
     }
     import scala.collection.JavaConversions._
-    for (option <- getElementsOf[CustomOption](options)) {
+    for (option <- options.filter(p => p.isInstanceOf[CustomOption])) {
       commandParts.add("--" + option.getName)
       if (option.getValue != null) commandParts.add(option.getValue)
     }
     commandParts
   }
 
-  private def getElementsOf[T](options: Seq[CompilerOption]) = {
-    options.filter(_.isInstanceOf[T])
-  }
+  //  private def getElementsOf[T](options: Seq[CompilerOption]) = {
+  //    options.filter(_.isInstanceOf[T])
+  //  }
 
   @throws[IOException]
   def compileSrc(source: Array[Byte], optimize: Boolean, combinedJson: Boolean, options: Seq[CompilerOption]): Result = {
@@ -233,31 +261,4 @@ class SolidityCompiler {
     new Result(error.getContent, output.getContent, success)
   }
 
-  @throws[IOException]
-  def runGetVersionOutput: String = {
-    val commandParts = new util.ArrayList[String]
-    commandParts.add(getInstance.solc.getExecutable.getCanonicalPath)
-    commandParts.add("--" + Options.VERSION.getName)
-    val processBuilder = new ProcessBuilder(commandParts).directory(getInstance.solc.getExecutable.getParentFile)
-    processBuilder.environment.put("LD_LIBRARY_PATH", getInstance.solc.getExecutable.getParentFile.getCanonicalPath)
-    val process = processBuilder.start
-    val error = new ParallelReader(process.getErrorStream)
-    val output = new ParallelReader(process.getInputStream)
-    error.start()
-    output.start()
-    try
-      process.waitFor
-    catch {
-      case e: InterruptedException =>
-        throw new RuntimeException(e)
-    }
-    if (process.exitValue == 0) return output.getContent
-    throw new RuntimeException("Problem getting solc version: " + error.getContent)
-  }
-
-  def getInstance: SolidityCompiler = {
-    if (SolidityCompiler.INSTANCE == null)
-      SolidityCompiler.INSTANCE = new SolidityCompiler()
-    SolidityCompiler.INSTANCE
-  }
 }

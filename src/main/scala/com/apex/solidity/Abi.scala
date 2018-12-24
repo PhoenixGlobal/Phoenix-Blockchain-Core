@@ -3,39 +3,25 @@ package com.apex.solidity
 import java.io.IOException
 import java.lang.String.format
 import java.util
-import java.util.{ArrayList, List}
-
 import com.apex.utils.ByteUtil
-import com.fasterxml.jackson.annotation.JsonInclude.Include
-import com.fasterxml.jackson.annotation.JsonProperty
-import com.fasterxml.jackson.annotation.JsonInclude
-import com.fasterxml.jackson.annotation.JsonCreator
-import com.fasterxml.jackson.module.scala.DefaultScalaModule
-import com.fasterxml.jackson.core.JsonProcessingException
-
-import com.fasterxml.jackson.databind.{DeserializationFeature, ObjectMapper}
-import com.fasterxml.jackson.module.scala.experimental.ScalaObjectMapper
-
-import org.apache.commons.collections4.ListUtils.select
-import org.apache.commons.collections4.{CollectionUtils, Predicate}
-import org.apache.commons.lang3.ArrayUtils.subarray
-import org.apache.commons.lang3.StringUtils.{join, stripEnd}
 import com.apex.crypto.Crypto.sha3
 import com.apex.solidity.Abi.Entry.Param
-
-import com.apex.solidity.SolidityType.IntType.decodeInt
-import com.apex.solidity.SolidityType.IntType.encodeInt
+import com.apex.solidity.SolidityType.IntType.{decodeInt, encodeInt}
+import com.fasterxml.jackson.core.JsonProcessingException
+import com.fasterxml.jackson.databind.ObjectMapper
+import org.apache.commons.lang3.ArrayUtils.subarray
+import org.apache.commons.lang3.StringUtils.{join, stripEnd}
+import play.api.libs.functional.syntax._
+import play.api.libs.json.Reads._
+import play.api.libs.json._
 
 object Abi {
-  private val DEFAULT_MAPPER: ObjectMapper =
-    new ObjectMapper() with ScalaObjectMapper
-  //new ObjectMapper().disable(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES).enable(DeserializationFeature.READ_UNKNOWN_ENUM_VALUES_AS_NULL)
 
-  DEFAULT_MAPPER.registerModule(DefaultScalaModule)
-
-  def fromJson(json: String): Abi = try
-    DEFAULT_MAPPER.readValue(json, classOf[Abi])
-    //DEFAULT_MAPPER.readValue[Abi](json)
+  def fromJson(json: String): Abi = try {
+    //val efef = Json.parse(json).validate[Seq[Abi.Entry]].get
+    val entrys = Json.parse(json).as[Seq[Abi.Entry]]
+    return new Abi(entrys)
+  }
   catch {
     case e: IOException =>
       throw new RuntimeException(e)
@@ -54,7 +40,6 @@ object Abi {
       def decodeList(params: Seq[Entry.Param], encoded: Array[Byte]): util.List[AnyRef] = {
         val result: util.List[AnyRef] = new util.ArrayList[AnyRef](params.size)
         var offset: Int = 0
-        import scala.collection.JavaConversions._
         for (param <- params) {
           val decoded: AnyRef =
             if (param.solidityType.isDynamicType)
@@ -66,41 +51,64 @@ object Abi {
         }
         result
       }
+      def create(indexed: Boolean, name: String, solidityType: String): Param = {
+        new Param(indexed, name, SolidityType.getType(solidityType))
+      }
+      def fromJson(j: String) = {
+        Json.parse(j).validate[Param].get
+      }
     }
 
-    @JsonInclude(Include.NON_NULL)
-    class Param {
-      var indexed = false
-      var name: String = null
-      var solidityType: SolidityType = null
+    class Param(var indexed: Boolean = false,
+                var name: String = null,
+                var solidityType: SolidityType = null) {
 
       override def toString: String = format("%s%s%s", solidityType.getCanonicalName, if (indexed != null && indexed) " indexed " else " ", name)
     }
 
-    @JsonCreator
-    def create(@JsonProperty("anonymous") anonymous: Boolean,
-               @JsonProperty("constant") constant: Boolean,
-               @JsonProperty("name") name: String,
-               @JsonProperty("inputs") inputs: Seq[Entry.Param],
-               @JsonProperty("outputs") outputs: Seq[Entry.Param],
-               @JsonProperty("type") entryType: EntryType.Value,
-               @JsonProperty(value = "payable", required = false, defaultValue = "false") payable: Boolean): Abi.Entry = {
+    implicit val ParamReads: Reads[Param] = (
+      (JsPath \ "indexed").readWithDefault[Boolean](false) and
+        (JsPath \ "name").read[String] and
+        (JsPath \ "type").read[String]
+      ) (Param.create _)
+
+    def create(anonymous: Boolean,
+               constant: Boolean,
+               name: String,
+               inputs: Seq[Entry.Param],
+               outputs: Seq[Entry.Param],
+               entryType: String, //EntryType.Value,
+               payable: Boolean): Abi.Entry = {
       var result: Abi.Entry = null
       entryType match {
-        case EntryType.constructor =>
+        case "constructor" =>
           result = new Abi.Constructor(inputs, outputs)
-        case EntryType.function =>
+        case "function" =>
           result = new Abi.Function(Some(constant), name, inputs, outputs, payable)
-        case EntryType.fallback =>
+        case "fallback" =>
           result = new Abi.Function(Some(constant), name, inputs, outputs, payable)
-        case EntryType.event =>
+        case "event" =>
           result = new Abi.Event(Some(anonymous), name, inputs, outputs)
       }
       result
     }
+
+    def fromJson(j: String) = {
+      Json.parse(j).validate[Abi.Entry].get
+    }
+
+    implicit val EntryReads: Reads[Abi.Entry] = (
+      (JsPath \ "anonymous").readWithDefault[Boolean](false) and
+        (JsPath \ "constant").readWithDefault[Boolean](false) and
+        (JsPath \ "name").read[String] and
+        (JsPath \ "inputs").read[Seq[Entry.Param]] and
+        (JsPath \ "outputs").read[Seq[Entry.Param]] and
+        (JsPath \ "type").read[String] and
+        (JsPath \ "payable").readWithDefault[Boolean](false)
+      ) (create _)
+
   }
 
-  @JsonInclude(Include.NON_NULL)
   abstract class Entry(val anonymous: Option[Boolean],
                        val constant: Option[Boolean],
                        val name: String,
@@ -110,7 +118,6 @@ object Abi {
                        val payable: Boolean) {
     def formatSignature: String = {
       val paramsTypes = new StringBuilder
-      import scala.collection.JavaConversions._
       for (param <- inputs) {
         paramsTypes.append(param.solidityType.getCanonicalName).append(",")
       }
@@ -190,7 +197,6 @@ object Abi {
         returnTail += " constant"
       if (!outputs.isEmpty) {
         val types: util.List[String] = new util.ArrayList[String]
-        import scala.collection.JavaConversions._
         for (output <- outputs) {
           types.add(output.solidityType.getCanonicalName)
         }
@@ -224,7 +230,6 @@ object Abi {
         i += 1
       }
       val notIndexed: util.List[AnyRef] = Param.decodeList(filteredInputs(false), data)
-      import scala.collection.JavaConversions._
       for (input <- inputs) {
         result.add(if (input.indexed) indexed.remove(0)
         else notIndexed.remove(0))
@@ -242,13 +247,17 @@ object Abi {
 
 }
 
-class Abi() extends util.ArrayList[Abi.Entry] {
+case class Abi(entrys: Seq[Abi.Entry])  {
   def toJson: String = try
     new ObjectMapper().writeValueAsString(this)
   catch {
     case e: JsonProcessingException =>
       throw new RuntimeException(e)
   }
+
+  def size = entrys.size
+
+  def get(index: Int) = entrys(index)
 
 //  private def find[T <: Abi.Entry](resultClass: Class[T], entryType: Abi.Entry.EntryType.Value, searchPredicate: Predicate[T]): T = {
 //    CollectionUtils.find(this, (entry: Abi.Entry) => (entry.`type` eq `type`) && searchPredicate.evaluate(entry.asInstanceOf[T])).asInstanceOf[T]

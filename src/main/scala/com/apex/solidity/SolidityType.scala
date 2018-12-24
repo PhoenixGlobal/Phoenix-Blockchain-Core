@@ -45,16 +45,15 @@ object SolidityType {
 
   abstract class ArrayType(name: String) extends SolidityType(name) {
 
-    var elementType: SolidityType = SolidityType.getType(st + subDim)
-
     val idx: Int = name.indexOf("[")
 
     val st: String = name.substring(0, idx)
 
     val idx2: Int = name.indexOf("]", idx)
 
-    val subDim: String =
-      if (idx2 + 1 == name.length) "" else name.substring(idx2 + 1)
+    val subDim: String = if (idx2 + 1 == name.length) "" else name.substring(idx2 + 1)
+
+    var elementType: SolidityType = SolidityType.getType(st + subDim)
 
     override def encode(value: AnyRef): Array[Byte] =
       if (value.getClass.isArray) {
@@ -90,13 +89,13 @@ object SolidityType {
 
   class StaticArrayType(name: String) extends ArrayType(name) {
 
-    var size: Int = java.lang.Integer.parseInt(dim)
-
     val idx1: Int = name.indexOf("[")
 
     val idx2_StaticArrayType: Int = name.indexOf("]", idx1)
 
     val dim: String = name.substring(idx1 + 1, idx2_StaticArrayType)
+
+    var size: Int = java.lang.Integer.parseInt(dim)
 
     override def getCanonicalName(): String =
       if (elementType.isInstanceOf[ArrayType]) {

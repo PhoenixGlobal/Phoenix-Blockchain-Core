@@ -5,13 +5,14 @@ import java.nio.file.{Files, StandardCopyOption}
 import java.util.Scanner
 
 class Solc private[compiler]() {    //val config: SystemProperties
+  private var solc: File = null
+
   try
     init(null)    // SystemProperties.customSolcPath
   catch {
     case e: IOException =>
       throw new RuntimeException("Can't init solc compiler: ", e)
   }
-  private var solc: File = null
 
   @throws[IOException]
   private def init(customSolcPath: String): Unit = {
