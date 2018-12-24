@@ -18,14 +18,10 @@ import com.apex.storage.LevelDbStorage
 class DataBase(settings: DataBaseSettings) extends ApexLogging {
   private val db = LevelDbStorage.open(settings.dir)
 
-  //  private val headerStore = new HeaderStore(db, settings.cacheSize)
-  //  private val heightStore = new HeightStore(db, settings.cacheSize)
-  //  private val txStore = new TransactionStore(db, settings.cacheSize)
   private val accountStore = new AccountStore(db, settings.cacheSize)
-  //  private val addressStore = new AddressStore(db)
-  //  private val blkTxMappingStore = new BlkTxMappingStore(db, settings.cacheSize)
-  //  private val headBlkStore = new HeadBlockStore(db)
-
+  private val receiptStore = new ReceiptStore(db, settings.cacheSize)
+  private val contractStore = new ContractStore(db, settings.cacheSize)
+  private val contractStateStore = new ContractStateStore(db, settings.cacheSize)
   private val nameToAccountStore = new NameToAccountStore(db, settings.cacheSize)
 
   def nameExists(name: String): Boolean = {
@@ -59,6 +55,18 @@ class DataBase(settings: DataBaseSettings) extends ApexLogging {
 
   def getBalance(address: UInt160): Option[scala.collection.immutable.Map[UInt256, Fixed8]] = {
     accountStore.get(address).map(_.balances)
+  }
+
+  def getCode(address: UInt160): Array[Byte] = {
+    contractStore.get(address).map(_.code).getOrElse(Array.empty)
+  }
+
+  def getContractState(address: UInt160, key: Array[Byte]): Array[Byte] = {
+    contractStateStore.get(address.data ++ key).getOrElse(Array.empty)
+  }
+
+  def saveContractState(address: UInt160, key: Array[Byte], value: Array[Byte]): Unit = {
+    contractStateStore.set(address.data ++ key, value)
   }
 
   def startSession(): Unit = {

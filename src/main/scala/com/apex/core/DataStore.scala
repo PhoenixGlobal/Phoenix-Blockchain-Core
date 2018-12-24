@@ -3,12 +3,9 @@ package com.apex.core
 import java.io.{ByteArrayInputStream, ByteArrayOutputStream, DataInputStream, DataOutputStream}
 
 import com.apex.common.{Cache, LRUCache, Serializable}
+import com.apex.crypto.Ecdsa.PublicKey
 import com.apex.crypto.{UInt160, UInt256}
-import com.apex.exceptions.UnExpectedError
-import com.apex.storage.{Batch, LevelDbStorage, PersistentStack}
-import org.iq80.leveldb.{ReadOptions, WriteBatch}
-
-import scala.collection.mutable.ListBuffer
+import com.apex.storage.{Batch, LevelDbStorage}
 
 class BlockStore(db: LevelDbStorage, capacity: Int)
   extends StoreBase[UInt256, Block](db, capacity)
@@ -33,6 +30,24 @@ class AccountStore(db: LevelDbStorage, capacity: Int)
     with AccountPrefix
     with UInt160Key
     with AccountValue
+
+class ContractStore(db: LevelDbStorage, capacity: Int)
+  extends StoreBase[UInt160, Contract](db, capacity)
+    with ContractPrefix
+    with UInt160Key
+    with ContractValue
+
+class ContractStateStore(db: LevelDbStorage, capacity: Int)
+  extends StoreBase[Array[Byte], Array[Byte]](db, capacity)
+    with ContractStatePrefix
+    with ByteArrayKey
+    with ByteArrayValue
+
+class ReceiptStore(db: LevelDbStorage, capacity:Int)
+  extends StoreBase[UInt256, TransactionReceipt](db, capacity)
+    with ReceiptPrefix
+    with UInt256Key
+    with ReceiptValue
 
 class HeightStore(db: LevelDbStorage, capacity: Int)
   extends StoreBase[Int, UInt256](db, capacity)
@@ -91,6 +106,9 @@ object DataType extends Enumeration {
   val Session = Value(0x03)
   val Block = Value(0x04)
   val ForkItem = Value(0x05)
+  val Contract = Value(0x06)
+  val ContractState = Value(0x07)
+  val Receipt = Value(0x08)
 }
 
 object IndexType extends Enumeration {
@@ -143,6 +161,18 @@ trait TxPrefix extends DataPrefix {
 
 trait AccountPrefix extends DataPrefix {
   override val dataType: DataType.Value = DataType.Account
+}
+
+trait ContractPrefix extends DataPrefix {
+  override val dataType: DataType.Value = DataType.Contract
+}
+
+trait ContractStatePrefix extends DataPrefix {
+  override val dataType: DataType.Value = DataType.ContractState
+}
+
+trait ReceiptPrefix extends DataPrefix {
+  override val dataType: DataType.Value = DataType.Receipt
 }
 
 trait ForkItemPrefix extends DataPrefix {
@@ -208,12 +238,24 @@ trait StringKey extends KeyConverterProvider[String] {
   override val keyConverter: Converter[String] = new StringConverter
 }
 
+trait ByteArrayKey extends KeyConverterProvider[Array[Byte]] {
+  override val keyConverter: Converter[Array[Byte]] = new ByteArrayConverter
+}
+
 trait UInt160Key extends KeyConverterProvider[UInt160] {
   override val keyConverter: Converter[UInt160] = new SerializableConverter(UInt160.deserialize)
 }
 
 trait UInt256Key extends KeyConverterProvider[UInt256] {
   override val keyConverter: Converter[UInt256] = new SerializableConverter(UInt256.deserialize)
+}
+
+trait PublicKeyKey extends KeyConverterProvider[PublicKey] {
+  override val keyConverter: Converter[PublicKey] = new SerializableConverter(PublicKey.deserialize)
+}
+
+trait ContractStateKey extends KeyConverterProvider[Array[Byte]] {
+  override val keyConverter: Converter[Array[Byte]] = new ByteArrayConverter
 }
 
 //trait UTXOKeyKey extends KeyConverterProvider[UTXOKey] {
@@ -226,6 +268,10 @@ trait IntValue extends ValueConverterProvider[Int] {
 
 trait StringValue extends ValueConverterProvider[String] {
   override val valConverter: Converter[String] = new StringConverter
+}
+
+trait ByteArrayValue extends ValueConverterProvider[Array[Byte]] {
+  override val valConverter: Converter[Array[Byte]] = new ByteArrayConverter
 }
 
 trait UInt160Value extends ValueConverterProvider[UInt160] {
@@ -250,6 +296,18 @@ trait TransactionValue extends ValueConverterProvider[Transaction] {
 
 trait AccountValue extends ValueConverterProvider[Account] {
   override val valConverter: Converter[Account] = new SerializableConverter(Account.deserialize)
+}
+
+trait ContractValue extends ValueConverterProvider[Contract]{
+  override val valConverter: Converter[Contract] = new SerializableConverter(Contract.deserialize)
+}
+
+trait ContractStateValue extends ValueConverterProvider[ContractState]{
+  override val valConverter: Converter[ContractState] = new SerializableConverter(ContractState.deserialize)
+}
+
+trait ReceiptValue extends ValueConverterProvider[TransactionReceipt]{
+  override val valConverter: Converter[TransactionReceipt] = new SerializableConverter(TransactionReceipt.deserialize)
 }
 
 trait ForkItemValue extends ValueConverterProvider[ForkItem] {
@@ -293,6 +351,18 @@ class StringConverter extends Converter[String] {
   override def serializer(key: String, os: DataOutputStream): Unit = {
     import com.apex.common.Serializable._
     os.writeString(key)
+  }
+}
+
+class ByteArrayConverter extends Converter[Array[Byte]] {
+  override def deserializer(is: DataInputStream): Array[Byte] = {
+    import com.apex.common.Serializable._
+    is.readByteArray
+  }
+
+  override def serializer(key: Array[Byte], os: DataOutputStream): Unit = {
+    import com.apex.common.Serializable._
+    os.writeByteArray(key)
   }
 }
 
@@ -392,6 +462,8 @@ abstract class StateStore[V <: Serializable](db: LevelDbStorage) {
 abstract class StoreBase[K, V](val db: LevelDbStorage, cacheCapacity: Int) {
   protected val cache: Cache[K, V] = new LRUCache(cacheCapacity)
 
+  db.onRollback(() => cache.clear)
+
   val prefixBytes: Array[Byte]
 
   val keyConverter: Converter[K]
@@ -414,11 +486,11 @@ abstract class StoreBase[K, V](val db: LevelDbStorage, cacheCapacity: Int) {
     var item = cache.get(key)
     if (item.isEmpty) {
       item = getFromBackStore(key)
-      if (item.isEmpty) {
-        None
-      } else {
-//        cache.set(key, item.get)
+      if (item.isDefined) {
+        cache.set(key, item.get)
         item
+      } else {
+        None
       }
     } else {
       item
@@ -428,7 +500,7 @@ abstract class StoreBase[K, V](val db: LevelDbStorage, cacheCapacity: Int) {
   def set(key: K, value: V, batch: Batch = null): Boolean = {
     //    val batch = sessionMgr.beginSet(key, value, writeBatch)
     if (setBackStore(key, value, batch)) {
-//      cache.set(key, value)
+      cache.set(key, value)
       true
     } else {
       false
@@ -438,7 +510,7 @@ abstract class StoreBase[K, V](val db: LevelDbStorage, cacheCapacity: Int) {
   def delete(key: K, batch: Batch = null): Boolean = {
     //    val batch = sessionMgr.beginDelete(key, writeBatch)
     if (deleteBackStore(key, batch)) {
-//      cache.delete(key)
+      cache.delete(key)
       true
     } else {
       false
@@ -464,204 +536,4 @@ abstract class StoreBase[K, V](val db: LevelDbStorage, cacheCapacity: Int) {
   protected def deleteBackStore(key: K, batch: Batch): Boolean = {
     db.delete(genKey(key), batch)
   }
-
-  //
-  //  import collection.mutable.Map
-  //
-  //  class SessionItem(val insert: Map[K, V] = Map.empty[K, V],
-  //                    val update: Map[K, V] = Map.empty[K, V],
-  //                    val delete: Map[K, V] = Map.empty[K, V])
-  //    extends Serializable {
-  //    override def serialize(os: DataOutputStream): Unit = {
-  //      import com.apex.common.Serializable._
-  //      os.writeMap(insert.toMap)(keyConverter.serializer, valConverter.serializer)
-  //      os.writeMap(update.toMap)(keyConverter.serializer, valConverter.serializer)
-  //      os.writeMap(delete.toMap)(keyConverter.serializer, valConverter.serializer)
-  //    }
-  //
-  //    def fill(bytes: Array[Byte]): Unit = {
-  //      import com.apex.common.Serializable._
-  //      val bs = new ByteArrayInputStream(bytes)
-  //      val is = new DataInputStream(bs)
-  //      is.readMap(keyConverter.deserializer, valConverter.deserializer).foreach(fillInsert)
-  //      is.readMap(keyConverter.deserializer, valConverter.deserializer).foreach(fillUpdate)
-  //      is.readMap(keyConverter.deserializer, valConverter.deserializer).foreach(fillDelete)
-  //    }
-  //
-  //    def clear(): Unit = {
-  //      insert.clear()
-  //      update.clear()
-  //      delete.clear()
-  //    }
-  //
-  //    private def fillInsert(kv: (K, V)): Unit = {
-  //      insert.put(kv._1, kv._2)
-  //    }
-  //
-  //    private def fillUpdate(kv: (K, V)): Unit = {
-  //      update.put(kv._1, kv._2)
-  //    }
-  //
-  //    private def fillDelete(kv: (K, V)): Unit = {
-  //      delete.put(kv._1, kv._2)
-  //    }
-  //  }
-  //
-  //  class Session(store: StoreBase[K, V], val prefix: Array[Byte], val level: Int) {
-  //
-  //    private val sessionId = prefix ++ BigInt(level).toByteArray
-  //
-  //    private val item = new SessionItem
-  //
-  //    init()
-  //
-  //    def onSet(k: K, v: V, batch: WriteBatch): WriteBatch = {
-  //      var modified = true
-  //      if (item.insert.contains(k) || item.update.contains(k)) {
-  //        modified = false
-  //      } else if (item.delete.contains(k)) {
-  //        item.update.put(k, item.delete(k))
-  //        item.delete.remove(k)
-  //      } else {
-  //        store.get(k) match {
-  //          case Some(old) => {
-  //            item.update.put(k, old)
-  //          }
-  //          case None => {
-  //            item.insert.put(k, v)
-  //          }
-  //        }
-  //      }
-  //      if (modified) {
-  //        persist(batch)
-  //      } else {
-  //        batch
-  //      }
-  //    }
-  //
-  //    def onDelete(k: K, batch: WriteBatch): WriteBatch = {
-  //      var modified = false
-  //      if (item.insert.contains(k)) {
-  //        item.insert.remove(k)
-  //        modified = true
-  //      } else if (item.update.contains(k)) {
-  //        item.delete.put(k, item.update(k))
-  //        item.update.remove(k)
-  //        modified = true
-  //      } else if (!item.delete.contains(k)) {
-  //        val old = store.get(k)
-  //        if (old.isDefined) {
-  //          item.delete.put(k, old.get)
-  //          modified = true
-  //        }
-  //      }
-  //      if (modified) {
-  //        persist(batch)
-  //      } else {
-  //        batch
-  //      }
-  //    }
-  //
-  //    def close(batch: WriteBatch = null): Unit = {
-  //      if (batch == null) {
-  //        store.db.delete(sessionId)
-  //      } else {
-  //        batch.delete(sessionId)
-  //      }
-  //    }
-  //
-  //    def rollBack(onRollBack: WriteBatch => Unit): Unit = {
-  //      store.db.batchWrite(batch => {
-  //        item.insert.foreach(p => store.delete(p._1, batch))
-  //        item.update.foreach(p => store.set(p._1, p._2, batch))
-  //        item.delete.foreach(p => store.set(p._1, p._2, batch))
-  //        batch.delete(sessionId)
-  //        onRollBack(batch)
-  //      })
-  //    }
-  //
-  //    private def persist(batch: WriteBatch): WriteBatch = {
-  //      if (batch != null) {
-  //        batch.put(sessionId, item.toBytes)
-  //      } else {
-  //        val batch = store.db.beginBatch
-  //        batch.put(sessionId, item.toBytes)
-  //        batch
-  //      }
-  //    }
-  //
-  //    private def init(): Unit = {
-  //      def save: Unit = store.db.batchWrite(persist)
-  //
-  //      store.db.get(sessionId).map(item.fill).getOrElse(save)
-  //    }
-  //  }
-  //
-  //  class SessionManager(store: StoreBase[K, V]) {
-  //    private val prefix = Array(StoreType.Data.id.toByte, DataType.Session.id.toByte) ++ store.prefixBytes
-  //
-  //    private val sessions = ListBuffer.empty[Session]
-  //
-  //    private var _level = 1
-  //
-  //    init()
-  //
-  //    def level(): Int = _level
-  //
-  //    def activeLevels(): Seq[Int] = sessions.map(_.level)
-  //
-  //    def beginSet(key: K, value: V, batch: WriteBatch): WriteBatch = {
-  //      sessions.lastOption.map(_.onSet(key, value, batch)).orNull
-  //    }
-  //
-  //    def beginDelete(key: K, batch: WriteBatch): WriteBatch = {
-  //      sessions.lastOption.map(_.onDelete(key, batch)).orNull
-  //    }
-  //
-  //    def commit(): Unit = {
-  //      sessions.headOption.foreach(s => {
-  //        sessions.remove(0)
-  //        s.close()
-  //      })
-  //    }
-  //
-  //    def commit(level: Int): Unit = {
-  //      val toCommit = sessions.takeWhile(_.level <= level)
-  //      store.db.batchWrite(batch => toCommit.foreach(_.close(batch)))
-  //      sessions.remove(0, toCommit.length)
-  //    }
-  //
-  //    def rollBack(): Unit = {
-  //      sessions.lastOption.foreach(s => {
-  //        s.rollBack(batch => batch.put(prefix, BigInt(_level - 1).toByteArray))
-  //        sessions.remove(sessions.length - 1)
-  //        _level -= 1
-  //      })
-  //    }
-  //
-  //    def newSession(): Session = {
-  //      store.db.set(prefix, BigInt(_level + 1).toByteArray)
-  //      val session = new Session(store, prefix, _level)
-  //      sessions.append(session)
-  //      _level += 1
-  //      session
-  //    }
-  //
-  //    private def init(): Unit = {
-  //      store.db.find(prefix, (k, v) => {
-  //        require(k.length >= prefix.length)
-  //
-  //        if (k.length > prefix.length) {
-  //          val level = BigInt(k.drop(prefix.length)).toInt
-  //          val session = new Session(store, prefix, level)
-  //          sessions.append(session)
-  //        } else {
-  //          _level = BigInt(v).toInt
-  //        }
-  //      })
-  //
-  //      require(sessions.lastOption.forall(_.level < _level))
-  //    }
-  //  }
-
 }

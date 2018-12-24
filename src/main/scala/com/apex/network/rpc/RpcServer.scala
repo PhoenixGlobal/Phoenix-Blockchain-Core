@@ -105,7 +105,7 @@ object RpcServer extends ApexLogging {
             }
           }
         } ~
-        path("getblockcount") {
+        path("getblockheight") {
           post {
             entity(as[String]) { _ =>
               val f = (nodeRef ? GetBlockCountCmd()).mapTo[Int].map(GetBlockCountResult(_)).map(Json.toJson(_).toString)

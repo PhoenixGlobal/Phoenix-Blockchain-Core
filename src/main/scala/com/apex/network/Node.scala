@@ -38,6 +38,8 @@ class Node(val settings: ApexSettings)
 
   log.info("Node starting")
 
+  private val hashCountMax = 10
+
   private val notification = Notification()
 
   private val timeProvider = new NetworkTimeProvider(settings.ntp)
@@ -55,6 +57,10 @@ class Node(val settings: ApexSettings)
   private val networkManager = NetworkManagerRef(settings.network, chain.getChainInfo, timeProvider, peerHandlerManager)
 
   private val producer = ProducerRef(settings.consensus)
+
+  if (settings.rpc.enabled) {
+    RpcServer.run(settings.rpc, self)
+  }
 
   override def receive: Receive = {
     case task: AsyncTask => processAsyncTask(task)
@@ -77,6 +83,9 @@ class Node(val settings: ApexSettings)
   }
 
   override def postStop(): Unit = {
+    if (settings.rpc.enabled) {
+      RpcServer.stop()
+    }
     chain.close()
     super.postStop()
   }
@@ -184,8 +193,8 @@ class Node(val settings: ApexSettings)
     else {
       val hash = findLatestHash(msg.blockHashs.hashStart)
       val hashs = ArrayBuffer.empty[UInt256]
-      val hashCountMax = 10
-      var hashCount = 0
+      //val hashCountMax = 10
+      var hashCount = 1
       hashs.append(hash)
       var next = chain.getNextBlockId(hash)
       while (next.isDefined && hashCount < hashCountMax) {
@@ -229,7 +238,7 @@ class Node(val settings: ApexSettings)
   }
 
   private def processTransactionsMessage(msg: TransactionsMessage) = {
-    log.info(s"received ${msg.txs.txs.size} transactions from network")
+    log.debug(s"received ${msg.txs.txs.size} transactions from network")
     //producer ! ReceivedNewTransactions(txsPayload.txs)
     msg.txs.txs.foreach(tx => {
       if (tx.verifySignature())
@@ -239,8 +248,8 @@ class Node(val settings: ApexSettings)
   }
 
   private def processInventoryMessage(msg: InventoryMessage) = {
-    //log.info(s"received Inventory")
     val inv = msg.inv
+    //log.info(s"received Inventory, inv type ${inv.invType}, hash count ${inv.hashs.size}")
     if (inv.invType == InventoryType.Block) {
       val newBlocks = ArrayBuffer.empty[UInt256]
       inv.hashs.foreach(h => {
@@ -250,6 +259,10 @@ class Node(val settings: ApexSettings)
       if (newBlocks.size > 0) {
         log.debug(s"send GetDataMessage to request ${newBlocks.size} new blocks.  ${newBlocks(0).shortString}")
         sender() ! GetDataMessage(new InventoryPayload(InventoryType.Block, newBlocks)).pack
+      }
+      else if (inv.hashs.size == hashCountMax) {
+        log.info("all the block hashs in the inv are not new, request more")
+        sender() ! GetBlocksMessage(new GetBlocksPayload(Seq(inv.hashs.last), UInt256.Zero)).pack
       }
     }
     else if (inv.invType == InventoryType.Tx) {
@@ -305,6 +318,8 @@ class Node(val settings: ApexSettings)
       count += 1
       if (count > 10)
         step *= 2
+      if (step > 7200)
+        step = 7200
       index -= step
     }
     blockLocatorHashes.append(chain.getHeader(0).get.id)

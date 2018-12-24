@@ -10,6 +10,8 @@ trait Cache[K, V] {
   def set(key: K, value: V): Unit
 
   def delete(key: K): Unit
+
+  def clear(): Unit
 }
 
 class LRUCache[K, V](val capacity: Int) extends Cache[K, V] {
@@ -43,5 +45,9 @@ class LRUCache[K, V](val capacity: Int) extends Cache[K, V] {
 
   override def delete(key: K): Unit = {
     container.remove(key)
+  }
+
+  override def clear(): Unit = {
+    container.clear()
   }
 }

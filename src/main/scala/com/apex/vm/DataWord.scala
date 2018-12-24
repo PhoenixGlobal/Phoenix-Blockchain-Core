@@ -313,7 +313,7 @@ class DataWord(val data: Array[Byte]) {
   }
 
   def bytesOccupied: Int = {
-    val firstNonZero = data.firstNonZeroByte
+    val firstNonZero = data.indexWhere(_ != 0)
     if (firstNonZero == -1) 0 else 31 - firstNonZero + 1
   }
 

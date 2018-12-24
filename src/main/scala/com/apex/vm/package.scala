@@ -12,6 +12,7 @@ package com.apex
 
 import java.nio.ByteBuffer
 
+import com.apex.crypto.UInt160
 import org.bouncycastle.util.encoders.Hex
 
 package object vm {
@@ -28,16 +29,8 @@ package object vm {
   }
 
   implicit class ByteArrayExtension(data: Array[Byte]) {
-    def firstNonZeroByte: Int = {
-      var j = 0
-      for (i <- 0 to data.length - 1 if data(i) == 0) {
-        j += 1
-      }
-      if (j < data.length) j else -1
-    }
-
     def numberOfLeadingZeros: Int = {
-      val i = data.firstNonZeroByte
+      val i = data.indexWhere(_ != 0)
       if (i == -1) {
         data.length * 8
       } else {
@@ -50,7 +43,7 @@ package object vm {
       if (data == null) {
         null
       } else {
-        val firstNonZero = data.firstNonZeroByte
+        val firstNonZero = data.indexWhere(_ != 0)
         firstNonZero match {
           case -1 => Array.empty
           case 0 => data
@@ -86,6 +79,16 @@ package object vm {
     def parseWord(idx: Int): Array[Byte] = data.parseBytes(32 * idx, 32)
 
     /**
+      * Parses 32-bytes word from given input.
+      * Uses {@link #parseBytes(byte[], int, int)} method,
+      * thus, result will be right-padded with zero bytes if there is not enough bytes in {@code input}
+      *
+      * @param idx an index of the word starting from { @code 0}
+      * @param offset an offset in { @code input} array to start parsing from
+      */
+    def parseWord(offset: Int, idx: Int): Array[Byte] = data.parseBytes(offset + 32 * idx, 32)
+
+    /**
       * Cast hex encoded value from byte[] to BigInteger
       * null is parsed like byte[0]
       */
@@ -103,6 +106,10 @@ package object vm {
       } else {
         ""
       }
+    }
+
+    def toAddr: UInt160 = {
+      UInt160.fromBytes(data)
     }
   }
 

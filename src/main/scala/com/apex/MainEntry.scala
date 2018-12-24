@@ -21,7 +21,6 @@ import net.sourceforge.argparse4j.inf.{ArgumentParser, ArgumentParserException, 
 
 import scala.concurrent.ExecutionContext
 
-
 object MainEntry extends ApexLogging {
 
   def main(args: Array[String]): Unit = {
@@ -35,18 +34,9 @@ object MainEntry extends ApexLogging {
 
     val node = NodeRef(settings)
 
-    if (settings.rpc.enabled) {
-      RpcServer.run(settings.rpc, node)
-    }
-
     //temp
     while (true) {
       Thread.sleep(50000000)
-    }
-
-    if (settings.rpc.enabled) {
-      // stopping rpc server
-      RpcServer.stop()
     }
 
     //  stopping node
