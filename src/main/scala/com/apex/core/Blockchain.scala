@@ -376,8 +376,8 @@ class LevelDBBlockchain(chainSettings: ChainSettings, consensusSettings: Consens
   private def applyTransaction(tx: Transaction): Boolean = {
     var txValid = true
 
-    val fromAccount = dataBase.getAccount(tx.fromPubKeyHash()).getOrElse(new Account(true, "", immutable.Map.empty[UInt256, Fixed8], 0))
-    val toAccount = dataBase.getAccount(tx.toPubKeyHash).getOrElse(new Account(true, "", immutable.Map.empty[UInt256, Fixed8], 0))
+    val fromAccount = dataBase.getAccount(tx.fromPubKeyHash()).getOrElse(new Account(tx.fromPubKeyHash(), true, "", immutable.Map.empty[UInt256, Fixed8], 0))
+    val toAccount = dataBase.getAccount(tx.toPubKeyHash).getOrElse(new Account(tx.toPubKeyHash, true, "", immutable.Map.empty[UInt256, Fixed8], 0))
 
     if (tx.txType == TransactionType.Miner) {
       // TODO
@@ -399,8 +399,8 @@ class LevelDBBlockchain(chainSettings: ChainSettings, consensusSettings: Consens
         .map(p => (p._1, p._2.map(_._2).sum))
         .filter(_._2.value > 0)
 
-      dataBase.setAccount((tx.fromPubKeyHash(), new Account(true, fromAccount.name, fromBalance, fromAccount.nextNonce + 1)),
-        (tx.toPubKeyHash, new Account(true, toAccount.name, toBalance, toAccount.nextNonce)))
+      dataBase.setAccount((tx.fromPubKeyHash(), new Account(tx.fromPubKeyHash(), true, fromAccount.name, fromBalance, fromAccount.nextNonce + 1)),
+        (tx.toPubKeyHash, new Account(tx.toPubKeyHash, true, toAccount.name, toBalance, toAccount.nextNonce)))
     }
     txValid
   }

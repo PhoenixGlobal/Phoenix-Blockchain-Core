@@ -210,7 +210,7 @@ class PeerConnectionManager(settings: NetworkSettings,
       //log.info(s"PeerConnectionManager try send $msg")
       if (waitForAck) {
         msgBuffer.append(msg)
-        log.info(s"waitForAck, msgBuffer size ${msgBuffer.size}")
+        log.debug(s"waitForAck, msgBuffer size ${msgBuffer.size}")
       }
       else {
         sendMessagePack(msg)

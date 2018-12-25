@@ -11,7 +11,7 @@ package com.apex.core
 import com.apex.crypto.UIntBase
 
 trait Identifier[A <: UIntBase] extends com.apex.common.Serializable {
-  protected var _id: A
+  protected var _id: A = _
 
   def id(): A = {
     if (_id == null) {
