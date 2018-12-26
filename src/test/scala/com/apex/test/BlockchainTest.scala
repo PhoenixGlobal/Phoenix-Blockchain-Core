@@ -100,7 +100,8 @@ class BlockchainTest {
                      nonce: Long,
                      txType: TransactionType.Value = TransactionType.Transfer) = {
 
-    val tx = new Transaction(txType, from.publicKey, to, "", amount, UInt256.Zero, nonce, "", "")
+    val tx = new Transaction(txType, from.publicKey, to, "",
+      amount, UInt256.Zero, nonce, BinaryData.empty, BinaryData.empty, BinaryData.empty, BinaryData.empty)
     tx.sign(from)
     tx
   }
@@ -115,8 +116,7 @@ class BlockchainTest {
       miner.pubkey.pubKeyHash, "", Fixed8.fromDecimal(award), UInt256.Zero,
       preBlock.height + 1,
       BinaryData(Crypto.randomBytes(8)), // add random bytes to distinct different blocks with same block index during debug in some cases
-      BinaryData.empty
-    )
+      BinaryData.empty, BinaryData.empty, BinaryData.empty)
 
     val allTxs = ArrayBuffer.empty[Transaction]
 
@@ -140,8 +140,7 @@ class BlockchainTest {
       miner.pubkey.pubKeyHash, "", Fixed8.fromDecimal(_minerAward), UInt256.Zero,
       preBlock.height + 1,
       BinaryData(Crypto.randomBytes(8)), // add random bytes to distinct different blocks with same block index during debug in some cases
-      BinaryData.empty
-    )
+      BinaryData.empty, BinaryData.empty, BinaryData.empty)
 
     val allTxs = ArrayBuffer.empty[Transaction]
 

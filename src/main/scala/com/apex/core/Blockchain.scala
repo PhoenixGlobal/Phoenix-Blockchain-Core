@@ -143,7 +143,7 @@ class LevelDBBlockchain(chainSettings: ChainSettings, consensusSettings: Consens
     chainSettings.genesis.genesisCoinAirdrop.foreach(airdrop => {
       genesisTxs.append(new Transaction(TransactionType.Miner, minerCoinFrom,
         PublicKeyHash.fromAddress(airdrop.addr).get, "", Fixed8.fromDecimal(airdrop.coins),
-        UInt256.Zero, 0, consensusSettings.fingerprint(), BinaryData.empty))
+        UInt256.Zero, 0, consensusSettings.fingerprint(), BinaryData.empty, BinaryData.empty, BinaryData.empty))
     })
 
     val genesisBlockHeader: BlockHeader = BlockHeader.build(0,
@@ -242,7 +242,7 @@ class LevelDBBlockchain(chainSettings: ChainSettings, consensusSettings: Consens
       producer.pubkey.pubKeyHash, "", minerAward, UInt256.Zero,
       forkHead.block.height + 1,
       BinaryData(Crypto.randomBytes(8)), // add random bytes to distinct different blocks with same block index during debug in some cases
-      BinaryData.empty
+      BinaryData.empty, BinaryData.empty, BinaryData.empty
     )
     //isPendingBlock = true
     dataBase.startSession()

@@ -13,8 +13,7 @@ class BlockHeader(val index: Int,
                   val prevBlock: UInt256,
                   val producer: PublicKey,   // 33 bytes pub key
                   var producerSig: BinaryData,
-                  val version: Int = 0x01,
-                  override protected var _id: UInt256 = null) extends Identifier[UInt256] {
+                  val version: Int = 0x01) extends Identifier[UInt256] {
 
   override def equals(obj: scala.Any): Boolean = {
     obj match {
@@ -37,15 +36,10 @@ class BlockHeader(val index: Int,
     id.hashCode()
   }
 
-  override def serialize(os: DataOutputStream): Unit = {
-    serializeExcludeId(os)
-    os.write(id)
-  }
-
   override protected def genId(): UInt256 = {
     val bs = new ByteArrayOutputStream()
     val os = new DataOutputStream(bs)
-    serializeExcludeId(os)
+    serialize(os)
     UInt256.fromBytes(Crypto.hash256(bs.toByteArray))
   }
 
@@ -60,7 +54,7 @@ class BlockHeader(val index: Int,
     // skip the producerSig
   }
 
-  private def serializeExcludeId(os: DataOutputStream) = {
+  override def serialize(os: DataOutputStream): Unit = {
     import com.apex.common.Serializable._
     serializeForSign(os)
     os.writeByteArray(producerSig)
@@ -115,8 +109,7 @@ object BlockHeader {
       prevBlock = is.readObj(UInt256.deserialize),
       producer = is.readObj(PublicKey.deserialize),
       producerSig = is.readByteArray,
-      version = version,
-      is.readObj(UInt256.deserialize)
+      version = version
     )
   }
 

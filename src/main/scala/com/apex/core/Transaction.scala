@@ -14,11 +14,10 @@ class Transaction(val txType: TransactionType.Value,
                            val assetId: UInt256,
                            val nonce: Long,
                            val data: BinaryData,
+                           val gasPrice: BinaryData,
+                           val gasLimit: BinaryData,
                            var signature: BinaryData,
-                           //TODO: gas price and gas limit
-                           val version: Int = 0x01,
-                           override protected var _id: UInt256 = null)
-  extends Identifier[UInt256] with Serializable {
+                           val version: Int = 0x01) extends Identifier[UInt256] with Serializable {
 
   //TODO: read settings
   def fee: Fixed8 = Fixed8.Zero
@@ -35,29 +34,20 @@ class Transaction(val txType: TransactionType.Value,
     Ecdsa.PublicKeyHash.toAddress(toPubKeyHash.data)
   }
 
-  override def serialize(os: DataOutputStream): Unit = {
-    serializeExcludeId(os)
-    os.write(id)
-  }
-
   override protected def genId(): UInt256 = {
     val bs = new ByteArrayOutputStream()
     val os = new DataOutputStream(bs)
-    serializeExcludeId(os)
+    serialize(os)
     UInt256.fromBytes(Crypto.hash256(bs.toByteArray))
   }
 
-  private def serializeExcludeId(os: DataOutputStream) = {
+  override def serialize(os: DataOutputStream): Unit = {
     import com.apex.common.Serializable._
 
     serializeForSign(os)
 
     os.writeByteArray(signature)
-
-    //serializeExtraData(os)
   }
-
-  //protected def serializeExtraData(os: DataOutputStream): Unit
 
   def serializeForSign(os: DataOutputStream) = {
     import com.apex.common.Serializable._
@@ -70,9 +60,11 @@ class Transaction(val txType: TransactionType.Value,
     os.write(assetId)
     os.writeLong(nonce)
     os.writeByteArray(data)
+    os.writeByteArray(gasPrice)
+    os.writeByteArray(gasLimit)
+
     // skip signature
 
-    //serializeExtraData(os)
   }
 
   def dataForSigning(): Array[Byte] = {
@@ -81,11 +73,6 @@ class Transaction(val txType: TransactionType.Value,
     serializeForSign(os)
     bs.toByteArray
   }
-
-  //  def signInput(inputIndex: Int, sigHashType: Int, signatureVersion: Int, privateKey: Ecdsa.PrivateKey) = {
-  //    val sig = Crypto.sign(dataForSigning(sigHashType), privateKey.toBin)
-  //    inputs(inputIndex).signatureScript = Script.write(OP_PUSHDATA(sig) :: OP_PUSHDATA(privateKey.publicKey) :: Nil)
-  //  }
 
   def sign(privateKey: Ecdsa.PrivateKey) = {
     signature = Crypto.sign(dataForSigning(), privateKey.toBin)
@@ -110,6 +97,8 @@ object Transaction {
             "assetId" -> o.assetId.toString,
             "nonce" -> o.nonce.toString,
             "data" -> o.data.toString,
+            "gasPrice" -> o.gasPrice.toString,
+            "gasLimit" -> o.gasLimit.toString,
             "signature" -> o.signature.toString,
             "version" -> o.version
           )
@@ -128,10 +117,10 @@ object Transaction {
     val assetId = UInt256.deserialize(is)
     val nonce = is.readLong
     val data = is.readByteArray
+    val gasPrice = is.readByteArray
+    val gasLimit = is.readByteArray
     val signature = is.readByteArray
 
-    val id = is.readObj(UInt256.deserialize)
-
-    new Transaction(txType, from, toPubKeyHash, toName, amount, assetId, nonce, data, signature, version, id)
+    new Transaction(txType, from, toPubKeyHash, toName, amount, assetId, nonce, data, gasPrice, gasLimit, signature, version)
   }
 }

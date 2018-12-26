@@ -33,6 +33,8 @@ class TransactionTest {
                     UInt256.Zero,
                     1,
                     BinaryData("1234"),
+                    BinaryData.empty,
+                    BinaryData.empty,
                     BinaryData.empty)
 
     tx.sign(privKey)
