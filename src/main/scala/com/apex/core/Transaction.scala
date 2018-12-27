@@ -26,12 +26,28 @@ class Transaction(val txType: TransactionType.Value,
     from.pubKeyHash
   }
 
+  def sender(): UInt160 = fromPubKeyHash
+
   def fromAddress(): String = {
     from.address
   }
 
   def toAddress(): String = {
     Ecdsa.PublicKeyHash.toAddress(toPubKeyHash.data)
+  }
+
+  def isContractCreation(): Boolean = (txType == TransactionType.Deploy && toPubKeyHash == UInt160.Zero)
+
+  def getContractAddress(): Option[UInt160] = {
+    if (isContractCreation()) {
+      Some(UInt160.fromBytes(Crypto.hash160(fromPubKeyHash.data ++ BigInt(nonce).toByteArray)))
+    }
+    else
+      None
+  }
+
+  def transactionCost(block: Block): Long = {
+    0
   }
 
   override protected def genId(): UInt256 = {

@@ -10,6 +10,8 @@
 
 package com.apex.core
 
+import java.math.BigInteger
+
 import com.apex.common.ApexLogging
 import com.apex.crypto.{Fixed8, UInt160, UInt256}
 import com.apex.settings.DataBaseSettings
@@ -30,6 +32,18 @@ class DataBase(settings: DataBaseSettings) extends ApexLogging {
 
   def registerExists(register: UInt160): Boolean = {
     accountStore.contains(register)
+  }
+
+  def increaseNonce(address: UInt160) = {
+    // TODO
+  }
+
+  def getNonce(address: UInt160): Long = {
+    val account = getAccount(address)
+    if (account.isDefined)
+      account.get.nextNonce
+    else
+      0
   }
 
   def getAccount(address: UInt160): Option[Account] = {
@@ -53,12 +67,32 @@ class DataBase(settings: DataBaseSettings) extends ApexLogging {
     }
   }
 
+  def transfer(from: UInt160, to: UInt160, value: Fixed8) = {
+    //TODO
+  }
+
+  def transfer(from: UInt160, to: UInt160, value: BigInteger) = {
+    //TODO
+  }
+
+  def addBalance(address: UInt160, value: Fixed8) = {
+    //TODO
+  }
+
+  def addBalance(address: UInt160, value: BigInteger) = {
+    //TODO
+  }
+
   def getBalance(address: UInt160): Option[scala.collection.immutable.Map[UInt256, Fixed8]] = {
     accountStore.get(address).map(_.balances)
   }
 
   def getCode(address: UInt160): Array[Byte] = {
     contractStore.get(address).map(_.code).getOrElse(Array.empty)
+  }
+
+  def saveCode(address: UInt160, code: Array[Byte]) = {
+    //TODO
   }
 
   def getContractState(address: UInt160, key: Array[Byte]): Array[Byte] = {

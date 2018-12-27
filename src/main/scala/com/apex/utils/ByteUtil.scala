@@ -71,4 +71,8 @@ object ByteUtil {
     mergedArray
   }
 
+  def toBI(data: Array[Byte]) = new BigInteger(1, data)
+
+  def toBI(data: Long): BigInteger = BigInteger.valueOf(data)
+
 }
