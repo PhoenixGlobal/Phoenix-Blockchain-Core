@@ -3,12 +3,14 @@ package com.apex.solidity
 import java.io.IOException
 import java.lang.String.format
 import java.util
+
 import com.apex.utils.ByteUtil
 import com.apex.crypto.Crypto.sha3
 import com.apex.solidity.Abi.Entry.Param
 import com.apex.solidity.SolidityType.IntType.{decodeInt, encodeInt}
 import com.fasterxml.jackson.core.JsonProcessingException
 import com.fasterxml.jackson.databind.ObjectMapper
+import jdk.nashorn.api.scripting.ScriptObjectMirror
 import org.apache.commons.lang3.ArrayUtils.subarray
 import org.apache.commons.lang3.StringUtils.{join, stripEnd}
 import play.api.libs.functional.syntax._
@@ -127,6 +129,10 @@ object Abi {
     def fingerprintSignature: Array[Byte] = sha3(formatSignature.getBytes)
 
     def encodeSignature: Array[Byte] = fingerprintSignature
+
+    def test(callString: String) = {
+      entryType == Entry.EntryType.function && callString.startsWith(s"$name(")
+    }
   }
 
   class Constructor(override val inputs: Seq[Entry.Param], override val outputs: Seq[Entry.Param])    //  util.List
@@ -150,7 +156,7 @@ object Abi {
                  override val payable: Boolean)
     extends Abi.Entry(null, constant, name, inputs, outputs, Entry.EntryType.function, payable) {
 
-    def encode(args: Any*): Array[Byte] = ByteUtil.merge(Array(encodeSignature, encodeArguments(args)))
+    def encode(args: AnyRef*): Array[Byte] = ByteUtil.merge(Array(encodeSignature, encodeArguments(args:_*)))
 
     private def encodeArguments(args: AnyRef*): Array[Byte] = {
       if (args.length > inputs.size)
@@ -247,7 +253,7 @@ object Abi {
 
 }
 
-case class Abi(entrys: Seq[Abi.Entry])  {
+case class Abi(entries: Seq[Abi.Entry])  {
   def toJson: String = try
     new ObjectMapper().writeValueAsString(this)
   catch {
@@ -255,9 +261,31 @@ case class Abi(entrys: Seq[Abi.Entry])  {
       throw new RuntimeException(e)
   }
 
-  def size = entrys.size
+  def size = entries.size
 
-  def get(index: Int) = entrys(index)
+  def get(index: Int) = entries(index)
+
+  def encode(callString: String) = {
+    var matched = false
+    var data = Array.empty[Byte]
+    for (func <- entries.filter(_.test(callString)) if !matched) {
+      try {
+        import scala.collection.JavaConverters._
+        import javax.script.ScriptEngineManager
+        val manager = new ScriptEngineManager
+        val engine = manager.getEngineByName("nashorn")
+        val script = s"function ${func.name}(){ return Array.prototype.slice.call(arguments); };$callString;"
+        val args = engine.eval(script).asInstanceOf[ScriptObjectMirror]
+        if (args.size == func.inputs.length) {
+          data = func.asInstanceOf[Abi.Function].encode(args.asScala.map(_._2).toSeq:_*)
+          matched = true
+        }
+      } catch {
+        case e: Throwable => println(e)
+      }
+    }
+    data
+  }
 
 //  private def find[T <: Abi.Entry](resultClass: Class[T], entryType: Abi.Entry.EntryType.Value, searchPredicate: Predicate[T]): T = {
 //    CollectionUtils.find(this, (entry: Abi.Entry) => (entry.`type` eq `type`) && searchPredicate.evaluate(entry.asInstanceOf[T])).asInstanceOf[T]
