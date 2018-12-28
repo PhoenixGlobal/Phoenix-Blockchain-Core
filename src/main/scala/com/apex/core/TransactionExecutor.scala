@@ -24,7 +24,7 @@ object TransactionExecutor {
 class TransactionExecutor(var tx: Transaction,
                           //var coinbase: Array[Byte],
                           var track: DataBase,
-                          var blockStore: BlockStore,
+                          //var blockStore: BlockStore,
                           //var programInvokeFactory: ProgramInvokeFactory,
                           var currentBlock: Block,
                           //val listener: EthereumListener,
@@ -99,7 +99,7 @@ class TransactionExecutor(var tx: Transaction,
     if (cumulativeGasReached) {
       execError("Too much gas used in this block")
       //execError(String.format("Too much gas used in this block: Require: %s Got: %s", new BigInteger(1, currentBlock.header.gasLimit).longValue - toBI(tx.gasLimit).longValue, toBI(tx.gasLimit).longValue))
-      return
+      //return
     }
     if (txGasLimit.compareTo(BigInteger.valueOf(basicTxCost)) < 0) {
       execError("Not enough gas for transaction execution")
@@ -223,7 +223,8 @@ class TransactionExecutor(var tx: Transaction,
     //In case of hashing collisions (for TCK tests only), check for any balance before createAccount()
     val oldBalance = track.getBalance(newContractAddress.get)
     //cacheTrack.createAccount(tx.getContractAddress)
-    cacheTrack.addBalance(newContractAddress.get, oldBalance.get.get(UInt256.Zero).get)
+    if (oldBalance.isDefined)
+      cacheTrack.addBalance(newContractAddress.get, oldBalance.get.get(UInt256.Zero).get)
     if (vmSettings.eip161) cacheTrack.increaseNonce(newContractAddress.get)
     if (tx.data.data.length == 0) {
       m_endGas = m_endGas.subtract(BigInteger.valueOf(basicTxCost))

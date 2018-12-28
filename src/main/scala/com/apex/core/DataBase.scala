@@ -92,7 +92,7 @@ class DataBase(settings: DataBaseSettings) extends ApexLogging {
   }
 
   def saveCode(address: UInt160, code: Array[Byte]) = {
-    //TODO
+    contractStore.set(address, Contract(address, code))
   }
 
   def getContractState(address: UInt160, key: Array[Byte]): Array[Byte] = {

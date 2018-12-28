@@ -375,6 +375,33 @@ class LevelDBBlockchain(chainSettings: ChainSettings, consensusSettings: Consens
 
   private def applyTransaction(tx: Transaction): Boolean = {
     var txValid = true
+    tx.txType match {
+      case TransactionType.Miner =>      txValid = applySendTransaction(tx)
+      case TransactionType.Transfer =>   txValid = applySendTransaction(tx)
+      //case TransactionType.Fee =>
+      //case TransactionType.RegisterName =>
+      case TransactionType.Deploy =>     txValid = applyContractTransaction(tx)
+      case TransactionType.Call =>       txValid = applyContractTransaction(tx)
+    }
+    txValid
+  }
+
+  private def applyContractTransaction(tx: Transaction): Boolean = {
+
+    val executor = new TransactionExecutor(tx, dataBase,
+      genesisBlock,  // FIXME: wrong block
+      0  // TODO
+    )
+
+    executor.init()
+    executor.execute()
+    executor.go()
+
+    true
+  }
+
+  private def applySendTransaction(tx: Transaction): Boolean = {
+    var txValid = true
 
     val fromAccount = dataBase.getAccount(tx.fromPubKeyHash()).getOrElse(new Account(tx.fromPubKeyHash(), true, "", immutable.Map.empty[UInt256, Fixed8], 0))
     val toAccount = dataBase.getAccount(tx.toPubKeyHash).getOrElse(new Account(tx.toPubKeyHash, true, "", immutable.Map.empty[UInt256, Fixed8], 0))

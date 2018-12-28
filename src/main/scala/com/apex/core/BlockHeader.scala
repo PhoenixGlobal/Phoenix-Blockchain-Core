@@ -3,8 +3,10 @@ package com.apex.core
 import java.io.{ByteArrayInputStream, ByteArrayOutputStream, DataInputStream, DataOutputStream}
 import java.time.{Instant, ZoneId, ZonedDateTime}
 import java.time.format.DateTimeFormatter
+
 import com.apex.crypto.Ecdsa.{PrivateKey, PublicKey}
 import com.apex.crypto.{BinaryData, Crypto, UInt256}
+import com.apex.vm.DataWord
 import play.api.libs.json.{JsValue, Json, Writes}
 
 class BlockHeader(val index: Int,
@@ -102,7 +104,7 @@ object BlockHeader {
 
     assert(producer.length == 33)
     val header = new BlockHeader(index, timeStamp, merkleRoot, prevBlock,
-      BinaryData.empty, 0,
+      DataWord.of(999999999).data, 0,
       producer, BinaryData.empty)
     header.sign(privateKey)
     header

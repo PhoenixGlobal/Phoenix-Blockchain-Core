@@ -18,11 +18,11 @@ import org.junit.Test
 class ContractTest {
   @Test
   def testSerialize = {
-    val a = new Contract(PrivateKey(Random.nextString(32).getBytes.take(32)).publicKey, Array.fill(Random.nextInt(1024) + 65536)((Random.nextInt(256) - 128).toByte))
+    val a = new Contract(PrivateKey(Random.nextString(32).getBytes.take(32)).publicKey.pubKeyHash, Array.fill(Random.nextInt(1024) + 65536)((Random.nextInt(256) - 128).toByte))
     val o = new SerializerHelper[Contract](
       Contract.deserialize,
       (x, _) =>
-        x.account.equals(a.account)
+        x.address.equals(a.address)
           && x.code.sameElements(a.code)
           && x.name.equals(a.name)
           && x.author.equals(a.author)
