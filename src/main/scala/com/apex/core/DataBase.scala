@@ -103,6 +103,14 @@ class DataBase(settings: DataBaseSettings) extends ApexLogging {
     contractStateStore.set(address.data ++ key, value)
   }
 
+  def getReceipt(txid: UInt256): Option[TransactionReceipt] = {
+    receiptStore.get(txid)
+  }
+
+  def setReceipt(txid: UInt256, receipt: TransactionReceipt) = {
+    receiptStore.set(txid, receipt)
+  }
+
   def startSession(): Unit = {
     db.newSession()
   }

@@ -397,6 +397,10 @@ class LevelDBBlockchain(chainSettings: ChainSettings, consensusSettings: Consens
     executor.execute()
     executor.go()
 
+    val receipt = executor.getReceipt
+
+    dataBase.setReceipt(tx.id(), receipt)
+
     true
   }
 

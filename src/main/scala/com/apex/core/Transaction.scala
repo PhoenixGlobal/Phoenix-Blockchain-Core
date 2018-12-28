@@ -40,7 +40,7 @@ class Transaction(val txType: TransactionType.Value,
 
   def getContractAddress(): Option[UInt160] = {
     if (isContractCreation()) {
-      Some(UInt160.fromBytes(Crypto.hash160(fromPubKeyHash.data ++ BigInt(nonce).toByteArray)))
+      Some(Crypto.calcNewAddr(fromPubKeyHash, BigInt(nonce).toByteArray))
     }
     else
       None

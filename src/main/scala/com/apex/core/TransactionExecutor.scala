@@ -175,7 +175,7 @@ class TransactionExecutor(var tx: Transaction,
         result.spendGas(basicTxCost)
       }
       else {
-        val programInvoke = createInvoker(Array(96, -2, 71, -79, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 7, 119))
+        val programInvoke = createInvoker(tx.data)
         //val programInvoke = programInvokeFactory.createProgramInvoke(tx, currentBlock, cacheTrack, track, blockStore)
         this.vm = new VM(vmSettings, VMHook.EMPTY)
         this.program = new Program(vmSettings,  //track.getCodeHash(targetAddress),
@@ -190,11 +190,11 @@ class TransactionExecutor(var tx: Transaction,
 
   private def createInvoker(data: Array[Byte]): ProgramInvoke = {
     new ProgramInvokeImpl(
+      DataWord.of(if (tx.isContractCreation()) tx.getContractAddress().get.data else tx.toPubKeyHash.data),
+      DataWord.of(tx.sender().data),
+      DataWord.of(tx.sender().data),
       DataWord.ZERO,
-      DataWord.ZERO,
-      DataWord.ZERO,
-      DataWord.ZERO,
-      DataWord.ZERO,
+      DataWord.of(tx.gasPrice),
       DataWord.of(Int.MaxValue),
       DataWord.ZERO,
       data,
@@ -231,7 +231,7 @@ class TransactionExecutor(var tx: Transaction,
       result.spendGas(basicTxCost)
     }
     else {
-      val programInvoke = createInvoker(Array(96, -2, 71, -79, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 7, 119))
+      val programInvoke = createInvoker(Array.empty)
       //val programInvoke = programInvokeFactory.createProgramInvoke(tx, currentBlock, cacheTrack, track, blockStore)
       this.vm = new VM(vmSettings, VMHook.EMPTY)
       this.program = new Program(vmSettings, tx.data, programInvoke /*, tx, config, vmHook */) //.withCommonConfig(commonConfig)
