@@ -13,6 +13,9 @@ class Account(val pubKeyHash: UInt160,
               val nextNonce: Long,
               val version: Int = 0x01) extends com.apex.common.Serializable {
 
+  //TODO check balance and code
+  def isEmpty: Boolean = false
+
   def getBalance(assetID: UInt256): FixedNumber = {
     balances.getOrElse(assetID, FixedNumber.Zero)
   }
