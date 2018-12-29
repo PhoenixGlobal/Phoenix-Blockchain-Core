@@ -215,7 +215,7 @@ class ContractTxTest {
 
       val setTx = new Transaction(TransactionType.Call, minerCoinFrom,
         UInt160.fromBytes(BinaryData("43d4118a551815ec937380219e3bf5057316376e")), "", FixedNumber.fromDecimal(_minerAward),
-        3,
+        4,
         settt,
         FixedNumber(1), 99999999L, BinaryData.empty)
       assert(chain.addTransaction(setTx))
@@ -224,7 +224,7 @@ class ContractTxTest {
 
       val getTx = new Transaction(TransactionType.Call, minerCoinFrom,
         UInt160.fromBytes(BinaryData("43d4118a551815ec937380219e3bf5057316376e")), "", FixedNumber.fromDecimal(_minerAward),
-        3,
+        5,
         gettt,
         FixedNumber(1), 99999999L, BinaryData.empty)
       assert(chain.addTransaction(getTx))

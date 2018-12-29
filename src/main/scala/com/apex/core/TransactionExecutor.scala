@@ -11,7 +11,7 @@ import com.apex.vm.program.invoke.{ProgramInvoke, ProgramInvokeImpl}
 //import com.apex.vm.program.invoke.ProgramInvokeFactory
 import org.slf4j.Logger
 import org.slf4j.LoggerFactory
-import java.math.BigInteger
+//import java.math.BigInteger
 import org.apache.commons.lang3.ArrayUtils.getLength
 import org.apache.commons.lang3.ArrayUtils.isEmpty
 //import com.apex.utils.ByteUtil.toBI
@@ -97,12 +97,11 @@ class TransactionExecutor(var tx: Transaction,
     val curBlockGasLimit = currentBlock.header.gasLimit
     val cumulativeGasReached = (txGasLimit + gasUsedInTheBlock > curBlockGasLimit)
     if (cumulativeGasReached) {
-      execError("Too much gas used in this block")
-      //execError(String.format("Too much gas used in this block: Require: %s Got: %s", new BigInteger(1, currentBlock.header.gasLimit).longValue - toBI(tx.gasLimit).longValue, toBI(tx.gasLimit).longValue))
-      //return
+      execError(s"Too much gas used in this block, Require: ${currentBlock.header.gasLimit - tx.gasLimit}  Got: ${tx.gasLimit} ")
+      return
     }
-    if (txGasLimit.compareTo(BigInteger.valueOf(basicTxCost)) < 0) {
-      execError("Not enough gas for transaction execution")
+    if (txGasLimit < basicTxCost) {
+      execError(s"Not enough gas for transaction execution: Require: ${basicTxCost} Got: ${txGasLimit}")
       //execError(String.format("Not enough gas for transaction execution: Require: %s Got: %s", basicTxCost, txGasLimit))
       return
     }
@@ -163,7 +162,7 @@ class TransactionExecutor(var tx: Transaction,
         if (!out._1) {
           execError(s"Error executing precompiled contract ${targetAddress.address}")
           //execError("Error executing precompiled contract 0x" + toHexString(targetAddress))
-          m_endGas = BigInteger.ZERO
+          m_endGas = 0
           return
         }
       }
@@ -261,7 +260,7 @@ class TransactionExecutor(var tx: Transaction,
           m_endGas = tx.gasLimit - program.getResult.getGasUsed
           if (tx.isContractCreation && !result.isRevert) {
             val returnDataGasValue = getLength(program.getResult.getHReturn) * GasCost.CREATE_DATA
-            if (m_endGas.compareTo(BigInteger.valueOf(returnDataGasValue)) < 0) { // Not enough gas to return contract code
+            if (m_endGas < BigInt(returnDataGasValue)) { // Not enough gas to return contract code
               //     if (!blockchainConfig.getConstants.createEmptyContractOnOOG) {
               //       program.setRuntimeFailure(Program.Exception.notEnoughSpendingGas("No gas to return just created contract", returnDataGasValue, program))
               //       result = program.getResult
@@ -300,7 +299,7 @@ class TransactionExecutor(var tx: Transaction,
         // TODO: catch whatever they will throw on you !!!
         //            https://github.com/ethereum/cpp-ethereum/blob/develop/libethereum/Executive.cpp#L241
         rollback()
-        m_endGas = BigInteger.ZERO
+        m_endGas = 0
         execError(e.getMessage)
     }
   }
