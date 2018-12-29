@@ -69,9 +69,9 @@ trait ProgramInvoke {
 
   def getCallDeep: Int
 
-  def getRepository: DataBase
+  def getDataBase: DataBase
 
-  def getOrigRepository: DataBase
+  def getOrigDataBase: DataBase
 
   def getBlockStore: BlockBase
 

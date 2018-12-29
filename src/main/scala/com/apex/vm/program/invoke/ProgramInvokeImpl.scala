@@ -27,8 +27,8 @@ class ProgramInvokeImpl(address: DataWord,
                         number: DataWord,
                         difficulty: DataWord,
                         gaslimit: DataWord,
-                        repository: DataBase,
-                        origRepository: DataBase,
+                        dataBase: DataBase,
+                        origDataBase: DataBase,
                         blockStore: BlockBase,
                         callDeep: Int = 0,
                         staticCall: Boolean = false,
@@ -142,9 +142,9 @@ class ProgramInvokeImpl(address: DataWord,
 
   override def isStaticCall: Boolean = staticCall
 
-  override def getRepository: DataBase = repository
+  override def getDataBase: DataBase = dataBase
 
-  override def getOrigRepository: DataBase = origRepository
+  override def getOrigDataBase: DataBase = origDataBase
 
   override def getBlockStore: BlockBase = blockStore
 }
