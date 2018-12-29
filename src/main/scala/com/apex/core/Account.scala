@@ -2,19 +2,19 @@ package com.apex.core
 
 import java.io.{ByteArrayOutputStream, DataInputStream, DataOutputStream}
 
-import com.apex.crypto.{Crypto, Ecdsa, Fixed8, UInt160, UInt256}
+import com.apex.crypto.{Crypto, Ecdsa, FixedNumber, UInt160, UInt256}
 import play.api.libs.json.{JsValue, Json, Writes}
 import com.apex.common.Serializable
 
 class Account(val pubKeyHash: UInt160,
               val active: Boolean,
               val name: String,
-              val balances: Map[UInt256, Fixed8],
+              val balances: Map[UInt256, FixedNumber],
               val nextNonce: Long,
               val version: Int = 0x01) extends com.apex.common.Serializable {
 
-  def getBalance(assetID: UInt256): Fixed8 = {
-    balances.getOrElse(assetID, Fixed8.Zero)
+  def getBalance(assetID: UInt256): FixedNumber = {
+    balances.getOrElse(assetID, FixedNumber.Zero)
   }
 
   def address: String = Ecdsa.PublicKeyHash.toAddress(pubKeyHash.data)
@@ -25,7 +25,7 @@ class Account(val pubKeyHash: UInt160,
     os.write(pubKeyHash)
     os.writeBoolean(active)
     os.writeString(name)
-    os.writeMap(balances.filter(_._2 > Fixed8.Zero))
+    os.writeMap(balances.filter(_._2 > FixedNumber.Zero))
     os.writeLong(nextNonce)
   }
 }
@@ -37,7 +37,7 @@ object Account {
     val pubKeyHash = UInt160.deserialize(is)
     val active = is.readBoolean
     val name = is.readString
-    val balances = is.readMap(UInt256.deserialize, Fixed8.deserialize)
+    val balances = is.readMap(UInt256.deserialize, FixedNumber.deserialize)
     val nextNonce = is.readLong
 
     new Account(

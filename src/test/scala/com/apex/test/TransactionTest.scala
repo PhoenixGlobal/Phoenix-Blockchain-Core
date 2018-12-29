@@ -9,7 +9,7 @@
 package com.apex.test
 
 import com.apex.core.{Transaction, TransactionType}
-import com.apex.crypto.{BinaryData, Ecdsa, Fixed8, UInt256}
+import com.apex.crypto.{BinaryData, Ecdsa, FixedNumber, UInt256}
 import org.junit.Test
 
 @Test
@@ -29,12 +29,12 @@ class TransactionTest {
                     Ecdsa.PublicKey(BinaryData("0345ffbf8dc9d8ff15785e2c228ac48d98d29b834c2e98fb8cfe6e71474d7f6322")),
                     Ecdsa.PublicKeyHash.fromAddress("APGMmPKLYdtTNhiEkDGU6De8gNCk3bTsME9").get,
                     "bob",
-                    Fixed8.Ten,
+                    FixedNumber.Ten,
                     UInt256.Zero,
                     1,
                     BinaryData("1234"),
-                    BinaryData.empty,
-                    BinaryData.empty,
+                    FixedNumber.Zero,
+                    0,
                     BinaryData.empty)
 
     tx.sign(privKey)

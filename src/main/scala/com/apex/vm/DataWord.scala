@@ -396,6 +396,10 @@ object DataWord {
     of(num.toBytes)
   }
 
+  def of(num: BigInt): DataWord = {
+    of(num.toByteArray)
+  }
+
   def of(data: Array[Byte]): DataWord = {
     if (data == null || data.length == 0) {
       ZERO

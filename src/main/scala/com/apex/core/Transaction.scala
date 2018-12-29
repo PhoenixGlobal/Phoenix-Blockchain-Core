@@ -3,24 +3,24 @@ package com.apex.core
 import java.io.{ByteArrayInputStream, ByteArrayOutputStream, DataInputStream, DataOutputStream}
 
 import com.apex.common.Serializable
-import com.apex.crypto.{BinaryData, Crypto, Ecdsa, Fixed8, UInt160, UInt256}
+import com.apex.crypto.{BinaryData, Crypto, Ecdsa, FixedNumber, UInt160, UInt256}
 import play.api.libs.json.{JsValue, Json, Writes}
 
 class Transaction(val txType: TransactionType.Value,
-                           val from: Ecdsa.PublicKey,   // 33 bytes pub key
-                           val toPubKeyHash: UInt160,
-                           val toName: String,
-                           val amount: Fixed8,
-                           val assetId: UInt256,
-                           val nonce: Long,
-                           val data: BinaryData,
-                           val gasPrice: BinaryData,
-                           val gasLimit: BinaryData,
-                           var signature: BinaryData,
-                           val version: Int = 0x01) extends Identifier[UInt256] with Serializable {
+                  val from: Ecdsa.PublicKey, // 33 bytes pub key
+                  val toPubKeyHash: UInt160,
+                  val toName: String,
+                  val amount: FixedNumber,
+                  val assetId: UInt256,
+                  val nonce: Long,
+                  val data: BinaryData,
+                  val gasPrice: FixedNumber,
+                  val gasLimit: BigInt,
+                  var signature: BinaryData,
+                  val version: Int = 0x01) extends Identifier[UInt256] with Serializable {
 
   //TODO: read settings
-  def fee: Fixed8 = Fixed8.Zero
+  def fee: FixedNumber = FixedNumber.Zero
 
   def fromPubKeyHash() : UInt160 = {
     from.pubKeyHash
@@ -76,8 +76,8 @@ class Transaction(val txType: TransactionType.Value,
     os.write(assetId)
     os.writeLong(nonce)
     os.writeByteArray(data)
-    os.writeByteArray(gasPrice)
-    os.writeByteArray(gasLimit)
+    os.write(gasPrice)
+    os.writeByteArray(gasLimit.toByteArray)
 
     // skip signature
 
@@ -129,12 +129,12 @@ object Transaction {
     val from = Ecdsa.PublicKey.deserialize(is)
     val toPubKeyHash = UInt160.deserialize(is)
     val toName = is.readString
-    val amount = Fixed8.deserialize(is)
+    val amount = FixedNumber.deserialize(is)
     val assetId = UInt256.deserialize(is)
     val nonce = is.readLong
     val data = is.readByteArray
-    val gasPrice = is.readByteArray
-    val gasLimit = is.readByteArray
+    val gasPrice = FixedNumber.deserialize(is)
+    val gasLimit = BigInt(is.readByteArray)
     val signature = is.readByteArray
 
     new Transaction(txType, from, toPubKeyHash, toName, amount, assetId, nonce, data, gasPrice, gasLimit, signature, version)

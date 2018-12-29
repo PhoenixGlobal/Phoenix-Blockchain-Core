@@ -13,7 +13,7 @@ package com.apex.core
 import java.math.BigInteger
 
 import com.apex.common.ApexLogging
-import com.apex.crypto.{Fixed8, UInt160, UInt256}
+import com.apex.crypto.{FixedNumber, UInt160, UInt256}
 import com.apex.settings.DataBaseSettings
 import com.apex.storage.LevelDbStorage
 
@@ -67,7 +67,7 @@ class DataBase(settings: DataBaseSettings) extends ApexLogging {
     }
   }
 
-  def transfer(from: UInt160, to: UInt160, value: Fixed8) = {
+  def transfer(from: UInt160, to: UInt160, value: FixedNumber) = {
     //TODO
   }
 
@@ -75,7 +75,7 @@ class DataBase(settings: DataBaseSettings) extends ApexLogging {
     //TODO
   }
 
-  def addBalance(address: UInt160, value: Fixed8) = {
+  def addBalance(address: UInt160, value: FixedNumber) = {
     //TODO
   }
 
@@ -83,7 +83,7 @@ class DataBase(settings: DataBaseSettings) extends ApexLogging {
     //TODO
   }
 
-  def getBalance(address: UInt160): Option[scala.collection.immutable.Map[UInt256, Fixed8]] = {
+  def getBalance(address: UInt160): Option[scala.collection.immutable.Map[UInt256, FixedNumber]] = {
     accountStore.get(address).map(_.balances)
   }
 

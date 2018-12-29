@@ -11,7 +11,7 @@ package com.apex.test
 import java.io.{ByteArrayOutputStream, DataOutputStream}
 
 import com.apex.core.Account
-import com.apex.crypto.{Fixed8, UInt160}
+import com.apex.crypto.{FixedNumber, UInt160}
 import org.junit.Test
 
 @Test
@@ -19,7 +19,7 @@ class AccountTest {
   @Test
   def testSerialize = {
     val balances = (1 to 10)
-      .map(i => SerializerHelper.testHash256(s"test$i") -> new Fixed8(i))
+      .map(i => SerializerHelper.testHash256(s"test$i") -> new FixedNumber(i))
       .toMap
     val a = new Account(UInt160.Zero, false, "", balances, 0)
     val o = new SerializerHelper[Account](

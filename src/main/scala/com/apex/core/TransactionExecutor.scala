@@ -14,7 +14,7 @@ import org.slf4j.LoggerFactory
 import java.math.BigInteger
 import org.apache.commons.lang3.ArrayUtils.getLength
 import org.apache.commons.lang3.ArrayUtils.isEmpty
-import com.apex.utils.ByteUtil.toBI
+//import com.apex.utils.ByteUtil.toBI
 
 object TransactionExecutor {
   private val logger = LoggerFactory.getLogger("execute")
@@ -28,7 +28,7 @@ class TransactionExecutor(var tx: Transaction,
                           //var programInvokeFactory: ProgramInvokeFactory,
                           var currentBlock: Block,
                           //val listener: EthereumListener,
-                          val gasUsedInTheBlock: Long = 0
+                          val gasUsedInTheBlock: BigInt = 0
                           //val vmHook: VMHook
                          ) {
   //this.m_endGas = toBI(tx.getGasLimit)
@@ -49,7 +49,7 @@ class TransactionExecutor(var tx: Transaction,
   private var vm: VM = null
   private var program: Program = null
   private[core] var precompiledContract: PrecompiledContract = null
-  private[core] var m_endGas = toBI(tx.gasLimit)
+  private[core] var m_endGas = tx.gasLimit
   private[core] var basicTxCost: Long = 0
   //private[core] var logs = null
   //private val touchedAccounts = new ByteArraySet
@@ -93,9 +93,9 @@ class TransactionExecutor(var tx: Transaction,
       readyToExecute = true
       return
     }
-    val txGasLimit = new BigInteger(1, tx.gasLimit)
+    val txGasLimit = tx.gasLimit  //new BigInteger(1, tx.gasLimit)
     val curBlockGasLimit = new BigInteger(1, currentBlock.header.gasLimit)
-    val cumulativeGasReached = txGasLimit.add(BigInteger.valueOf(gasUsedInTheBlock)).compareTo(curBlockGasLimit) > 0
+    val cumulativeGasReached = (txGasLimit + gasUsedInTheBlock > curBlockGasLimit)
     if (cumulativeGasReached) {
       execError("Too much gas used in this block")
       //execError(String.format("Too much gas used in this block: Require: %s Got: %s", new BigInteger(1, currentBlock.header.gasLimit).longValue - toBI(tx.gasLimit).longValue, toBI(tx.gasLimit).longValue))
@@ -112,8 +112,8 @@ class TransactionExecutor(var tx: Transaction,
       execError(s"Invalid nonce: required: $reqNonce , tx.nonce: $txNonce")
       return
     }
-    val txGasCost = toBI(tx.gasPrice).multiply(txGasLimit)
-    val totalCost = toBI(tx.amount.value).add(txGasCost)
+    val txGasCost = tx.gasPrice * txGasLimit
+    val totalCost = tx.amount + txGasCost
     val senderBalance = track.getBalance(tx.sender())
     //    if (!isCovers(senderBalance, totalCost)) {
     //      execError(String.format("Not enough cash: Require: %s, Sender cash: %s", totalCost, senderBalance))
@@ -130,11 +130,11 @@ class TransactionExecutor(var tx: Transaction,
     if (!readyToExecute) return
     if (!localCall) {
       track.increaseNonce(tx.sender())
-      val txGasLimit = toBI(tx.gasLimit)
-      val txGasCost = toBI(tx.gasPrice).multiply(txGasLimit)
-      track.addBalance(tx.sender(), txGasCost.negate)
+      val txGasLimit = tx.gasLimit
+      val txGasCost = tx.gasPrice * txGasLimit
+      track.addBalance(tx.sender(), -txGasCost)
       if (TransactionExecutor.logger.isInfoEnabled)
-        TransactionExecutor.logger.info("Paying: txGasCost: [{}], gasPrice: [{}], gasLimit: [{}]", txGasCost, toBI(tx.gasPrice), txGasLimit)
+        TransactionExecutor.logger.info("Paying: txGasCost: [{}], gasPrice: [{}], gasLimit: [{}]", txGasCost, tx.gasPrice, txGasLimit)
     }
     if (tx.isContractCreation)
       create()
@@ -157,7 +157,7 @@ class TransactionExecutor(var tx: Transaction,
         return
       }
       else {
-        m_endGas = m_endGas.subtract(spendingGas)
+        m_endGas = m_endGas -spendingGas
         // FIXME: save return for vm trace
         val out = precompiledContract.execute(tx.data)
         if (!out._1) {
@@ -171,7 +171,7 @@ class TransactionExecutor(var tx: Transaction,
     else {
       val code = track.getCode(targetAddress)
       if (isEmpty(code)) {
-        m_endGas = m_endGas.subtract(BigInteger.valueOf(basicTxCost))
+        m_endGas = m_endGas - basicTxCost
         result.spendGas(basicTxCost)
       }
       else {
@@ -182,7 +182,7 @@ class TransactionExecutor(var tx: Transaction,
           code, programInvoke/*, tx, config, vmHook*/) //.withCommonConfig(commonConfig)
       }
     }
-    val endowment = toBI(tx.amount.value)
+    val endowment = tx.amount
     //transfer(cacheTrack, tx.sender(), targetAddress, endowment)
     cacheTrack.transfer(tx.sender(), targetAddress, endowment)
     //touchedAccounts.add(targetAddress)
@@ -194,7 +194,7 @@ class TransactionExecutor(var tx: Transaction,
       DataWord.of(tx.sender().data),
       DataWord.of(tx.sender().data),
       DataWord.ZERO,
-      DataWord.of(tx.gasPrice),
+      DataWord.of(tx.gasPrice.value),
       DataWord.of(Int.MaxValue),
       DataWord.ZERO,
       data,
@@ -227,7 +227,7 @@ class TransactionExecutor(var tx: Transaction,
       cacheTrack.addBalance(newContractAddress.get, oldBalance.get.get(UInt256.Zero).get)
     if (vmSettings.eip161) cacheTrack.increaseNonce(newContractAddress.get)
     if (tx.data.data.length == 0) {
-      m_endGas = m_endGas.subtract(BigInteger.valueOf(basicTxCost))
+      m_endGas = m_endGas - basicTxCost
       result.spendGas(basicTxCost)
     }
     else {
@@ -243,7 +243,7 @@ class TransactionExecutor(var tx: Transaction,
       //                program.storageSave(key, DataWord.ZERO);
       //            }
     }
-    val endowment = toBI(tx.amount.value)
+    val endowment = tx.amount
     //transfer(cacheTrack, tx.sender(), newContractAddress, endowment)
     cacheTrack.transfer(tx.sender(), newContractAddress.get, endowment)
     //touchedAccounts.add(newContractAddress)
@@ -258,7 +258,7 @@ class TransactionExecutor(var tx: Transaction,
           //if (config.playVM)
             vm.play(program)
           result = program.getResult
-          m_endGas = toBI(tx.gasLimit).subtract(toBI(program.getResult.getGasUsed))
+          m_endGas = tx.gasLimit - program.getResult.getGasUsed
           if (tx.isContractCreation && !result.isRevert) {
             val returnDataGasValue = getLength(program.getResult.getHReturn) * GasCost.CREATE_DATA
             if (m_endGas.compareTo(BigInteger.valueOf(returnDataGasValue)) < 0) { // Not enough gas to return contract code
@@ -274,7 +274,7 @@ class TransactionExecutor(var tx: Transaction,
 //              result.setHReturn(EMPTY_BYTE_ARRAY)
 //            }
             else { // Contract successfully created
-              m_endGas = m_endGas.subtract(BigInteger.valueOf(returnDataGasValue))
+              m_endGas = m_endGas - returnDataGasValue
               cacheTrack.saveCode(tx.getContractAddress.get, result.getHReturn)
             }
           }
@@ -396,7 +396,7 @@ class TransactionExecutor(var tx: Transaction,
 
   def getResult: ProgramResult = result
 
-  def getGasUsed: Long = toBI(tx.gasLimit).subtract(m_endGas).longValue
+  def getGasUsed: BigInt = tx.gasLimit - m_endGas
 }
 
 

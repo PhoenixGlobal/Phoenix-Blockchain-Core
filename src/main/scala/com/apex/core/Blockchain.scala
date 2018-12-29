@@ -6,7 +6,7 @@ import akka.actor.ActorRef
 import com.apex.common.ApexLogging
 import com.apex.consensus.ProducerUtil
 import com.apex.crypto.Ecdsa.{PrivateKey, PublicKey, PublicKeyHash}
-import com.apex.crypto.{BinaryData, Crypto, Fixed8, MerkleTree, UInt160, UInt256}
+import com.apex.crypto.{BinaryData, Crypto, FixedNumber, MerkleTree, UInt160, UInt256}
 import com.apex.settings.{ChainSettings, ConsensusSettings, Witness}
 
 import scala.collection.{immutable, mutable}
@@ -63,7 +63,7 @@ trait Blockchain extends Iterable[Block] with ApexLogging {
 
   //def verifyTransaction(tx: Transaction): Boolean
 
-  def getBalance(address: UInt160): Option[collection.immutable.Map[UInt256, Long]]
+  def getBalance(address: UInt160): Option[collection.immutable.Map[UInt256, FixedNumber]]
 
   def getAccount(address: UInt160): Option[Account]
 
@@ -126,7 +126,7 @@ class LevelDBBlockchain(chainSettings: ChainSettings, consensusSettings: Consens
   // so just set minerCoinFrom to any valid compressed pub key, it will not be seen by user
   private val minerCoinFrom = PublicKey(BinaryData("02866facba8742cd702b302021a9588e78b3cd96599a3b1c85688d6dc0a72585e6")) // 33 bytes pub key
 
-  private val minerAward = Fixed8.fromDecimal(chainSettings.minerAward)
+  private val minerAward = FixedNumber.fromDecimal(chainSettings.minerAward)
 
   private val genesisBlock: Block = buildGenesisBlock() //Block.build(genesisBlockHeader, genesisTxs)
 
@@ -142,8 +142,8 @@ class LevelDBBlockchain(chainSettings: ChainSettings, consensusSettings: Consens
 
     chainSettings.genesis.genesisCoinAirdrop.foreach(airdrop => {
       genesisTxs.append(new Transaction(TransactionType.Miner, minerCoinFrom,
-        PublicKeyHash.fromAddress(airdrop.addr).get, "", Fixed8.fromDecimal(airdrop.coins),
-        UInt256.Zero, 0, consensusSettings.fingerprint(), BinaryData.empty, BinaryData.empty, BinaryData.empty))
+        PublicKeyHash.fromAddress(airdrop.addr).get, "", FixedNumber.fromDecimal(airdrop.coins),
+        UInt256.Zero, 0, consensusSettings.fingerprint(), FixedNumber.Zero, 0, BinaryData.empty))
     })
 
     val genesisBlockHeader: BlockHeader = BlockHeader.build(0,
@@ -242,7 +242,7 @@ class LevelDBBlockchain(chainSettings: ChainSettings, consensusSettings: Consens
       producer.pubkey.pubKeyHash, "", minerAward, UInt256.Zero,
       forkHead.block.height + 1,
       BinaryData(Crypto.randomBytes(8)), // add random bytes to distinct different blocks with same block index during debug in some cases
-      BinaryData.empty, BinaryData.empty, BinaryData.empty
+      FixedNumber.Zero, 0, BinaryData.empty
     )
     //isPendingBlock = true
     dataBase.startSession()
@@ -407,8 +407,8 @@ class LevelDBBlockchain(chainSettings: ChainSettings, consensusSettings: Consens
   private def applySendTransaction(tx: Transaction): Boolean = {
     var txValid = true
 
-    val fromAccount = dataBase.getAccount(tx.fromPubKeyHash()).getOrElse(new Account(tx.fromPubKeyHash(), true, "", immutable.Map.empty[UInt256, Fixed8], 0))
-    val toAccount = dataBase.getAccount(tx.toPubKeyHash).getOrElse(new Account(tx.toPubKeyHash, true, "", immutable.Map.empty[UInt256, Fixed8], 0))
+    val fromAccount = dataBase.getAccount(tx.fromPubKeyHash()).getOrElse(new Account(tx.fromPubKeyHash(), true, "", immutable.Map.empty[UInt256, FixedNumber], 0))
+    val toAccount = dataBase.getAccount(tx.toPubKeyHash).getOrElse(new Account(tx.toPubKeyHash, true, "", immutable.Map.empty[UInt256, FixedNumber], 0))
 
     if (tx.txType == TransactionType.Miner) {
       // TODO
@@ -526,8 +526,8 @@ class LevelDBBlockchain(chainSettings: ChainSettings, consensusSettings: Consens
     isValid
   }
 
-  override def getBalance(address: UInt160): Option[collection.immutable.Map[UInt256, Long]] = {
-    dataBase.getBalance(address).map(_.mapValues(_.value))
+  override def getBalance(address: UInt160): Option[collection.immutable.Map[UInt256, FixedNumber]] = {
+    dataBase.getBalance(address)
   }
 
   override def getAccount(address: UInt160): Option[Account] = {
