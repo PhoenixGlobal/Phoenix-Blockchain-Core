@@ -30,7 +30,7 @@ class DataBase(settings: DataBaseSettings) extends ApexLogging {
     nameToAccountStore.contains(name)
   }
 
-  def registerExists(register: UInt160): Boolean = {
+  def accountExists(register: UInt160): Boolean = {
     accountStore.contains(register)
   }
 
