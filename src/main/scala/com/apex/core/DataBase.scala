@@ -83,8 +83,8 @@ class DataBase(settings: DataBaseSettings) extends ApexLogging {
     //TODO
   }
 
-  def getBalance(address: UInt160): Option[scala.collection.immutable.Map[UInt256, FixedNumber]] = {
-    accountStore.get(address).map(_.balances)
+  def getBalance(address: UInt160): Option[FixedNumber] = {
+    accountStore.get(address).map(_.balance)
   }
 
   def getCode(address: UInt160): Array[Byte] = {

@@ -224,7 +224,7 @@ class TransactionExecutor(var tx: Transaction,
     val oldBalance = track.getBalance(newContractAddress.get)
     //cacheTrack.createAccount(tx.getContractAddress)
     if (oldBalance.isDefined)
-      cacheTrack.addBalance(newContractAddress.get, oldBalance.get.get(UInt256.Zero).get)
+      cacheTrack.addBalance(newContractAddress.get, oldBalance.get)
     if (vmSettings.eip161) cacheTrack.increaseNonce(newContractAddress.get)
     if (tx.data.data.length == 0) {
       m_endGas = m_endGas - basicTxCost

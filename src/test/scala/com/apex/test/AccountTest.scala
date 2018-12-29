@@ -18,15 +18,16 @@ import org.junit.Test
 class AccountTest {
   @Test
   def testSerialize = {
-    val balances = (1 to 10)
-      .map(i => SerializerHelper.testHash256(s"test$i") -> new FixedNumber(i))
-      .toMap
-    val a = new Account(UInt160.Zero, false, "", balances, 0)
+
+    val a = new Account(UInt160.Zero, false, "iiruf", FixedNumber(567), 123)
     val o = new SerializerHelper[Account](
       Account.deserialize,
       (x, _) => x.pubKeyHash == a.pubKeyHash
         && x.active == a.active
-        && x.balances.sameElements(a.balances))
+        && x.name == a.name
+        && x.balance == a.balance
+        && x.nextNonce == a.nextNonce
+        && x.version == a.version)
     o.test(a)
   }
 }

@@ -150,7 +150,6 @@ class MongodbPlugin(settings: ApexSettings)
       "to" ->  tx.toAddress,
       "toName" -> tx.toName,
       "amount" -> tx.amount.toString,
-      "assetId" -> tx.assetId.toString,
       "nonce" -> tx.nonce.toString,
       "data" -> tx.data.toString,
       "signature" -> tx.signature.toString,
