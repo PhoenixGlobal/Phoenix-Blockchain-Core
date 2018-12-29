@@ -29,6 +29,7 @@ import java.io.ByteArrayOutputStream
 import java.util
 import java.util.Arrays
 
+import com.apex.crypto.UInt160
 import org.bouncycastle.util.encoders.DecoderException
 import org.spongycastle.util.encoders.{Encoder, Hex, HexEncoder}
 
@@ -310,6 +311,10 @@ class DataWord(val data: Array[Byte]) {
 
   def getLast20Bytes: Array[Byte] = {
     Arrays.copyOfRange(data, 12, data.length)
+  }
+
+  def toUInt160: UInt160 = {
+    UInt160.fromBytes(getLast20Bytes)
   }
 
   def bytesOccupied: Int = {

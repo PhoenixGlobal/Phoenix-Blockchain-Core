@@ -209,7 +209,7 @@ class Program(settings: ContractSettings, ops: Array[Byte], invoke: ProgramInvok
   def getCode: Array[Byte] = ops
 
   def getCodeAt(address: DataWord): Array[Byte] = {
-    invoke.getRepository.getCode(address.getLast20Bytes.toAddr)
+    invoke.getDataBase.getCode(address.toUInt160)
   }
 
   def getCodeHashAt(address: DataWord): Array[Byte] = {
@@ -347,8 +347,8 @@ class Program(settings: ContractSettings, ops: Array[Byte], invoke: ProgramInvok
   }
 
   def storageLoad(key: DataWord): DataWord = {
-    val address = getOwnerAddress.getLast20Bytes.toAddr
-    val value = invoke.getRepository.getContractState(address, key.data)
+    val address = getOwnerAddress.toUInt160
+    val value = invoke.getDataBase.getContractState(address, key.data)
     DataWord.of(value)
   }
 
@@ -357,16 +357,16 @@ class Program(settings: ContractSettings, ops: Array[Byte], invoke: ProgramInvok
   }
 
   def storageSave(key: Array[Byte], value: Array[Byte]): Unit = {
-    val address = getOwnerAddress.getLast20Bytes.toAddr
-    invoke.getRepository.saveContractState(address, key, value)
+    val address = getOwnerAddress.toUInt160
+    invoke.getDataBase.saveContractState(address, key, value)
   }
 
   /**
     * @return current Storage data for key
     */
   def getCurrentValue(key: DataWord): DataWord = {
-    val address = getOwnerAddress.getLast20Bytes.toAddr
-    val value = invoke.getRepository.getContractState(address, key.data)
+    val address = getOwnerAddress.toUInt160
+    val value = invoke.getDataBase.getContractState(address, key.data)
     DataWord.of(value)
   }
 

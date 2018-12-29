@@ -107,10 +107,6 @@ package object vm {
         ""
       }
     }
-
-    def toAddr: UInt160 = {
-      UInt160.fromBytes(data)
-    }
   }
 
   implicit class LongExtension(value: Long) {
