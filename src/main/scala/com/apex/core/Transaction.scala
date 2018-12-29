@@ -114,7 +114,7 @@ object Transaction {
             "nonce" -> o.nonce.toString,
             "data" -> o.data.toString,
             "gasPrice" -> o.gasPrice.toString,
-            "gasLimit" -> o.gasLimit.toString,
+            "gasLimit" -> o.gasLimit.longValue(),
             "signature" -> o.signature.toString,
             "version" -> o.version
           )

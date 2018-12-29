@@ -33,8 +33,8 @@ class TransactionTest {
                     UInt256.Zero,
                     1,
                     BinaryData("1234"),
-                    FixedNumber.Zero,
-                    0,
+                    FixedNumber(567),
+      789,
                     BinaryData.empty)
 
     tx.sign(privKey)
@@ -52,9 +52,10 @@ class TransactionTest {
         && x.assetId.data.sameElements(tx.assetId.data)
         && x.nonce == tx.nonce
         && x.data.sameElements(tx.data)
+        && x.gasPrice == tx.gasPrice
+        && x.gasLimit == tx.gasLimit
         && x.signature.sameElements(tx.signature)
         && x.version == tx.version
-
         && x.verifySignature() == true   )
     o.test(tx)
   }

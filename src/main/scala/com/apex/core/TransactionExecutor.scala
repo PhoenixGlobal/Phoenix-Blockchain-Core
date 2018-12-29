@@ -94,7 +94,7 @@ class TransactionExecutor(var tx: Transaction,
       return
     }
     val txGasLimit = tx.gasLimit  //new BigInteger(1, tx.gasLimit)
-    val curBlockGasLimit = new BigInteger(1, currentBlock.header.gasLimit)
+    val curBlockGasLimit = currentBlock.header.gasLimit
     val cumulativeGasReached = (txGasLimit + gasUsedInTheBlock > curBlockGasLimit)
     if (cumulativeGasReached) {
       execError("Too much gas used in this block")
