@@ -20,7 +20,7 @@ case class Notification() extends ApexLogging {
     listeners.append(actorRef)
   }
 
-  def send(notify: NotifyMessage) = {
+  def broadcast(notify: NotifyMessage) = {
     listeners.foreach(actor => actor ! notify)
   }
 }

@@ -276,7 +276,7 @@ class LevelDBBlockchain(chainSettings: ChainSettings, consensusSettings: Consens
       added = true
     }
     if (added)
-      notification.send(AddTransactionNotify(tx))
+      notification.broadcast(AddTransactionNotify(tx))
     added
   }
 
@@ -299,7 +299,7 @@ class LevelDBBlockchain(chainSettings: ChainSettings, consensusSettings: Consens
       pendingState.txs.clear()
       if (tryInsertBlock(block, false)) {
         log.info(s"block #${block.height} ${block.shortId} produced by ${block.header.producer.address.substring(0, 7)} ${block.header.timeString()}")
-        notification.send(NewBlockProducedNotify(block))
+        notification.broadcast(NewBlockProducedNotify(block))
         Some(block)
       } else {
         None
@@ -334,7 +334,7 @@ class LevelDBBlockchain(chainSettings: ChainSettings, consensusSettings: Consens
       else
         log.info(s"block ${block.height} ${block.shortId} apply error")
       if (inserted)
-        notification.send(BlockAddedToHeadNotify(block))
+        notification.broadcast(BlockAddedToHeadNotify(block))
     }
     else {
       if (forkBase.add(block)) {
@@ -536,7 +536,7 @@ class LevelDBBlockchain(chainSettings: ChainSettings, consensusSettings: Consens
       applyBlock(genesisBlock, false, false)
       blockBase.add(genesisBlock)
       forkBase.add(genesisBlock)
-      notification.send(BlockAddedToHeadNotify(genesisBlock))
+      notification.broadcast(BlockAddedToHeadNotify(genesisBlock))
     }
 
     require(forkBase.head.isDefined)
@@ -571,7 +571,7 @@ class LevelDBBlockchain(chainSettings: ChainSettings, consensusSettings: Consens
       dataBase.commit(block.height)
       blockBase.add(block)
     }
-    notification.send(BlockConfirmedNotify(block))
+    notification.broadcast(BlockConfirmedNotify(block))
   }
 
   private def onSwitch(from: Seq[ForkItem], to: Seq[ForkItem], switchState: SwitchState): SwitchResult = {
@@ -599,7 +599,7 @@ class LevelDBBlockchain(chainSettings: ChainSettings, consensusSettings: Consens
       from.foreach(item => applyBlock(item.block))
       SwitchResult(false, to(appliedCount))
     } else {
-      notification.send(ForkSwitchNotify(from, to))
+      notification.broadcast(ForkSwitchNotify(from, to))
       SwitchResult(true)
     }
   }
