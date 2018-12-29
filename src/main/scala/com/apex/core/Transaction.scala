@@ -11,7 +11,6 @@ class Transaction(val txType: TransactionType.Value,
                   val toPubKeyHash: UInt160,
                   val toName: String,
                   val amount: FixedNumber,
-                  val assetId: UInt256,
                   val nonce: Long,
                   val data: BinaryData,
                   val gasPrice: FixedNumber,
@@ -73,7 +72,6 @@ class Transaction(val txType: TransactionType.Value,
     os.write(toPubKeyHash)
     os.writeString(toName)
     os.write(amount)
-    os.write(assetId)
     os.writeLong(nonce)
     os.writeByteArray(data)
     os.write(gasPrice)
@@ -110,7 +108,6 @@ object Transaction {
             "to" ->  o.toAddress,
             "toName" -> o.toName,
             "amount" -> o.amount.toString,
-            "assetId" -> o.assetId.toString,
             "nonce" -> o.nonce.toString,
             "data" -> o.data.toString,
             "gasPrice" -> o.gasPrice.toString,
@@ -130,13 +127,12 @@ object Transaction {
     val toPubKeyHash = UInt160.deserialize(is)
     val toName = is.readString
     val amount = FixedNumber.deserialize(is)
-    val assetId = UInt256.deserialize(is)
     val nonce = is.readLong
     val data = is.readByteArray
     val gasPrice = FixedNumber.deserialize(is)
     val gasLimit = BigInt(is.readByteArray)
     val signature = is.readByteArray
 
-    new Transaction(txType, from, toPubKeyHash, toName, amount, assetId, nonce, data, gasPrice, gasLimit, signature, version)
+    new Transaction(txType, from, toPubKeyHash, toName, amount, nonce, data, gasPrice, gasLimit, signature, version)
   }
 }

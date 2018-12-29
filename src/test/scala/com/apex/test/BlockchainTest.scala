@@ -103,7 +103,7 @@ class BlockchainTest {
                      txType: TransactionType.Value = TransactionType.Transfer) = {
 
     val tx = new Transaction(txType, from.publicKey, to, "",
-      amount, UInt256.Zero, nonce, BinaryData.empty, FixedNumber.Zero, 0, BinaryData.empty)
+      amount, nonce, BinaryData.empty, FixedNumber.Zero, 0, BinaryData.empty)
     tx.sign(from)
     tx
   }
@@ -115,7 +115,7 @@ class BlockchainTest {
     val miner = ProducerUtil.getWitness(blockTime, _consensusSettings)
 
     val minerTx = new Transaction(TransactionType.Miner, minerCoinFrom,
-      miner.pubkey.pubKeyHash, "", FixedNumber.fromDecimal(award), UInt256.Zero,
+      miner.pubkey.pubKeyHash, "", FixedNumber.fromDecimal(award),
       preBlock.height + 1,
       BinaryData(Crypto.randomBytes(8)), // add random bytes to distinct different blocks with same block index during debug in some cases
       FixedNumber.Zero, 0, BinaryData.empty)
@@ -139,7 +139,7 @@ class BlockchainTest {
     val miner = ProducerUtil.getWitness(blockTime, _consensusSettings)
 
     val minerTx = new Transaction(TransactionType.Miner, minerCoinFrom,
-      miner.pubkey.pubKeyHash, "", FixedNumber.fromDecimal(_minerAward), UInt256.Zero,
+      miner.pubkey.pubKeyHash, "", FixedNumber.fromDecimal(_minerAward),
       preBlock.height + 1,
       BinaryData(Crypto.randomBytes(8)), // add random bytes to distinct different blocks with same block index during debug in some cases
       FixedNumber.Zero, 0, BinaryData.empty)
@@ -188,10 +188,10 @@ class BlockchainTest {
       assert(chain.getHeight() == 0)
 
       val balance1 = chain.getBalance(_acct1.publicKey.pubKeyHash)
-      assert(balance1.get.get(UInt256.Zero).get == FixedNumber.fromDecimal(123.12))
+      assert(balance1.get == FixedNumber.fromDecimal(123.12))
 
       val balance2 = chain.getBalance(_acct2.publicKey.pubKeyHash)
-      assert(balance2.get.get(UInt256.Zero).get == FixedNumber.fromDecimal(234.2))
+      assert(balance2.get == FixedNumber.fromDecimal(234.2))
 
       var blockTime = chain.getHeadTime() + _consensusSettings.produceInterval
       chain.startProduceBlock(ProducerUtil.getWitness(blockTime, _consensusSettings), blockTime)
@@ -220,15 +220,15 @@ class BlockchainTest {
       assert(!chain.isProducingBlock())
       assert(chain.getHeight() == 1)
       assert(chain.getHeadTime() == blockTime)
-      assert(chain.getBalance(_acct3.publicKey.pubKeyHash).get.get(UInt256.Zero).get == FixedNumber.fromDecimal(20))
-      assert(chain.getBalance(_acct1.publicKey.pubKeyHash).get.get(UInt256.Zero).get == FixedNumber.fromDecimal(0.1))
+      assert(chain.getBalance(_acct3.publicKey.pubKeyHash).get == FixedNumber.fromDecimal(20))
+      assert(chain.getBalance(_acct1.publicKey.pubKeyHash).get == FixedNumber.fromDecimal(0.1))
 
       val block2 = makeBlock(block1.get, Seq(makeTx(_acct3, _acct4.publicKey.pubKeyHash, FixedNumber.fromDecimal(11), 1)))
       assert(chain.tryInsertBlock(block2, true))
 
-      assert(chain.getBalance(_acct4.publicKey.pubKeyHash).get.get(UInt256.Zero).get == FixedNumber.fromDecimal(11))
+      assert(chain.getBalance(_acct4.publicKey.pubKeyHash).get == FixedNumber.fromDecimal(11))
 
-      assert(chain.getBalance(_acct3.publicKey.pubKeyHash).get.get(UInt256.Zero).get == FixedNumber.fromDecimal(9))
+      assert(chain.getBalance(_acct3.publicKey.pubKeyHash).get == FixedNumber.fromDecimal(9))
 
       assert(!chain.tryInsertBlock(makeBlock(block2, Seq.empty[Transaction], _minerAward + 0.1), true))
 
@@ -244,7 +244,7 @@ class BlockchainTest {
       assert(chain.head.id() == block33.id())
       assert(chain.getLatestHeader().id() == block33.id())
 
-      assert(chain.getBalance(_acct3.publicKey.pubKeyHash).get.get(UInt256.Zero).get == FixedNumber.fromDecimal(20))
+      assert(chain.getBalance(_acct3.publicKey.pubKeyHash).get == FixedNumber.fromDecimal(20))
       assert(chain.getBalance(_acct4.publicKey.pubKeyHash).isEmpty)
 
     }

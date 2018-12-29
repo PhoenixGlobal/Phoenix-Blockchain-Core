@@ -49,7 +49,7 @@ class TransactionExecutor(var tx: Transaction,
   private var vm: VM = null
   private var program: Program = null
   private[core] var precompiledContract: PrecompiledContract = null
-  private[core] var m_endGas = tx.gasLimit
+  private[core] var m_endGas: BigInt = tx.gasLimit
   private[core] var basicTxCost: Long = 0
   //private[core] var logs = null
   //private val touchedAccounts = new ByteArraySet
@@ -148,12 +148,12 @@ class TransactionExecutor(var tx: Transaction,
     precompiledContract = PrecompiledContracts.getContractForAddress(DataWord.of(targetAddress.data), vmSettings)
     if (precompiledContract != null) {
       val requiredGas = precompiledContract.getGasForData(tx.data)
-      val spendingGas = BigInteger.valueOf(requiredGas).add(BigInteger.valueOf(basicTxCost))
+      val spendingGas = BigInt(requiredGas) + basicTxCost
       if (!localCall && m_endGas.compareTo(spendingGas) < 0) { // no refund
         // no endowment
-        execError("Out of Gas calling precompiled contract")
+        execError(s"Out of Gas calling precompiled contract ${targetAddress.address} required: $spendingGas  left: $m_endGas")
         //execError("Out of Gas calling precompiled contract 0x" + toHexString(targetAddress) + ", required: " + spendingGas + ", left: " + m_endGas)
-        m_endGas = BigInteger.ZERO
+        m_endGas = 0
         return
       }
       else {
@@ -161,7 +161,7 @@ class TransactionExecutor(var tx: Transaction,
         // FIXME: save return for vm trace
         val out = precompiledContract.execute(tx.data)
         if (!out._1) {
-          execError("Error executing precompiled contract")
+          execError(s"Error executing precompiled contract ${targetAddress.address}")
           //execError("Error executing precompiled contract 0x" + toHexString(targetAddress))
           m_endGas = BigInteger.ZERO
           return
@@ -224,7 +224,7 @@ class TransactionExecutor(var tx: Transaction,
     val oldBalance = track.getBalance(newContractAddress.get)
     //cacheTrack.createAccount(tx.getContractAddress)
     if (oldBalance.isDefined)
-      cacheTrack.addBalance(newContractAddress.get, oldBalance.get.get(UInt256.Zero).get)
+      cacheTrack.addBalance(newContractAddress.get, oldBalance.get)
     cacheTrack.increaseNonce(newContractAddress.get)
     if (tx.data.data.length == 0) {
       m_endGas = m_endGas - basicTxCost

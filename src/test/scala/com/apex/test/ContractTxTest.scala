@@ -103,7 +103,7 @@ class ContractTxTest {
                      txType: TransactionType.Value = TransactionType.Transfer) = {
 
     val tx = new Transaction(txType, from.publicKey, to, "",
-      amount, UInt256.Zero, nonce, BinaryData.empty, FixedNumber.Zero, 0, BinaryData.empty)
+      amount, nonce, BinaryData.empty, FixedNumber.Zero, 0, BinaryData.empty)
     tx.sign(from)
     tx
   }
@@ -115,7 +115,7 @@ class ContractTxTest {
     val miner = ProducerUtil.getWitness(blockTime, _consensusSettings)
 
     val minerTx = new Transaction(TransactionType.Miner, minerCoinFrom,
-      miner.pubkey.pubKeyHash, "", FixedNumber.fromDecimal(award), UInt256.Zero,
+      miner.pubkey.pubKeyHash, "", FixedNumber.fromDecimal(award),
       preBlock.height + 1,
       BinaryData(Crypto.randomBytes(8)), // add random bytes to distinct different blocks with same block index during debug in some cases
       FixedNumber.Zero, 0, BinaryData.empty)
@@ -139,7 +139,7 @@ class ContractTxTest {
     val miner = ProducerUtil.getWitness(blockTime, _consensusSettings)
 
     val minerTx = new Transaction(TransactionType.Miner, minerCoinFrom,
-      miner.pubkey.pubKeyHash, "", FixedNumber.fromDecimal(_minerAward), UInt256.Zero,
+      miner.pubkey.pubKeyHash, "", FixedNumber.fromDecimal(_minerAward),
       preBlock.height + 1,
       BinaryData(Crypto.randomBytes(8)), // add random bytes to distinct different blocks with same block index during debug in some cases
       FixedNumber.Zero, 0, BinaryData.empty)
@@ -188,10 +188,10 @@ class ContractTxTest {
       assert(chain.getHeight() == 0)
 
       val balance1 = chain.getBalance(_acct1.publicKey.pubKeyHash)
-      assert(balance1.get.get(UInt256.Zero).get == FixedNumber.fromDecimal(123.12))
+      assert(balance1.get == FixedNumber.fromDecimal(123.12))
 
       val balance2 = chain.getBalance(_acct2.publicKey.pubKeyHash)
-      assert(balance2.get.get(UInt256.Zero).get == FixedNumber.fromDecimal(234.2))
+      assert(balance2.get == FixedNumber.fromDecimal(234.2))
 
       var blockTime = chain.getHeadTime() + _consensusSettings.produceInterval
       chain.startProduceBlock(ProducerUtil.getWitness(blockTime, _consensusSettings), blockTime)
@@ -202,7 +202,7 @@ class ContractTxTest {
       val codebin = BinaryData("608060405234801561001057600080fd5b5060e68061001f6000396000f3fe6080604052600436106043576000357c01000000000000000000000000000000000000000000000000000000009004806360fe47b11460485780636d4ce63c14607f575b600080fd5b348015605357600080fd5b50607d60048036036020811015606857600080fd5b810190808035906020019092919050505060a7565b005b348015608a57600080fd5b50609160b1565b6040518082815260200191505060405180910390f35b8060008190555050565b6000805490509056fea165627a7a723058202c7cfe05b5e1b84938fa70727102e914fba062d91fde5a0f0a92613ad081732b0029")
 
       val deployTx = new Transaction(TransactionType.Deploy, minerCoinFrom,
-        UInt160.Zero, "", FixedNumber.fromDecimal(_minerAward), UInt256.Zero,
+        UInt160.Zero, "", FixedNumber.fromDecimal(_minerAward),
         3,
         codebin,
         FixedNumber(1), 99999999L, BinaryData.empty)
@@ -214,7 +214,7 @@ class ContractTxTest {
 
 
       val setTx = new Transaction(TransactionType.Call, minerCoinFrom,
-        UInt160.fromBytes(BinaryData("43d4118a551815ec937380219e3bf5057316376e")), "", FixedNumber.fromDecimal(_minerAward), UInt256.Zero,
+        UInt160.fromBytes(BinaryData("43d4118a551815ec937380219e3bf5057316376e")), "", FixedNumber.fromDecimal(_minerAward),
         3,
         settt,
         FixedNumber(1), 99999999L, BinaryData.empty)
@@ -223,7 +223,7 @@ class ContractTxTest {
       val gettt = Abi.fromJson("[{\"constant\":false,\"inputs\":[{\"name\":\"withdraw_amount\",\"type\":\"uint256\"}],\"name\":\"set\",\"outputs\":[],\"payable\":false,\"stateMutability\":\"nonpayable\",\"type\":\"function\"},{\"constant\":false,\"inputs\":[],\"name\":\"get\",\"outputs\":[{\"name\":\"\",\"type\":\"uint256\"}],\"payable\":false,\"stateMutability\":\"nonpayable\",\"type\":\"function\"}]").encode("get()")
 
       val getTx = new Transaction(TransactionType.Call, minerCoinFrom,
-        UInt160.fromBytes(BinaryData("43d4118a551815ec937380219e3bf5057316376e")), "", FixedNumber.fromDecimal(_minerAward), UInt256.Zero,
+        UInt160.fromBytes(BinaryData("43d4118a551815ec937380219e3bf5057316376e")), "", FixedNumber.fromDecimal(_minerAward),
         3,
         gettt,
         FixedNumber(1), 99999999L, BinaryData.empty)

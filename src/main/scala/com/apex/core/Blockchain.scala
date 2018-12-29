@@ -63,7 +63,7 @@ trait Blockchain extends Iterable[Block] with ApexLogging {
 
   //def verifyTransaction(tx: Transaction): Boolean
 
-  def getBalance(address: UInt160): Option[collection.immutable.Map[UInt256, FixedNumber]]
+  def getBalance(address: UInt160): Option[FixedNumber]
 
   def getAccount(address: UInt160): Option[Account]
 
@@ -143,7 +143,7 @@ class LevelDBBlockchain(chainSettings: ChainSettings, consensusSettings: Consens
     chainSettings.genesis.genesisCoinAirdrop.foreach(airdrop => {
       genesisTxs.append(new Transaction(TransactionType.Miner, minerCoinFrom,
         PublicKeyHash.fromAddress(airdrop.addr).get, "", FixedNumber.fromDecimal(airdrop.coins),
-        UInt256.Zero, 0, consensusSettings.fingerprint(), FixedNumber.Zero, 0, BinaryData.empty))
+        0, consensusSettings.fingerprint(), FixedNumber.Zero, 0, BinaryData.empty))
     })
 
     val genesisBlockHeader: BlockHeader = BlockHeader.build(0,
@@ -239,7 +239,7 @@ class LevelDBBlockchain(chainSettings: ChainSettings, consensusSettings: Consens
 
     val forkHead = forkBase.head.get
     val minerTx = new Transaction(TransactionType.Miner, minerCoinFrom,
-      producer.pubkey.pubKeyHash, "", minerAward, UInt256.Zero,
+      producer.pubkey.pubKeyHash, "", minerAward,
       forkHead.block.height + 1,
       BinaryData(Crypto.randomBytes(8)), // add random bytes to distinct different blocks with same block index during debug in some cases
       FixedNumber.Zero, 0, BinaryData.empty
@@ -276,7 +276,7 @@ class LevelDBBlockchain(chainSettings: ChainSettings, consensusSettings: Consens
       added = true
     }
     if (added)
-      notification.send(AddTransactionNotify(tx))
+      notification.broadcast(AddTransactionNotify(tx))
     added
   }
 
@@ -299,7 +299,7 @@ class LevelDBBlockchain(chainSettings: ChainSettings, consensusSettings: Consens
       pendingState.txs.clear()
       if (tryInsertBlock(block, false)) {
         log.info(s"block #${block.height} ${block.shortId} produced by ${block.header.producer.address.substring(0, 7)} ${block.header.timeString()}")
-        notification.send(NewBlockProducedNotify(block))
+        notification.broadcast(NewBlockProducedNotify(block))
         Some(block)
       } else {
         None
@@ -334,7 +334,7 @@ class LevelDBBlockchain(chainSettings: ChainSettings, consensusSettings: Consens
       else
         log.info(s"block ${block.height} ${block.shortId} apply error")
       if (inserted)
-        notification.send(BlockAddedToHeadNotify(block))
+        notification.broadcast(BlockAddedToHeadNotify(block))
     }
     else {
       if (forkBase.add(block)) {
@@ -407,28 +407,24 @@ class LevelDBBlockchain(chainSettings: ChainSettings, consensusSettings: Consens
   private def applySendTransaction(tx: Transaction): Boolean = {
     var txValid = true
 
-    val fromAccount = dataBase.getAccount(tx.fromPubKeyHash()).getOrElse(new Account(tx.fromPubKeyHash(), true, "", immutable.Map.empty[UInt256, FixedNumber], 0))
-    val toAccount = dataBase.getAccount(tx.toPubKeyHash).getOrElse(new Account(tx.toPubKeyHash, true, "", immutable.Map.empty[UInt256, FixedNumber], 0))
+    val fromAccount = dataBase.getAccount(tx.fromPubKeyHash()).getOrElse(new Account(tx.fromPubKeyHash(), true, "", FixedNumber.Zero, 0))
+    val toAccount = dataBase.getAccount(tx.toPubKeyHash).getOrElse(new Account(tx.toPubKeyHash, true, "", FixedNumber.Zero, 0))
 
     if (tx.txType == TransactionType.Miner) {
       // TODO
     }
     else {
-      if (!fromAccount.balances.contains(tx.assetId))
-        txValid = false
-      else if (tx.amount > fromAccount.balances(tx.assetId))
+      if (tx.amount > fromAccount.balance)
         txValid = false
       else if (tx.nonce != fromAccount.nextNonce)
         txValid = false
     }
 
     if (txValid) {
-      val fromBalance = (fromAccount.balances.toSeq ++ Seq((tx.assetId, -tx.amount))).groupBy(_._1)
-        .map(p => (p._1, p._2.map(_._2).sum))
-        .filter(_._2.value > 0)
-      val toBalance = (toAccount.balances.toSeq ++ Seq((tx.assetId, tx.amount))).groupBy(_._1)
-        .map(p => (p._1, p._2.map(_._2).sum))
-        .filter(_._2.value > 0)
+
+      val fromBalance = fromAccount.balance - tx.amount
+
+      val toBalance = toAccount.balance + tx.amount
 
       dataBase.setAccount((tx.fromPubKeyHash(), new Account(tx.fromPubKeyHash(), true, fromAccount.name, fromBalance, fromAccount.nextNonce + 1)),
         (tx.toPubKeyHash, new Account(tx.toPubKeyHash, true, toAccount.name, toBalance, toAccount.nextNonce)))
@@ -526,7 +522,7 @@ class LevelDBBlockchain(chainSettings: ChainSettings, consensusSettings: Consens
     isValid
   }
 
-  override def getBalance(address: UInt160): Option[collection.immutable.Map[UInt256, FixedNumber]] = {
+  override def getBalance(address: UInt160): Option[FixedNumber] = {
     dataBase.getBalance(address)
   }
 
@@ -540,7 +536,7 @@ class LevelDBBlockchain(chainSettings: ChainSettings, consensusSettings: Consens
       applyBlock(genesisBlock, false, false)
       blockBase.add(genesisBlock)
       forkBase.add(genesisBlock)
-      notification.send(BlockAddedToHeadNotify(genesisBlock))
+      notification.broadcast(BlockAddedToHeadNotify(genesisBlock))
     }
 
     require(forkBase.head.isDefined)
@@ -575,7 +571,7 @@ class LevelDBBlockchain(chainSettings: ChainSettings, consensusSettings: Consens
       dataBase.commit(block.height)
       blockBase.add(block)
     }
-    notification.send(BlockConfirmedNotify(block))
+    notification.broadcast(BlockConfirmedNotify(block))
   }
 
   private def onSwitch(from: Seq[ForkItem], to: Seq[ForkItem], switchState: SwitchState): SwitchResult = {
@@ -603,7 +599,7 @@ class LevelDBBlockchain(chainSettings: ChainSettings, consensusSettings: Consens
       from.foreach(item => applyBlock(item.block))
       SwitchResult(false, to(appliedCount))
     } else {
-      notification.send(ForkSwitchNotify(from, to))
+      notification.broadcast(ForkSwitchNotify(from, to))
       SwitchResult(true)
     }
   }

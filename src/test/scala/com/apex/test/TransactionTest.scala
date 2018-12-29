@@ -30,7 +30,6 @@ class TransactionTest {
                     Ecdsa.PublicKeyHash.fromAddress("APGMmPKLYdtTNhiEkDGU6De8gNCk3bTsME9").get,
                     "bob",
                     FixedNumber.Ten,
-                    UInt256.Zero,
                     1,
                     BinaryData("1234"),
                     FixedNumber(567),
@@ -49,7 +48,6 @@ class TransactionTest {
         && x.toPubKeyHash.data.sameElements(tx.toPubKeyHash.data)
         && x.toName == tx.toName
         && x.amount.value == tx.amount.value
-        && x.assetId.data.sameElements(tx.assetId.data)
         && x.nonce == tx.nonce
         && x.data.sameElements(tx.data)
         && x.gasPrice == tx.gasPrice
