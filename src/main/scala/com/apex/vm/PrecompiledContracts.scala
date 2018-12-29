@@ -60,10 +60,10 @@ object PrecompiledContracts {
     else if (address == ripempd160Addr) ripempd160
     else if (address == identityAddr) identity
     // Byzantium precompiles
-    else if (address == modExpAddr && settings.eip198) modExp
-    else if (address == altBN128AddAddr && settings.eip213) altBN128Add
-    else if (address == altBN128MulAddr && settings.eip213) altBN128Mul
-    else if (address == altBN128PairingAddr && settings.eip212) altBN128Pairing
+    else if (address == modExpAddr) modExp
+    else if (address == altBN128AddAddr) altBN128Add
+    else if (address == altBN128MulAddr) altBN128Mul
+    else if (address == altBN128PairingAddr) altBN128Pairing
     else null
   }
 

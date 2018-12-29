@@ -19,7 +19,7 @@ import org.spongycastle.util.encoders.Hex
 @Test
 class PrecompiledContractTest {
 
-  val vmSettings = ContractSettings(0, false, false, false, false, true, false, false, false, false, false, false)
+  val vmSettings = ContractSettings(0, false)
 
   @Test
   def identityTest1(): Unit = {

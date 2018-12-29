@@ -522,7 +522,7 @@ class LevelDBBlockchain(chainSettings: ChainSettings, consensusSettings: Consens
     })
 
     isValid = !newNames.exists(dataBase.nameExists)
-    isValid = !registers.exists(dataBase.registerExists)
+    isValid = !registers.exists(dataBase.accountExists)
     isValid
   }
 

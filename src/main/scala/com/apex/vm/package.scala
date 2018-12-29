@@ -12,7 +12,6 @@ package com.apex
 
 import java.nio.ByteBuffer
 
-import com.apex.crypto.UInt160
 import org.bouncycastle.util.encoders.Hex
 
 package object vm {
@@ -72,24 +71,24 @@ package object vm {
 
     /**
       * Parses 32-bytes word from given input.
-      * Uses {@link #parseBytes(byte[], int, int)} method,
-      * thus, result will be right-padded with zero bytes if there is not enough bytes in {@code input}
+      * Uses {parseBytes(byte[], int, int)} method,
+      * thus, result will be right-padded with zero bytes if there is not enough bytes in {input}
       *
       */
     def parseWord(idx: Int): Array[Byte] = data.parseBytes(32 * idx, 32)
 
     /**
       * Parses 32-bytes word from given input.
-      * Uses {@link #parseBytes(byte[], int, int)} method,
-      * thus, result will be right-padded with zero bytes if there is not enough bytes in {@code input}
+      * Uses {parseBytes(byte[], int, int)} method,
+      * thus, result will be right-padded with zero bytes if there is not enough bytes in {input}
       *
-      * @param idx an index of the word starting from { @code 0}
-      * @param offset an offset in { @code input} array to start parsing from
+      * @param idx an index of the word starting from
+      * @param offset an offset in array to start parsing from
       */
     def parseWord(offset: Int, idx: Int): Array[Byte] = data.parseBytes(offset + 32 * idx, 32)
 
     /**
-      * Cast hex encoded value from byte[] to BigInteger
+      * Cast hex encoded value from byte[] to BigInt
       * null is parsed like byte[0]
       */
     def toBigInt: BigInt = {

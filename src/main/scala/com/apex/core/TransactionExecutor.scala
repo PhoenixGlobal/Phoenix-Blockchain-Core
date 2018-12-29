@@ -35,7 +35,7 @@ class TransactionExecutor(var tx: Transaction,
   //this.vmHook = if (isNull(vmHook)) VMHook.EMPTY else vmHook
   //withCommonConfig(CommonConfig.getDefault)
 
-  private val vmSettings = ContractSettings(0, false, false, false, false, true, false, false, false, false, false, false)
+  private val vmSettings = ContractSettings(0, false)
   //private[core] var config = null
 
   //private[core] var commonConfig: CommonConfig = null
@@ -225,7 +225,7 @@ class TransactionExecutor(var tx: Transaction,
     //cacheTrack.createAccount(tx.getContractAddress)
     if (oldBalance.isDefined)
       cacheTrack.addBalance(newContractAddress.get, oldBalance.get.get(UInt256.Zero).get)
-    if (vmSettings.eip161) cacheTrack.increaseNonce(newContractAddress.get)
+    cacheTrack.increaseNonce(newContractAddress.get)
     if (tx.data.data.length == 0) {
       m_endGas = m_endGas - basicTxCost
       result.spendGas(basicTxCost)

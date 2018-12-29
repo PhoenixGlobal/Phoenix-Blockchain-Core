@@ -256,7 +256,7 @@ class Program(settings: ContractSettings, ops: Array[Byte], invoke: ProgramInvok
 
   def getReturnDataBufferSize: DataWord = DataWord.of(getReturnDataBufferSizeI)
 
-  //  def getStorage: Repository = this.storage
+  def getStorage: DataBase = invoke.getDataBase
 
   /**
     * Create contract for OpCode#CREATE
@@ -367,6 +367,17 @@ class Program(settings: ContractSettings, ops: Array[Byte], invoke: ProgramInvok
   def getCurrentValue(key: DataWord): DataWord = {
     val address = getOwnerAddress.toUInt160
     val value = invoke.getDataBase.getContractState(address, key.data)
+    DataWord.of(value)
+  }
+
+  /*
+     * Original storage value at the beginning of current frame execution
+     * For more info check EIP-1283 https://eips.ethereum.org/EIPS/eip-1283
+     * @return Storage data at the beginning of Program execution
+     */
+  def getOriginalValue(key: DataWord): DataWord = {
+    val address = getOwnerAddress.toUInt160
+    val value = invoke.getOrigDataBase.getContractState(address, key.data)
     DataWord.of(value)
   }
 
