@@ -9,10 +9,15 @@
 package com.apex.crypto
 
 import java.io.DataInputStream
+
+import com.apex.crypto.Ecdsa.PublicKeyHash
 import org.bouncycastle.util.encoders.Hex
 
 class UInt160(data: Array[Byte]) extends UIntBase(UInt160.Size, data) with Ordered[UInt160] {
+
   override def compare(that: UInt160): Int = UIntBase.compare(this, that)
+
+  def address: String = PublicKeyHash.toAddress(data)
 }
 
 object UInt160 {

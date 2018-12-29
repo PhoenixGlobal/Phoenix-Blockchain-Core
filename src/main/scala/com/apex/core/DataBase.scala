@@ -35,7 +35,8 @@ class DataBase(settings: DataBaseSettings) extends ApexLogging {
   }
 
   def increaseNonce(address: UInt160) = {
-    // TODO
+    val account = accountStore.get(address).getOrElse(new Account(address, true, "", FixedNumber.Zero, 0))
+    accountStore.set(address, new Account(address, account.active, account.name, account.balance, account.nextNonce + 1))
   }
 
   def getNonce(address: UInt160): Long = {
