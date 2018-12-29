@@ -204,7 +204,7 @@ class TransactionExecutor(var tx: Transaction,
       DataWord.ZERO,
       DataWord.ZERO,
       track,
-      null,
+      track,
       null)
   }
 
