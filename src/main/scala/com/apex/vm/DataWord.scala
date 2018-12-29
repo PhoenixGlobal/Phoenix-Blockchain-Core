@@ -25,12 +25,11 @@
 
 package com.apex.vm
 
-import java.io.ByteArrayOutputStream
 import java.util
 import java.util.Arrays
 
-import org.bouncycastle.util.encoders.DecoderException
-import org.spongycastle.util.encoders.{Encoder, Hex, HexEncoder}
+import com.apex.crypto.UInt160
+import org.spongycastle.util.encoders.{Hex, HexEncoder}
 
 class DataWord(val data: Array[Byte]) {
 
@@ -173,12 +172,12 @@ class DataWord(val data: Array[Byte]) {
 
   // TODO: mul can be done in more efficient way
   // TODO:     with shift left shift right trick
-  // TODO      without BigInteger quick hack
+  // TODO      without BigInt quick hack
   def mul(word: DataWord): DataWord = {
     new DataWord((value * word.value & MAX_VALUE).toBytes)
   }
 
-  // TODO: improve with no BigInteger
+  // TODO: improve with no BigInt
   def div(word: DataWord): DataWord = {
     if (word.isZero) {
       ZERO
@@ -195,18 +194,18 @@ class DataWord(val data: Array[Byte]) {
     }
   }
 
-  // TODO: improve with no BigInteger
+  // TODO: improve with no BigInt
   def sub(word: DataWord): DataWord = {
     val result = ((value - word.value) & MAX_VALUE).toBytes
     new DataWord(result)
   }
 
-  // TODO: improve with no BigInteger
+  // TODO: improve with no BigInt
   def exp(word: DataWord): DataWord = {
     new DataWord(value.modPow(word.value, _2_256).toBytes)
   }
 
-  // TODO: improve with no BigInteger
+  // TODO: improve with no BigInt
   def mod(word: DataWord): DataWord = {
     if (word.isZero) {
       ZERO
@@ -225,7 +224,7 @@ class DataWord(val data: Array[Byte]) {
     }
   }
 
-  def addmod(word1: DataWord, word2: DataWord): DataWord = {
+  def addMod(word1: DataWord, word2: DataWord): DataWord = {
     if (word2.isZero) {
       ZERO
     } else {
@@ -234,7 +233,7 @@ class DataWord(val data: Array[Byte]) {
     }
   }
 
-  def mulmod(word1: DataWord, word2: DataWord): DataWord = {
+  def mulMod(word1: DataWord, word2: DataWord): DataWord = {
     if (isZero || word1.isZero || word2.isZero) {
       ZERO
     } else {
@@ -312,6 +311,10 @@ class DataWord(val data: Array[Byte]) {
     Arrays.copyOfRange(data, 12, data.length)
   }
 
+  def toUInt160: UInt160 = {
+    UInt160.fromBytes(getLast20Bytes)
+  }
+
   def bytesOccupied: Int = {
     val firstNonZero = data.indexWhere(_ != 0)
     if (firstNonZero == -1) 0 else 31 - firstNonZero + 1
@@ -364,8 +367,6 @@ class DataWord(val data: Array[Byte]) {
 }
 
 object DataWord {
-  private val encoder = new HexEncoder
-
   /* Maximum value of the DataWord */
   val MAX_POW = 256
   val _2_256 = BigInt(2).pow(MAX_POW)
@@ -374,15 +375,6 @@ object DataWord {
   val ONE: DataWord = DataWord.of(1.toByte)
 
   def of(data: String): DataWord = {
-    //    val bOut = new ByteArrayOutputStream
-    //    try {
-    //      encoder.decode(data, bOut)
-    //    } catch {
-    //      case e: Exception =>
-    //        throw new Exception(s"exception decoding Hex string: ${e.getMessage}", e)
-    //    }
-    //
-    //    of(bOut.toByteArray.toHex)
     of(Hex.decode(data))
   }
 
@@ -394,6 +386,10 @@ object DataWord {
 
   def of(num: Long): DataWord = {
     of(num.toBytes)
+  }
+
+  def of(num: BigInt): DataWord = {
+    of(num.toByteArray)
   }
 
   def of(data: Array[Byte]): DataWord = {

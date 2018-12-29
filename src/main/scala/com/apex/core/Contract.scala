@@ -15,20 +15,21 @@ package com.apex.core
 import java.io.{DataInputStream, DataOutputStream}
 
 import com.apex.crypto.Ecdsa.PublicKey
+import com.apex.crypto.UInt160
 
-case class Contract(account: PublicKey,
-               code: Array[Byte],
-               name: String = "",
-               author: String = "",
-               email: String = "",
-               description: String = "") extends com.apex.common.Serializable {
+case class Contract(address: UInt160,
+                    code: Array[Byte],
+                    name: String = "",
+                    author: String = "",
+                    email: String = "",
+                    description: String = "") extends com.apex.common.Serializable {
 
   import Contract._
 
   override def serialize(os: DataOutputStream): Unit = {
     import com.apex.common.Serializable._
     os.writeInt(version)
-    os.write(account)
+    os.write(address)
     os.writeByteArray(code)
     os.writeString(name)
     os.writeString(author)
@@ -45,7 +46,7 @@ object Contract {
     // TODO check version
     is.readInt
     Contract(
-      account = is.readObj[PublicKey],
+      address = is.readObj[UInt160],
       code = is.readByteArray,
       name = is.readString(),
       author = is.readString(),

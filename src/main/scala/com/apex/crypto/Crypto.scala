@@ -96,5 +96,14 @@ object Crypto {
     cipher.init(Cipher.DECRYPT_MODE, secretKeySpec, new IvParameterSpec(iv))
     cipher.doFinal(data)
   }
+
+  def calcNewAddr(addr: Array[Byte], nonce: Array[Byte]): UInt160 = {
+    require(addr.length == 20)
+    UInt160.fromBytes(hash160(addr ++ nonce))
+  }
+
+  def calcNewAddr(addr: UInt160, nonce: Array[Byte]): UInt160 = {
+    calcNewAddr(addr.data, nonce)
+  }
 }
 

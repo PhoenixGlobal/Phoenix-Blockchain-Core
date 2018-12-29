@@ -709,6 +709,10 @@ object OpCode extends Enumeration {
     */
   val SUICIDE = getValue(0xff, 1, 0, Tier.ZeroTier)
 
+  def emptyValidators = {
+    Map.empty[OpCode.Value, Boolean]
+  }
+
   private def getValue(code: Int, require: Int, ret: Int, tier: Tier.Value, callFlags: CallFlags.Value*) = {
     val value = Value(code)
     OpCache.add(value, require, ret, tier, callFlags: _*)

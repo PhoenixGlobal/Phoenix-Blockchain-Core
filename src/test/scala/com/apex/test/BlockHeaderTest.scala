@@ -24,7 +24,8 @@ class BlockHeaderTest {
     val producer = PublicKey("03b4534b44d1da47e4b4a504a210401a583f860468dec766f507251a057594e682") // TODO: read from settings
     val producerPrivKey = new PrivateKey(BinaryData("7a93d447bffe6d89e690f529a3a0bdff8ff6169172458e04849ef1d4eafd7f86"))
     val timeStamp = DateTime.now.clicks
-    val a = new BlockHeader(0, timeStamp, merkleRoot, prevBlock, producer, BinaryData("0000"))
+    val a = new BlockHeader(0, timeStamp, merkleRoot,
+      prevBlock, 123, 567, producer, BinaryData("0000"))
     a.sign(producerPrivKey)
     assert(a.verifySig() == true)
 
@@ -36,6 +37,8 @@ class BlockHeaderTest {
         && x.timeStamp.equals(a.timeStamp)
         && x.merkleRoot.equals(a.merkleRoot)
         && x.prevBlock.equals(a.prevBlock)
+      && x.gasLimit == a.gasLimit
+      && x.gasUsed == a.gasUsed
     )
     o.test(a)
   }
@@ -47,8 +50,9 @@ class BlockHeaderTest {
     val producer = PublicKey("03b4534b44d1da47e4b4a504a210401a583f860468dec766f507251a057594e682") // TODO: read from settings
     val producerPrivKey = new PrivateKey(BinaryData("7a93d447bffe6d89e690f529a3a0bdff8ff6169172458e04849ef1d4eafd7f86"))
     val timeStamp = DateTime.now.clicks
-    val a = new BlockHeader(0, timeStamp, merkleRoot, prevBlock, producer, BinaryData("0000"))
+    val a = new BlockHeader(0, timeStamp, merkleRoot, prevBlock, 0, 0, producer, BinaryData("0000"))
+    val eefe = Json.toJson(a).toString
     assert(Json.toJson(a).toString.equals(
-      s"""{"id":"${a.id}","index":${a.index},"timeStamp":${a.timeStamp},"time":"${a.timeString()}","merkleRoot":"${a.merkleRoot}","prevBlock":"${a.prevBlock}","producer":"${a.producer}","producerSig":"${a.producerSig}","version":${a.version}}"""))
+      s"""{"id":"${a.id}","index":${a.index},"timeStamp":${a.timeStamp},"time":"${a.timeString()}","merkleRoot":"${a.merkleRoot}","prevBlock":"${a.prevBlock}","gasLimit":${a.gasLimit.toString},"gasUsed":${a.gasUsed},"producer":"${a.producer}","producerSig":"${a.producerSig}","version":${a.version}}"""))
   }
 }

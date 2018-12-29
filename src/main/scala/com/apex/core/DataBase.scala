@@ -10,8 +10,10 @@
 
 package com.apex.core
 
+import java.math.BigInteger
+
 import com.apex.common.ApexLogging
-import com.apex.crypto.{Fixed8, UInt160, UInt256}
+import com.apex.crypto.{FixedNumber, UInt160, UInt256}
 import com.apex.settings.DataBaseSettings
 import com.apex.storage.LevelDbStorage
 
@@ -28,8 +30,21 @@ class DataBase(settings: DataBaseSettings) extends ApexLogging {
     nameToAccountStore.contains(name)
   }
 
-  def registerExists(register: UInt160): Boolean = {
+  def accountExists(register: UInt160): Boolean = {
     accountStore.contains(register)
+  }
+
+  def increaseNonce(address: UInt160) = {
+    val account = accountStore.get(address).getOrElse(new Account(address, true, "", FixedNumber.Zero, 0))
+    accountStore.set(address, new Account(address, account.active, account.name, account.balance, account.nextNonce + 1))
+  }
+
+  def getNonce(address: UInt160): Long = {
+    val account = getAccount(address)
+    if (account.isDefined)
+      account.get.nextNonce
+    else
+      0
   }
 
   def getAccount(address: UInt160): Option[Account] = {
@@ -53,12 +68,32 @@ class DataBase(settings: DataBaseSettings) extends ApexLogging {
     }
   }
 
-  def getBalance(address: UInt160): Option[scala.collection.immutable.Map[UInt256, Fixed8]] = {
-    accountStore.get(address).map(_.balances)
+  def transfer(from: UInt160, to: UInt160, value: FixedNumber) = {
+    //TODO
+  }
+
+  def transfer(from: UInt160, to: UInt160, value: BigInteger) = {
+    //TODO
+  }
+
+  def addBalance(address: UInt160, value: FixedNumber) = {
+    //TODO
+  }
+
+  def addBalance(address: UInt160, value: BigInteger) = {
+    //TODO
+  }
+
+  def getBalance(address: UInt160): Option[FixedNumber] = {
+    accountStore.get(address).map(_.balance)
   }
 
   def getCode(address: UInt160): Array[Byte] = {
     contractStore.get(address).map(_.code).getOrElse(Array.empty)
+  }
+
+  def saveCode(address: UInt160, code: Array[Byte]) = {
+    contractStore.set(address, Contract(address, code))
   }
 
   def getContractState(address: UInt160, key: Array[Byte]): Array[Byte] = {
@@ -67,6 +102,14 @@ class DataBase(settings: DataBaseSettings) extends ApexLogging {
 
   def saveContractState(address: UInt160, key: Array[Byte], value: Array[Byte]): Unit = {
     contractStateStore.set(address.data ++ key, value)
+  }
+
+  def getReceipt(txid: UInt256): Option[TransactionReceipt] = {
+    receiptStore.get(txid)
+  }
+
+  def setReceipt(txid: UInt256, receipt: TransactionReceipt) = {
+    receiptStore.set(txid, receipt)
   }
 
   def startSession(): Unit = {

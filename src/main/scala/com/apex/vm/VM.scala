@@ -27,7 +27,7 @@
 package com.apex.vm
 
 import com.apex.core.{BlockBase, DataBase}
-import com.apex.crypto.Crypto
+import com.apex.crypto.{Crypto, UInt160}
 import com.apex.exceptions.InvalidOperationException
 import com.apex.settings.ContractSettings
 import com.apex.vm.hook.VMHook
@@ -42,18 +42,7 @@ import scala.collection.mutable.ListBuffer
 class VM(settings: ContractSettings, hook: VMHook) extends com.apex.common.ApexLogging {
   private val MAX_MEM_SIZE = BigInt(Integer.MAX_VALUE)
 
-  private val opValidators = Map(
-//OpCode.DELEGATECALL -> settings.
-    OpCode.REVERT -> settings.eip206,
-    OpCode.RETURNDATACOPY -> settings.eip211,
-    OpCode.RETURNDATASIZE -> settings.eip211,
-    OpCode.STATICCALL -> settings.eip214,
-    OpCode.EXTCODEHASH -> settings.eip1052,
-    OpCode.SHL -> settings.eip145,
-    OpCode.SHR -> settings.eip145,
-    OpCode.SAR -> settings.eip145,
-    OpCode.CREATE2 -> settings.eip1014
-  )
+  private val opValidators = OpCode.emptyValidators
 
   private val hooks = Array(VMHook.EMPTY, hook).filterNot(_.isEmpty)
   private val hasHooks = hooks.length > 0
@@ -101,12 +90,13 @@ class VM(settings: ContractSettings, hook: VMHook) extends com.apex.common.ApexL
       val stack = program.getStack
 
       var hint = ""
-      val callGas = 0
-      val memWords = 0
       // parameters for logging
+      val callGas = 0L
+      val memWords = 0L
+
       var gasCost = op.tier.toLong
       val gasBefore = program.getGasLong
-      val stepBefore = program.getPC
+      //      val stepBefore = program.getPC
       var adjustedCallGas: DataWord = null
 
       // Calculate fees and spend gas
@@ -114,8 +104,47 @@ class VM(settings: ContractSettings, hook: VMHook) extends com.apex.common.ApexL
         case OpCode.STOP => gasCost = GasCost.STOP
         case OpCode.SUICIDE => {
           gasCost = GasCost.SUICIDE
+          val suicideAddress = stack.get(stack.size - 1).toUInt160
+          if (!program.getStorage.accountExists(suicideAddress)) {
+            gasCost += GasCost.NEW_ACCT_SUICIDE
+          }
         }
         case OpCode.SSTORE => {
+          var currentValue = program.getCurrentValue(stack.peek)
+          if (currentValue == null) currentValue = DataWord.ZERO
+          val newValue = stack.get(stack.size - 2)
+          if (newValue == currentValue) {
+            gasCost = GasCost.REUSE_SSTORE
+          } else {
+            var origValue = program.getOriginalValue(stack.peek)
+            if (origValue == null) origValue = DataWord.ZERO
+            if (currentValue == origValue) {
+              if (origValue.isZero) {
+                gasCost = GasCost.SET_SSTORE
+              } else {
+                gasCost = GasCost.CLEAR_SSTORE
+                if (newValue.isZero) {
+                  program.futureRefundGas(GasCost.REFUND_SSTORE)
+                }
+              }
+            } else {
+              gasCost = GasCost.REUSE_SSTORE
+              if (!origValue.isZero) {
+                if (currentValue.isZero) {
+                  program.futureRefundGas(-GasCost.REFUND_SSTORE)
+                } else if (newValue.isZero) {
+                  program.futureRefundGas(GasCost.REFUND_SSTORE)
+                }
+              }
+              if (origValue == newValue) {
+                if (origValue.isZero) {
+                  program.futureRefundGas(GasCost.SET_SSTORE - GasCost.REUSE_SSTORE)
+                } else {
+                  program.futureRefundGas(GasCost.CLEAR_SSTORE - GasCost.REUSE_SSTORE)
+                }
+              }
+            }
+          }
         }
         case OpCode.SLOAD => gasCost = GasCost.SLOAD
         case OpCode.BALANCE => gasCost = GasCost.BALANCE
@@ -154,18 +183,12 @@ class VM(settings: ContractSettings, hook: VMHook) extends com.apex.common.ApexL
 
           //check to see if account does not exist and is not a precompiled contract
           if (op.code == OpCode.CALL) {
-            if (settings.eip161) {
-              if (isDeadAccount(program, callAddressWord.getLast20Bytes) && !value.isZero) {
-                gasCost += GasCost.NEW_ACCT_CALL
-              }
-            } else {
-              if (!accountExists(program, callAddressWord.getLast20Bytes)) {
-                gasCost += GasCost.NEW_ACCT_CALL
-              }
+            if (isDeadAccount(program, callAddressWord.toUInt160) && !value.isZero) {
+              gasCost += GasCost.NEW_ACCT_CALL
             }
           }
 
-          //TODO #POC9 Make sure this is converted to BigInteger (256num support)
+          //TODO #POC9 Make sure this is converted to BigInt (256num support)
           if (!value.isZero) {
             gasCost += GasCost.VT_CALL
           }
@@ -182,8 +205,9 @@ class VM(settings: ContractSettings, hook: VMHook) extends com.apex.common.ApexL
 
           val gasLeft = program.getGas
           val subResult = gasLeft.sub(DataWord.of(gasCost))
-          //        adjustedCallGas = blockchainConfig.getCallGas(op, callGasWord, subResult)
-          //        gasCost += adjustedCallGas.longValueSafe
+          //adjustedCallGas = blockchainConfig.getCallGas(op, callGasWord, subResult)
+          adjustedCallGas = getCallGas(op.code, callGasWord, subResult)
+          gasCost += adjustedCallGas.longValueSafe
         }
         case OpCode.CREATE => gasCost = GasCost.CREATE + calcMemGas(oldMemSize, memNeeded(stack.get(stack.size - 2), stack.get(stack.size - 3)), 0)
         case OpCode.CREATE2 => {
@@ -310,25 +334,25 @@ class VM(settings: ContractSettings, hook: VMHook) extends com.apex.common.ApexL
           program.step()
         }
         case OpCode.LT => {
-          // TODO: can be improved by not using BigInteger
+          // TODO: can be improved by not using BigInt
           binaryOp1("<", (word1, word2) => {
             if (word1.value < word2.value) DataWord.ONE else DataWord.ZERO
           })
         }
         case OpCode.SLT => {
-          // TODO: can be improved by not using BigInteger
+          // TODO: can be improved by not using BigInt
           binaryOp1("<", (word1, word2) => {
             if (word1.sValue < word2.sValue) DataWord.ONE else DataWord.ZERO
           })
         }
         case OpCode.SGT => {
-          // TODO: can be improved by not using BigInteger
+          // TODO: can be improved by not using BigInt
           binaryOp1(">", (word1, word2) => {
             if (word1.sValue > word2.sValue) DataWord.ONE else DataWord.ZERO
           })
         }
         case OpCode.GT => {
-          // TODO: can be improved by not using BigInteger
+          // TODO: can be improved by not using BigInt
           binaryOp1(">", (word1, word2) => {
             if (word1.value > word2.value) DataWord.ONE else DataWord.ZERO
           })
@@ -380,10 +404,10 @@ class VM(settings: ContractSettings, hook: VMHook) extends com.apex.common.ApexL
           binaryOp2((word1, word2) => word1.shiftRightSigned(word2))
         }
         case OpCode.ADDMOD => {
-          ternaryOp((word1, word2, word3) => word1.addmod(word2, word3))
+          ternaryOp((word1, word2, word3) => word1.addMod(word2, word3))
         }
         case OpCode.MULMOD => {
-          ternaryOp((word1, word2, word3) => word1.mulmod(word2, word3))
+          ternaryOp((word1, word2, word3) => word1.mulMod(word2, word3))
         }
         case OpCode.SHA3 => {
           binaryOp2((memOffsetData, lengthData) => {
@@ -638,8 +662,8 @@ class VM(settings: ContractSettings, hook: VMHook) extends com.apex.common.ApexL
           program.step()
         }
         case OpCode.MLOAD => {
-          val addr = program.stackPop
-          val data = program.memoryLoad(addr)
+          val address = program.stackPop
+          val data = program.memoryLoad(address)
 
           if (log.isInfoEnabled) hint = s"data: $data"
 
@@ -848,7 +872,7 @@ class VM(settings: ContractSettings, hook: VMHook) extends com.apex.common.ApexL
           program.suicide(address)
           program.getResult.addTouchAccount(address.getLast20Bytes)
 
-          if (log.isInfoEnabled)  {
+          if (log.isInfoEnabled) {
             hint = s"address: ${program.getOwnerAddress.getLast20Bytes.toHex}"
           }
 
@@ -879,7 +903,7 @@ class VM(settings: ContractSettings, hook: VMHook) extends com.apex.common.ApexL
 
   private def calcMemGas(oldMemSize: Long, newMemSize: BigInt, copySize: Long) = {
     // Avoid overflows
-    if (newMemSize.compareTo(MAX_MEM_SIZE) > 0) {
+    if (newMemSize > MAX_MEM_SIZE) {
       throw Program.gasOverflow(newMemSize, MAX_MEM_SIZE)
     }
 
@@ -916,6 +940,14 @@ class VM(settings: ContractSettings, hook: VMHook) extends com.apex.common.ApexL
     }
   }
 
+  private def getCallGas(op: OpCode.Value, requestedGas: DataWord , availableGas: DataWord ): DataWord = {
+    if (requestedGas.value > availableGas.value) {
+      throw Program.notEnoughOpGas(op, requestedGas, availableGas)
+    } else {
+      requestedGas
+    }
+  }
+
   private def validateOp(op: OpObject, program: Program): Unit = {
     if (opValidators.contains(op.code) && !opValidators(op.code)) {
       throw InvalidOperationException(s"invalid operation ${op.code}")
@@ -923,21 +955,8 @@ class VM(settings: ContractSettings, hook: VMHook) extends com.apex.common.ApexL
   }
 
   // TODO
-  private def accountExists(program: Program, addr: Array[Byte]): Boolean = {
-    //program.dataBase.isExist(addr)
-    throw new NotImplementedException
-  }
-
-  // TODO
-  private def accountValid(program: Program, addr: Array[Byte]): Boolean = {
-    // !program.dataBase.getAccountState(addr).isEmpty
-    throw new NotImplementedException
-  }
-
-  // TODO
-  private def isDeadAccount(program: Program, addr: Array[Byte]): Boolean = {
-    //!program.dataBase.isExist(addr) || program.dataBase.getAccountState(addr).isEmpty
-    !accountExists(program, addr) || !accountValid(program, addr)
+  private def isDeadAccount(program: Program, address: UInt160): Boolean = {
+    program.getStorage.getAccount(address).forall(_.isEmpty)
   }
 
   private def dumpLine(op: OpCode.Value, gasBefore: Long, gasCost: Long, memWords: Long, program: Program): Unit = {
@@ -949,7 +968,7 @@ object VM {
   private val _32_ = BigInt(32)
 
   /**
-    * Returns number of VM words required to hold data of size {@code size}
+    * Returns number of VM words required to hold data of size
     */
   def getSizeInWords(size: Long): Long = {
     if (size == 0) 0 else (size - 1) / 32 + 1

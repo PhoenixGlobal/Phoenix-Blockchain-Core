@@ -13,7 +13,27 @@ package com.apex.vm.program.invoke
 import com.apex.core.{BlockBase, DataBase}
 import com.apex.vm.DataWord
 
-class ProgramInvokeImpl(address: DataWord, origin: DataWord, caller: DataWord, balance: DataWord, gasPrice: DataWord, gas: DataWord, callValue: DataWord, msgData: Array[Byte], lastHash: DataWord, coinbase: DataWord, timestamp: DataWord, number: DataWord, difficulty: DataWord, gaslimit: DataWord, repository: DataBase, origRepository: DataBase, blockStore: BlockBase, callDeep: Int = 0, staticCall: Boolean = false, testingSuite: Boolean = false, byTx: Boolean = true) extends ProgramInvoke {
+class ProgramInvokeImpl(address: DataWord,
+                        origin: DataWord,
+                        caller: DataWord,
+                        balance: DataWord,
+                        gasPrice: DataWord,
+                        gas: DataWord,
+                        callValue: DataWord,
+                        msgData: Array[Byte],
+                        lastHash: DataWord,
+                        coinbase: DataWord,
+                        timestamp: DataWord,
+                        number: DataWord,
+                        difficulty: DataWord,
+                        gaslimit: DataWord,
+                        dataBase: DataBase,
+                        origDataBase: DataBase,
+                        blockStore: BlockBase,
+                        callDeep: Int = 0,
+                        staticCall: Boolean = false,
+                        testingSuite: Boolean = false,
+                        byTx: Boolean = true) extends ProgramInvoke {
 
   /** ***************/
   /** *  msg data ***/
@@ -122,9 +142,9 @@ class ProgramInvokeImpl(address: DataWord, origin: DataWord, caller: DataWord, b
 
   override def isStaticCall: Boolean = staticCall
 
-  override def getRepository: DataBase = repository
+  override def getDataBase: DataBase = dataBase
 
-  override def getOrigRepository: DataBase = origRepository
+  override def getOrigDataBase: DataBase = origDataBase
 
   override def getBlockStore: BlockBase = blockStore
 }

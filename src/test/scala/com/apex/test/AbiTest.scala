@@ -12,8 +12,9 @@ class AbiTest {
   @Test
   @throws[IOException]
   def simpleTest(): Unit = {
-    val contractAbi = "[{" + "\"name\":\"simpleFunction\"," + "\"constant\":true," + "\"payable\":true," + "\"type\":\"function\"," + "\"inputs\": [{\"name\":\"_in\", \"type\":\"bytes32\"}]," + "\"outputs\":[{\"name\":\"_out\",\"type\":\"bytes32\"}]}]"
+    val contractAbi = "[{" + "\"name\":\"set\"," + "\"constant\":true," + "\"payable\":true," + "\"type\":\"function\"," + "\"inputs\": [{\"name\":\"_in\", \"type\":\"uint256\"}]," + "\"outputs\":[{\"name\":\"_out\",\"type\":\"bytes32\"}]}]"
     val abi = Abi.fromJson(contractAbi)
+    println(java.util.Arrays.toString(abi.encode("set(0x777)")))
     assertEquals(abi.size, 1)
     val onlyFunc = abi.get(0)
     assertEquals(onlyFunc.entryType, EntryType.function)
