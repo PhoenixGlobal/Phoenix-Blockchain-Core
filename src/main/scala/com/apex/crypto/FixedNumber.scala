@@ -14,6 +14,8 @@ import com.apex.common.Serializable
 import com.apex.exceptions.OverflowException
 
 case class FixedNumber(val value: BigInt = 0) extends Serializable {
+  def isZero: Boolean = value == 0
+
   def ceiling: FixedNumber = {
     val remainder = value % FixedNumber.One.value
     if (remainder == 0)
