@@ -530,6 +530,10 @@ class LevelDBBlockchain(chainSettings: ChainSettings, consensusSettings: Consens
     dataBase.getAccount(address)
   }
 
+  def getReceipt(txid: UInt256): Option[TransactionReceipt] = {
+    dataBase.getReceipt(txid)
+  }
+
   private def populate(): Unit = {
     log.info("chain populate")
     if (forkBase.head.isEmpty) {

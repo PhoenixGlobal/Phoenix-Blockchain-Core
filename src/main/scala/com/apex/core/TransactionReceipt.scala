@@ -11,7 +11,8 @@
 package com.apex.core
 import java.io.{DataInputStream, DataOutputStream}
 
-import com.apex.crypto.{UInt160, UInt256}
+import com.apex.crypto.{BinaryData, UInt160, UInt256}
+import play.api.libs.json.{JsValue, Json, Writes}
 
 case class TransactionReceipt(txId: UInt256,
                               txType: TransactionType.Value,
@@ -19,7 +20,7 @@ case class TransactionReceipt(txId: UInt256,
                               to: UInt160,
                               gasUsed: BigInt,
                               totalGasUsed: BigInt,
-                              output: Array[Byte],
+                              output: BinaryData,
                               status: Int) extends com.apex.common.Serializable {
   override def serialize(os: DataOutputStream): Unit = {
     import com.apex.common.Serializable._
@@ -46,5 +47,20 @@ object TransactionReceipt {
       BigInt(is.readByteArray),
       is.readByteArray,
       is.readVarInt)
+  }
+
+  implicit val TransactionReceiptWrites = new Writes[TransactionReceipt] {
+    override def writes(o: TransactionReceipt): JsValue = {
+      Json.obj(
+        "txid" -> o.txId.toString,
+        "txType" -> o.txType.toString,
+        "from" -> o.from.address,
+        "to" ->  o.to.address,
+        "gasUsed" -> o.gasUsed.longValue(),
+        "totalGasUsed" -> o.totalGasUsed.longValue(),
+        "output" -> o.output.toString,
+        "status" -> o.status
+      )
+    }
   }
 }
