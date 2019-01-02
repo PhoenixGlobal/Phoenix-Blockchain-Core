@@ -178,12 +178,6 @@ class ContractTxTest {
   def testCreateChain(): Unit = {
     val chain = createChain("testCreateChain")
     try {
-      //      val header = BlockHeader.build(
-      //        1, 0, UInt256.Zero,
-      //        UInt256.Zero, PublicKey("022ac01a1ea9275241615ea6369c85b41e2016abc47485ec616c3c583f1b92a5c8"),
-      //        new PrivateKey(BinaryData("efc382ccc0358f468c2a80f3738211be98e5ae419fc0907cb2f51d3334001471")))
-      //      val block = Block.build(header, Seq.empty)
-      //      assert(chain.tryInsertBlock(block, true) == false)
 
       assert(chain.getHeight() == 0)
 
@@ -206,13 +200,9 @@ class ContractTxTest {
         3,
         codebin,
         FixedNumber(1), 99999999L, BinaryData.empty)
-
       assert(chain.addTransaction(deployTx))
 
-
-      val settt = Abi.fromJson("[{\"constant\":false,\"inputs\":[{\"name\":\"withdraw_amount\",\"type\":\"uint256\"}],\"name\":\"set\",\"outputs\":[],\"payable\":false,\"stateMutability\":\"nonpayable\",\"type\":\"function\"},{\"constant\":false,\"inputs\":[],\"name\":\"get\",\"outputs\":[{\"name\":\"\",\"type\":\"uint256\"}],\"payable\":false,\"stateMutability\":\"nonpayable\",\"type\":\"function\"}]").encode("set(2)")
-
-
+      val settt = Abi.fromJson("[{\"constant\":false,\"inputs\":[{\"name\":\"withdraw_amount\",\"type\":\"uint256\"}],\"name\":\"set\",\"outputs\":[],\"payable\":false,\"stateMutability\":\"nonpayable\",\"type\":\"function\"},{\"constant\":false,\"inputs\":[],\"name\":\"get\",\"outputs\":[{\"name\":\"\",\"type\":\"uint256\"}],\"payable\":false,\"stateMutability\":\"nonpayable\",\"type\":\"function\"}]").encode("set(123)")
       val setTx = new Transaction(TransactionType.Call, minerCoinFrom,
         UInt160.fromBytes(BinaryData("43d4118a551815ec937380219e3bf5057316376e")), "", FixedNumber.fromDecimal(_minerAward),
         4,
@@ -221,13 +211,16 @@ class ContractTxTest {
       assert(chain.addTransaction(setTx))
 
       val gettt = Abi.fromJson("[{\"constant\":false,\"inputs\":[{\"name\":\"withdraw_amount\",\"type\":\"uint256\"}],\"name\":\"set\",\"outputs\":[],\"payable\":false,\"stateMutability\":\"nonpayable\",\"type\":\"function\"},{\"constant\":false,\"inputs\":[],\"name\":\"get\",\"outputs\":[{\"name\":\"\",\"type\":\"uint256\"}],\"payable\":false,\"stateMutability\":\"nonpayable\",\"type\":\"function\"}]").encode("get()")
-
       val getTx = new Transaction(TransactionType.Call, minerCoinFrom,
         UInt160.fromBytes(BinaryData("43d4118a551815ec937380219e3bf5057316376e")), "", FixedNumber.fromDecimal(_minerAward),
         5,
         gettt,
         FixedNumber(1), 99999999L, BinaryData.empty)
       assert(chain.addTransaction(getTx))
+
+      val receipt = chain.getReceipt(getTx.id()).get
+
+      assert(DataWord.of(receipt.output).longValue == 123)
 
 
     }
