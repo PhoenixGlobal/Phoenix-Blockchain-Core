@@ -89,6 +89,23 @@ object RpcServer extends ApexLogging {
             }
           }
         } ~
+        path("compileContract") {
+          post {
+            entity(as[String]) { data =>
+              Json.parse(data).validate[CompileContractCmd] match {
+                case cmd: JsSuccess[CompileContractCmd] => {
+
+                  val f = (nodeRef ? cmd.value).mapTo[String].map(Json.toJson(_).toString)
+                  complete(f)
+                }
+                case e: JsError => {
+                  println(e)
+                  complete(HttpEntity(ContentTypes.`application/json`, Json.parse( """{"result": "Error"}""").toString()))
+                }
+              }
+            }
+          }
+        } ~
         path("sendrawtransaction") {
           post {
             entity(as[String]) { data =>
