@@ -75,25 +75,3 @@ object ContractState {
     )
   }
 }
-
-
-case class ContractCompile(name: String = "",
-                   source: String = "") extends com.apex.common.Serializable {
-
-  override def serialize(os: DataOutputStream): Unit = {
-    import com.apex.common.Serializable._
-    os.writeString(name)
-    os.writeString(source)
-  }
-}
-
-object ContractCompile {
-
-  def deserialize(is: DataInputStream): ContractCompile = {
-    import com.apex.common.Serializable._
-    ContractCompile(
-      name = is.readString(),
-      source = is.readString()
-    )
-  }
-}

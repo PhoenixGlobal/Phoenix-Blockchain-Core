@@ -58,19 +58,6 @@ object GetAccountCmd {
     ) map (GetAccountCmd.apply _)
 }
 
-case class CompileContractCmd(contract: BinaryData) extends RPCCommand
-
-object CompileContractCmd {
-  implicit val testWrites = new Writes[CompileContractCmd] {
-    override def writes(o: CompileContractCmd): JsValue = Json.obj(
-      "contract" -> o.contract.toString
-    )
-  }
-  implicit val testReads: Reads[CompileContractCmd] = (
-    (__ \ "contract").read[String](Validators.HexValidator).map(c => BinaryData(c))
-    ) map (CompileContractCmd.apply _)
-}
-
 case class SendRawTransactionCmd(rawTx: BinaryData) extends RPCCommand
 
 object SendRawTransactionCmd {
@@ -133,3 +120,16 @@ object GetBlockByIdCmd {
     ) map (GetBlockByIdCmd.apply _)
 }
 
+
+case class GetContractByIdCmd(id: UInt256) extends RPCCommand
+
+object GetContractByIdCmd {
+  implicit val testWrites = new Writes[GetContractByIdCmd] {
+    override def writes(o: GetContractByIdCmd): JsValue = Json.obj(
+      "id" -> o.id.toString
+    )
+  }
+  implicit val testReads: Reads[GetContractByIdCmd] = (
+    (__ \ "id").read[String](Validators.uint256Validator).map(c => UInt256.parse(c).get)
+    ) map (GetContractByIdCmd.apply _)
+}
