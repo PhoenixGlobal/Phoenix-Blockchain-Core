@@ -836,7 +836,7 @@ class VM(settings: ContractSettings, hook: VMHook) extends com.apex.common.ApexL
           val contract = PrecompiledContracts.getContractForAddress(codeAddress, settings)
 
           if (!op.callIsStateless) {
-            program.getResult.addTouchAccount(codeAddress.getLast20Bytes)
+            program.getResult.addTouchAccount(codeAddress.toUInt160)
           }
 
           if (contract != null) {
@@ -870,7 +870,7 @@ class VM(settings: ContractSettings, hook: VMHook) extends com.apex.common.ApexL
 
           val address = program.stackPop
           program.suicide(address)
-          program.getResult.addTouchAccount(address.getLast20Bytes)
+          program.getResult.addTouchAccount(address.toUInt160)
 
           if (log.isInfoEnabled) {
             hint = s"address: ${program.getOwnerAddress.getLast20Bytes.toHex}"

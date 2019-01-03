@@ -37,7 +37,7 @@ import com.apex.vm.program.invoke.ProgramInvoke
 import com.apex.vm.program.listener.{CompositeProgramListener, ProgramListenerAware, ProgramStorageChangeListener}
 import com.apex.vm.program.trace.{ProgramTrace, ProgramTraceListener}
 import com.apex.vm.{DataWord, MessageCall, PrecompiledContract}
-import org.apex.vm.OpCode
+import org.apex.vm.{OpCache, OpCode}
 
 class Program(settings: ContractSettings, ops: Array[Byte], invoke: ProgramInvoke) extends ApexLogging {
   private final val MAX_STACKSIZE = 1024
@@ -452,7 +452,56 @@ class Program(settings: ContractSettings, ops: Array[Byte], invoke: ProgramInvok
   }
 
   def callToPrecompiledAddress(msg: MessageCall, contract: PrecompiledContract): Unit = {
-    throw new NotImplementedError
+    returnDataBuffer = null // reset return buffer right before the call
+
+    if (getCallDeep == MAX_DEPTH) {
+      stackPushZero()
+      refundGas(msg.gas.longValue, " call deep limit reach")
+    } else {
+      val track = getStorage.startTracking
+
+      val senderAddress = getOwnerAddress.toUInt160
+      val codeAddress = msg.codeAddress.toUInt160
+      val stateLess = OpCache.fromCode(msg.opCode.value).callIsStateless
+      val contextAddress = if (stateLess) senderAddress else codeAddress
+      if (track.getBalance(senderAddress).forall(_.value < msg.endowment.value)) {
+        stackPushZero()
+        refundGas(msg.gas.longValue, "refund gas from message call")
+      } else {
+        val data = memoryChunk(msg.inDataOffs.intValue, msg.inDataSize.intValue)
+        // Charge for endowment - is not reversible by rollback
+        track.transfer(senderAddress, contextAddress, msg.endowment.value)
+
+        if (byTestingSuite) { // This keeps track of the calls created for a test
+          getResult.addCallCreate(data, msg.codeAddress.getLast20Bytes, msg.gas.getNoLeadZeroesData, msg.endowment.getNoLeadZeroesData)
+          stackPushOne()
+        } else {
+          val requiredGas = contract.getGasForData(data)
+          if (requiredGas > msg.gas.longValue) {
+            refundGas(0, "call pre-compiled") //matches cpp logic
+            stackPushZero()
+            //track.rollback()
+          } else {
+            if (log.isDebugEnabled) {
+              log.debug(s"Call ${contract.getClass.getSimpleName}(data = ${data.toHex})")
+            }
+
+            val (succeed, result) = contract.execute(data)
+            if (succeed) { // success
+              refundGas(msg.gas.longValue - requiredGas, "call pre-compiled")
+              stackPushOne()
+              returnDataBuffer = result
+              track.commit()
+            }
+            else { // spend all gas on failure, push zero and revert state changes
+              refundGas(0, "call pre-compiled")
+              stackPushZero()
+              //track.rollback()
+            }
+          }
+        }
+      }
+    }
   }
 
   def callToAddress(msg: MessageCall): Unit = {

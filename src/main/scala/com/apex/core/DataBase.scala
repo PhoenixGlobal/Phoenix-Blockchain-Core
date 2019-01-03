@@ -72,7 +72,7 @@ class DataBase(settings: DataBaseSettings) extends ApexLogging {
     //TODO
   }
 
-  def transfer(from: UInt160, to: UInt160, value: BigInteger) = {
+  def transfer(from: UInt160, to: UInt160, value: BigInt) = {
     //TODO
   }
 
@@ -80,7 +80,7 @@ class DataBase(settings: DataBaseSettings) extends ApexLogging {
     //TODO
   }
 
-  def addBalance(address: UInt160, value: BigInteger) = {
+  def addBalance(address: UInt160, value: BigInt) = {
     //TODO
   }
 
@@ -110,6 +110,10 @@ class DataBase(settings: DataBaseSettings) extends ApexLogging {
 
   def setReceipt(txid: UInt256, receipt: TransactionReceipt) = {
     receiptStore.set(txid, receipt)
+  }
+
+  def startTracking(): DataBase = {
+    this
   }
 
   def startSession(): Unit = {
