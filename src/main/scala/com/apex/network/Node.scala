@@ -19,11 +19,7 @@ import com.apex.network.peer.PeerHandlerManagerRef
 import com.apex.network.rpc._
 import com.apex.plugins.mongodb.MongodbPluginRef
 import com.apex.settings.ApexSettings
-import com.apex.solidity.compiler.{CompilationResult, SolidityCompiler}
-import com.apex.solidity.compiler.SolidityCompiler.Options.{ABI, BIN, INTERFACE, METADATA}
 import com.apex.utils.NetworkTimeProvider
-import org.junit.Assert
-
 import scala.collection.mutable.ArrayBuffer
 import scala.concurrent.ExecutionContext
 
@@ -127,23 +123,6 @@ class Node(val settings: ApexSettings)
       case GetAccountCmd(address) => {
         sender() ! chain.getAccount(address)
       }
-      case CompileContractCmd(rawTx) => {
-
-        val is = new DataInputStream(new ByteArrayInputStream(rawTx))
-        val contractCompile = ContractCompile.deserialize(is)
-
-        val res = SolidityCompiler.compile(contractCompile.source.getBytes, true, Seq(ABI, BIN, INTERFACE, METADATA))
-        System.out.println("Out: '" + res.output + "'")
-        System.out.println("Err: '" + res.errors + "'")
-        val result = CompilationResult.parse(res.output)
-        if (result.getContract(contractCompile.name) != null) {
-          System.out.println(result.getContract(contractCompile.name).bin)
-          sender() ! result.getContract(contractCompile.name).bin
-        }else{
-          Assert.fail()
-          sender() ! res.errors
-        }
-      }
       case SendRawTransactionCmd(rawTx) => {
         val is = new DataInputStream(new ByteArrayInputStream(rawTx))
         val tx = Transaction.deserialize(is)
@@ -156,6 +135,9 @@ class Node(val settings: ApexSettings)
         }
         else
           sender() ! false
+      }
+      case GetContractByIdCmd(id) => {
+        sender() ! chain.getReceipt(id)
       }
     }
   }
