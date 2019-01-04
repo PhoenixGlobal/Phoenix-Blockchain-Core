@@ -20,7 +20,7 @@ import scala.util.Random
 class AccountTest {
   @Test
   def testSerialize = {
-    val codeHash = new Array[Byte](Random.nextInt)
+    val codeHash = new Array[Byte](Random.nextInt(33))
     Random.nextBytes(codeHash)
     val a = new Account(UInt160.Zero, false, "iiruf", FixedNumber(567), 123, codeHash)
     val o = new SerializerHelper[Account](
