@@ -120,3 +120,16 @@ object GetBlockByIdCmd {
     ) map (GetBlockByIdCmd.apply _)
 }
 
+
+case class GetContractByIdCmd(id: UInt256) extends RPCCommand
+
+object GetContractByIdCmd {
+  implicit val testWrites = new Writes[GetContractByIdCmd] {
+    override def writes(o: GetContractByIdCmd): JsValue = Json.obj(
+      "id" -> o.id.toString
+    )
+  }
+  implicit val testReads: Reads[GetContractByIdCmd] = (
+    (__ \ "id").read[String](Validators.uint256Validator).map(c => UInt256.parse(c).get)
+    ) map (GetContractByIdCmd.apply _)
+}

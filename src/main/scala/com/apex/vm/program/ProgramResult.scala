@@ -25,9 +25,12 @@
 
 package com.apex.vm.program
 
+import com.apex.crypto.UInt160
+import com.apex.vm.CallCreate
 import com.apex.vm.program.trace.LogInfo
 
-import scala.collection.mutable.ListBuffer
+import scala.collection.mutable
+import scala.collection.mutable.{ListBuffer, Set}
 
 class ProgramResult {
   private var gasUsed = 0L
@@ -35,7 +38,10 @@ class ProgramResult {
   private var exception: RuntimeException = _
   private var revert = false
   private var futureRefund = 0L
-  private var logInfoList: ListBuffer[LogInfo] = _
+  private val logInfoList = ListBuffer.empty[LogInfo]
+  private val touchedAccounts = Set.empty[UInt160]
+  private val deleteAccounts = Set.empty[UInt160]
+  private val callCreateList = ListBuffer.empty[CallCreate]
 
   def spendGas(gas: Long): Unit = {
     gasUsed += gas
@@ -77,23 +83,57 @@ class ProgramResult {
     this.exception = exception
   }
 
-  def getLogInfoList: ListBuffer[LogInfo] = {
-    if (logInfoList == null) {
-      logInfoList = ListBuffer.empty[LogInfo]
-    }
+  def getLogInfoList = {
     logInfoList
   }
 
   def addLogInfo(logInfo: LogInfo): Unit = {
-    getLogInfoList.append(logInfo)
+    logInfoList.append(logInfo)
   }
 
-  def addLogInfos(logInfos: List[LogInfo]): Unit = {
-    if (!logInfos.isEmpty) getLogInfoList.appendAll(logInfos)
+  def addLogInfos(logInfos: ListBuffer[LogInfo]): Unit = {
+    logInfoList.appendAll(logInfos)
   }
 
-  def addTouchAccount(addr: Array[Byte]): Unit = {
-    throw new NotImplementedError
+  def addCallCreate(data: Array[Byte], destination: Array[Byte], gasLimit: Array[Byte], value: Array[Byte]): Unit = {
+    callCreateList.append(CallCreate(data, destination, gasLimit, value))
+  }
+
+  def getTouchedAccounts = {
+    touchedAccounts
+  }
+
+  def addTouchAccount(addr: UInt160): Unit = {
+    touchedAccounts.add(addr)
+  }
+
+  def addTouchAccounts(accounts: mutable.Set[UInt160]): Unit = {
+    if (!accounts.isEmpty) {
+      accounts.foreach(touchedAccounts.add)
+    }
+  }
+
+  def getDeleteAccounts = {
+    deleteAccounts
+  }
+
+  def addDeleteAccount(addr: UInt160): Unit = {
+    deleteAccounts.add(addr)
+  }
+
+  def addDeleteAccounts(accounts: mutable.Set[UInt160]): Unit = {
+    if (!accounts.isEmpty) {
+      accounts.foreach(deleteAccounts.add)
+    }
+  }
+
+  def merge(another: ProgramResult): Unit = {
+    if (another.getException == null && !another.isRevert) {
+      addDeleteAccounts(another.getDeleteAccounts)
+      addLogInfos(another.getLogInfoList)
+      addFutureRefund(another.getFutureRefund)
+      addTouchAccounts(another.getTouchedAccounts)
+    }
   }
 
 }

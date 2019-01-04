@@ -20,7 +20,6 @@ import com.apex.network.rpc._
 import com.apex.plugins.mongodb.MongodbPluginRef
 import com.apex.settings.ApexSettings
 import com.apex.utils.NetworkTimeProvider
-
 import scala.collection.mutable.ArrayBuffer
 import scala.concurrent.ExecutionContext
 
@@ -136,6 +135,9 @@ class Node(val settings: ApexSettings)
         }
         else
           sender() ! false
+      }
+      case GetContractByIdCmd(id) => {
+        sender() ! chain.getReceipt(id)
       }
     }
   }

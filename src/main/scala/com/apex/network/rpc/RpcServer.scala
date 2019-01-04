@@ -16,7 +16,7 @@ import akka.pattern.ask
 import akka.stream.ActorMaterializer
 import akka.util.Timeout
 import com.apex.common.ApexLogging
-import com.apex.core.{Account, Block}
+import com.apex.core.{Account, Block, TransactionReceipt}
 import com.apex.settings.RPCSettings
 import play.api.libs.json._
 
@@ -84,6 +84,24 @@ object RpcServer extends ApexLogging {
                 case e: JsError => {
                   println(e)
                   complete(HttpEntity(ContentTypes.`application/json`, Json.parse( """{"result": "Error"}""").toString()))
+                }
+              }
+            }
+          }
+        } ~
+        path("getContract") {
+          post {
+            entity(as[String]) { data =>
+              Json.parse(data).validate[GetContractByIdCmd] match {
+                case cmd: JsSuccess[GetContractByIdCmd] => {
+                  val f = (nodeRef ? cmd.get)
+                    .mapTo[Option[TransactionReceipt]]
+                    .map(_.map(Json.toJson(_).toString).getOrElse(JsNull.toString))
+                  complete(f)
+                }
+                case _: JsError => {
+                  //                    log.error("", idError)
+                  complete(HttpEntity(ContentTypes.`application/json`, Json.parse( """ {"result": "Error"}""").toString()))
                 }
               }
             }

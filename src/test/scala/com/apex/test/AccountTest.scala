@@ -14,12 +14,15 @@ import com.apex.core.Account
 import com.apex.crypto.{FixedNumber, UInt160}
 import org.junit.Test
 
+import scala.util.Random
+
 @Test
 class AccountTest {
   @Test
   def testSerialize = {
-
-    val a = new Account(UInt160.Zero, false, "iiruf", FixedNumber(567), 123)
+    val codeHash = new Array[Byte](Random.nextInt(33))
+    Random.nextBytes(codeHash)
+    val a = new Account(UInt160.Zero, false, "iiruf", FixedNumber(567), 123, codeHash)
     val o = new SerializerHelper[Account](
       Account.deserialize,
       (x, _) => x.pubKeyHash == a.pubKeyHash
@@ -27,6 +30,7 @@ class AccountTest {
         && x.name == a.name
         && x.balance == a.balance
         && x.nextNonce == a.nextNonce
+        && x.codeHash.sameElements(a.codeHash)
         && x.version == a.version)
     o.test(a)
   }

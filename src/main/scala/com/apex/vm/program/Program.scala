@@ -30,16 +30,16 @@ import java.util
 
 import com.apex.common.ApexLogging
 import com.apex.core.DataBase
-import com.apex.crypto.UInt160
 import com.apex.settings.ContractSettings
+import com.apex.vm.DataWord
 import com.apex.vm.exceptions._
-import com.apex.vm.program.invoke.ProgramInvoke
+import com.apex.vm.hook.VMHook
+import com.apex.vm.program.invoke.{ProgramInvoke, ProgramInvokeImpl}
 import com.apex.vm.program.listener.{CompositeProgramListener, ProgramListenerAware, ProgramStorageChangeListener}
 import com.apex.vm.program.trace.{ProgramTrace, ProgramTraceListener}
-import com.apex.vm.{DataWord, MessageCall, PrecompiledContract}
-import org.apex.vm.OpCode
+import org.apex.vm.{OpCache, OpCode}
 
-class Program(settings: ContractSettings, ops: Array[Byte], invoke: ProgramInvoke) extends ApexLogging {
+class Program(settings: ContractSettings, ops: Array[Byte], invoke: ProgramInvoke, vmHook: VMHook = VMHook.EMPTY) extends ApexLogging {
   private final val MAX_STACKSIZE = 1024
   /**
     * This attribute defines the number of recursive calls allowed in the EVM
@@ -213,14 +213,7 @@ class Program(settings: ContractSettings, ops: Array[Byte], invoke: ProgramInvok
   }
 
   def getCodeHashAt(address: DataWord): Array[Byte] = {
-    //    val state = invoke.getRepository.getAccountState(address.getLast20Bytes)
-    //    // return 0 as a code hash of empty account (an account that would be removed by state clearing)
-    //    if (state != null && state.isEmpty) EMPTY_BYTE_ARRAY
-    //    else {
-    //      val code = invoke.getRepository.getCodeHash(address.getLast20Bytes)
-    //      nullToEmpty(code)
-    //    }
-    throw new NotImplementedError
+    invoke.getDataBase.getCodeHash(address.toUInt160)
   }
 
   def getOwnerAddress: DataWord = invoke.getOwnerAddress
@@ -235,9 +228,8 @@ class Program(settings: ContractSettings, ops: Array[Byte], invoke: ProgramInvok
   }
 
   def getBalance(address: DataWord): DataWord = {
-    //    val balance = getStorage.getBalance(address.getLast20Bytes)
-    //    DataWord.of(balance.toByteArray)
-    throw new NotImplementedError
+    val balance = getStorage.getBalance(address.toUInt160).map(_.value).getOrElse(BigInt(0))
+    DataWord.of(balance)
   }
 
   def getOriginAddress: DataWord = invoke.getOriginAddress
@@ -452,11 +444,156 @@ class Program(settings: ContractSettings, ops: Array[Byte], invoke: ProgramInvok
   }
 
   def callToPrecompiledAddress(msg: MessageCall, contract: PrecompiledContract): Unit = {
-    throw new NotImplementedError
+    returnDataBuffer = null // reset return buffer right before the call
+
+    if (getCallDeep == MAX_DEPTH) {
+      stackPushZero()
+      refundGas(msg.gas.longValue, " call deep limit reach")
+    } else {
+      val track = getStorage.startTracking
+
+      val senderAddress = getOwnerAddress.toUInt160
+      val codeAddress = msg.codeAddress.toUInt160
+      val stateLess = OpCache.fromCode(msg.opCode.value).callIsStateless
+      val contextAddress = if (stateLess) senderAddress else codeAddress
+      if (track.getBalance(senderAddress).forall(_.value < msg.endowment.value)) {
+        stackPushZero()
+        refundGas(msg.gas.longValue, "refund gas from message call")
+      } else {
+        val data = memoryChunk(msg.inDataOffs.intValue, msg.inDataSize.intValue)
+        // Charge for endowment - is not reversible by rollback
+        track.transfer(senderAddress, contextAddress, msg.endowment.value)
+
+        if (byTestingSuite) { // This keeps track of the calls created for a test
+          getResult.addCallCreate(data, msg.codeAddress.getLast20Bytes, msg.gas.getNoLeadZeroesData, msg.endowment.getNoLeadZeroesData)
+          stackPushOne()
+        } else {
+          val requiredGas = contract.getGasForData(data)
+          if (requiredGas > msg.gas.longValue) {
+            refundGas(0, "call pre-compiled") //matches cpp logic
+            stackPushZero()
+            //track.rollback()
+          } else {
+            if (log.isDebugEnabled) {
+              log.debug(s"Call ${contract.getClass.getSimpleName}(data = ${data.toHex})")
+            }
+
+            val (succeed, result) = contract.execute(data)
+            if (succeed) { // success
+              refundGas(msg.gas.longValue - requiredGas, "call pre-compiled")
+              stackPushOne()
+              returnDataBuffer = result
+              track.commit()
+            }
+            else { // spend all gas on failure, push zero and revert state changes
+              refundGas(0, "call pre-compiled")
+              stackPushZero()
+              //track.rollback()
+            }
+          }
+        }
+      }
+    }
   }
 
   def callToAddress(msg: MessageCall): Unit = {
-    throw new NotImplementedError
+    returnDataBuffer = null // reset return buffer right before the call
+
+    if (getCallDeep == MAX_DEPTH) {
+      stackPushZero()
+      refundGas(msg.gas.longValue, " call deep limit reach")
+    } else {
+      val data = memoryChunk(msg.inDataOffs.intValue, msg.inDataSize.intValue)
+
+      // FETCH THE SAVED STORAGE
+      val codeAddress = msg.codeAddress.toUInt160
+      val senderAddress = getOwnerAddress.toUInt160
+      val stateLess = OpCache.fromCode(msg.opCode.value).callIsStateless
+      val contextAddress = if (stateLess) senderAddress else codeAddress
+
+      if (log.isInfoEnabled) {
+        log.info(s"${msg.opCode.name} for existing contract: address: [${contextAddress.toString}], outDataOffs: [${msg.outDataOffs.longValue}], outDataSize: [${msg.outDataSize.longValue}]  ")
+      }
+
+      val track = getStorage.startTracking
+      if (track.getBalance(senderAddress).forall(_.value < msg.endowment.value)) {
+        stackPushZero()
+        refundGas(msg.gas.longValue, "refund gas from message call")
+      } else {
+        var contextBalance = BigInt(0)
+        if (byTestingSuite) { // This keeps track of the calls created for a test
+          getResult.addCallCreate(data, contextAddress.data, msg.gas.getNoLeadZeroesData, msg.endowment.getNoLeadZeroesData)
+        } else {
+          track.addBalance(senderAddress, -msg.endowment.value)
+          contextBalance = track.addBalance(contextAddress, msg.endowment.value)
+        }
+
+        //TODO
+        // CREATE CALL INTERNAL TRANSACTION
+
+        val programCode = getStorage.getCode(codeAddress)
+        if (!programCode.isEmpty) {
+          val op = OpCache.fromCode(msg.opCode.value)
+          val isDelegate = op.callIsDelegate
+          val callerAddress = if (isDelegate) getCallerAddress else getOwnerAddress
+          val callValue = if (isDelegate) getCallValue else msg.endowment
+          val programInvoke = new ProgramInvokeImpl(
+            DataWord.of(contextAddress), getOriginAddress, callerAddress,
+            DataWord.of(contextBalance), msg.gas, getGasPrice, callValue,
+            data, getPrevHash, getCoinbase, getTimestamp, getNumber, getDifficulty,
+            getGasLimit, track, invoke.getOrigDataBase, invoke.getBlockStore,
+            getCallDeep + 1, op.callIsStatic || isStaticCall, byTestingSuite)
+          val program = new Program(settings, programCode, programInvoke)
+          val result = VM.play(settings, vmHook, program)
+          getTrace.merge(program.getTrace)
+          getResult.merge(result)
+
+          if (result.getException != null || result.isRevert) {
+            log.debug(s"contract run halted by Exception: contract: [${contextAddress.toString}], exception: [${result.getException}]")
+            //TODO reject internal transaction
+
+            //track.rollback()
+            stackPushZero()
+          } else {
+            // 4. THE FLAG OF SUCCESS IS ONE PUSHED INTO THE STACK
+            track.commit()
+            stackPushOne()
+          }
+
+          if (result.getException == null) {
+            if (byTestingSuite) {
+              log.info("Testing run, skipping storage diff listener")
+            } else {
+              //            if (Arrays.equals(transaction.getReceiveAddress, internalTx.getReceiveAddress)) {
+              //              storageDiffListener.merge(program.getStorageDiff)
+              //            }
+            }
+
+            // 3. APPLY RESULTS: result.getHReturn() into out_memory allocated
+            val buffer = result.getHReturn
+            val offset = msg.outDataOffs.intValue
+            val size = msg.outDataSize.intValue
+            memorySaveLimited(offset, buffer, size)
+            returnDataBuffer = buffer
+
+            // 5. REFUND THE REMAIN GAS
+            val refund = msg.gas.value - result.getGasUsed
+            if (refund.signum > 0) {
+              refundGas(refund.longValue, "remaining gas from the internal call")
+              if (log.isInfoEnabled) {
+                log.info(s"The remaining gas refunded, account: [${senderAddress.toString}], gas: [${refund}] ")
+              }
+            }
+          }
+        } else {
+          // 4. THE FLAG OF SUCCESS IS ONE PUSHED INTO THE STACK
+          track.commit()
+          stackPushOne()
+          // 5. REFUND THE REMAIN GAS
+          refundGas(msg.gas.longValue, "remaining gas from the internal call")
+        }
+      }
+    }
   }
 
   def suicide(obtainerAddress: DataWord): Unit = {

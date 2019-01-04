@@ -72,20 +72,26 @@ class DataBase(settings: DataBaseSettings) extends ApexLogging {
     //TODO
   }
 
-  def transfer(from: UInt160, to: UInt160, value: BigInteger) = {
+  def transfer(from: UInt160, to: UInt160, value: BigInt) = {
     //TODO
   }
 
-  def addBalance(address: UInt160, value: FixedNumber) = {
+  def addBalance(address: UInt160, value: FixedNumber): FixedNumber = {
     //TODO
+    throw new NotImplementedError
   }
 
-  def addBalance(address: UInt160, value: BigInteger) = {
+  def addBalance(address: UInt160, value: BigInt): BigInt = {
     //TODO
+    throw new NotImplementedError
   }
 
   def getBalance(address: UInt160): Option[FixedNumber] = {
     accountStore.get(address).map(_.balance)
+  }
+
+  def getCodeHash(address:UInt160): Array[Byte] = {
+    accountStore.get(address).map(_.codeHash).getOrElse(Array.empty)
   }
 
   def getCode(address: UInt160): Array[Byte] = {
@@ -110,6 +116,10 @@ class DataBase(settings: DataBaseSettings) extends ApexLogging {
 
   def setReceipt(txid: UInt256, receipt: TransactionReceipt) = {
     receiptStore.set(txid, receipt)
+  }
+
+  def startTracking(): DataBase = {
+    this
   }
 
   def startSession(): Unit = {

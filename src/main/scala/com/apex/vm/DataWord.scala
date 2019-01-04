@@ -392,6 +392,10 @@ object DataWord {
     of(num.toByteArray)
   }
 
+  def of(data: UInt160): DataWord = {
+    of(data.data)
+  }
+
   def of(data: Array[Byte]): DataWord = {
     if (data == null || data.length == 0) {
       ZERO

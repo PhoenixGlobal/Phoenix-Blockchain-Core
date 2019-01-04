@@ -59,6 +59,8 @@ case class FixedNumber(val value: BigInt = 0) extends Serializable {
 
   def >(that: FixedNumber): Boolean = value > that.value
 
+  def >(that: BigInt): Boolean = value > that
+
   def ==(that: FixedNumber): Boolean = {
     that match {
       case null => false
@@ -73,6 +75,8 @@ object FixedNumber {
   final val One: FixedNumber = new FixedNumber(1000000000000000000L)
   final val Ten: FixedNumber = new FixedNumber(One.value * 10)
   final val Zero: FixedNumber = new FixedNumber(0)
+
+  implicit val serializer: DataInputStream => FixedNumber = deserialize
 
   def deserialize(is: DataInputStream): FixedNumber = {
     import com.apex.common.Serializable._
@@ -108,5 +112,6 @@ object FixedNumber {
       x.value.compareTo(y.value)
     }
   }
+
 }
 
