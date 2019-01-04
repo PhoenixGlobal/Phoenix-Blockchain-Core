@@ -76,12 +76,14 @@ class DataBase(settings: DataBaseSettings) extends ApexLogging {
     //TODO
   }
 
-  def addBalance(address: UInt160, value: FixedNumber) = {
+  def addBalance(address: UInt160, value: FixedNumber): FixedNumber = {
     //TODO
+    throw new NotImplementedError
   }
 
-  def addBalance(address: UInt160, value: BigInt) = {
+  def addBalance(address: UInt160, value: BigInt): BigInt = {
     //TODO
+    throw new NotImplementedError
   }
 
   def getBalance(address: UInt160): Option[FixedNumber] = {

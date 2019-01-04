@@ -31,7 +31,7 @@ import com.apex.crypto.{Crypto, UInt160}
 import com.apex.exceptions.InvalidOperationException
 import com.apex.settings.ContractSettings
 import com.apex.vm.hook.VMHook
-import com.apex.vm.program.Program
+import com.apex.vm.program.{Program, ProgramResult}
 import com.apex.vm.program.invoke.ProgramInvoke
 import com.apex.vm.program.trace.LogInfo
 import org.apex.vm._
@@ -817,7 +817,7 @@ class VM(settings: ContractSettings, hook: VMHook) extends com.apex.common.ApexL
           }
 
           if (!value.isZero) {
-            //adjustedCallGas = adjustedCallGas.add(DataWord.of(GasCost.STIPEND_CALL))
+            adjustedCallGas = adjustedCallGas.add(DataWord.of(GasCost.STIPEND_CALL))
           }
 
           val inDataOffs = program.stackPop
@@ -826,7 +826,7 @@ class VM(settings: ContractSettings, hook: VMHook) extends com.apex.common.ApexL
           val outDataSize = program.stackPop
 
           if (log.isInfoEnabled) {
-            //            hint = s"addr: ${codeAddress.getLast20Bytes.toHex} gas: ${adjustedCallGas.shortHex} inOff: ${inDataOffs.shortHex} inSize: ${inDataSize.shortHex}"
+            hint = s"addr: ${codeAddress.getLast20Bytes.toHex} gas: ${adjustedCallGas.shortHex} inOff: ${inDataOffs.shortHex} inSize: ${inDataSize.shortHex}"
             log.info(s"[${program.getPC.formatted("%5s")}]    Op: [${op.code.name.formatted("%-12s")}]  Gas: [${program.getGas.value}] Deep: [${program.getCallDeep}]  Hint: [${hint}]")
           }
 
@@ -940,7 +940,7 @@ class VM(settings: ContractSettings, hook: VMHook) extends com.apex.common.ApexL
     }
   }
 
-  private def getCallGas(op: OpCode.Value, requestedGas: DataWord , availableGas: DataWord ): DataWord = {
+  private def getCallGas(op: OpCode.Value, requestedGas: DataWord, availableGas: DataWord): DataWord = {
     if (requestedGas.value > availableGas.value) {
       throw Program.notEnoughOpGas(op, requestedGas, availableGas)
     } else {
@@ -972,5 +972,10 @@ object VM {
     */
   def getSizeInWords(size: Long): Long = {
     if (size == 0) 0 else (size - 1) / 32 + 1
+  }
+
+  def play(settings: ContractSettings, vmHook: VMHook, program: Program): ProgramResult = {
+    new VM(settings, vmHook).play(program)
+    program.getResult
   }
 }

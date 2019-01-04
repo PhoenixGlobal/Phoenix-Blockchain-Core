@@ -76,6 +76,22 @@ case class OpObject(code: OpCode.Value, require: Int, ret: Int, tier: Tier.Value
     callFlags.contains(CallFlags.Stateless)
   }
 
+  /**
+    * Indicates that any state modifications are disallowed during the call
+    */
+  def callIsStatic: Boolean = {
+    checkCall()
+    callFlags.contains(CallFlags.Static)
+  }
+
+  /**
+    * Indicates that value and message sender are propagated from parent to child scope
+    */
+  def callIsDelegate: Boolean = {
+    checkCall()
+    callFlags.contains(CallFlags.Delegate)
+  }
+
   private def checkCall(): Unit = {
     if (!isCall) throw new RuntimeException("Opcode is not a call: " + this)
   }
