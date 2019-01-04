@@ -74,6 +74,8 @@ object FixedNumber {
   final val Ten: FixedNumber = new FixedNumber(One.value * 10)
   final val Zero: FixedNumber = new FixedNumber(0)
 
+  implicit val serializer: DataInputStream => FixedNumber = deserialize
+
   def deserialize(is: DataInputStream): FixedNumber = {
     import com.apex.common.Serializable._
     FixedNumber(BigInt(is.readByteArray()))
@@ -108,5 +110,6 @@ object FixedNumber {
       x.value.compareTo(y.value)
     }
   }
+
 }
 

@@ -213,14 +213,7 @@ class Program(settings: ContractSettings, ops: Array[Byte], invoke: ProgramInvok
   }
 
   def getCodeHashAt(address: DataWord): Array[Byte] = {
-    //    val state = invoke.getRepository.getAccountState(address.getLast20Bytes)
-    //    // return 0 as a code hash of empty account (an account that would be removed by state clearing)
-    //    if (state != null && state.isEmpty) EMPTY_BYTE_ARRAY
-    //    else {
-    //      val code = invoke.getRepository.getCodeHash(address.getLast20Bytes)
-    //      nullToEmpty(code)
-    //    }
-    throw new NotImplementedError
+    invoke.getDataBase.getCodeHash(address.toUInt160)
   }
 
   def getOwnerAddress: DataWord = invoke.getOwnerAddress

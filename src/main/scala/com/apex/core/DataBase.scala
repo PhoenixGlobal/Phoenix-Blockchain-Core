@@ -90,6 +90,10 @@ class DataBase(settings: DataBaseSettings) extends ApexLogging {
     accountStore.get(address).map(_.balance)
   }
 
+  def getCodeHash(address:UInt160): Array[Byte] = {
+    accountStore.get(address).map(_.codeHash).getOrElse(Array.empty)
+  }
+
   def getCode(address: UInt160): Array[Byte] = {
     contractStore.get(address).map(_.code).getOrElse(Array.empty)
   }
