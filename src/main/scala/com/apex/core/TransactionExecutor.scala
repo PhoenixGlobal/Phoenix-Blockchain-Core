@@ -222,8 +222,9 @@ class TransactionExecutor(var tx: Transaction,
     //In case of hashing collisions (for TCK tests only), check for any balance before createAccount()
     val oldBalance = track.getBalance(newContractAddress.get)
     //cacheTrack.createAccount(tx.getContractAddress)
-    if (oldBalance.isDefined)
-      cacheTrack.addBalance(newContractAddress.get, oldBalance.get)
+    if (oldBalance > 0) {
+      cacheTrack.addBalance(newContractAddress.get, oldBalance)
+    }
     cacheTrack.increaseNonce(newContractAddress.get)
     if (tx.data.data.length == 0) {
       m_endGas = m_endGas - basicTxCost

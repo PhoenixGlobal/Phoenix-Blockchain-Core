@@ -228,9 +228,8 @@ class Program(settings: ContractSettings, ops: Array[Byte], invoke: ProgramInvok
   }
 
   def getBalance(address: DataWord): DataWord = {
-    //    val balance = getStorage.getBalance(address.getLast20Bytes)
-    //    DataWord.of(balance.toByteArray)
-    throw new NotImplementedError
+    val balance = getStorage.getBalance(address.toUInt160)
+    DataWord.of(balance.value)
   }
 
   def getOriginAddress: DataWord = invoke.getOriginAddress

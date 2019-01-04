@@ -86,8 +86,8 @@ class DataBase(settings: DataBaseSettings) extends ApexLogging {
     throw new NotImplementedError
   }
 
-  def getBalance(address: UInt160): Option[FixedNumber] = {
-    accountStore.get(address).map(_.balance)
+  def getBalance(address: UInt160): FixedNumber = {
+    accountStore.get(address).map(_.balance).getOrElse(FixedNumber.Zero)
   }
 
   def getCodeHash(address:UInt160): Array[Byte] = {

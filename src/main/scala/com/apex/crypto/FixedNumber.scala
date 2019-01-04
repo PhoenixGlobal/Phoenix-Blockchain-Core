@@ -59,6 +59,8 @@ case class FixedNumber(val value: BigInt = 0) extends Serializable {
 
   def >(that: FixedNumber): Boolean = value > that.value
 
+  def >(that: BigInt): Boolean = value > that
+
   def ==(that: FixedNumber): Boolean = {
     that match {
       case null => false
