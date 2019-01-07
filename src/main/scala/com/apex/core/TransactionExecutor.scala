@@ -70,12 +70,12 @@ class TransactionExecutor(var tx: Transaction,
   //      gasUsedInTheBlock, VMHook.EMPTY)
   //  }
 
-//  def withCommonConfig(commonConfig: CommonConfig): TransactionExecutor = {
-//    this.commonConfig = commonConfig
-//    this.config = commonConfig.systemProperties
-//    this.blockchainConfig = config.getBlockchainConfig.getConfigForBlock(currentBlock.getNumber)
-//    this
-//  }
+  //  def withCommonConfig(commonConfig: CommonConfig): TransactionExecutor = {
+  //    this.commonConfig = commonConfig
+  //    this.config = commonConfig.systemProperties
+  //    this.blockchainConfig = config.getBlockchainConfig.getConfigForBlock(currentBlock.getNumber)
+  //    this
+  //  }
 
   private def execError(err: String): Unit = {
     TransactionExecutor.logger.warn(err)
@@ -148,7 +148,7 @@ class TransactionExecutor(var tx: Transaction,
     if (precompiledContract != null) {
       val requiredGas = precompiledContract.getGasForData(tx.data)
       val spendingGas = BigInt(requiredGas) + basicTxCost
-      if (!localCall && m_endGas.compareTo(spendingGas) < 0) { // no refund
+      if (!localCall && m_endGas < spendingGas) { // no refund
         // no endowment
         execError(s"Out of Gas calling precompiled contract ${targetAddress.address} required: $spendingGas  left: $m_endGas")
         //execError("Out of Gas calling precompiled contract 0x" + toHexString(targetAddress) + ", required: " + spendingGas + ", left: " + m_endGas)
@@ -156,7 +156,7 @@ class TransactionExecutor(var tx: Transaction,
         return
       }
       else {
-        m_endGas = m_endGas -spendingGas
+        m_endGas = m_endGas - spendingGas
         // FIXME: save return for vm trace
         val out = precompiledContract.execute(tx.data)
         if (!out._1) {
@@ -310,7 +310,7 @@ class TransactionExecutor(var tx: Transaction,
     //touchedAccounts.remove(if (tx.isContractCreation) tx.getContractAddress else tx.getReceiveAddress)
   }
 
-  def finalization: TransactionExecutionSummary = {
+  def finalization(): TransactionExecutionSummary = {
     if (!readyToExecute) return null
     val summaryBuilder = new TransactionExecutionSummary.Builder(tx)
     summaryBuilder.gasLeftover(m_endGas)
@@ -329,48 +329,48 @@ class TransactionExecutor(var tx: Transaction,
       summaryBuilder.deletedAccounts(result.getDeleteAccounts)
       //summaryBuilder.internalTransactions(result.getInternalTransactions)
 
-//      val contractDetails = track.getContractDetails(addr)
-//      if (contractDetails != null) {
-//        // TODO
-//        //                summaryBuilder.storageDiff(track.getContractDetails(addr).getStorage());
-//        //
-//        //                if (program != null) {
-//        //                    summaryBuilder.touchedStorage(contractDetails.getStorage(), program.getStorageDiff());
-//        //                }
-//      }
-//      if (result.getException != null) summaryBuilder.markAsFailed
+      //      val contractDetails = track.getContractDetails(addr)
+      //      if (contractDetails != null) {
+      //        // TODO
+      //        //                summaryBuilder.storageDiff(track.getContractDetails(addr).getStorage());
+      //        //
+      //        //                if (program != null) {
+      //        //                    summaryBuilder.touchedStorage(contractDetails.getStorage(), program.getStorageDiff());
+      //        //                }
+      //      }
+      if (result.getException != null) summaryBuilder.markAsFailed
     }
     val summary = summaryBuilder.build
-//    // Refund for gas leftover
-//    track.addBalance(tx.sender(), summary.getLeftover.add(summary.getRefund))
-//    //TransactionExecutor.logger.info("Pay total refund to sender: [{}], refund val: [{}]", toHexString(tx.getSender), summary.getRefund)
-//    // Transfer fees to miner
-//    track.addBalance(coinbase, summary.getFee)
-//    //touchedAccounts.add(coinbase)
-//    //TransactionExecutor.logger.info("Pay fees to miner: [{}], feesEarned: [{}]", toHexString(coinbase), summary.getFee)
-//    if (result != null) {
-//      logs = result.getLogInfoList
-//      // Traverse list of suicides
-//      import scala.collection.JavaConversions._
-//      for (address <- result.getDeleteAccounts) {
-//        track.delete(address.getLast20Bytes)
-//      }
-//    }
-//    //    if (blockchainConfig.eip161) {
-//    //      import scala.collection.JavaConversions._
-//    //      for (acctAddr <- touchedAccounts) {
-//    //        val state = track.getAccountState(acctAddr)
-//    //        if (state != null && state.isEmpty) track.delete(acctAddr)
-//    //      }
-//    //    }
-//    //listener.onTransactionExecuted(summary)
-//    if (config.vmTrace && program != null && result != null) {
-//      var trace = program.getTrace.result(result.getHReturn).error(result.getException).toString
-//      if (config.vmTraceCompressed) trace = zipAndEncode(trace)
-//      val txHash = toHexString(tx.getHash)
-//      saveProgramTraceFile(config, txHash, trace)
-//      //listener.onVMTraceCreated(txHash, trace)
-//    }
+    // Refund for gas leftover
+    track.addBalance(tx.sender(), summary.getLeftover + summary.getRefund)
+    //TransactionExecutor.logger.info("Pay total refund to sender: [{}], refund val: [{}]", tx.sender().address, summary.getRefund)
+    // Transfer fees to miner
+    //track.addBalance(coinbase, summary.getFee)
+    //touchedAccounts.add(coinbase)
+    //    //TransactionExecutor.logger.info("Pay fees to miner: [{}], feesEarned: [{}]", toHexString(coinbase), summary.getFee)
+    //    if (result != null) {
+    //      logs = result.getLogInfoList
+    //      // Traverse list of suicides
+    //      import scala.collection.JavaConversions._
+    //      for (address <- result.getDeleteAccounts) {
+    //        track.delete(address.getLast20Bytes)
+    //      }
+    //    }
+    //    //    if (blockchainConfig.eip161) {
+    //    //      import scala.collection.JavaConversions._
+    //    //      for (acctAddr <- touchedAccounts) {
+    //    //        val state = track.getAccountState(acctAddr)
+    //    //        if (state != null && state.isEmpty) track.delete(acctAddr)
+    //    //      }
+    //    //    }
+    //    listener.onTransactionExecuted(summary)
+    //    if (config.vmTrace && program != null && result != null) {
+    //      var trace = program.getTrace.result(result.getHReturn).error(result.getException).toString
+    //      if (config.vmTraceCompressed) trace = zipAndEncode(trace)
+    //      val txHash = toHexString(tx.getHash)
+    //      saveProgramTraceFile(config, txHash, trace)
+    //      //listener.onVMTraceCreated(txHash, trace)
+    //    }
     summary
   }
 

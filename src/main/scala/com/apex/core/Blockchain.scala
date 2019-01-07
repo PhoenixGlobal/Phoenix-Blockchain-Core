@@ -396,6 +396,7 @@ class LevelDBBlockchain(chainSettings: ChainSettings, consensusSettings: Consens
     executor.init()
     executor.execute()
     executor.go()
+    val summary = executor.finalization()
 
     val receipt = executor.getReceipt
 
@@ -407,8 +408,8 @@ class LevelDBBlockchain(chainSettings: ChainSettings, consensusSettings: Consens
   private def applySendTransaction(tx: Transaction): Boolean = {
     var txValid = true
 
-    val fromAccount = dataBase.getAccount(tx.fromPubKeyHash()).getOrElse(new Account(tx.fromPubKeyHash(), true, "", FixedNumber.Zero, 0))
-    val toAccount = dataBase.getAccount(tx.toPubKeyHash).getOrElse(new Account(tx.toPubKeyHash, true, "", FixedNumber.Zero, 0))
+    val fromAccount = dataBase.getAccount(tx.fromPubKeyHash()).getOrElse(Account.newAccount(tx.fromPubKeyHash()))
+    val toAccount = dataBase.getAccount(tx.toPubKeyHash).getOrElse(Account.newAccount(tx.toPubKeyHash))
 
     if (tx.txType == TransactionType.Miner) {
       // TODO
