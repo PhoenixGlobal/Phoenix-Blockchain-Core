@@ -310,15 +310,25 @@ class TransactionExecutor(var tx: Transaction,
     //touchedAccounts.remove(if (tx.isContractCreation) tx.getContractAddress else tx.getReceiveAddress)
   }
 
-//  def finalization: TransactionExecutionSummary = {
-//    if (!readyToExecute) return null
-//    val summaryBuilder = TransactionExecutionSummary.builderFor(tx).gasLeftover(m_endGas).logs(result.getLogInfoList).result(result.getHReturn)
-//    if (result != null) { // Accumulate refunds for suicides
-//      result.addFutureRefund(result.getDeleteAccounts.size * config.getBlockchainConfig.getConfigForBlock(currentBlock.getNumber).getGasCost.getSUICIDE_REFUND)
-//      val gasRefund = Math.min(Math.max(0, result.getFutureRefund), getGasUsed / 2)
-//      val addr = if (tx.isContractCreation) tx.getContractAddress else tx.toPubKeyHash
-//      m_endGas = m_endGas.add(BigInteger.valueOf(gasRefund))
-//      summaryBuilder.gasUsed(toBI(result.getGasUsed)).gasRefund(toBI(gasRefund)).deletedAccounts(result.getDeleteAccounts).internalTransactions(result.getInternalTransactions)
+  def finalization: TransactionExecutionSummary = {
+    if (!readyToExecute) return null
+    val summaryBuilder = new TransactionExecutionSummary.Builder(tx)
+    summaryBuilder.gasLeftover(m_endGas)
+    summaryBuilder.logs(result.getLogInfoList)
+    summaryBuilder.result(result.getHReturn)
+    if (result != null) { // Accumulate refunds for suicides
+      result.addFutureRefund(result.getDeleteAccounts.size * GasCost.SUICIDE_REFUND)
+      //result.addFutureRefund(result.getDeleteAccounts.size * config.getBlockchainConfig.getConfigForBlock(currentBlock.getNumber).getGasCost.getSUICIDE_REFUND)
+      val gasRefund = BigInt(0).max(result.getFutureRefund).min(getGasUsed.longValue() / 2)
+
+      val addr = if (tx.isContractCreation) tx.getContractAddress else tx.toPubKeyHash
+      m_endGas = m_endGas + gasRefund
+
+      summaryBuilder.gasUsed(result.getGasUsed)
+      summaryBuilder.gasRefund(gasRefund)
+      summaryBuilder.deletedAccounts(result.getDeleteAccounts)
+      //summaryBuilder.internalTransactions(result.getInternalTransactions)
+
 //      val contractDetails = track.getContractDetails(addr)
 //      if (contractDetails != null) {
 //        // TODO
@@ -329,8 +339,8 @@ class TransactionExecutor(var tx: Transaction,
 //        //                }
 //      }
 //      if (result.getException != null) summaryBuilder.markAsFailed
-//    }
-//    val summary = summaryBuilder.build
+    }
+    val summary = summaryBuilder.build
 //    // Refund for gas leftover
 //    track.addBalance(tx.sender(), summary.getLeftover.add(summary.getRefund))
 //    //TransactionExecutor.logger.info("Pay total refund to sender: [{}], refund val: [{}]", toHexString(tx.getSender), summary.getRefund)
@@ -361,8 +371,8 @@ class TransactionExecutor(var tx: Transaction,
 //      saveProgramTraceFile(config, txHash, trace)
 //      //listener.onVMTraceCreated(txHash, trace)
 //    }
-//    summary
-//  }
+    summary
+  }
 
   def setLocalCall(localCall: Boolean): TransactionExecutor = {
     this.localCall = localCall

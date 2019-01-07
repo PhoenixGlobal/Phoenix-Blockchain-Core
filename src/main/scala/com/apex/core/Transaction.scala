@@ -46,6 +46,7 @@ class Transaction(val txType: TransactionType.Value,
   }
 
   def transactionCost(block: Block): Long = {
+    // TODO
     0
   }
 
