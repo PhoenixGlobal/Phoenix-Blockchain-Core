@@ -1,6 +1,6 @@
 package com.apex.core
 
-import com.apex.crypto.UInt256
+import com.apex.crypto.{UInt160, UInt256}
 import com.apex.settings.ContractSettings
 import com.apex.vm.hook.VMHook
 import com.apex.vm._
@@ -22,7 +22,7 @@ object TransactionExecutor {
 }
 
 class TransactionExecutor(var tx: Transaction,
-                          //var coinbase: Array[Byte],
+                          var coinbase: UInt160,
                           var track: DataBase,
                           //var blockStore: BlockStore,
                           //var programInvokeFactory: ProgramInvokeFactory,
@@ -345,9 +345,9 @@ class TransactionExecutor(var tx: Transaction,
     track.addBalance(tx.sender(), summary.getLeftover + summary.getRefund)
     //TransactionExecutor.logger.info("Pay total refund to sender: [{}], refund val: [{}]", tx.sender().address, summary.getRefund)
     // Transfer fees to miner
-    //track.addBalance(coinbase, summary.getFee)
+    track.addBalance(coinbase, summary.getFee)
     //touchedAccounts.add(coinbase)
-    //    //TransactionExecutor.logger.info("Pay fees to miner: [{}], feesEarned: [{}]", toHexString(coinbase), summary.getFee)
+    TransactionExecutor.logger.info("Pay fees to miner: [{}], feesEarned: [{}]", coinbase.address, summary.getFee.longValue())
     //    if (result != null) {
     //      logs = result.getLogInfoList
     //      // Traverse list of suicides
