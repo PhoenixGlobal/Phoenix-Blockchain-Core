@@ -72,7 +72,7 @@ case class FixedNumber(val value: BigInt = 0) extends Serializable {
 object FixedNumber {
   //final val MaxValue: Fixed18 = new Fixed18(Long.MaxValue)
   final val MinValue: FixedNumber = new FixedNumber(1)
-  final val One: FixedNumber = new FixedNumber(1000000000000000000L)
+  final val One: FixedNumber = new FixedNumber(1000000000000000000L)  // 10^18
   final val Ten: FixedNumber = new FixedNumber(One.value * 10)
   final val Zero: FixedNumber = new FixedNumber(0)
 

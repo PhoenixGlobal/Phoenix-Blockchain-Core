@@ -139,7 +139,7 @@ class Program(settings: ContractSettings, ops: Array[Byte], invoke: ProgramInvok
 
   def getStack: Stack = stack
 
-  def getGasLong: Long = invoke.getGasLong - result.getGasUsed
+  def getGasLong: Long = (invoke.getGasLong - result.getGasUsed).longValue()
 
   def getGas: DataWord = DataWord.of(invoke.getGasLong - result.getGasUsed)
 

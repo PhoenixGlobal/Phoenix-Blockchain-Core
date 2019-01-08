@@ -33,17 +33,17 @@ import scala.collection.mutable
 import scala.collection.mutable.{ListBuffer, Set}
 
 class ProgramResult {
-  private var gasUsed = 0L
+  private var gasUsed = BigInt(0)
   private var hReturn = Array.empty[Byte]
   private var exception: RuntimeException = _
   private var revert = false
-  private var futureRefund = 0L
+  private var futureRefund = BigInt(0)
   private val logInfoList = ListBuffer.empty[LogInfo]
   private val touchedAccounts = Set.empty[UInt160]
   private val deleteAccounts = Set.empty[UInt160]
   private val callCreateList = ListBuffer.empty[CallCreate]
 
-  def spendGas(gas: Long): Unit = {
+  def spendGas(gas: BigInt): Unit = {
     gasUsed += gas
   }
 
@@ -53,7 +53,7 @@ class ProgramResult {
 
   def isRevert: Boolean = revert
 
-  def refundGas(gas: Long): Unit = {
+  def refundGas(gas: BigInt): Unit = {
     gasUsed -= gas
   }
 
@@ -61,11 +61,11 @@ class ProgramResult {
     this.hReturn = hReturn
   }
 
-  def addFutureRefund(gasValue: Long): Unit = {
+  def addFutureRefund(gasValue: BigInt): Unit = {
     futureRefund += gasValue
   }
 
-  def getFutureRefund: Long = {
+  def getFutureRefund: BigInt = {
     futureRefund
   }
 
@@ -77,7 +77,7 @@ class ProgramResult {
 
   def getException: RuntimeException = exception
 
-  def getGasUsed: Long = gasUsed
+  def getGasUsed: BigInt = gasUsed
 
   def setException(exception: RuntimeException): Unit = {
     this.exception = exception

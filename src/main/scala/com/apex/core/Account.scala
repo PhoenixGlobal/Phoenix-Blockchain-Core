@@ -10,7 +10,7 @@ import org.bouncycastle.util.encoders.Hex
 class Account(val pubKeyHash: UInt160,
               val active: Boolean,
               val name: String,
-              val balance: FixedNumber,
+              var balance: FixedNumber,
               val nextNonce: Long,
               val codeHash: Array[Byte] = Array.empty,
               val version: Int = 0x01) extends com.apex.common.Serializable {
@@ -33,6 +33,10 @@ class Account(val pubKeyHash: UInt160,
 }
 
 object Account {
+
+  def newAccount(pubKeyHash: UInt160): Account =
+    new Account(pubKeyHash, true, "", FixedNumber.Zero, 0)
+
   def deserialize(is: DataInputStream): Account = {
     import com.apex.common.Serializable._
     val version = is.readInt
