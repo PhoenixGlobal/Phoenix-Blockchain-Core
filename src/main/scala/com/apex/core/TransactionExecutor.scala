@@ -177,8 +177,7 @@ class TransactionExecutor(var tx: Transaction,
         val programInvoke = createInvoker(tx.data)
         //val programInvoke = programInvokeFactory.createProgramInvoke(tx, currentBlock, cacheTrack, track, blockStore)
         this.vm = new VM(vmSettings, VMHook.EMPTY)
-        this.program = new Program(vmSettings,  //track.getCodeHash(targetAddress),
-          code, programInvoke/*, tx, config, vmHook*/) //.withCommonConfig(commonConfig)
+        this.program = new Program(vmSettings, code, programInvoke) //.withCommonConfig(commonConfig)
       }
     }
     val endowment = tx.amount
@@ -233,7 +232,7 @@ class TransactionExecutor(var tx: Transaction,
       val programInvoke = createInvoker(Array.empty)
       //val programInvoke = programInvokeFactory.createProgramInvoke(tx, currentBlock, cacheTrack, track, blockStore)
       this.vm = new VM(vmSettings, VMHook.EMPTY)
-      this.program = new Program(vmSettings, tx.data, programInvoke /*, tx, config, vmHook */) //.withCommonConfig(commonConfig)
+      this.program = new Program(vmSettings, tx.data, programInvoke) //.withCommonConfig(commonConfig)
       // reset storage if the contract with the same address already exists
       // TCK test case only - normally this is near-impossible situation in the real network
       // TODO make via Trie.clear() without keyset
