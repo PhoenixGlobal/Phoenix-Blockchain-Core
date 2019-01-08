@@ -88,7 +88,7 @@ class TransactionExecutor(var tx: Transaction,
     * set readyToExecute = true
     */
   def init(): Unit = {
-    basicTxCost = tx.transactionCost(/*config.getBlockchainConfig,*/ currentBlock)
+    basicTxCost = tx.transactionCost()
     if (localCall) {
       readyToExecute = true
       return
@@ -253,7 +253,7 @@ class TransactionExecutor(var tx: Transaction,
     if (!readyToExecute) return
     try
         if (vm != null) { // Charge basic cost of the transaction
-          program.spendGas(tx.transactionCost(/*config.getBlockchainConfig, */ currentBlock), "TRANSACTION COST")
+          program.spendGas(tx.transactionCost(), "TRANSACTION COST")
           //if (config.playVM)
             vm.play(program)
           result = program.getResult

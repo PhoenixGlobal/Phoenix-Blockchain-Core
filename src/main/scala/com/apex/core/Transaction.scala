@@ -4,6 +4,7 @@ import java.io.{ByteArrayInputStream, ByteArrayOutputStream, DataInputStream, Da
 
 import com.apex.common.Serializable
 import com.apex.crypto.{BinaryData, Crypto, Ecdsa, FixedNumber, UInt160, UInt256}
+import com.apex.vm.GasCost
 import play.api.libs.json.{JsValue, Json, Writes}
 
 class Transaction(val txType: TransactionType.Value,
@@ -45,9 +46,27 @@ class Transaction(val txType: TransactionType.Value,
       None
   }
 
-  def transactionCost(block: Block): Long = {
-    // TODO
-    0
+  def transactionCost(): Long = {
+    var cost: BigInt = 0
+    if (isContractCreation())
+      cost = GasCost.TRANSACTION_CREATE_CONTRACT
+    else
+      cost = GasCost.TRANSACTION
+    cost += (zeroDataBytes() * GasCost.TX_ZERO_DATA)
+    cost += (nonZeroDataBytes() * GasCost.TX_NO_ZERO_DATA)
+    cost.longValue()
+  }
+
+  def zeroDataBytes(): Long = {
+    var counter = 0
+    data.data.foreach(d => if (d == 0) counter += 1)
+    counter
+  }
+
+  def nonZeroDataBytes(): Long = {
+    var counter = 0
+    data.data.foreach(d => if (d != 0) counter += 1)
+    counter
   }
 
   override protected def genId(): UInt256 = {
