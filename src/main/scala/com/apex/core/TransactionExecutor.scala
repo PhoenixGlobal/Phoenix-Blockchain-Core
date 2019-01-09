@@ -23,12 +23,12 @@ object TransactionExecutor {
 
 class TransactionExecutor(var tx: Transaction,
                           var coinbase: UInt160,
-                          var track: DataBase,
+                          var track: DataBase
                           //var blockStore: BlockStore,
                           //var programInvokeFactory: ProgramInvokeFactory,
-                          var currentBlock: Block,
+                          //var currentBlock: Block,
                           //val listener: EthereumListener,
-                          val gasUsedInTheBlock: BigInt = 0
+                          //val gasUsedInTheBlock: BigInt = 0
                           //val vmHook: VMHook
                          ) {
   //this.m_endGas = toBI(tx.getGasLimit)
@@ -94,12 +94,12 @@ class TransactionExecutor(var tx: Transaction,
       return
     }
     val txGasLimit = tx.gasLimit  //new BigInteger(1, tx.gasLimit)
-    val curBlockGasLimit = currentBlock.header.gasLimit
-    val cumulativeGasReached = (txGasLimit + gasUsedInTheBlock > curBlockGasLimit)
-    if (cumulativeGasReached) {
-      execError(s"Too much gas used in this block, Require: ${currentBlock.header.gasLimit - tx.gasLimit}  Got: ${tx.gasLimit} ")
-      return
-    }
+    //    val curBlockGasLimit = currentBlock.header.gasLimit
+    //    val cumulativeGasReached = (txGasLimit + gasUsedInTheBlock > curBlockGasLimit)
+    //    if (cumulativeGasReached) {
+    //      execError(s"Too much gas used in this block, Require: ${currentBlock.header.gasLimit - tx.gasLimit}  Got: ${tx.gasLimit} ")
+    //      return
+    //    }
     if (txGasLimit < basicTxCost) {
       execError(s"Not enough gas for transaction execution: Require: ${basicTxCost} Got: ${txGasLimit}")
       //execError(String.format("Not enough gas for transaction execution: Require: %s Got: %s", basicTxCost, txGasLimit))
@@ -385,7 +385,7 @@ class TransactionExecutor(var tx: Transaction,
         tx.fromPubKeyHash(),
         tx.toPubKeyHash,
         getGasUsed,
-        gasUsedInTheBlock + getGasUsed,
+        //gasUsedInTheBlock + getGasUsed,
         getResult.getHReturn,
         0)
         //      val totalGasUsed = gasUsedInTheBlock + getGasUsed

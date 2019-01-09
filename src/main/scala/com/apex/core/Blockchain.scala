@@ -388,10 +388,7 @@ class LevelDBBlockchain(chainSettings: ChainSettings, consensusSettings: Consens
 
   private def applyContractTransaction(tx: Transaction, blockProducer: UInt160): Boolean = {
 
-    val executor = new TransactionExecutor(tx, blockProducer, dataBase,
-      genesisBlock,  // FIXME: wrong block
-      0  // TODO
-    )
+    val executor = new TransactionExecutor(tx, blockProducer, dataBase)
 
     executor.init()
     executor.execute()
