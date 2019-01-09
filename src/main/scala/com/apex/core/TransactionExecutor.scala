@@ -1,6 +1,6 @@
 package com.apex.core
 
-import com.apex.crypto.{UInt160, UInt256}
+import com.apex.crypto.{FixedNumber, UInt160, UInt256}
 import com.apex.settings.ContractSettings
 import com.apex.vm.hook.VMHook
 import com.apex.vm._
@@ -113,7 +113,11 @@ class TransactionExecutor(var tx: Transaction,
     }
     val txGasCost = tx.gasPrice * txGasLimit
     val totalCost = tx.amount + txGasCost
-    val senderBalance = track.getBalance(tx.sender())
+    val senderBalance = track.getBalance(tx.sender()).getOrElse(FixedNumber.Zero)
+    if (senderBalance.value <= totalCost.value) {
+      execError(s"Not enough cash: Require: ${totalCost}, Sender cash ${senderBalance}")
+      return
+    }
     //    if (!isCovers(senderBalance, totalCost)) {
     //      execError(String.format("Not enough cash: Require: %s, Sender cash: %s", totalCost, senderBalance))
     //      return
@@ -201,7 +205,7 @@ class TransactionExecutor(var tx: Transaction,
       DataWord.ZERO,
       DataWord.ZERO,
       DataWord.ZERO,
-      DataWord.ZERO,
+      DataWord.of(tx.gasLimit),
       track,
       track,
       null)
