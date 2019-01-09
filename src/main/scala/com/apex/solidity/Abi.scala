@@ -102,9 +102,9 @@ object Abi {
     implicit val EntryReads: Reads[Abi.Entry] = (
       (JsPath \ "anonymous").readWithDefault[Boolean](false) and
         (JsPath \ "constant").readWithDefault[Boolean](false) and
-        (JsPath \ "name").read[String] and
+        (JsPath \ "name").readNullable[String].map(_.getOrElse("")) and
         (JsPath \ "inputs").read[Seq[Entry.Param]] and
-        (JsPath \ "outputs").read[Seq[Entry.Param]] and
+        (JsPath \ "outputs").readNullable[Seq[Entry.Param]].map(_.getOrElse(Seq.empty)) and
         (JsPath \ "type").read[String] and
         (JsPath \ "payable").readWithDefault[Boolean](false)
       ) (create _)
@@ -131,7 +131,7 @@ object Abi {
     def encodeSignature: Array[Byte] = fingerprintSignature
 
     def test(callString: String) = {
-      entryType == Entry.EntryType.function && callString.startsWith(s"$name(")
+      entryType == Entry.EntryType.function && (callString.equals(name) || callString.startsWith(s"$name("))
     }
   }
 
