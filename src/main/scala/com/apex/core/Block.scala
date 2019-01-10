@@ -62,6 +62,8 @@ object Block {
     )
   }
 
+  implicit val deserializer: (DataInputStream) => Block = deserialize
+
   def build(header: BlockHeader, txs: Seq[Transaction]): Block = {
     new Block(header, txs)
   }

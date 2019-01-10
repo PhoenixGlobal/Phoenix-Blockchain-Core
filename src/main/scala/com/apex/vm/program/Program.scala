@@ -30,6 +30,7 @@ import java.util
 
 import com.apex.common.ApexLogging
 import com.apex.core.DataBase
+import com.apex.crypto.FixedNumber
 import com.apex.settings.ContractSettings
 import com.apex.vm.DataWord
 import com.apex.vm.exceptions._
@@ -597,7 +598,18 @@ class Program(settings: ContractSettings, ops: Array[Byte], invoke: ProgramInvok
   }
 
   def suicide(obtainerAddress: DataWord): Unit = {
-    throw new NotImplementedError
+    val owner = getOwnerAddress.toUInt160
+    val obtainer = obtainerAddress.toUInt160
+    val balance = getStorage.getBalance(owner).map(_.value).getOrElse(BigInt(0))
+    if (log.isInfoEnabled) {
+      log.info(s"Transfer to: [${obtainer.toString}] heritage: [${balance}]")
+    }
+    if (owner.equals(obtainer)) {
+      getStorage.addBalance(owner, -balance)
+    } else {
+      getStorage.transfer(owner, obtainer, balance)
+    }
+    getResult.addDeleteAccount(owner)
   }
 
   def byTestingSuite: Boolean = invoke.byTestingSuite

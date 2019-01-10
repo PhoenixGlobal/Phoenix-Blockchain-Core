@@ -25,19 +25,26 @@ import scala.collection.immutable.{Seq => ISeq}
 import scala.collection.mutable
 import scala.collection.mutable.{ListBuffer, Map, Seq, SortedMap}
 
+// A map which every key can associate with multiple values
+// eg. k1 -> [v1]
+//     k2 -> [v2, v3] 
 class MultiMap[K, V] extends mutable.Iterable[(K, V)] {
   private val container = Map.empty[K, ListBuffer[V]]
-
+  
+  // total count of key/value pairs
   override def size: Int = container.values.map(_.size).sum
-
+  
+  // whether this map contains the key
   def contains(k: K): Boolean = {
     container.contains(k)
   }
 
+  // get values the key associate with
   def get(k: K): Option[Seq[V]] = {
     container.get(k)
   }
-
+  
+  // add a new key/[value] pair if the key not exist or add value to the associated value list
   def put(k: K, v: V): Unit = {
     if (!container.contains(k)) {
       container.put(k, ListBuffer.empty)
@@ -45,20 +52,25 @@ class MultiMap[K, V] extends mutable.Iterable[(K, V)] {
     container(k).append(v)
   }
 
+  // remove the key and associated values
   def remove(k: K): Option[Seq[V]] = {
     container.remove(k)
   }
 
+  // get first key/value pair
   override def head: (K, V) = iterator.next()
 
+  // create a iterator
   override def iterator: Iterator[(K, V)] = new MultiMapIterator(container)
 
+  // iterator of MultiMap
   class MultiMapIterator(container: Map[K, ListBuffer[V]]) extends Iterator[(K, V)] {
     private val it = container.iterator
 
     private var it2: Option[Iterator[V]] = None
     private var k: Option[K] = None
 
+    // whether has next element
     override def hasNext: Boolean = {
       if (it2.isEmpty || !it2.get.hasNext) {
         nextIt
@@ -67,6 +79,7 @@ class MultiMap[K, V] extends mutable.Iterable[(K, V)] {
       it2.exists(_.hasNext)
     }
 
+    // return next element
     override def next(): (K, V) = {
       if (!hasNext) throw new NoSuchElementException
       (k.get, it2.get.next())
@@ -87,19 +100,24 @@ object MultiMap {
   def empty[K, V] = new MultiMap[K, V]
 }
 
+// MultiMap sorted by key
 class SortedMultiMap1[K, V](implicit ord: Ordering[K]) extends Iterable[(K, V)] {
   private val container = SortedMap.empty[K, ListBuffer[V]]
 
+  // total count of key/value pairs
   override def size: Int = container.values.map(_.size).sum
 
+  // whether this map contains the key
   def contains(k: K) = {
     container.contains(k)
   }
 
+  // values the key associate with
   def get(k: K): Option[Seq[V]] = {
     container.get(k)
   }
 
+  // add a new key/[value] pair if the key not exist or add value to the associated value list
   def put(k: K, v: V): Unit = {
     if (!container.contains(k)) {
       container.put(k, ListBuffer.empty[V])
@@ -107,20 +125,25 @@ class SortedMultiMap1[K, V](implicit ord: Ordering[K]) extends Iterable[(K, V)] 
     container(k).append(v)
   }
 
+  // remove the key and associated values
   def remove(k: K): Option[Seq[V]] = {
     container.remove(k)
   }
 
+  // first key/value pair
   override def head: (K, V) = iterator.next()
 
+  // create a new iterator
   override def iterator: Iterator[(K, V)] = new SortedMultiMap1Iterator(container)
 
+  // iterator of SortedMap1
   class SortedMultiMap1Iterator(val map: SortedMap[K, ListBuffer[V]]) extends Iterator[(K, V)] {
     private val it = map.iterator
 
     private var it2: Option[Iterator[V]] = None
     private var k: Option[K] = None
 
+    // wether has next element
     override def hasNext: Boolean = {
       if (it2.isEmpty || !it2.get.hasNext) {
         nextIt
@@ -128,6 +151,7 @@ class SortedMultiMap1[K, V](implicit ord: Ordering[K]) extends Iterable[(K, V)] 
       it2.exists(_.hasNext)
     }
 
+    // return next element
     override def next(): (K, V) = {
       if (!hasNext) throw new NoSuchElementException
       (k.get, it2.get.next())
@@ -144,19 +168,24 @@ class SortedMultiMap1[K, V](implicit ord: Ordering[K]) extends Iterable[(K, V)] 
 
 }
 
+// MultiMap sorted by two keys
 class SortedMultiMap2[K1, K2, V](implicit ord1: Ordering[K1], ord2: Ordering[K2]) extends Iterable[(K1, K2, V)] {
   private val container = SortedMap.empty[K1, SortedMultiMap1[K2, V]]
 
+  // total count of (key1, key2)/value pairs 
   override def size: Int = container.values.map(_.size).sum
 
+  // whether this map contains the key (key1, key2)
   def contains(k1: K1, k2: K2): Boolean = {
     container.contains(k1) && container(k1).contains(k2)
   }
 
+  // values associated with the key (key1, key2)
   def get(k1: K1, k2: K2): Option[Seq[V]] = {
     container.get(k1).flatMap(_.get(k2))
   }
 
+  // add a new (key1, key2)/[value] pair if the key not exist or add value to the associated value list
   def put(k1: K1, k2: K2, v: V): Unit = {
     if (!container.contains(k1)) {
       container.put(k1, SortedMultiMap.empty[K2, V])
@@ -164,6 +193,7 @@ class SortedMultiMap2[K1, K2, V](implicit ord1: Ordering[K1], ord2: Ordering[K2]
     container(k1).put(k2, v)
   }
 
+  // remove the key (key1, key2) and associated values
   def remove(k1: K1, k2: K2): Option[Seq[V]] = {
     container.get(k1).flatMap(c => {
       val v = c.remove(k2)
@@ -174,16 +204,20 @@ class SortedMultiMap2[K1, K2, V](implicit ord1: Ordering[K1], ord2: Ordering[K2]
     })
   }
 
+  // first (key1, key2)/value pair
   override def head: (K1, K2, V) = iterator.next()
 
+  // create a new iterator
   override def iterator: Iterator[(K1, K2, V)] = new SortedMultiMap2Iterator(container)
 
+  // iterator of SortedMultiMap2
   class SortedMultiMap2Iterator[K1, K2, V](val map: SortedMap[K1, SortedMultiMap1[K2, V]]) extends Iterator[(K1, K2, V)] {
     private val it = map.iterator
 
     private var it2: Option[Iterator[(K2, V)]] = None
     private var k1: Option[K1] = None
 
+    // whether has next element
     override def hasNext: Boolean = {
       if (it2.isEmpty || !it2.get.hasNext) {
         nextIt
@@ -191,6 +225,7 @@ class SortedMultiMap2[K1, K2, V](implicit ord1: Ordering[K1], ord2: Ordering[K2]
       it2.exists(_.hasNext)
     }
 
+    // return next element
     override def next(): (K1, K2, V) = {
       if (!hasNext) throw new NoSuchElementException
       val next = it2.get.next()
@@ -214,15 +249,20 @@ object SortedMultiMap {
   def empty[A, B, C]()(implicit ord1: Ordering[A], ord2: Ordering[B]): SortedMultiMap2[A, B, C] = new SortedMultiMap2[A, B, C]
 }
 
+// element of ForkBase
 case class ForkItem(block: Block, lastProducerHeight: mutable.Map[PublicKey, Int], master: Boolean = false) extends com.apex.common.Serializable {
   private var _confirmedHeight: Int = -1
 
+  // block id
   def id(): UInt256 = block.id()
 
+  // block height
   def height(): Int = block.height()
 
+  // previous block id
   def prev(): UInt256 = block.prev()
 
+  // height of the latest confirmed block
   def confirmedHeight: Int = {
     if (_confirmedHeight == -1) {
       val index = lastProducerHeight.size * 2 / 3
@@ -254,7 +294,7 @@ case class ForkItem(block: Block, lastProducerHeight: mutable.Map[PublicKey, Int
 object ForkItem {
   def deserialize(is: DataInputStream): ForkItem = {
     import com.apex.common.Serializable._
-    val block = is.readObj(Block.deserialize)
+    val block = is.readObj[Block]
     val master = is.readBoolean
     val lastProducerHeight = Map.empty[PublicKey, Int]
     for (_ <- 1 to is.readVarInt) {
@@ -270,6 +310,7 @@ object ForkItem {
   }
 }
 
+// context information about chain switching
 case class SwitchState(oldHead: UInt256, newHead: UInt256, forkPoint: UInt256, height: Int) extends com.apex.common.Serializable {
   override def serialize(os: DataOutputStream): Unit = {
     import com.apex.common.Serializable._
@@ -300,6 +341,7 @@ object SwitchState {
 
 case class SwitchResult(succeed: Boolean, failedItem: ForkItem = null)
 
+// storing all unconfirmed blocks, every block is unique and can form a tree
 class ForkBase(settings: ForkBaseSettings,
                witnesses: Array[Witness],
                onConfirmed: Block => Unit,
@@ -317,14 +359,18 @@ class ForkBase(settings: ForkBaseSettings,
 
   init()
 
+  // get switch state
   def switchState(): Option[SwitchState] = {
     switchStateStore.get()
   }
 
+  // delete switch state
   def deleteSwitchState(): Unit = {
     switchStateStore.delete()
   }
 
+  // get a chain which begin with head and end with tail
+  // eg. head <- ... <- tail
   def getBranch(head: UInt256, tail: UInt256): Seq[ForkItem] = {
     var curr = indexById.get(head)
     val branch = ListBuffer.empty[ForkItem]
@@ -335,24 +381,29 @@ class ForkBase(settings: ForkBaseSettings,
     branch.reverse
   }
 
+  // return first element
   def head(): Option[ForkItem] = {
     _head
   }
 
+  // whether the block with this id exists
   def contains(id: UInt256): Boolean = {
     indexById.contains(id)
   }
 
+  // try get the block with this id
   def get(id: UInt256): Option[ForkItem] = {
     indexById.get(id)
   }
 
+  // try get the block with this height from master branch
   def get(height: Int): Option[ForkItem] = {
     indexByHeight.get(height, true)
       .flatMap(_.headOption)
       .flatMap(get)
   }
 
+  // try get the block with this previous id from master branch
   def getNext(id: UInt256): Option[UInt256] = {
     indexByPrev.get(id)
       .map(a => a.map(indexById.get))
@@ -360,10 +411,12 @@ class ForkBase(settings: ForkBaseSettings,
       .flatten
   }
 
+  // add a block
   def add(block: Block): Boolean = {
     def makeItem(heights: IMap[PublicKey, Int], master: Boolean) = {
       val lph = Map.empty[PublicKey, Int]
       heights.foreach(lph +=)
+      // update height of block produced by this producer
       val pub = block.header.producer
       if (lph.contains(pub)) {
         lph.put(pub, block.height)
@@ -376,7 +429,9 @@ class ForkBase(settings: ForkBaseSettings,
       val item = makeItem(prodHeights, true)
       add(item)
     } else {
+      // check block not exists
       if (!indexById.contains(block.id)) {
+        // check previous block exists
         indexById.get(block.prev).exists(prev => {
           val prodHeights = prev.lastProducerHeight.toMap
           val master = _head.get.id.equals(block.prev)
@@ -389,6 +444,7 @@ class ForkBase(settings: ForkBaseSettings,
     }
   }
 
+  // add element to db, may cause chain switching
   def add(item: ForkItem): Boolean = {
     def maybeReplaceHead: (ForkItem, ForkItem) = {
       val old = resetHead
@@ -409,6 +465,7 @@ class ForkBase(settings: ForkBaseSettings,
     }
   }
 
+  // switch chain, create and save context information
   def beginSwitch(from: ForkItem, to: ForkItem): Unit = {
     val (originFork, newFork, switchState) = getForks(from, to)
     require(switchState != null)
@@ -421,6 +478,7 @@ class ForkBase(settings: ForkBaseSettings,
     }
   }
 
+  // finish switch, if switch failed, the block which cause failure and all its followers will be deleted
   def endSwitch(oldBranch: Seq[ForkItem], newBranch: Seq[ForkItem], switchResult: SwitchResult): Unit = {
     if (switchResult.succeed) {
       val oldItems = oldBranch.map(item => item.copy(master = false))
@@ -440,6 +498,7 @@ class ForkBase(settings: ForkBaseSettings,
     }
   }
 
+  // delete block and all its followers
   def removeFork(id: UInt256): Boolean = {
     indexById.get(id).exists(item => {
       val queue = ListBuffer(item)
