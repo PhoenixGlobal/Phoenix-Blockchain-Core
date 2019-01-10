@@ -183,8 +183,8 @@ object ProducerUtil {
     settings.initialWitness(index.toInt)
   }
 
-  def isTimeStampValid(timeStamp: Long, settings: ConsensusSettings): Boolean = {
-    if (timeStamp % settings.produceInterval == 0)
+  def isTimeStampValid(timeStamp: Long, produceInterval: Int): Boolean = {
+    if (timeStamp % produceInterval == 0)
       true
     else
       false
@@ -193,7 +193,7 @@ object ProducerUtil {
   def isProducerValid(timeStamp: Long, producer: PublicKey, settings: ConsensusSettings): Boolean = {
     var isValid = false
     if (getWitness(timeStamp, settings).pubkey.toBin sameElements producer.toBin) {
-      if (isTimeStampValid(timeStamp, settings)) {
+      if (isTimeStampValid(timeStamp, settings.produceInterval)) {
         isValid = true
       }
     }

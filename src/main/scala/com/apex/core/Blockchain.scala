@@ -255,7 +255,7 @@ class LevelDBBlockchain(chainSettings: ChainSettings, consensusSettings: Consens
     //isPendingBlock = true
     dataBase.startSession()
 
-    val applied = applyTransaction(minerTx, producer.pubkey.pubKeyHash)
+    val applied = applyTransaction(minerTx, producer.pubkey.pubKeyHash, stopProcessTxTime)
     require(applied)
     pendingState.txs.append(minerTx)
 
@@ -283,7 +283,7 @@ class LevelDBBlockchain(chainSettings: ChainSettings, consensusSettings: Consens
         added = addTransactionToUnapplyTxs(tx)
       }
       else {
-        if (applyTransaction(tx, pendingState.producer.pubkey.pubKeyHash)) {
+        if (applyTransaction(tx, pendingState.producer.pubkey.pubKeyHash, pendingState.stopProcessTxTime)) {
           pendingState.txs.append(tx)
           added = true
         }
@@ -333,6 +333,7 @@ class LevelDBBlockchain(chainSettings: ChainSettings, consensusSettings: Consens
       })
       pendingState.txs.clear()
       dataBase.rollBack()
+      // TODO: should limit time usage of insertion and then restart produce
     }
 
     if (forkBase.head.get.block.id.equals(block.prev())) {
@@ -376,7 +377,7 @@ class LevelDBBlockchain(chainSettings: ChainSettings, consensusSettings: Consens
       if (enableSession)
         dataBase.startSession()
       block.transactions.foreach(tx => {
-        if (applied && !applyTransaction(tx, block.header.producer.pubKeyHash))
+        if (applied && !applyTransaction(tx, block.header.producer.pubKeyHash, Long.MaxValue))  // TODO: stopTime
           applied = false
       })
       if (enableSession && !applied)
@@ -390,22 +391,22 @@ class LevelDBBlockchain(chainSettings: ChainSettings, consensusSettings: Consens
     applied
   }
 
-  private def applyTransaction(tx: Transaction, blockProducer: UInt160): Boolean = {
+  private def applyTransaction(tx: Transaction, blockProducer: UInt160, stopTime: Long): Boolean = {
     var txValid = true
     tx.txType match {
       case TransactionType.Miner =>      txValid = applySendTransaction(tx)
       case TransactionType.Transfer =>   txValid = applySendTransaction(tx)
       //case TransactionType.Fee =>
       //case TransactionType.RegisterName =>
-      case TransactionType.Deploy =>     txValid = applyContractTransaction(tx, blockProducer)
-      case TransactionType.Call =>       txValid = applyContractTransaction(tx, blockProducer)
+      case TransactionType.Deploy =>     txValid = applyContractTransaction(tx, blockProducer, stopTime)
+      case TransactionType.Call =>       txValid = applyContractTransaction(tx, blockProducer, stopTime)
     }
     txValid
   }
 
-  private def applyContractTransaction(tx: Transaction, blockProducer: UInt160): Boolean = {
+  private def applyContractTransaction(tx: Transaction, blockProducer: UInt160, stopTime: Long): Boolean = {
 
-    val executor = new TransactionExecutor(tx, blockProducer, dataBase)
+    val executor = new TransactionExecutor(tx, blockProducer, dataBase, stopTime)
 
     executor.init()
     executor.execute()
