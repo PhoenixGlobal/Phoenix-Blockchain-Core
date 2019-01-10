@@ -93,7 +93,7 @@ class Producer(settings: ConsensusSettings)
       if (enableProduce) {
         producing(chain)
         true
-      } else if (Instant.now.toEpochMilli <= nextTime(chain.getHeadTime)) {
+      } else if (Instant.now.toEpochMilli <= ProducerUtil.nextTime(chain.getHeadTime, settings.produceInterval)) {
         log.info("now set enableProduce to true")
         enableProduce = true
         producing(chain)
@@ -118,7 +118,7 @@ class Producer(settings: ConsensusSettings)
     if (headTime - now > settings.produceInterval) {
       scheduleBegin(delayOneBlock)
     } else {
-      val next = nextBlockTime(headTime, now)
+      val next = ProducerUtil.nextBlockTime(headTime, now, minProducingTime, settings.produceInterval)
       //println(s"head: $headTime, now: $now, next: $next, delta: ${headTime - now}")
       val witness = ProducerUtil.getWitness(next, settings)
       val myTurn = witness.privkey.isDefined
@@ -128,25 +128,12 @@ class Producer(settings: ConsensusSettings)
         //println(delay)
         scheduleBegin(delay)
       } else {
-        chain.startProduceBlock(witness, next)
+        chain.startProduceBlock(witness, next, next - 100)
         val now = Instant.now.toEpochMilli
         val delay = calcDelay(now, next, myTurn)
         scheduleEnd(delay)
       }
     }
-  }
-
-  // the nextBlockTime is the expected time of next block based on current latest block time and current time
-  private def nextBlockTime(headTime: Long, now: Long): Long = {
-    var next = nextTime(math.max(headTime, now))
-    if (next - now < minProducingTime) {
-      next += settings.produceInterval
-    }
-    next
-  }
-
-  private def nextTime(time: Long) = {
-    time + settings.produceInterval - time % settings.produceInterval
   }
 
   private def calcDelay(now: Long, next: Long, myTurn: Boolean = false): Option[FiniteDuration] = {
@@ -174,6 +161,19 @@ class Producer(settings: ConsensusSettings)
 }
 
 object ProducerUtil {
+
+  // the nextBlockTime is the expected time of next block based on current latest block time and current time
+  def nextBlockTime(headTime: Long, now: Long, minProducingTime: Int, produceInterval: Int): Long = {
+    var next = nextTime(math.max(headTime, now), produceInterval)
+    if (next - now < minProducingTime) {
+      next += produceInterval
+    }
+    next
+  }
+
+  def nextTime(time: Long, produceInterval: Int) = {
+    time + produceInterval - time % produceInterval
+  }
 
   // "timeMs": time from 1970 in ms, should be divided evenly with no remainder by settings.produceInterval
   def getWitness(timeMs: Long, settings: ConsensusSettings): Witness = {

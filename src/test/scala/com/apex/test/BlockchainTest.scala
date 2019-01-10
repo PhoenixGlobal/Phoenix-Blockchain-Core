@@ -70,7 +70,7 @@ class BlockchainTest {
 
   Directory("BlockchainTest").deleteRecursively()
 
-  val _produceInterval = 2000
+  val _produceInterval = 500
 
   val _minerAward: Double = 12.3
 
@@ -174,6 +174,12 @@ class BlockchainTest {
     Blockchain.populate(chainSetting, _consensusSettings, Notification())
   }
 
+  private def sleepTo(time: Long) = {
+    val nowTime = Instant.now.toEpochMilli
+    if (time > nowTime)
+      Thread.sleep(time - nowTime)
+  }
+
   @Test
   def testCreateChain(): Unit = {
     val chain = createChain("testCreateChain")
@@ -193,8 +199,12 @@ class BlockchainTest {
       val balance2 = chain.getBalance(_acct2.publicKey.pubKeyHash)
       assert(balance2.get == FixedNumber.fromDecimal(234.2))
 
-      var blockTime = chain.getHeadTime() + _consensusSettings.produceInterval
-      chain.startProduceBlock(ProducerUtil.getWitness(blockTime, _consensusSettings), blockTime)
+      var nowTime = Instant.now.toEpochMilli
+      var blockTime = ProducerUtil.nextBlockTime(chain.getHeadTime(), nowTime, _produceInterval / 10, _produceInterval) //  chain.getHeadTime() + _consensusSettings.produceInterval
+      sleepTo(blockTime)
+      nowTime = Instant.now.toEpochMilli
+      blockTime += _produceInterval
+      chain.startProduceBlock(ProducerUtil.getWitness(blockTime, _consensusSettings), blockTime, blockTime - 100)
 
       assert(chain.isProducingBlock())
 
@@ -214,6 +224,7 @@ class BlockchainTest {
       assert(!chain.addTransaction(makeTx(_acct3, UInt160.Zero, FixedNumber.fromDecimal(100.1), 0)))
       assert(chain.addTransaction(makeTx(_acct3, UInt160.Zero, FixedNumber.fromDecimal(80), 0)))
 
+      sleepTo(blockTime)
       val block1 = chain.produceBlockFinalize()
       assert(block1.isDefined)
       assert(block1.get.transactions.size == 6)
@@ -233,12 +244,14 @@ class BlockchainTest {
       assert(!chain.tryInsertBlock(makeBlock(block2, Seq.empty[Transaction], _minerAward + 0.1), true))
 
       val block22 = makeBlock(block1.get, Seq.empty[Transaction])
+      sleepTo(block22.header.timeStamp)
       assert(chain.tryInsertBlock(block22, true))
 
       assert(chain.head.id() == block2.id())
       assert(chain.getLatestHeader().id() == block2.id())
 
       val block33 = makeBlock(block22, Seq.empty[Transaction])
+      sleepTo(block33.header.timeStamp)
       assert(chain.tryInsertBlock(block33, true))
 
       assert(chain.head.id() == block33.id())
@@ -268,7 +281,7 @@ class BlockchainTest {
       assert(chain.getHeight() == 0)
 
       var blockTime = chain.getHeadTime() + _consensusSettings.produceInterval
-      chain.startProduceBlock(ProducerUtil.getWitness(blockTime, _consensusSettings), blockTime)
+      chain.startProduceBlock(ProducerUtil.getWitness(blockTime, _consensusSettings), blockTime, blockTime - 100)
 
       assert(chain.isProducingBlock())
 
@@ -317,7 +330,7 @@ class BlockchainTest {
       assert(chain.getHeight() == 5)
       assert(chain.getLatestHeader().id() == block5.id())
 
-      chain.startProduceBlock(ProducerUtil.getWitness(time9, _consensusSettings), time9)  // a
+      chain.startProduceBlock(ProducerUtil.getWitness(time9, _consensusSettings), time9, time9 - 100)  // a
       assert(chain.isProducingBlock())
       val block999 = chain.produceBlockFinalize()
       assert(block999.isDefined)
@@ -379,7 +392,7 @@ class BlockchainTest {
       assert(chain.getHeight() == 0)
 
       var blockTime = chain.getHeadTime() + _consensusSettings.produceInterval
-      chain.startProduceBlock(ProducerUtil.getWitness(blockTime, _consensusSettings), blockTime)
+      chain.startProduceBlock(ProducerUtil.getWitness(blockTime, _consensusSettings), blockTime, blockTime - 100)
 
       assert(chain.isProducingBlock())
 
@@ -457,7 +470,53 @@ class BlockchainTest {
     }
   }
 
+  @Test
+  def testStopProcessNewTxTime(): Unit = {
+    val chain = createChain("testStopProcessNewTxTime")
+    try {
 
+      assert(chain.getHeight() == 0)
+      assert(_produceInterval == 500)
+
+      val balance1 = chain.getBalance(_acct1.publicKey.pubKeyHash)
+      assert(balance1.get == FixedNumber.fromDecimal(123.12))
+
+      var nowTime = Instant.now.toEpochMilli
+      var blockTime = ProducerUtil.nextBlockTime(chain.getHeadTime(), nowTime, _produceInterval / 10, _produceInterval) //  chain.getHeadTime() + _consensusSettings.produceInterval
+      sleepTo(blockTime)
+      blockTime += _produceInterval
+
+      chain.startProduceBlock(ProducerUtil.getWitness(blockTime, _consensusSettings), blockTime, blockTime - 200)
+
+      assert(chain.isProducingBlock())
+
+      nowTime = Instant.now.toEpochMilli
+      assert(nowTime < blockTime - 200)
+
+      var tx = makeTx(_acct1, UInt160.Zero, FixedNumber.fromDecimal(1), 0)
+      assert(chain.addTransaction(tx))
+      assert(chain.getTransactionFromPendingTxs(tx.id).isDefined)
+      assert(chain.getTransactionFromUnapplyTxs(tx.id).isEmpty)
+      assert(chain.getTransactionFromMempool(tx.id).isDefined)
+
+      sleepTo(blockTime - 150)
+
+      tx = makeTx(_acct1, UInt160.Zero, FixedNumber.fromDecimal(1), 1)
+      assert(chain.addTransaction(tx))
+      assert(chain.getTransactionFromPendingTxs(tx.id).isEmpty)
+      assert(chain.getTransactionFromUnapplyTxs(tx.id).isDefined)
+      assert(chain.getTransactionFromMempool(tx.id).isDefined)
+
+      tx = makeTx(_acct1, UInt160.Zero, FixedNumber.fromDecimal(1), 99)
+      assert(chain.addTransaction(tx))
+      assert(chain.getTransactionFromPendingTxs(tx.id).isEmpty)
+      assert(chain.getTransactionFromUnapplyTxs(tx.id).isDefined)
+      assert(chain.getTransactionFromMempool(tx.id).isDefined)
+    }
+    finally {
+      chain.close()
+    }
+  }
 }
 
 object BlockchainTest {

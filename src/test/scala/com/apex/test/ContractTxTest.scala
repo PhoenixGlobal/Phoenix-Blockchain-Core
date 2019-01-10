@@ -184,8 +184,10 @@ class ContractTxTest {
       val balance1 = chain.getBalance(_acct1.publicKey.pubKeyHash)
       assert(balance1.get == FixedNumber.fromDecimal(123.12))
 
-      var blockTime = chain.getHeadTime() + _consensusSettings.produceInterval
-      chain.startProduceBlock(ProducerUtil.getWitness(blockTime, _consensusSettings), blockTime)
+      var nowTime = Instant.now.toEpochMilli
+      var blockTime = ProducerUtil.nextBlockTime(chain.getHeadTime(), nowTime, _produceInterval / 10, _produceInterval) //  chain.getHeadTime() + _consensusSettings.produceInterval
+      blockTime += _produceInterval
+      chain.startProduceBlock(ProducerUtil.getWitness(blockTime, _consensusSettings), blockTime, blockTime - 100)
 
       assert(chain.isProducingBlock())
 
@@ -228,6 +230,7 @@ class ContractTxTest {
         gettt,
         FixedNumber(1), 99999999L, BinaryData.empty)
       assert(chain.addTransaction(getTx))
+      assert(chain.getTransactionFromPendingTxs(getTx.id).isDefined)
 
       val receipt = chain.getReceipt(getTx.id()).get
 

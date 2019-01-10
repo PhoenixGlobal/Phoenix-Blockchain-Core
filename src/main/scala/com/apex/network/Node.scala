@@ -299,7 +299,7 @@ class Node(val settings: ApexSettings)
     else if (msg.inv.invType == InventoryType.Tx) {
       val txs = ArrayBuffer.empty[Transaction]
       msg.inv.hashs.foreach(h => {
-        val tx = chain.getPendingTransaction(h)
+        val tx = chain.getTransactionFromMempool(h)
         if (tx.isDefined) {
           txs.append(tx.get)
         }
