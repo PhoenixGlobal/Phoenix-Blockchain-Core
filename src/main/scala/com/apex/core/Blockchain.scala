@@ -39,12 +39,10 @@ trait Blockchain extends Iterable[Block] with ApexLogging {
 
   def containsBlock(id: UInt256): Boolean
 
-  def getPendingTransaction(txid: UInt256): Option[Transaction]
-
   //  def produceBlock(producer: PublicKey, privateKey: PrivateKey, timeStamp: Long,
   //                   transactions: Seq[Transaction]): Option[Block]
 
-  def startProduceBlock(producer: Witness, blockTime: Long): Unit
+  def startProduceBlock(producer: Witness, blockTime: Long, stopProcessTxTime: Long): Unit
 
   def addTransaction(tx: Transaction): Boolean
 
@@ -87,12 +85,14 @@ class PendingState {
   var producer: Witness = _
   var blockTime: Long = _
   var startTime: Long = _
+  var stopProcessTxTime: Long = _
 
   val txs = ArrayBuffer.empty[Transaction]
 
-  def set(producer: Witness, blockTime: Long) = {
+  def set(producer: Witness, blockTime: Long, stopProcessTxTime: Long) = {
     this.producer = producer
     this.blockTime = blockTime
+    this.stopProcessTxTime = stopProcessTxTime
     this.startTime = Instant.now.toEpochMilli
   }
 }
@@ -223,7 +223,7 @@ class LevelDBBlockchain(chainSettings: ChainSettings, consensusSettings: Consens
     forkBase.contains(id) || blockBase.containBlock(id)
   }
 
-  def getPendingTransaction(txid: UInt256): Option[Transaction] = {
+  def getTransactionFromMempool(txid: UInt256): Option[Transaction] = {
     if (pendingState.txs.map(_.id()).contains(txid)) {
       pendingState.txs.find(tx => tx.id().equals(txid))
     }
@@ -232,10 +232,18 @@ class LevelDBBlockchain(chainSettings: ChainSettings, consensusSettings: Consens
     }
   }
 
-  override def startProduceBlock(producer: Witness, blockTime: Long): Unit = {
+  def getTransactionFromPendingTxs(txid: UInt256): Option[Transaction] = {
+    pendingState.txs.find(tx => tx.id().equals(txid))
+  }
+
+  def getTransactionFromUnapplyTxs(txid: UInt256): Option[Transaction] = {
+    unapplyTxs.get(txid)
+  }
+
+  override def startProduceBlock(producer: Witness, blockTime: Long, stopProcessTxTime: Long): Unit = {
     require(!isProducingBlock())
-    pendingState.set(producer, blockTime)
-    log.debug(s"start block at: ${pendingState.startTime}")
+    pendingState.set(producer, blockTime, stopProcessTxTime)
+    log.debug(s"start block at: ${pendingState.startTime}  blockTime=${blockTime}  stopProcessTxTime=${stopProcessTxTime}")
 
     val forkHead = forkBase.head.get
     val minerTx = new Transaction(TransactionType.Miner, minerCoinFrom,
@@ -247,7 +255,7 @@ class LevelDBBlockchain(chainSettings: ChainSettings, consensusSettings: Consens
     //isPendingBlock = true
     dataBase.startSession()
 
-    val applied = applyTransaction(minerTx, producer.pubkey.pubKeyHash)
+    val applied = applyTransaction(minerTx, producer.pubkey.pubKeyHash, stopProcessTxTime)
     require(applied)
     pendingState.txs.append(minerTx)
 
@@ -261,19 +269,28 @@ class LevelDBBlockchain(chainSettings: ChainSettings, consensusSettings: Consens
     !pendingState.txs.isEmpty
   }
 
+  private def addTransactionToUnapplyTxs(tx: Transaction): Boolean = {
+    if (!unapplyTxs.contains(tx.id)) {
+      unapplyTxs += (tx.id -> tx)
+    }
+    true // always true
+  }
+
   override def addTransaction(tx: Transaction): Boolean = {
     var added = false
     if (isProducingBlock()) {
-      if (applyTransaction(tx, pendingState.producer.pubkey.pubKeyHash)) {
-        pendingState.txs.append(tx)
-        added = true
+      if (Instant.now.toEpochMilli > pendingState.stopProcessTxTime) {
+        added = addTransactionToUnapplyTxs(tx)
+      }
+      else {
+        if (applyTransaction(tx, pendingState.producer.pubkey.pubKeyHash, pendingState.stopProcessTxTime)) {
+          pendingState.txs.append(tx)
+          added = true
+        }
       }
     }
     else {
-      if (!unapplyTxs.contains(tx.id)) {
-        unapplyTxs += (tx.id -> tx)
-      }
-      added = true
+      added = addTransactionToUnapplyTxs(tx)
     }
     if (added)
       notification.broadcast(AddTransactionNotify(tx))
@@ -316,6 +333,7 @@ class LevelDBBlockchain(chainSettings: ChainSettings, consensusSettings: Consens
       })
       pendingState.txs.clear()
       dataBase.rollBack()
+      // TODO: should limit time usage of insertion and then restart produce
     }
 
     if (forkBase.head.get.block.id.equals(block.prev())) {
@@ -359,7 +377,7 @@ class LevelDBBlockchain(chainSettings: ChainSettings, consensusSettings: Consens
       if (enableSession)
         dataBase.startSession()
       block.transactions.foreach(tx => {
-        if (applied && !applyTransaction(tx, block.header.producer.pubKeyHash))
+        if (applied && !applyTransaction(tx, block.header.producer.pubKeyHash, Long.MaxValue))  // TODO: stopTime
           applied = false
       })
       if (enableSession && !applied)
@@ -373,25 +391,22 @@ class LevelDBBlockchain(chainSettings: ChainSettings, consensusSettings: Consens
     applied
   }
 
-  private def applyTransaction(tx: Transaction, blockProducer: UInt160): Boolean = {
+  private def applyTransaction(tx: Transaction, blockProducer: UInt160, stopTime: Long): Boolean = {
     var txValid = true
     tx.txType match {
       case TransactionType.Miner =>      txValid = applySendTransaction(tx)
       case TransactionType.Transfer =>   txValid = applySendTransaction(tx)
       //case TransactionType.Fee =>
       //case TransactionType.RegisterName =>
-      case TransactionType.Deploy =>     txValid = applyContractTransaction(tx, blockProducer)
-      case TransactionType.Call =>       txValid = applyContractTransaction(tx, blockProducer)
+      case TransactionType.Deploy =>     txValid = applyContractTransaction(tx, blockProducer, stopTime)
+      case TransactionType.Call =>       txValid = applyContractTransaction(tx, blockProducer, stopTime)
     }
     txValid
   }
 
-  private def applyContractTransaction(tx: Transaction, blockProducer: UInt160): Boolean = {
+  private def applyContractTransaction(tx: Transaction, blockProducer: UInt160, stopTime: Long): Boolean = {
 
-    val executor = new TransactionExecutor(tx, blockProducer, dataBase,
-      genesisBlock,  // FIXME: wrong block
-      0  // TODO
-    )
+    val executor = new TransactionExecutor(tx, blockProducer, dataBase, stopTime)
 
     executor.init()
     executor.execute()

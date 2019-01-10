@@ -1,6 +1,6 @@
 package com.apex.core
 
-import com.apex.crypto.{UInt160, UInt256}
+import com.apex.crypto.{FixedNumber, UInt160, UInt256}
 import com.apex.settings.ContractSettings
 import com.apex.vm.hook.VMHook
 import com.apex.vm._
@@ -24,11 +24,12 @@ object TransactionExecutor {
 class TransactionExecutor(var tx: Transaction,
                           var coinbase: UInt160,
                           var track: DataBase,
+                          val stopTime: Long
                           //var blockStore: BlockStore,
                           //var programInvokeFactory: ProgramInvokeFactory,
-                          var currentBlock: Block,
+                          //var currentBlock: Block,
                           //val listener: EthereumListener,
-                          val gasUsedInTheBlock: BigInt = 0
+                          //val gasUsedInTheBlock: BigInt = 0
                           //val vmHook: VMHook
                          ) {
   //this.m_endGas = toBI(tx.getGasLimit)
@@ -94,12 +95,12 @@ class TransactionExecutor(var tx: Transaction,
       return
     }
     val txGasLimit = tx.gasLimit  //new BigInteger(1, tx.gasLimit)
-    val curBlockGasLimit = currentBlock.header.gasLimit
-    val cumulativeGasReached = (txGasLimit + gasUsedInTheBlock > curBlockGasLimit)
-    if (cumulativeGasReached) {
-      execError(s"Too much gas used in this block, Require: ${currentBlock.header.gasLimit - tx.gasLimit}  Got: ${tx.gasLimit} ")
-      return
-    }
+    //    val curBlockGasLimit = currentBlock.header.gasLimit
+    //    val cumulativeGasReached = (txGasLimit + gasUsedInTheBlock > curBlockGasLimit)
+    //    if (cumulativeGasReached) {
+    //      execError(s"Too much gas used in this block, Require: ${currentBlock.header.gasLimit - tx.gasLimit}  Got: ${tx.gasLimit} ")
+    //      return
+    //    }
     if (txGasLimit < basicTxCost) {
       execError(s"Not enough gas for transaction execution: Require: ${basicTxCost} Got: ${txGasLimit}")
       //execError(String.format("Not enough gas for transaction execution: Require: %s Got: %s", basicTxCost, txGasLimit))
@@ -113,7 +114,11 @@ class TransactionExecutor(var tx: Transaction,
     }
     val txGasCost = tx.gasPrice * txGasLimit
     val totalCost = tx.amount + txGasCost
-    val senderBalance = track.getBalance(tx.sender())
+    val senderBalance = track.getBalance(tx.sender()).getOrElse(FixedNumber.Zero)
+    if (senderBalance.value <= totalCost.value) {
+      execError(s"Not enough cash: Require: ${totalCost}, Sender cash ${senderBalance}")
+      return
+    }
     //    if (!isCovers(senderBalance, totalCost)) {
     //      execError(String.format("Not enough cash: Require: %s, Sender cash: %s", totalCost, senderBalance))
     //      return
@@ -176,8 +181,8 @@ class TransactionExecutor(var tx: Transaction,
       else {
         val programInvoke = createInvoker(tx.data)
         //val programInvoke = programInvokeFactory.createProgramInvoke(tx, currentBlock, cacheTrack, track, blockStore)
-        this.vm = new VM(vmSettings, VMHook.EMPTY)
-        this.program = new Program(vmSettings, code, programInvoke) //.withCommonConfig(commonConfig)
+        this.vm = new VM(vmSettings, VMHook.EMPTY, stopTime)
+        this.program = new Program(vmSettings, code, programInvoke, stopTime) //.withCommonConfig(commonConfig)
       }
     }
     val endowment = tx.amount
@@ -201,7 +206,7 @@ class TransactionExecutor(var tx: Transaction,
       DataWord.ZERO,
       DataWord.ZERO,
       DataWord.ZERO,
-      DataWord.ZERO,
+      DataWord.of(tx.gasLimit),
       track,
       track,
       null)
@@ -231,8 +236,8 @@ class TransactionExecutor(var tx: Transaction,
     else {
       val programInvoke = createInvoker(Array.empty)
       //val programInvoke = programInvokeFactory.createProgramInvoke(tx, currentBlock, cacheTrack, track, blockStore)
-      this.vm = new VM(vmSettings, VMHook.EMPTY)
-      this.program = new Program(vmSettings, tx.data, programInvoke) //.withCommonConfig(commonConfig)
+      this.vm = new VM(vmSettings, VMHook.EMPTY, stopTime)
+      this.program = new Program(vmSettings, tx.data, programInvoke, stopTime) //.withCommonConfig(commonConfig)
       // reset storage if the contract with the same address already exists
       // TCK test case only - normally this is near-impossible situation in the real network
       // TODO make via Trie.clear() without keyset
@@ -250,49 +255,50 @@ class TransactionExecutor(var tx: Transaction,
   def go(): Unit = {
     val EMPTY_BYTE_ARRAY = new Array[Byte](0)
     if (!readyToExecute) return
-    try
-        if (vm != null) { // Charge basic cost of the transaction
-          program.spendGas(tx.transactionCost(), "TRANSACTION COST")
-          //if (config.playVM)
-            vm.play(program)
-          result = program.getResult
-          m_endGas = tx.gasLimit - program.getResult.getGasUsed
-          if (tx.isContractCreation && !result.isRevert) {
-            val returnDataGasValue = getLength(program.getResult.getHReturn) * GasCost.CREATE_DATA
-            if (m_endGas < BigInt(returnDataGasValue)) { // Not enough gas to return contract code
-              //     if (!blockchainConfig.getConstants.createEmptyContractOnOOG) {
-              //       program.setRuntimeFailure(Program.Exception.notEnoughSpendingGas("No gas to return just created contract", returnDataGasValue, program))
-              //       result = program.getResult
-              //     }
-              result.setHReturn(EMPTY_BYTE_ARRAY)
-            }
-//            else if (getLength(result.getHReturn) > blockchainConfig.getConstants.getMAX_CONTRACT_SZIE) { // Contract size too large
-//              program.setRuntimeFailure(Program.Exception.notEnoughSpendingGas("Contract size too large: " + getLength(result.getHReturn), returnDataGasValue, program))
-//              result = program.getResult
-//              result.setHReturn(EMPTY_BYTE_ARRAY)
-//            }
-            else { // Contract successfully created
-              m_endGas = m_endGas - returnDataGasValue
-              cacheTrack.saveCode(tx.getContractAddress.get, result.getHReturn)
-            }
+    try {
+      if (vm != null) { // Charge basic cost of the transaction
+        program.spendGas(tx.transactionCost(), "TRANSACTION COST")
+        //if (config.playVM)
+        vm.play(program)
+        result = program.getResult
+        m_endGas = tx.gasLimit - program.getResult.getGasUsed
+        if (tx.isContractCreation && !result.isRevert) {
+          val returnDataGasValue = getLength(program.getResult.getHReturn) * GasCost.CREATE_DATA
+          if (m_endGas < BigInt(returnDataGasValue)) { // Not enough gas to return contract code
+            //     if (!blockchainConfig.getConstants.createEmptyContractOnOOG) {
+            //       program.setRuntimeFailure(Program.Exception.notEnoughSpendingGas("No gas to return just created contract", returnDataGasValue, program))
+            //       result = program.getResult
+            //     }
+            result.setHReturn(EMPTY_BYTE_ARRAY)
           }
-          //    val err = config.getBlockchainConfig.getConfigForBlock(currentBlock.getNumber).validateTransactionChanges(blockStore, currentBlock, tx, null)
-          //    if (err != null)
-          //       program.setRuntimeFailure(new RuntimeException("Transaction changes validation failed: " + err))
-          if (result.getException != null || result.isRevert) {
-            //result.getDeleteAccounts.clear()
-            result.getLogInfoList.clear()
-            result.resetFutureRefund()
-            rollback()
-            if (result.getException != null) throw result.getException
-            else execError("REVERT opcode executed")
-          }
-          else {
-            //touchedAccounts.addAll(result.getTouchedAccounts)
-            cacheTrack.commit()
+          //            else if (getLength(result.getHReturn) > blockchainConfig.getConstants.getMAX_CONTRACT_SZIE) { // Contract size too large
+          //              program.setRuntimeFailure(Program.Exception.notEnoughSpendingGas("Contract size too large: " + getLength(result.getHReturn), returnDataGasValue, program))
+          //              result = program.getResult
+          //              result.setHReturn(EMPTY_BYTE_ARRAY)
+          //            }
+          else { // Contract successfully created
+            m_endGas = m_endGas - returnDataGasValue
+            cacheTrack.saveCode(tx.getContractAddress.get, result.getHReturn)
           }
         }
-        else cacheTrack.commit()
+        //    val err = config.getBlockchainConfig.getConfigForBlock(currentBlock.getNumber).validateTransactionChanges(blockStore, currentBlock, tx, null)
+        //    if (err != null)
+        //       program.setRuntimeFailure(new RuntimeException("Transaction changes validation failed: " + err))
+        if (result.getException != null || result.isRevert) {
+          //result.getDeleteAccounts.clear()
+          result.getLogInfoList.clear()
+          result.resetFutureRefund()
+          rollback()
+          if (result.getException != null) throw result.getException
+          else execError("REVERT opcode executed")
+        }
+        else {
+          //touchedAccounts.addAll(result.getTouchedAccounts)
+          cacheTrack.commit()
+        }
+      }
+      else cacheTrack.commit()
+    }
     catch {
       case e: Throwable =>
         // TODO: catch whatever they will throw on you !!!
@@ -385,7 +391,7 @@ class TransactionExecutor(var tx: Transaction,
         tx.fromPubKeyHash(),
         tx.toPubKeyHash,
         getGasUsed,
-        gasUsedInTheBlock + getGasUsed,
+        //gasUsedInTheBlock + getGasUsed,
         getResult.getHReturn,
         0)
         //      val totalGasUsed = gasUsedInTheBlock + getGasUsed

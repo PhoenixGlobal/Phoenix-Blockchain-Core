@@ -19,7 +19,7 @@ case class TransactionReceipt(txId: UInt256,
                               from: UInt160,
                               to: UInt160,
                               gasUsed: BigInt,
-                              totalGasUsed: BigInt,
+                              //totalGasUsed: BigInt,
                               output: BinaryData,
                               status: Int) extends com.apex.common.Serializable {
   override def serialize(os: DataOutputStream): Unit = {
@@ -29,7 +29,7 @@ case class TransactionReceipt(txId: UInt256,
     os.write(from)
     os.write(to)
     os.writeByteArray(gasUsed.toByteArray)
-    os.writeByteArray(totalGasUsed.toByteArray)
+    //os.writeByteArray(totalGasUsed.toByteArray)
     os.writeByteArray(output)
     os.writeVarInt(status)
   }
@@ -44,7 +44,7 @@ object TransactionReceipt {
       is.readObj[UInt160],
       is.readObj[UInt160],
       BigInt(is.readByteArray),
-      BigInt(is.readByteArray),
+      //BigInt(is.readByteArray),
       is.readByteArray,
       is.readVarInt)
   }
@@ -57,7 +57,7 @@ object TransactionReceipt {
         "from" -> o.from.address,
         "to" ->  o.to.address,
         "gasUsed" -> o.gasUsed.longValue(),
-        "totalGasUsed" -> o.totalGasUsed.longValue(),
+        //"totalGasUsed" -> o.totalGasUsed.longValue(),
         "output" -> o.output.toString,
         "status" -> o.status
       )

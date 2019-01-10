@@ -24,7 +24,6 @@ class TransactionReceiptTest {
                     UInt160.Zero,
                     UInt160.Zero,
                     123,
-                    456,
                     BinaryData("1234"),
                     789)
 
@@ -36,7 +35,7 @@ class TransactionReceiptTest {
           && x.from == tr.from
           && x.to == tr.to
           && x.gasUsed == tr.gasUsed
-          && x.totalGasUsed == tr.totalGasUsed
+          //&& x.totalGasUsed == tr.totalGasUsed
           && x.output.sameElements(tr.output)
           && x.status == tr.status)
     o.test(tr)
