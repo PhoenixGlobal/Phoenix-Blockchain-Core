@@ -122,9 +122,7 @@ class LevelDBBlockchain(chainSettings: ChainSettings, consensusSettings: Consens
 
   log.info("creating Genesis Block")
 
-  // the zero is not valid pub key, and the NULL is special to handle,
-  // so just set minerCoinFrom to any valid compressed pub key, it will not be seen by user
-  private val minerCoinFrom = PublicKey(BinaryData("02866facba8742cd702b302021a9588e78b3cd96599a3b1c85688d6dc0a72585e6")).pubKeyHash
+  private val minerCoinFrom = UInt160.Zero
 
   private val minerAward = FixedNumber.fromDecimal(chainSettings.minerAward)
 
