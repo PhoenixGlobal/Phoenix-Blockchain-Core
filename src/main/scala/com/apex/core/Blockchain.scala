@@ -86,6 +86,7 @@ class PendingState {
   var blockTime: Long = _
   var startTime: Long = _
   var stopProcessTxTime: Long = _
+  var isProducingBlock = false
 
   val txs = ArrayBuffer.empty[Transaction]
 
@@ -126,10 +127,9 @@ class LevelDBBlockchain(chainSettings: ChainSettings, consensusSettings: Consens
 
   private val minerAward = FixedNumber.fromDecimal(chainSettings.minerAward)
 
-  private val genesisBlock: Block = buildGenesisBlock() //Block.build(genesisBlockHeader, genesisTxs)
+  private val genesisBlock: Block = buildGenesisBlock()
 
-  //  private val pendingTxs = ArrayBuffer.empty[Transaction] //TODO: change to seq map // TODO: save to DB?
-  private val unapplyTxs = mutable.Map.empty[UInt256, Transaction] // TODO: save to DB?
+  private val unapplyTxs = mutable.Map.empty[UInt256, Transaction]
 
   private val pendingState = new PendingState
 
@@ -222,12 +222,7 @@ class LevelDBBlockchain(chainSettings: ChainSettings, consensusSettings: Consens
   }
 
   def getTransactionFromMempool(txid: UInt256): Option[Transaction] = {
-    if (pendingState.txs.map(_.id()).contains(txid)) {
-      pendingState.txs.find(tx => tx.id().equals(txid))
-    }
-    else {
-      unapplyTxs.get(txid)
-    }
+    pendingState.txs.find(tx => tx.id().equals(txid)).orElse(unapplyTxs.get(txid))
   }
 
   def getTransactionFromPendingTxs(txid: UInt256): Option[Transaction] = {
@@ -256,15 +251,24 @@ class LevelDBBlockchain(chainSettings: ChainSettings, consensusSettings: Consens
     val applied = applyTransaction(minerTx, producer.pubkey.pubKeyHash, stopProcessTxTime)
     require(applied)
     pendingState.txs.append(minerTx)
+    pendingState.isProducingBlock = true
 
-    unapplyTxs.foreach(p => addTransaction(p._2)) // addTransaction() may fail
+    val badTxs = ArrayBuffer.empty[Transaction]
 
-    unapplyTxs.clear() // pendingState.txs.foreach(tx => unapplyTxs.remove(tx.id))
-
+    unapplyTxs.foreach(p => {
+      if (Instant.now.toEpochMilli < pendingState.stopProcessTxTime) {
+        if (applyTransaction(p._2, pendingState.producer.pubkey.pubKeyHash, pendingState.stopProcessTxTime))
+          pendingState.txs.append(p._2)
+        else
+          badTxs.append(p._2)
+      }
+    })
+    pendingState.txs.foreach(tx => unapplyTxs.remove(tx.id))
+    badTxs.foreach(tx => unapplyTxs.remove(tx.id))
   }
 
   override def isProducingBlock(): Boolean = {
-    !pendingState.txs.isEmpty
+    pendingState.isProducingBlock
   }
 
   private def addTransactionToUnapplyTxs(tx: Transaction): Boolean = {
@@ -312,6 +316,7 @@ class LevelDBBlockchain(chainSettings: ChainSettings, consensusSettings: Consens
         forkHead.block.id, publicKey, privateKey)
       val block = Block.build(header, pendingState.txs.clone)
       pendingState.txs.clear()
+      pendingState.isProducingBlock = false
       if (tryInsertBlock(block, false)) {
         log.info(s"block #${block.height} ${block.shortId} produced by ${block.header.producer.address.substring(0, 7)} ${block.header.timeString()}")
         notification.broadcast(NewBlockProducedNotify(block))
@@ -330,6 +335,7 @@ class LevelDBBlockchain(chainSettings: ChainSettings, consensusSettings: Consens
           unapplyTxs += (tx.id -> tx)
       })
       pendingState.txs.clear()
+      pendingState.isProducingBlock = false
       dataBase.rollBack()
       // TODO: should limit time usage of insertion and then restart produce
     }
@@ -390,10 +396,10 @@ class LevelDBBlockchain(chainSettings: ChainSettings, consensusSettings: Consens
   }
 
   private def applyTransaction(tx: Transaction, blockProducer: UInt160, stopTime: Long): Boolean = {
-    var txValid = true
+    var txValid = false
     tx.txType match {
-      case TransactionType.Miner =>      txValid = applySendTransaction(tx)
-      case TransactionType.Transfer =>   txValid = applySendTransaction(tx)
+      case TransactionType.Miner =>      txValid = applySendTransaction(tx, blockProducer)
+      case TransactionType.Transfer =>   txValid = applySendTransaction(tx, blockProducer)
       //case TransactionType.Fee =>
       //case TransactionType.RegisterName =>
       case TransactionType.Deploy =>     txValid = applyContractTransaction(tx, blockProducer, stopTime)
@@ -423,30 +429,41 @@ class LevelDBBlockchain(chainSettings: ChainSettings, consensusSettings: Consens
     true   // TODO
   }
 
-  private def applySendTransaction(tx: Transaction): Boolean = {
+  private def applySendTransaction(tx: Transaction, blockProducer: UInt160): Boolean = {
     var txValid = true
 
     val fromAccount = dataBase.getAccount(tx.from).getOrElse(Account.newAccount(tx.from))
     val toAccount = dataBase.getAccount(tx.toPubKeyHash).getOrElse(Account.newAccount(tx.toPubKeyHash))
 
+    var txFee = FixedNumber.Zero
+
     if (tx.txType == TransactionType.Miner) {
-      // TODO
+
     }
     else {
-      if (tx.amount > fromAccount.balance)
+      val txGas = tx.transactionCost()
+      txFee = FixedNumber(BigInt(txGas)) * tx.gasPrice
+      if (txGas > tx.gasLimit) {
+        log.info(s"Not enough gas for transaction tx ${tx.id().shortString()}")
         txValid = false
-      else if (tx.nonce != fromAccount.nextNonce)
+      }
+      if ((tx.amount + txFee) > fromAccount.balance) {
+        log.info(s"Not enough balance for transaction tx ${tx.id().shortString()}")
         txValid = false
+      }
+      else if (tx.nonce != fromAccount.nextNonce) {
+        log.info(s"tx ${tx.id().shortString()} nonce ${tx.nonce} invalid, expect ${fromAccount.nextNonce}")
+        txValid = false
+      }
     }
 
     if (txValid) {
+      dataBase.transfer(tx.from, tx.toPubKeyHash, tx.amount)
+      dataBase.increaseNonce(tx.from)
 
-      val fromBalance = fromAccount.balance - tx.amount
-
-      val toBalance = toAccount.balance + tx.amount
-
-      dataBase.setAccount((tx.from, new Account(tx.from, true, fromAccount.name, fromBalance, fromAccount.nextNonce + 1)),
-        (tx.toPubKeyHash, new Account(tx.toPubKeyHash, true, toAccount.name, toBalance, toAccount.nextNonce)))
+      if (txFee.value > 0) {
+        dataBase.transfer(tx.from, blockProducer, txFee)
+      }
     }
     txValid
   }
