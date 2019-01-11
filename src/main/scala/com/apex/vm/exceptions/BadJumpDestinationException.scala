@@ -10,4 +10,4 @@
 
 package com.apex.vm.exceptions
 
-case class BadJumpDestinationException(pc: Int) extends Exception(s"Operation with pc isn't 'JUMPDEST': PC[$pc]") with BytecodeExecutionException
+case class BadJumpDestinationException(pc: Int) extends BytecodeExecutionException(s"Operation with pc isn't 'JUMPDEST': PC[$pc]")

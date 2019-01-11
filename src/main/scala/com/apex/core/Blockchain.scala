@@ -411,13 +411,18 @@ class LevelDBBlockchain(chainSettings: ChainSettings, consensusSettings: Consens
     executor.init()
     executor.execute()
     executor.go()
+
     val summary = executor.finalization()
 
     val receipt = executor.getReceipt
 
+    if (executor.getResult.isBlockTimeout) {
+      log.error(s"tx ${tx.id.shortString()} executor time out")
+    }
+
     dataBase.setReceipt(tx.id(), receipt)
 
-    true
+    true   // TODO
   }
 
   private def applySendTransaction(tx: Transaction): Boolean = {

@@ -10,4 +10,4 @@
 
 package com.apex.vm.exceptions
 
-trait BytecodeExecutionException
+class BytecodeExecutionException(message: String) extends RuntimeException(message)

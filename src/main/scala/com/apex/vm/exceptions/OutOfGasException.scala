@@ -10,4 +10,4 @@
 
 package com.apex.vm.exceptions
 
-case class OutOfGasException(message: String) extends Exception(message) with BytecodeExecutionException
+case class OutOfGasException(message: String) extends BytecodeExecutionException(message)

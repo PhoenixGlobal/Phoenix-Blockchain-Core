@@ -12,4 +12,4 @@ package com.apex.vm.exceptions
 
 import com.apex.vm._
 
-case class IllegalOperationException(opCode: Byte*) extends Exception(s"Invalid operation code: opCode[${opCode(0).toHex}]") with BytecodeExecutionException
+case class IllegalOperationException(opCode: Byte*) extends BytecodeExecutionException(s"Invalid operation code: opCode[${opCode(0).toHex}]")

@@ -10,4 +10,4 @@
 
 package com.apex.vm.exceptions
 
-case class ReturnDataCopyIllegalBoundsException(message: String) extends Exception(message) with BytecodeExecutionException
+case class ReturnDataCopyIllegalBoundsException(message: String) extends BytecodeExecutionException(message)

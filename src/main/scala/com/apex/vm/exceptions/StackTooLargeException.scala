@@ -10,4 +10,4 @@
 
 package com.apex.vm.exceptions
 
-case class StackTooLargeException(maxStackSize: Int) extends Exception(s"Expected: overflow $maxStackSize elements stack limit") with BytecodeExecutionException
+case class StackTooLargeException(maxStackSize: Int) extends BytecodeExecutionException(s"Expected: overflow $maxStackSize elements stack limit")
