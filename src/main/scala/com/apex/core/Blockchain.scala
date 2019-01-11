@@ -124,7 +124,7 @@ class LevelDBBlockchain(chainSettings: ChainSettings, consensusSettings: Consens
 
   // the zero is not valid pub key, and the NULL is special to handle,
   // so just set minerCoinFrom to any valid compressed pub key, it will not be seen by user
-  private val minerCoinFrom = PublicKey(BinaryData("02866facba8742cd702b302021a9588e78b3cd96599a3b1c85688d6dc0a72585e6")) // 33 bytes pub key
+  private val minerCoinFrom = PublicKey(BinaryData("02866facba8742cd702b302021a9588e78b3cd96599a3b1c85688d6dc0a72585e6")).pubKeyHash
 
   private val minerAward = FixedNumber.fromDecimal(chainSettings.minerAward)
 
@@ -428,7 +428,7 @@ class LevelDBBlockchain(chainSettings: ChainSettings, consensusSettings: Consens
   private def applySendTransaction(tx: Transaction): Boolean = {
     var txValid = true
 
-    val fromAccount = dataBase.getAccount(tx.fromPubKeyHash()).getOrElse(Account.newAccount(tx.fromPubKeyHash()))
+    val fromAccount = dataBase.getAccount(tx.from).getOrElse(Account.newAccount(tx.from))
     val toAccount = dataBase.getAccount(tx.toPubKeyHash).getOrElse(Account.newAccount(tx.toPubKeyHash))
 
     if (tx.txType == TransactionType.Miner) {
@@ -447,7 +447,7 @@ class LevelDBBlockchain(chainSettings: ChainSettings, consensusSettings: Consens
 
       val toBalance = toAccount.balance + tx.amount
 
-      dataBase.setAccount((tx.fromPubKeyHash(), new Account(tx.fromPubKeyHash(), true, fromAccount.name, fromBalance, fromAccount.nextNonce + 1)),
+      dataBase.setAccount((tx.from, new Account(tx.from, true, fromAccount.name, fromBalance, fromAccount.nextNonce + 1)),
         (tx.toPubKeyHash, new Account(tx.toPubKeyHash, true, toAccount.name, toBalance, toAccount.nextNonce)))
     }
     txValid
@@ -531,10 +531,10 @@ class LevelDBBlockchain(chainSettings: ChainSettings, consensusSettings: Consens
           isValid = false
         if (newNames.contains(name))
           isValid = false
-        if (registers.contains(tx.fromPubKeyHash()))
+        if (registers.contains(tx.from))
           isValid = false
         newNames.add(name)
-        registers.add(tx.fromPubKeyHash())
+        registers.add(tx.from)
       }
     })
 

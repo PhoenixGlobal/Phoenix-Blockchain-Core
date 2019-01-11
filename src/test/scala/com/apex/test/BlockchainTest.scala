@@ -94,7 +94,7 @@ class BlockchainTest {
   val _acct3 = Ecdsa.PrivateKey.fromWIF("KyUTLv2BeP9SJD6Sa8aHBVmuRkgw9eThjNGJDE4PySEgf2TvCQCn").get
   val _acct4 = Ecdsa.PrivateKey.fromWIF("L33Uh9L35pSoEqBPP43U6rQcD2xMpJ7F4b3QMjUMAL6HZhxUqEGq").get
 
-  private val minerCoinFrom = PublicKey(BinaryData("02866facba8742cd702b302021a9588e78b3cd96599a3b1c85688d6dc0a72585e6"))
+  private val minerCoinFrom = PublicKey(BinaryData("02866facba8742cd702b302021a9588e78b3cd96599a3b1c85688d6dc0a72585e6")).pubKeyHash
 
   private def makeTx(from: PrivateKey,
                      to: UInt160,
@@ -102,7 +102,7 @@ class BlockchainTest {
                      nonce: Long,
                      txType: TransactionType.Value = TransactionType.Transfer) = {
 
-    val tx = new Transaction(txType, from.publicKey, to, "",
+    val tx = new Transaction(txType, from.publicKey.pubKeyHash, to, "",
       amount, nonce, BinaryData.empty, FixedNumber.Zero, 0, BinaryData.empty)
     tx.sign(from)
     tx

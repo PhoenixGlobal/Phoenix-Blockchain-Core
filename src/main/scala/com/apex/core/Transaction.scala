@@ -8,7 +8,7 @@ import com.apex.vm.GasCost
 import play.api.libs.json.{JsValue, Json, Writes}
 
 class Transaction(val txType: TransactionType.Value,
-                  val from: Ecdsa.PublicKey, // 33 bytes pub key
+                  val from: UInt160,
                   val toPubKeyHash: UInt160,
                   val toName: String,
                   val amount: FixedNumber,
@@ -22,25 +22,17 @@ class Transaction(val txType: TransactionType.Value,
   //TODO: read settings
   def fee: FixedNumber = FixedNumber.Zero
 
-  def fromPubKeyHash() : UInt160 = {
-    from.pubKeyHash
-  }
-
-  def sender(): UInt160 = fromPubKeyHash
-
-  def fromAddress(): String = {
-    from.address
-  }
+  def sender(): UInt160 = from
 
   def toAddress(): String = {
-    Ecdsa.PublicKeyHash.toAddress(toPubKeyHash.data)
+    toPubKeyHash.address
   }
 
   def isContractCreation(): Boolean = (txType == TransactionType.Deploy && toPubKeyHash == UInt160.Zero)
 
   def getContractAddress(): Option[UInt160] = {
     if (isContractCreation()) {
-      Some(Crypto.calcNewAddr(fromPubKeyHash, BigInt(nonce).toByteArray))
+      Some(Crypto.calcNewAddr(from, BigInt(nonce).toByteArray))
     }
     else
       None
@@ -113,7 +105,18 @@ class Transaction(val txType: TransactionType.Value,
   }
 
   def verifySignature(): Boolean = {
-    Crypto.verifySignature(dataForSigning(), signature, from.toBin)
+    val message = dataForSigning()
+    if (Crypto.verifySignature(message, signature)) {
+      val (pub1, pub2) = Crypto.recoverPublicKey(signature, message)
+      val from1 = pub1.pubKeyHash
+      val from2 = pub2.pubKeyHash
+      if (from1 == from || from2 == from)
+        true
+      else
+        false
+    }
+    else
+      false
   }
 
 }
@@ -124,7 +127,7 @@ object Transaction {
       Json.obj(
             "id" -> o.id.toString,
             "type" -> o.txType.toString,
-            "from" -> { if (o.txType == TransactionType.Miner) "" else o.fromAddress },
+            "from" -> { if (o.txType == TransactionType.Miner) "" else o.from.address },
             "to" ->  o.toAddress,
             "toName" -> o.toName,
             "amount" -> o.amount.toString,
@@ -143,7 +146,7 @@ object Transaction {
 
     val txType = TransactionType(is.readByte)
     val version = is.readInt
-    val from = Ecdsa.PublicKey.deserialize(is)
+    val from = UInt160.deserialize(is)
     val toPubKeyHash = UInt160.deserialize(is)
     val toName = is.readString
     val amount = FixedNumber.deserialize(is)

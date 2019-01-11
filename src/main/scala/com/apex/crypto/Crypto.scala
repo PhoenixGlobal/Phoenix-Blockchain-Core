@@ -9,6 +9,8 @@
 package com.apex.crypto
 
 import java.security.{MessageDigest, SecureRandom}
+
+import com.apex.crypto.Ecdsa.PublicKey
 import javax.crypto.Cipher
 import javax.crypto.spec.{IvParameterSpec, SecretKeySpec}
 import org.bouncycastle.crypto.digests.{KeccakDigest, RIPEMD160Digest, SHA3Digest}
@@ -81,6 +83,17 @@ object Crypto {
      val publicKey = Ecdsa.PublicKey(BinaryData(pubKey))
 
      Ecdsa.verifySignature(sha256(message), signature, publicKey)
+  }
+
+  def verifySignature(message: Array[Byte], signature: Array[Byte]): Boolean = {
+    val (pub1, pub2) = recoverPublicKey(signature, message)
+
+    Ecdsa.verifySignature(sha256(message), signature, pub1) &&
+    Ecdsa.verifySignature(sha256(message), signature, pub2)
+  }
+
+  def recoverPublicKey(signature: Array[Byte], message: Array[Byte]): (PublicKey, PublicKey) = {
+    Ecdsa.recoverPublicKey(signature, sha256(message))
   }
 
   def AesEncrypt(data: Array[Byte], key: Array[Byte], iv: Array[Byte]): Array[Byte] = {

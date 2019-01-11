@@ -388,7 +388,7 @@ class TransactionExecutor(var tx: Transaction,
     if (receipt == null) {
       receipt = TransactionReceipt(tx.id(),
         tx.txType,
-        tx.fromPubKeyHash(),
+        tx.from,
         tx.toPubKeyHash,
         getGasUsed,
         //gasUsedInTheBlock + getGasUsed,
