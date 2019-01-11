@@ -10,20 +10,15 @@
 
 package com.apex.test
 
-import java.util
-
 import com.apex.core.DataBase
 import com.apex.crypto.Ecdsa.PublicKey
 import com.apex.crypto.{BinaryData, Crypto, UInt160}
 import com.apex.settings.{ContractSettings, DataBaseSettings}
 import com.apex.solidity.Abi
-import com.apex.solidity.compiler.SolidityCompiler
 import com.apex.vm.hook.VMHook
-import com.apex.vm.program.{Program, ProgramResult}
 import com.apex.vm.program.invoke.{ProgramInvoke, ProgramInvokeImpl}
+import com.apex.vm.program.{Program, ProgramResult}
 import com.apex.vm.{DataWord, VM}
-import org.apex.vm.OpCode
-import org.bouncycastle.util.encoders.Hex
 import org.junit.{AfterClass, Test}
 
 import scala.reflect.io.Directory
@@ -62,7 +57,8 @@ class VMTest {
 
   @Test
   def test2: Unit = {
-    val _ = "contract Ownable {\n" +
+    val _ =
+      "contract Ownable {\n" +
       "  address public owner;\n" +
       "\n" +
       "  function constructor() public {\n" +
@@ -111,31 +107,92 @@ class VMTest {
 
   @Test
   def test3 = {
-    println(author)
-    println(caller)
+    val _ =
+      "contract G {\n" +
+      "    uint value;\n" +
+      "    constructor() payable public {\n" +
+      "        value = msg.value;\n" +
+      "    }\n" +
+      "\n" +
+      "    function get(uint amount) payable public {\n" +
+      "        if (value >= amount) {\n" +
+      "            msg.sender.transfer(amount);\n" +
+      "        }\n" +
+      "    }" +
+      "\n}"
+
+    // author has 1000
     dataBase.addBalance(author, 1000)
-    val abi = Abi.fromJson("[{\"constant\":false,\"inputs\":[],\"name\":\"get\",\"outputs\":[],\"payable\":false,\"stateMutability\":\"nonpayable\",\"type\":\"function\"},{\"inputs\":[],\"payable\":true,\"stateMutability\":\"payable\",\"type\":\"constructor\"}]")
-    val (contract, result) = VMTest.deploy(author, BinaryData("60806040523460008190555060b8806100196000396000f3fe6080604052600436106039576000357c0100000000000000000000000000000000000000000000000000000000900480636d4ce63c14603e575b600080fd5b348015604957600080fd5b5060506052565b005b3373ffffffffffffffffffffffffffffffffffffffff166108fc6000549081150290604051600060405180830381858888f193505050505056fea165627a7a7230582011e47efa4ca24196900f9d7796e7f5ae67211af5775e1bb2f30eefa9f6dd35fd0029"))
+
+    // author deploy a contract and send it 500
+    val abi = Abi.fromJson("[{\"constant\":false,\"inputs\":[{\"name\":\"amount\",\"type\":\"uint256\"}],\"name\":\"get\",\"outputs\":[],\"payable\":true,\"stateMutability\":\"payable\",\"type\":\"function\"},{\"inputs\":[],\"payable\":true,\"stateMutability\":\"payable\",\"type\":\"constructor\"}]")
+    val (contract, result) = VMTest.deploy(author, BinaryData("60806040523460008190555060f5806100196000396000f3fe6080604052600436106039576000357c0100000000000000000000000000000000000000000000000000000000900480639507d39a14603e575b600080fd5b348015604957600080fd5b50607360048036036020811015605e57600080fd5b81019080803590602001909291905050506075565b005b8060005410151560c6573373ffffffffffffffffffffffffffffffffffffffff166108fc829081150290604051600060405180830381858888f1935050505015801560c4573d6000803e3d6000fd5b505b5056fea165627a7a723058204d8c453a38511784d625551b11ee4c7fc439074acd2bc27b3c63bce2aa6cb5ac0029"), 500)
     assert(success(result))
-    assert(result.getHReturn.sameElements(BinaryData("6080604052600436106039576000357c0100000000000000000000000000000000000000000000000000000000900480636d4ce63c14603e575b600080fd5b348015604957600080fd5b5060506052565b005b3373ffffffffffffffffffffffffffffffffffffffff166108fc6000549081150290604051600060405180830381858888f193505050505056fea165627a7a7230582011e47efa4ca24196900f9d7796e7f5ae67211af5775e1bb2f30eefa9f6dd35fd0029")))
-    val getMoneyResult = VMTest.call(caller, contract, result.getHReturn, abi.encode("get()"))
-    assert(success(getMoneyResult))
+    assert(result.getHReturn.sameElements(BinaryData("6080604052600436106039576000357c0100000000000000000000000000000000000000000000000000000000900480639507d39a14603e575b600080fd5b348015604957600080fd5b50607360048036036020811015605e57600080fd5b81019080803590602001909291905050506075565b005b8060005410151560c6573373ffffffffffffffffffffffffffffffffffffffff166108fc829081150290604051600060405180830381858888f1935050505015801560c4573d6000803e3d6000fd5b505b5056fea165627a7a723058204d8c453a38511784d625551b11ee4c7fc439074acd2bc27b3c63bce2aa6cb5ac0029")))
+    assert(dataBase.getBalance(author).exists(_.value == 500))
+
+    // caller can not get more than 500 from contract
+    val getMoneyResult1 = VMTest.call(caller, contract, result.getHReturn, abi.encode("get(501)"))
+    assert(success(getMoneyResult1))
+    assert(dataBase.getBalance(contract).exists(_.value == 500))
+    assert(dataBase.getBalance(caller).isEmpty)
+
+    // caller can not get less than 0 from contract
+    val getMoneyResult2 = VMTest.call(caller, contract, result.getHReturn, abi.encode("get(-1)"))
+    assert(getMoneyResult2.isRevert)
+    assert(dataBase.getBalance(contract).exists(_.value == 500))
+    assert(dataBase.getBalance(caller).isEmpty)
+
+    // caller get 100 from contract, contract has 400 left
+    val getMoneyResult3 = VMTest.call(caller, contract, result.getHReturn, abi.encode("get(100)"))
+    assert(success(getMoneyResult3))
+    assert(dataBase.getBalance(contract).exists(_.value == 400))
+    assert(dataBase.getBalance(caller).exists(_.value == 100))
   }
 
   @Test
   def test4 = {
-    val abi = Abi.fromJson("[{\"constant\":true,\"inputs\":[{\"name\":\"\",\"type\":\"address\"}],\"name\":\"registrantsPaid\",\"outputs\":[{\"name\":\"\",\"type\":\"uint256\"}],\"payable\":false,\"stateMutability\":\"view\",\"type\":\"function\"},{\"constant\":true,\"inputs\":[],\"name\":\"organizer\",\"outputs\":[{\"name\":\"\",\"type\":\"address\"}],\"payable\":false,\"stateMutability\":\"view\",\"type\":\"function\"},{\"constant\":false,\"inputs\":[{\"name\":\"recipient\",\"type\":\"address\"},{\"name\":\"amount\",\"type\":\"uint256\"}],\"name\":\"refundTicket\",\"outputs\":[],\"payable\":false,\"stateMutability\":\"nonpayable\",\"type\":\"function\"},{\"constant\":false,\"inputs\":[],\"name\":\"destroy\",\"outputs\":[],\"payable\":false,\"stateMutability\":\"nonpayable\",\"type\":\"function\"},{\"constant\":false,\"inputs\":[{\"name\":\"newquota\",\"type\":\"uint256\"}],\"name\":\"changeQuota\",\"outputs\":[],\"payable\":false,\"stateMutability\":\"nonpayable\",\"type\":\"function\"},{\"constant\":true,\"inputs\":[],\"name\":\"quota\",\"outputs\":[{\"name\":\"\",\"type\":\"uint256\"}],\"payable\":false,\"stateMutability\":\"view\",\"type\":\"function\"},{\"constant\":true,\"inputs\":[],\"name\":\"numRegistrants\",\"outputs\":[{\"name\":\"\",\"type\":\"uint256\"}],\"payable\":false,\"stateMutability\":\"view\",\"type\":\"function\"},{\"constant\":false,\"inputs\":[],\"name\":\"buyTicket\",\"outputs\":[{\"name\":\"success\",\"type\":\"bool\"}],\"payable\":true,\"stateMutability\":\"payable\",\"type\":\"function\"},{\"inputs\":[],\"payable\":false,\"stateMutability\":\"nonpayable\",\"type\":\"constructor\"},{\"anonymous\":false,\"inputs\":[{\"indexed\":false,\"name\":\"_from\",\"type\":\"address\"},{\"indexed\":false,\"name\":\"_amount\",\"type\":\"uint256\"}],\"name\":\"Deposit\",\"type\":\"event\"},{\"anonymous\":false,\"inputs\":[{\"indexed\":false,\"name\":\"_to\",\"type\":\"address\"},{\"indexed\":false,\"name\":\"_amount\",\"type\":\"uint256\"}],\"name\":\"Refund\",\"type\":\"event\"}]")
-    val (contract, result) = VMTest.deploy(author, BinaryData("608060405234801561001057600080fd5b50336000806101000a81548173ffffffffffffffffffffffffffffffffffffffff021916908373ffffffffffffffffffffffffffffffffffffffff1602179055506101f46003819055506000600281905550610696806100716000396000f3fe608060405260043610610088576000357c01000000000000000000000000000000000000000000000000000000009004806313381fbf1461008d57806361203265146100f2578063705099b91461014957806383197ef0146101a4578063a977c71e146101bb578063cebe09c9146101f6578063ec3a6f7314610221578063edca914c1461024c575b600080fd5b34801561009957600080fd5b506100dc600480360360208110156100b057600080fd5b81019080803573ffffffffffffffffffffffffffffffffffffffff16906020019092919050505061026e565b6040518082815260200191505060405180910390f35b3480156100fe57600080fd5b50610107610286565b604051808273ffffffffffffffffffffffffffffffffffffffff1673ffffffffffffffffffffffffffffffffffffffff16815260200191505060405180910390f35b34801561015557600080fd5b506101a26004803603604081101561016c57600080fd5b81019080803573ffffffffffffffffffffffffffffffffffffffff169060200190929190803590602001909291905050506102ab565b005b3480156101b057600080fd5b506101b9610486565b005b3480156101c757600080fd5b506101f4600480360360208110156101de57600080fd5b8101908080359060200190929190505050610517565b005b34801561020257600080fd5b5061020b61057d565b6040518082815260200191505060405180910390f35b34801561022d57600080fd5b50610236610583565b6040518082815260200191505060405180910390f35b610254610589565b604051808215151515815260200191505060405180910390f35b60016020528060005260406000206000915090505481565b6000809054906101000a900473ffffffffffffffffffffffffffffffffffffffff1681565b6000809054906101000a900473ffffffffffffffffffffffffffffffffffffffff1673ffffffffffffffffffffffffffffffffffffffff163373ffffffffffffffffffffffffffffffffffffffff1614151561030657610482565b80600160008473ffffffffffffffffffffffffffffffffffffffff1673ffffffffffffffffffffffffffffffffffffffff168152602001908152602001600020541415610481576000309050818173ffffffffffffffffffffffffffffffffffffffff163110151561047a578273ffffffffffffffffffffffffffffffffffffffff166108fc839081150290604051600060405180830381858888f1935050505015156103b257600080fd5b6000600160008573ffffffffffffffffffffffffffffffffffffffff1673ffffffffffffffffffffffffffffffffffffffff16815260200190815260200160002081905550600260008154809291906001900391905055507fbb28353e4598c3b9199101a66e0989549b659a59a54d2c27fbb183f1932c8e6d8383604051808373ffffffffffffffffffffffffffffffffffffffff1673ffffffffffffffffffffffffffffffffffffffff1681526020018281526020019250505060405180910390a161047f565b600080fd5b505b5b5050565b6000809054906101000a900473ffffffffffffffffffffffffffffffffffffffff1673ffffffffffffffffffffffffffffffffffffffff163373ffffffffffffffffffffffffffffffffffffffff161415610515576000809054906101000a900473ffffffffffffffffffffffffffffffffffffffff1673ffffffffffffffffffffffffffffffffffffffff16ff5b565b6000809054906101000a900473ffffffffffffffffffffffffffffffffffffffff1673ffffffffffffffffffffffffffffffffffffffff163373ffffffffffffffffffffffffffffffffffffffff161415156105725761057a565b806003819055505b50565b60035481565b60025481565b60006003546002541015156105a15760009050610667565b34600160003373ffffffffffffffffffffffffffffffffffffffff1673ffffffffffffffffffffffffffffffffffffffff168152602001908152602001600020819055506002600081548092919060010191905055507fe1fffcc4923d04b559f4d29a8bfc6cda04eb5b0d3c460751c2402c5c5cc9109c3334604051808373ffffffffffffffffffffffffffffffffffffffff1673ffffffffffffffffffffffffffffffffffffffff1681526020018281526020019250505060405180910390a1600190505b9056fea165627a7a7230582023ab6a68ba782f367d69eae1f5bd8ede14a444f34d941cc39f9f3192f11aac170029"))
+    val _ =
+      "contract SuicideTest {\n" +
+      "    address payable owner;\n" +
+      "\n" +
+      "    modifier onlyOwner() {\n" +
+      "        require(msg.sender == owner);\n" +
+      "        _;\n" +
+      "    }\n" +
+      "\n" +
+      "    constructor() payable public {\n" +
+      "        owner = msg.sender;\n" +
+      "    }\n" +
+      "\n" +
+      "    function destroy() onlyOwner public {\n" +
+      "        selfdestruct(owner);\n" +
+      "    }\n" +
+      "}"
+
+    // author has 1000
+    dataBase.addBalance(author, 1000)
+
+    // author deploy a contract and send it 500
+    val abi = Abi.fromJson("[{\"constant\":false,\"inputs\":[],\"name\":\"destroy\",\"outputs\":[],\"payable\":false,\"stateMutability\":\"nonpayable\",\"type\":\"function\"},{\"inputs\":[],\"payable\":true,\"stateMutability\":\"payable\",\"type\":\"constructor\"}]")
+    val (contract, result) = VMTest.deploy(author, BinaryData("6080604052336000806101000a81548173ffffffffffffffffffffffffffffffffffffffff021916908373ffffffffffffffffffffffffffffffffffffffff160217905550610112806100536000396000f3fe6080604052600436106039576000357c01000000000000000000000000000000000000000000000000000000009004806383197ef014603e575b600080fd5b348015604957600080fd5b5060506052565b005b6000809054906101000a900473ffffffffffffffffffffffffffffffffffffffff1673ffffffffffffffffffffffffffffffffffffffff163373ffffffffffffffffffffffffffffffffffffffff1614151560ac57600080fd5b6000809054906101000a900473ffffffffffffffffffffffffffffffffffffffff1673ffffffffffffffffffffffffffffffffffffffff16fffea165627a7a72305820855a7b5ead6876153fd7b3f61d6f451d7ec98c0a99acef41c5eb71476307146f0029"), 500)
     assert(success(result))
-    assert(result.getHReturn.sameElements(BinaryData("608060405260043610610088576000357c01000000000000000000000000000000000000000000000000000000009004806313381fbf1461008d57806361203265146100f2578063705099b91461014957806383197ef0146101a4578063a977c71e146101bb578063cebe09c9146101f6578063ec3a6f7314610221578063edca914c1461024c575b600080fd5b34801561009957600080fd5b506100dc600480360360208110156100b057600080fd5b81019080803573ffffffffffffffffffffffffffffffffffffffff16906020019092919050505061026e565b6040518082815260200191505060405180910390f35b3480156100fe57600080fd5b50610107610286565b604051808273ffffffffffffffffffffffffffffffffffffffff1673ffffffffffffffffffffffffffffffffffffffff16815260200191505060405180910390f35b34801561015557600080fd5b506101a26004803603604081101561016c57600080fd5b81019080803573ffffffffffffffffffffffffffffffffffffffff169060200190929190803590602001909291905050506102ab565b005b3480156101b057600080fd5b506101b9610486565b005b3480156101c757600080fd5b506101f4600480360360208110156101de57600080fd5b8101908080359060200190929190505050610517565b005b34801561020257600080fd5b5061020b61057d565b6040518082815260200191505060405180910390f35b34801561022d57600080fd5b50610236610583565b6040518082815260200191505060405180910390f35b610254610589565b604051808215151515815260200191505060405180910390f35b60016020528060005260406000206000915090505481565b6000809054906101000a900473ffffffffffffffffffffffffffffffffffffffff1681565b6000809054906101000a900473ffffffffffffffffffffffffffffffffffffffff1673ffffffffffffffffffffffffffffffffffffffff163373ffffffffffffffffffffffffffffffffffffffff1614151561030657610482565b80600160008473ffffffffffffffffffffffffffffffffffffffff1673ffffffffffffffffffffffffffffffffffffffff168152602001908152602001600020541415610481576000309050818173ffffffffffffffffffffffffffffffffffffffff163110151561047a578273ffffffffffffffffffffffffffffffffffffffff166108fc839081150290604051600060405180830381858888f1935050505015156103b257600080fd5b6000600160008573ffffffffffffffffffffffffffffffffffffffff1673ffffffffffffffffffffffffffffffffffffffff16815260200190815260200160002081905550600260008154809291906001900391905055507fbb28353e4598c3b9199101a66e0989549b659a59a54d2c27fbb183f1932c8e6d8383604051808373ffffffffffffffffffffffffffffffffffffffff1673ffffffffffffffffffffffffffffffffffffffff1681526020018281526020019250505060405180910390a161047f565b600080fd5b505b5b5050565b6000809054906101000a900473ffffffffffffffffffffffffffffffffffffffff1673ffffffffffffffffffffffffffffffffffffffff163373ffffffffffffffffffffffffffffffffffffffff161415610515576000809054906101000a900473ffffffffffffffffffffffffffffffffffffffff1673ffffffffffffffffffffffffffffffffffffffff16ff5b565b6000809054906101000a900473ffffffffffffffffffffffffffffffffffffffff1673ffffffffffffffffffffffffffffffffffffffff163373ffffffffffffffffffffffffffffffffffffffff161415156105725761057a565b806003819055505b50565b60035481565b60025481565b60006003546002541015156105a15760009050610667565b34600160003373ffffffffffffffffffffffffffffffffffffffff1673ffffffffffffffffffffffffffffffffffffffff168152602001908152602001600020819055506002600081548092919060010191905055507fe1fffcc4923d04b559f4d29a8bfc6cda04eb5b0d3c460751c2402c5c5cc9109c3334604051808373ffffffffffffffffffffffffffffffffffffffff1673ffffffffffffffffffffffffffffffffffffffff1681526020018281526020019250505060405180910390a1600190505b9056fea165627a7a7230582023ab6a68ba782f367d69eae1f5bd8ede14a444f34d941cc39f9f3192f11aac170029")))
-    separate
-    val buyTicket = VMTest.call(caller, contract, result.getHReturn, abi.encode("buyTicket()"), 10)
-    assert(success(buyTicket))
-    assert(DataWord.of(buyTicket.getHReturn).value == 1)
-    separate
-    println(caller.toString)
-    val refund = VMTest.call(author, contract, result.getHReturn, abi.encode(s"refundTicket('${caller.toString}', 10)"))
-    assert(success(refund))
+    assert(result.getHReturn.sameElements(BinaryData("6080604052600436106039576000357c01000000000000000000000000000000000000000000000000000000009004806383197ef014603e575b600080fd5b348015604957600080fd5b5060506052565b005b6000809054906101000a900473ffffffffffffffffffffffffffffffffffffffff1673ffffffffffffffffffffffffffffffffffffffff163373ffffffffffffffffffffffffffffffffffffffff1614151560ac57600080fd5b6000809054906101000a900473ffffffffffffffffffffffffffffffffffffffff1673ffffffffffffffffffffffffffffffffffffffff16fffea165627a7a72305820855a7b5ead6876153fd7b3f61d6f451d7ec98c0a99acef41c5eb71476307146f0029")))
+    assert(dataBase.getBalance(author).exists(_.value == 500))
+
+    // caller can not destruct contract
+    val result1 = VMTest.call(caller, contract, result.getHReturn, abi.encode("destroy()"))
+    assert(result1.isRevert)
+    assert(dataBase.getBalance(contract).exists(_.value == 500))
+    assert(dataBase.getBalance(caller).isEmpty)
+
+    // author destruct contract
+    val result2 = VMTest.call(author, contract, result.getHReturn, abi.encode("destroy()"))
+    assert(success(result2))
+    println(dataBase.getBalance(contract))
+    println(dataBase.getBalance(author))
+    assert(dataBase.getBalance(author).exists(_.value == 1000))
+//    assert(dataBase.getBalance(contract).isEmpty)
   }
 
   private def success(getResult: ProgramResult) = {
@@ -157,10 +214,11 @@ object VMTest {
   val caller = PublicKey("0345ffbf8dc9d8ff15785e2c228ac48d98d29b834c2e98fb8cfe6e71474d7f6322").pubKeyHash
   val author = PublicKey("022ac01a1ea9275241615ea6369c85b41e2016abc47485ec616c3c583f1b92a5c8").pubKeyHash
   val contractAddress = Crypto.calcNewAddr(author, BigInt(1).toByteArray)
+  val vmSettings = ContractSettings(0, false)
 
   def deploy(caller: UInt160, code: Array[Byte], value: Int = 0) = {
-    val vmSettings = ContractSettings(0, false)
     val contract = Crypto.calcNewAddr(author, BigInt(1).toByteArray)
+    if (value > 0 ) dataBase.transfer(caller, contract, value)
     val invoker = VMTest.createInvoker(caller, contract, Array.empty, value)
     val program = new Program(vmSettings, code, invoker, Long.MaxValue)
     val result = VM.play(vmSettings, VMHook.EMPTY, program, Long.MaxValue)
@@ -168,7 +226,7 @@ object VMTest {
   }
 
   def call(caller: UInt160, contract: UInt160, code: Array[Byte], signature: Array[Byte], value: Int = 0) = {
-    val vmSettings = ContractSettings(0, false)
+    if (value > 0 ) dataBase.transfer(caller, contract, value)
     val invoker = VMTest.createInvoker(caller, contract, signature, value)
     val program = new Program(vmSettings, code, invoker, Long.MaxValue)
     val result = VM.play(vmSettings, VMHook.EMPTY, program, Long.MaxValue)
