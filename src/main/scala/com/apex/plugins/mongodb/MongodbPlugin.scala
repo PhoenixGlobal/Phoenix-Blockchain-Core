@@ -116,8 +116,8 @@ class MongodbPlugin(settings: ApexSettings)
   private def updateAccout(tx: Transaction, block: Block) = {
     val option = UpdateOptions()
     option.upsert(true)
-    if (tx.fromAddress().length > 0) {
-      accountCol.updateOne(equal("address", tx.fromAddress()), set("timeStamp", BsonDateTime(block.timeStamp())), option).results()
+    if (tx.from.address.length > 0) {
+      accountCol.updateOne(equal("address", tx.from.address), set("timeStamp", BsonDateTime(block.timeStamp())), option).results()
     }
     accountCol.updateOne(equal("address", tx.toAddress()), set("timeStamp", BsonDateTime(block.timeStamp())), option).results()
   }
@@ -148,7 +148,7 @@ class MongodbPlugin(settings: ApexSettings)
     var newTx: Document = Document(
       "txHash" -> tx.id.toString,
       "type" -> tx.txType.toString,
-      "from" -> { if (tx.txType == TransactionType.Miner) "" else tx.fromAddress },
+      "from" -> { if (tx.txType == TransactionType.Miner) "" else tx.from.address },
       "to" ->  tx.toAddress,
       "toName" -> tx.toName,
       "amount" -> tx.amount.toString,

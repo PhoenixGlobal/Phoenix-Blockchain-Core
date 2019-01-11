@@ -94,7 +94,7 @@ class ContractTxTest {
   val _acct3 = Ecdsa.PrivateKey.fromWIF("KyUTLv2BeP9SJD6Sa8aHBVmuRkgw9eThjNGJDE4PySEgf2TvCQCn").get
   val _acct4 = Ecdsa.PrivateKey.fromWIF("L33Uh9L35pSoEqBPP43U6rQcD2xMpJ7F4b3QMjUMAL6HZhxUqEGq").get
 
-  private val minerCoinFrom = PublicKey(BinaryData("02866facba8742cd702b302021a9588e78b3cd96599a3b1c85688d6dc0a72585e6"))
+  private val minerCoinFrom = UInt160.Zero
 
   private def makeTx(from: PrivateKey,
                      to: UInt160,
@@ -102,7 +102,7 @@ class ContractTxTest {
                      nonce: Long,
                      txType: TransactionType.Value = TransactionType.Transfer) = {
 
-    val tx = new Transaction(txType, from.publicKey, to, "",
+    val tx = new Transaction(txType, from.publicKey.pubKeyHash, to, "",
       amount, nonce, BinaryData.empty, FixedNumber.Zero, 0, BinaryData.empty)
     tx.sign(from)
     tx
@@ -208,7 +208,7 @@ class ContractTxTest {
 
       val codebin = BinaryData("608060405234801561001057600080fd5b5060e68061001f6000396000f3fe6080604052600436106043576000357c01000000000000000000000000000000000000000000000000000000009004806360fe47b11460485780636d4ce63c14607f575b600080fd5b348015605357600080fd5b50607d60048036036020811015606857600080fd5b810190808035906020019092919050505060a7565b005b348015608a57600080fd5b50609160b1565b6040518082815260200191505060405180910390f35b8060008190555050565b6000805490509056fea165627a7a723058202c7cfe05b5e1b84938fa70727102e914fba062d91fde5a0f0a92613ad081732b0029")
 
-      val deployTx = new Transaction(TransactionType.Deploy, _acct1.publicKey,
+      val deployTx = new Transaction(TransactionType.Deploy, _acct1.publicKey.pubKeyHash,
         UInt160.Zero, "", FixedNumber.fromDecimal(_minerAward),
         0,
         codebin,
@@ -216,7 +216,7 @@ class ContractTxTest {
       assert(chain.addTransaction(deployTx))
 
       val settt = Abi.fromJson("[{\"constant\":false,\"inputs\":[{\"name\":\"withdraw_amount\",\"type\":\"uint256\"}],\"name\":\"set\",\"outputs\":[],\"payable\":false,\"stateMutability\":\"nonpayable\",\"type\":\"function\"},{\"constant\":false,\"inputs\":[],\"name\":\"get\",\"outputs\":[{\"name\":\"\",\"type\":\"uint256\"}],\"payable\":false,\"stateMutability\":\"nonpayable\",\"type\":\"function\"}]").encode("set(123)")
-      val setTx = new Transaction(TransactionType.Call, _acct1.publicKey,
+      val setTx = new Transaction(TransactionType.Call, _acct1.publicKey.pubKeyHash,
         UInt160.fromBytes(BinaryData("7f97e6f4f660e6c09b894f34edae3626bf44039a")), "", FixedNumber.fromDecimal(_minerAward),
         1,
         settt,
@@ -224,7 +224,7 @@ class ContractTxTest {
       assert(chain.addTransaction(setTx))
 
       val gettt = Abi.fromJson("[{\"constant\":false,\"inputs\":[{\"name\":\"withdraw_amount\",\"type\":\"uint256\"}],\"name\":\"set\",\"outputs\":[],\"payable\":false,\"stateMutability\":\"nonpayable\",\"type\":\"function\"},{\"constant\":false,\"inputs\":[],\"name\":\"get\",\"outputs\":[{\"name\":\"\",\"type\":\"uint256\"}],\"payable\":false,\"stateMutability\":\"nonpayable\",\"type\":\"function\"}]").encode("get()")
-      val getTx = new Transaction(TransactionType.Call, _acct1.publicKey,
+      val getTx = new Transaction(TransactionType.Call, _acct1.publicKey.pubKeyHash,
         UInt160.fromBytes(BinaryData("7f97e6f4f660e6c09b894f34edae3626bf44039a")), "", FixedNumber.fromDecimal(_minerAward),
         2,
         gettt,

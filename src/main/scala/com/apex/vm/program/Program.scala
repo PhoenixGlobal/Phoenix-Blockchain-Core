@@ -26,11 +26,11 @@
 
 package com.apex.vm.program
 
+import java.time.Instant
 import java.util
 
 import com.apex.common.ApexLogging
 import com.apex.core.DataBase
-import com.apex.crypto.FixedNumber
 import com.apex.settings.ContractSettings
 import com.apex.vm.DataWord
 import com.apex.vm.exceptions._
@@ -407,6 +407,13 @@ class Program(settings: ContractSettings,
     result.spendGas(gasValue)
   }
 
+  def checkStopTime(): Unit = {
+    if (Instant.now.toEpochMilli > stopTime) {
+      log.error("Error: vm execution timeout")
+      throw OutOfBlockTimeException(s"Error: vm execution timeout $stopTime")
+    }
+  }
+
   def spendAllGas(): Unit = {
     spendGas(getGas.longValue, "Spending all remaining")
   }
@@ -549,7 +556,7 @@ class Program(settings: ContractSettings,
             getGasLimit, track, invoke.getOrigDataBase, invoke.getBlockStore,
             getCallDeep + 1, op.callIsStatic || isStaticCall, byTestingSuite)
           val program = new Program(settings, programCode, programInvoke, stopTime)
-          val result = VM.play(settings, vmHook, program, stopTime)
+          val result = VM.play(settings, vmHook, program)
           getTrace.merge(program.getTrace)
           getResult.merge(result)
 

@@ -10,4 +10,4 @@
 
 package com.apex.vm.exceptions
 
-case class StackTooSmallException(expected: Int, actual: Int) extends Exception(s"Expected stack size $expected but actual $actual") with BytecodeExecutionException
+case class StackTooSmallException(expected: Int, actual: Int) extends BytecodeExecutionException(s"Expected stack size $expected but actual $actual")

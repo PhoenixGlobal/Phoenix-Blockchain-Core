@@ -221,7 +221,7 @@ object VMTest {
     if (value > 0 ) dataBase.transfer(caller, contract, value)
     val invoker = VMTest.createInvoker(caller, contract, Array.empty, value)
     val program = new Program(vmSettings, code, invoker, Long.MaxValue)
-    val result = VM.play(vmSettings, VMHook.EMPTY, program, Long.MaxValue)
+    val result = VM.play(vmSettings, VMHook.EMPTY, program)
     (contract, result)
   }
 
@@ -229,7 +229,7 @@ object VMTest {
     if (value > 0 ) dataBase.transfer(caller, contract, value)
     val invoker = VMTest.createInvoker(caller, contract, signature, value)
     val program = new Program(vmSettings, code, invoker, Long.MaxValue)
-    val result = VM.play(vmSettings, VMHook.EMPTY, program, Long.MaxValue)
+    val result = VM.play(vmSettings, VMHook.EMPTY, program)
     result
   }
 

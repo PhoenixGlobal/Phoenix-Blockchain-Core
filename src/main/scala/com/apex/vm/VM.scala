@@ -42,7 +42,7 @@ import sun.reflect.generics.reflectiveObjects.NotImplementedException
 
 import scala.collection.mutable.ListBuffer
 
-class VM(settings: ContractSettings, hook: VMHook, stopTime: Long) extends com.apex.common.ApexLogging {
+class VM(settings: ContractSettings, hook: VMHook) extends com.apex.common.ApexLogging {
   private val MAX_MEM_SIZE = BigInt(Integer.MAX_VALUE)
 
   private val opValidators = OpCode.emptyValidators
@@ -241,10 +241,7 @@ class VM(settings: ContractSettings, hook: VMHook, stopTime: Long) extends com.a
       //DEBUG System.out.println(" OP IS " + op.name() + " GASCOST IS " + gasCost + " NUM IS " + op.asInt());
       program.spendGas(gasCost, op.code.name)
 
-      if (Instant.now.toEpochMilli > stopTime) {
-        log.error("Error: vm execution timeout")
-        throw OutOfBlockTimeException(s"Error: vm execution timeout $stopTime")
-      }
+      program.checkStopTime()
 
       // Log debugging line for VM
       if (program.getNumber.intValue == dumpBlock) {
@@ -982,8 +979,8 @@ object VM {
     if (size == 0) 0 else (size - 1) / 32 + 1
   }
 
-  def play(settings: ContractSettings, vmHook: VMHook, program: Program, stopTime: Long): ProgramResult = {
-    new VM(settings, vmHook, stopTime).play(program)
+  def play(settings: ContractSettings, vmHook: VMHook, program: Program): ProgramResult = {
+    new VM(settings, vmHook).play(program)
     program.getResult
   }
 }

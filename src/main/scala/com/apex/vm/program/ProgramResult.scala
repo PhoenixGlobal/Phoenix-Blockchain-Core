@@ -27,6 +27,7 @@ package com.apex.vm.program
 
 import com.apex.crypto.UInt160
 import com.apex.vm.CallCreate
+import com.apex.vm.exceptions.OutOfBlockTimeException
 import com.apex.vm.program.trace.LogInfo
 
 import scala.collection.mutable
@@ -52,6 +53,8 @@ class ProgramResult {
   }
 
   def isRevert: Boolean = revert
+
+  def isBlockTimeout: Boolean = exception != null && exception.isInstanceOf[OutOfBlockTimeException]
 
   def refundGas(gas: BigInt): Unit = {
     gasUsed -= gas

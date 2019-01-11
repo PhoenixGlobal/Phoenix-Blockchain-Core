@@ -11,4 +11,4 @@
 package com.apex.vm.exceptions
 
 case class StaticCallModificationException(message: String)
-  extends Exception(message) with BytecodeExecutionException
+  extends BytecodeExecutionException(message)

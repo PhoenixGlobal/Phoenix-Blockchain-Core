@@ -74,6 +74,36 @@ class CryptoTest {
      
   }
   @Test
+  def testSign2 = {
+    val privKey = Ecdsa.PrivateKey(BinaryData("f8b8af8ce3c7cca5e300d33939540c10d45ce001b8f252bfbc57ba0342904181"))
+    val pubkey = privKey.publicKey
+    val message = "Alan Turing".getBytes("US-ASCII")
+    val sig = Crypto.sign(message, privKey)
+    assert(sig sameElements BinaryData("304402207063ae83e7f62bbb171798131b4a0564b956930092b33b07b395615d9ec7e15c022058dfcc1e00a35e1572f366ffe34ba0fc47db1e7189759b9fb233c5b05ab388ea"))
+
+  }
+  @Test
+  def testRecoverPublicKey() = {
+    val random = new scala.util.Random()
+    val privbytes = new Array[Byte](32)
+    val message = new Array[Byte](32)
+    for (i <- 0 until 10) {
+      random.nextBytes(privbytes)
+      random.nextBytes(message)
+
+      val priv = Ecdsa.PrivateKey(privbytes)
+      val pub = priv.publicKey
+      val (r, s) = Ecdsa.sign(message, priv)
+      //      val sigBin = Ecdsa.encodeSignature(r, s)
+      //      val (pub11, pub22) = Ecdsa.recoverPublicKey(sigBin, message)
+      val (pub1, pub2) = Ecdsa.recoverPublicKey((r, s), message)
+
+      assert(Ecdsa.verifySignature(message, (r, s), pub1))
+      assert(Ecdsa.verifySignature(message, (r, s), pub2))
+      assert(pub == pub1 || pub == pub2)
+    }
+  }
+  @Test
   def testVerifySignature = {
      val message = "Alan Turing".getBytes("US-ASCII")
 
@@ -82,9 +112,15 @@ class CryptoTest {
      // 32+1=33 bytes compressed pub key
      val pubKey = BinaryData("0292df7b245b81aa637ab4e867c8d511008f79161a97d64f2ac709600352f7acbc")
 
-     val verifyResult = Crypto.verifySignature(message, sig, pubKey)
+     val (pub1, pub2) = Ecdsa.recoverPublicKey(sig, Crypto.sha256(message))
+     val (pub11, pub22) = Crypto.recoverPublicKey(sig, message)
 
-     assert(verifyResult)     
+     assert(Crypto.verifySignature(message, sig, pubKey))
+     assert(Crypto.verifySignature(message, sig, pub1.toBin))
+     assert(Crypto.verifySignature(message, sig, pub2.toBin))
+     assert(Crypto.verifySignature(message, sig, pub11.toBin))
+     assert(Crypto.verifySignature(message, sig, pub22.toBin))
+     assert(Crypto.verifySignature(message, sig))
   }
   @Test
   def testBase58 = {     

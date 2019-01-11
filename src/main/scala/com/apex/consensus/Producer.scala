@@ -20,7 +20,7 @@ import com.apex.common.ApexLogging
 import com.apex.core.Blockchain
 import com.apex.crypto.Ecdsa.PublicKey
 import com.apex.network.ProduceTask
-import com.apex.settings.{ConsensusSettings, Witness}
+import com.apex.settings.{ApexSettings, ConsensusSettings, Witness}
 
 import scala.concurrent.ExecutionContext
 import scala.concurrent.duration.FiniteDuration
@@ -41,8 +41,10 @@ case class ProducerStopMessage() extends ProducerMessage
 //case class BlockStartProduceMessage(witness: Witness) extends ProducerMessage
 //case class BlockFinalizeProduceMessage(witness: Witness, timeStamp: Long) extends ProducerMessage
 
-class Producer(settings: ConsensusSettings)
+class Producer(apexSettings: ApexSettings)
               (implicit ec: ExecutionContext) extends Actor with ApexLogging {
+
+  private val settings = apexSettings.consensus
 
   private val scheduler = context.system.scheduler
   private val node = context.parent
@@ -128,7 +130,7 @@ class Producer(settings: ConsensusSettings)
         //println(delay)
         scheduleBegin(delay)
       } else {
-        chain.startProduceBlock(witness, next, next - 100)
+        chain.startProduceBlock(witness, next, next - apexSettings.runtimeParas.stopProcessTxTimeSlot)
         val now = Instant.now.toEpochMilli
         val delay = calcDelay(now, next, myTurn)
         scheduleEnd(delay)
@@ -202,18 +204,18 @@ object ProducerUtil {
 }
 
 object ProducerRef {
-  def props(settings: ConsensusSettings)
+  def props(apexSettings: ApexSettings)
            (implicit ec: ExecutionContext): Props = {
-    Props(new Producer(settings))
+    Props(new Producer(apexSettings))
   }
 
-  def apply(settings: ConsensusSettings)
+  def apply(apexSettings: ApexSettings)
            (implicit system: ActorContext, ec: ExecutionContext): ActorRef = {
-    system.actorOf(props(settings))
+    system.actorOf(props(apexSettings))
   }
 
-  def apply(settings: ConsensusSettings, name: String)
+  def apply(apexSettings: ApexSettings, name: String)
            (implicit system: ActorContext, ec: ExecutionContext): ActorRef = {
-    system.actorOf(props(settings), name)
+    system.actorOf(props(apexSettings), name)
   }
 }

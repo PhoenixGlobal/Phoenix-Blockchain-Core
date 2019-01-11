@@ -49,7 +49,8 @@ case class ApexSettings(network: NetworkSettings,
                         consensus: ConsensusSettings,
                         chain: ChainSettings,
                         rpc: RPCSettings,
-                        plugins: PluginsSettings)
+                        plugins: PluginsSettings,
+                        runtimeParas: RuntimeParas)
 
 case class BlockBaseSettings(dir: String, cacheEnabled: Boolean, cacheSize: Int)
 
@@ -69,6 +70,7 @@ case class ChainSettings(blockBase: BlockBaseSettings,
                          genesis: GenesisSettings)
 
 case class PluginsSettings(mongodb: MongodbSettings)
+case class RuntimeParas(stopProcessTxTimeSlot: Int)
 case class MongodbSettings(enabled: Boolean, uri: String)
 
 case class ConsensusSettings(produceInterval: Int,
