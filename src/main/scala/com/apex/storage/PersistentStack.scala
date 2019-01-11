@@ -14,6 +14,7 @@ package com.apex.storage
 
 import com.apex.common.Serializable
 
+// stack whose elements stored in LevlelDb
 class PersistentStack[A <: Serializable](db: LevelDbStorage)
                                         (implicit deserializer: Array[Byte] => A) {
 
@@ -21,10 +22,13 @@ class PersistentStack[A <: Serializable](db: LevelDbStorage)
 
   init()
 
+  // count of elements in this stack
   def size: Int = topIdx
 
+  // whether stack contains elements
   def isEmpty: Boolean = topIdx < 1
 
+  // return top element
   def top(): A = {
     if (topIdx <= 0) throw new IndexOutOfBoundsException
 
@@ -32,6 +36,7 @@ class PersistentStack[A <: Serializable](db: LevelDbStorage)
     deserializer(bytes)
   }
 
+  // remove the top element
   def pop(): Unit = {
     if (topIdx <= 0) throw new IndexOutOfBoundsException
 
@@ -39,6 +44,7 @@ class PersistentStack[A <: Serializable](db: LevelDbStorage)
     topIdx -= 1
   }
 
+  // add a element on top
   def push(item: A): Unit = {
     if (db.set(BigInt(topIdx).toByteArray, item.toBytes)) {
       topIdx += 1

@@ -12,15 +12,18 @@ import org.iq80.leveldb._
 import scala.collection.mutable.{ListBuffer, Map}
 import scala.util.Try
 
+// KV Store implementation, use LevelDB as low level store
 class LevelDbStorage(private val db: DB) extends Storage[Array[Byte], Array[Byte]] with ApexLogging {
   private lazy val sessionMgr = new SessionManager(db)
 
   private val actions = ListBuffer.empty[() => Unit]
 
+  // register callback function executed on rollback
   def onRollback(action: () => Unit): Unit = {
     actions.append(action)
   }
 
+  // get value the key associated with
   override def get(key: Array[Byte]): Option[Array[Byte]] = {
     val opt = new ReadOptions().fillCache(true)
     val value = db.get(key, opt)
@@ -31,6 +34,7 @@ class LevelDbStorage(private val db: DB) extends Storage[Array[Byte], Array[Byte
     }
   }
 
+  // add a new key/value pair if key not exist or overwrite value the key associated with
   override def set(key: Array[Byte], value: Array[Byte], batch: Batch = null): Boolean = {
     val newBatch = sessionMgr.beginSet(key, value, batch)
     if (newBatch != batch) {
@@ -40,6 +44,7 @@ class LevelDbStorage(private val db: DB) extends Storage[Array[Byte], Array[Byte
     }
   }
 
+  // delete the key and associated value
   override def delete(key: Array[Byte], batch: Batch = null): Boolean = {
     val newBatch = sessionMgr.beginDelete(key, batch)
     if (newBatch != batch) {
@@ -55,6 +60,7 @@ class LevelDbStorage(private val db: DB) extends Storage[Array[Byte], Array[Byte
     applyBatch(batch)
   }
 
+  // return last element
   override def last(): Option[Entry[Array[Byte], Array[Byte]]] = {
     val it = db.iterator()
     try {
@@ -69,6 +75,7 @@ class LevelDbStorage(private val db: DB) extends Storage[Array[Byte], Array[Byte
     }
   }
 
+  // apply func to all key/value pairs
   override def scan(func: (Array[Byte], Array[Byte]) => Unit): Unit = {
     seekThenApply(
       it => it.seekToFirst(),
@@ -78,6 +85,7 @@ class LevelDbStorage(private val db: DB) extends Storage[Array[Byte], Array[Byte
       })
   }
 
+  // apply func to all key/value pairs which key is start with prefix
   override def find(prefix: Array[Byte], func: (Array[Byte], Array[Byte]) => Unit): Unit = {
     seekThenApply(
       it => it.seek(prefix),
@@ -92,25 +100,40 @@ class LevelDbStorage(private val db: DB) extends Storage[Array[Byte], Array[Byte
       })
   }
 
+  // start a new session
   override def newSession(): Unit = {
     sessionMgr.newSession()
   }
 
+  // commit all operations in sessions whose revision is equal to or larger than the specified revision
   override def commit(revision: Int): Unit = {
     sessionMgr.commit(revision)
   }
 
+  // commit all operations in the latest session
   override def commit(): Unit = {
     sessionMgr.commit()
   }
 
+  // undo all operations in the latest session
   override def rollBack(): Unit = {
     actions.foreach(action => Try(action()))
     sessionMgr.rollBack()
   }
 
+  // close this KV Store
   override def close(): Unit = {
     db.close()
+  }
+
+  // return latest revision
+  override def revision(): Int = {
+    sessionMgr.revision()
+  }
+
+  // return all uncommitted session revisions
+  override def uncommitted(): Seq[Int] = {
+    sessionMgr.revisions()
   }
 
   private def seekThenApply(seekAction: DBIterator => Unit, func: Entry[Array[Byte], Array[Byte]] => Boolean): Unit = {
@@ -146,15 +169,9 @@ class LevelDbStorage(private val db: DB) extends Storage[Array[Byte], Array[Byte
     }
   }
 
-  override def revision(): Int = {
-    sessionMgr.revision()
-  }
-
-  override def uncommitted(): Seq[Int] = {
-    sessionMgr.revisions()
-  }
 }
 
+// adapter class for low level db batch
 class LevelDBWriteBatch(val batch: WriteBatch) extends LowLevelWriteBatch {
   override def set(key: Array[Byte], value: Array[Byte]): Unit = {
     batch.put(key, value)
@@ -169,21 +186,27 @@ class LevelDBWriteBatch(val batch: WriteBatch) extends LowLevelWriteBatch {
   }
 }
 
+// LevelDBStorage iterator
 class LevelDBIterator(it: DBIterator) extends LowLevelDBIterator {
+
+  // move to the position so that next element's key is equal to or larger than the prefix
   override def seek(prefix: Array[Byte]): Unit = {
     it.seek(prefix)
   }
 
+  // return next element
   override def next(): (Array[Byte], Array[Byte]) = {
     val entry = it.next()
     (entry.getKey, entry.getValue)
   }
 
+  // whether has next element
   override def hasNext(): Boolean = {
     it.hasNext
   }
 }
 
+// adapter class for low level db
 class LevelDB(db: DB) extends LowLevelDB {
   override def get(key: Array[Byte]): Array[Byte] = {
     db.get(key)
@@ -212,6 +235,7 @@ class LevelDB(db: DB) extends LowLevelDB {
   }
 }
 
+// wrapper class for Array[Byte], can be used as Map key
 case class ByteArrayKey(bytes: Array[Byte]) extends com.apex.common.Serializable {
   override def equals(obj: scala.Any): Boolean = {
     obj match {
@@ -277,6 +301,7 @@ class SessionItem(val insert: Map[ByteArrayKey, Array[Byte]] = Map.empty[ByteArr
   }
 }
 
+// base KV Store session
 class Session {
   def onSet(key: Array[Byte], value: Array[Byte], batch: Batch): Batch = {
     val newBatch = originOrNew(batch)
@@ -295,6 +320,7 @@ class Session {
   }
 }
 
+// session with capable of undoing all operations happened in this session
 class RollbackSession(db: DB, val prefix: Array[Byte], val revision: Int) extends Session {
   private val sessionId = prefix ++ BigInt(revision).toByteArray
 
@@ -302,6 +328,7 @@ class RollbackSession(db: DB, val prefix: Array[Byte], val revision: Int) extend
 
   private var closed = false
 
+  // load session data
   def init(data: Array[Byte]): Unit = {
     require(!closed)
 
@@ -321,6 +348,7 @@ class RollbackSession(db: DB, val prefix: Array[Byte], val revision: Int) extend
     }
   }
 
+  // close this session
   def close(): Unit = {
     require(!closed)
 
@@ -328,6 +356,7 @@ class RollbackSession(db: DB, val prefix: Array[Byte], val revision: Int) extend
     closed = true
   }
 
+  // undo all operations in this session
   def rollBack(): Unit = {
     require(!closed)
 
@@ -425,12 +454,14 @@ class SessionManager(db: DB) {
     sessions.lastOption.getOrElse(defaultSession).onDelete(key, batch)
   }
 
+  // commit all operations in sessions whose revision is equal to or larger than the specified revision
   def commit(revision: Int): Unit = {
     val toCommit = sessions.takeWhile(_.revision <= revision)
     sessions.remove(0, toCommit.length)
     toCommit.foreach(_.close)
   }
 
+  // commit all operations in the latest session
   def commit(): Unit = {
     sessions.headOption.foreach(s => {
       sessions.remove(0)
@@ -438,6 +469,7 @@ class SessionManager(db: DB) {
     })
   }
 
+  // undo all operations in the latest session
   def rollBack(): Unit = {
     sessions.lastOption.foreach(s => {
       sessions.remove(sessions.length - 1)
@@ -446,6 +478,7 @@ class SessionManager(db: DB) {
     })
   }
 
+  // start a new session
   def newSession(): Session = {
     val session = new RollbackSession(db, prefix, _revision)
     session.init(batch => batch.put(prefix, BigInt(_revision + 1).toByteArray))
@@ -454,6 +487,7 @@ class SessionManager(db: DB) {
     session
   }
 
+  // load all sessions from low level db
   private def init(): Unit = {
     def reloadRevision(iterator: DBIterator) = {
       if (iterator.hasNext) {
@@ -471,6 +505,7 @@ class SessionManager(db: DB) {
       }
     }
 
+    // load all sessions
     def reloadSessions(iterator: DBIterator) = {
 
       var eof = false

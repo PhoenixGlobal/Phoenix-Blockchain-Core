@@ -4,38 +4,55 @@ import java.util.Map.Entry
 
 import scala.collection.mutable.ListBuffer
 
+// base trait for KV store
 trait Storage[Key, Value] {
+  // whether key exists
   def containsKey(key: Key): Boolean = get(key).isDefined
 
+  // get value the key associated with
   def get(key: Key): Option[Value]
 
+  // add a new key/value pair if key not exist or overwrite value the key associated with
   def set(key: Key, value: Value, batch: Batch): Boolean
 
+  // delete the key and associated value
   def delete(key: Key, batch: Batch): Boolean
 
+  //
   def batchWrite(action: Batch => Unit): Boolean
 
+  // return last element
   def last(): Option[Entry[Array[Byte], Array[Byte]]]
 
+  // apply func to all key/value pairs
   def scan(func: (Key, Value) => Unit): Unit
 
+  // apply func to all key/value pairs which key is start with prefix
   def find(prefix: Array[Byte], func: (Key, Value) => Unit): Unit
 
+  // start a new session
   def newSession(): Unit
 
+  // commit all operations in sessions whose revision is equal to or larger than the specified revision
   def commit(revision: Int): Unit
 
+  // commit all operations in the latest session
   def commit(): Unit
 
+  // undo all operations in the latest session
   def rollBack(): Unit
 
+  // close this KV Store
   def close(): Unit
 
+  // return latest revision
   def revision(): Int
 
+  // return all uncommitted session revisions
   def uncommitted(): Seq[Int]
 }
 
+// low level db iterator adapter
 trait LowLevelDBIterator {
   def seek(prefix: Array[Byte]): Unit
 
@@ -44,6 +61,7 @@ trait LowLevelDBIterator {
   def hasNext(): Boolean
 }
 
+// low level db batch adapter
 trait LowLevelWriteBatch {
   def set(key: Array[Byte], value: Array[Byte]): Unit
 
@@ -52,6 +70,7 @@ trait LowLevelWriteBatch {
   def close(): Unit
 }
 
+// low level db adapter
 trait LowLevelDB {
   def get(key: Array[Byte]): Array[Byte]
 
