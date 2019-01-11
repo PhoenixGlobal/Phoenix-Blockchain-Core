@@ -181,7 +181,7 @@ class TransactionExecutor(var tx: Transaction,
       else {
         val programInvoke = createInvoker(tx.data)
         //val programInvoke = programInvokeFactory.createProgramInvoke(tx, currentBlock, cacheTrack, track, blockStore)
-        this.vm = new VM(vmSettings, VMHook.EMPTY, stopTime)
+        this.vm = new VM(vmSettings, VMHook.EMPTY)
         this.program = new Program(vmSettings, code, programInvoke, stopTime) //.withCommonConfig(commonConfig)
       }
     }
@@ -236,7 +236,7 @@ class TransactionExecutor(var tx: Transaction,
     else {
       val programInvoke = createInvoker(Array.empty)
       //val programInvoke = programInvokeFactory.createProgramInvoke(tx, currentBlock, cacheTrack, track, blockStore)
-      this.vm = new VM(vmSettings, VMHook.EMPTY, stopTime)
+      this.vm = new VM(vmSettings, VMHook.EMPTY)
       this.program = new Program(vmSettings, tx.data, programInvoke, stopTime) //.withCommonConfig(commonConfig)
       // reset storage if the contract with the same address already exists
       // TCK test case only - normally this is near-impossible situation in the real network
