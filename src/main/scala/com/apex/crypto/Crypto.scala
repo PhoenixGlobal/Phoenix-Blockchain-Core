@@ -25,23 +25,23 @@ object Crypto {
   }
 
   def hash256(data: Array[Byte]): Array[Byte] = {
-     sha256(sha256(data))
+    sha256(sha256(data))
   }
 
   def hash160(data: Array[Byte]): Array[Byte] = {
-     RIPEMD160(sha256(data))
+    RIPEMD160(sha256(data))
   }
 
   def RIPEMD160(data: Array[Byte]): Array[Byte] = {
-     val messageDigest = new RIPEMD160Digest()
-     messageDigest.update(data, 0, data.length)
-     val out = Array.fill[Byte](messageDigest.getDigestSize())(0)
-     messageDigest.doFinal(out, 0)
-     out
+    val messageDigest = new RIPEMD160Digest()
+    messageDigest.update(data, 0, data.length)
+    val out = Array.fill[Byte](messageDigest.getDigestSize())(0)
+    messageDigest.doFinal(out, 0)
+    out
   }
 
   def sha256(data: Array[Byte]): Array[Byte] = {
-     MessageDigest.getInstance("SHA-256").digest(data)
+    MessageDigest.getInstance("SHA-256").digest(data)
   }
 
   def keccak256(data: Array[Byte]): Array[Byte] = {
@@ -65,31 +65,31 @@ object Crypto {
     out
   }
 
-//  def sha3omit12(data: Array[Byte]): Array[Byte] = {
-//    // the sha3 used in ethereum is actually keccak256
-//    val hash = keccak256(data)
-//    Array.copyo
-//  }
+  //  def sha3omit12(data: Array[Byte]): Array[Byte] = {
+  //    // the sha3 used in ethereum is actually keccak256
+  //    val hash = keccak256(data)
+  //    Array.copyo
+  //  }
 
   def sign(message: Array[Byte], privateKey: Array[Byte]): Array[Byte] = {
-     Ecdsa.encodeSignature(Ecdsa.sign(sha256(message), Ecdsa.PrivateKey(BinaryData(privateKey))))
+    Ecdsa.encodeSignature(Ecdsa.sign(sha256(message), Ecdsa.PrivateKey(BinaryData(privateKey))))
   }
 
   def sign(message: Array[Byte], privateKey: Ecdsa.PrivateKey): Array[Byte] = {
-     Ecdsa.encodeSignature(Ecdsa.sign(sha256(message), privateKey))
+    Ecdsa.encodeSignature(Ecdsa.sign(sha256(message), privateKey))
   }
 
   def verifySignature(message: Array[Byte], signature: Array[Byte], pubKey: Array[Byte]): Boolean = {
-     val publicKey = Ecdsa.PublicKey(BinaryData(pubKey))
+    val publicKey = Ecdsa.PublicKey(BinaryData(pubKey))
 
-     Ecdsa.verifySignature(sha256(message), signature, publicKey)
+    Ecdsa.verifySignature(sha256(message), signature, publicKey)
   }
 
   def verifySignature(message: Array[Byte], signature: Array[Byte]): Boolean = {
     val (pub1, pub2) = recoverPublicKey(signature, message)
 
     Ecdsa.verifySignature(sha256(message), signature, pub1) &&
-    Ecdsa.verifySignature(sha256(message), signature, pub2)
+      Ecdsa.verifySignature(sha256(message), signature, pub2)
   }
 
   def recoverPublicKey(signature: Array[Byte], message: Array[Byte]): (PublicKey, PublicKey) = {
@@ -117,6 +117,19 @@ object Crypto {
 
   def calcNewAddr(addr: UInt160, nonce: Array[Byte]): UInt160 = {
     calcNewAddr(addr.data, nonce)
+  }
+
+  def calcSaltAddr(addr: UInt160, initCode: Array[Byte], salt: Array[Byte]): UInt160 = {
+    val data = new Array[Byte](1 + addr.data.length + salt.length + 32)
+    data(0) = 0xff.toByte
+    var currentOffset = 1
+    System.arraycopy(addr, 0, data, currentOffset, addr.data.length)
+    currentOffset += addr.data.length
+    System.arraycopy(salt, 0, data, currentOffset, salt.length)
+    currentOffset += salt.length
+    val sha3InitCode = sha3(initCode)
+    System.arraycopy(sha3InitCode, 0, data, currentOffset, sha3InitCode.length)
+    UInt160.fromBytes(sha3(data).takeRight(20))
   }
 }
 

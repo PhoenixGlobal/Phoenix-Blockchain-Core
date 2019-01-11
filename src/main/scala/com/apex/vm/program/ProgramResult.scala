@@ -140,3 +140,11 @@ class ProgramResult {
   }
 
 }
+
+object ProgramResult {
+  def createEmpty() = {
+    val result: ProgramResult = new ProgramResult
+    result.setHReturn(Array.empty)
+    result
+  }
+}

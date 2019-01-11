@@ -18,7 +18,8 @@ import net.ceedubs.ficus.readers.ValueReader
 import scala.concurrent.duration._
 
 case class ContractSettings(dumpBlock: Long,
-                            vmTrace: Boolean)
+                            vmTrace: Boolean,
+                            maxContractSize: Int)
 
 case class RPCSettings(enabled: Boolean, host: String, port: Int)
 

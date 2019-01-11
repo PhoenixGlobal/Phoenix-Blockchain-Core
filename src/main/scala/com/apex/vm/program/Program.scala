@@ -30,7 +30,8 @@ import java.time.Instant
 import java.util
 
 import com.apex.common.ApexLogging
-import com.apex.core.DataBase
+import com.apex.core.{Account, DataBase}
+import com.apex.crypto.{Crypto, FixedNumber, UInt160}
 import com.apex.settings.ContractSettings
 import com.apex.vm.DataWord
 import com.apex.vm.exceptions._
@@ -265,15 +266,14 @@ class Program(settings: ContractSettings,
   def createContract(value: DataWord, memStart: DataWord, memSize: DataWord): Unit = {
     returnDataBuffer = null // reset return buffer right before the call
 
-    val senderAddress = this.getOwnerAddress.getLast20Bytes
+    val senderAddress = getOwnerAddress.toUInt160
     val endowment = value.value
     if (verifyCall(senderAddress, endowment)) {
-      //    val nonce = getStorage.getNonce(senderAddress).toByteArray
-      //    val contractAddress = HashUtil.calcNewAddr(senderAddress, nonce)
-      //    val programCode = memoryChunk(memStart.intValue, memSize.intValue)
-      //    createContractImpl(value, programCode, contractAddress)
+      val nonce = getStorage.getNonce(senderAddress).toBytes
+      val contractAddress = Crypto.calcNewAddr(senderAddress, nonce)
+      val programCode = memoryChunk(memStart.intValue, memSize.intValue)
+      createContractImpl(value, programCode, contractAddress)
     }
-    throw new NotImplementedError
   }
 
   /**
@@ -287,29 +287,28 @@ class Program(settings: ContractSettings,
   def createContract2(value: DataWord, memStart: DataWord, memSize: DataWord, salt: DataWord): Unit = {
     returnDataBuffer = null // reset return buffer right before the call
 
-    val senderAddress = this.getOwnerAddress.getLast20Bytes
+    val senderAddress = getOwnerAddress.toUInt160
     val endowment = value.value
-    if (!verifyCall(senderAddress, endowment)) return
-    val programCode = memoryChunk(memStart.intValue, memSize.intValue)
-    //    val contractAddress = HashUtil.calcSaltAddr(senderAddress, programCode, salt.getData)
-    //    createContractImpl(value, programCode, contractAddress)
-    throw new NotImplementedError
+    if (verifyCall(senderAddress, endowment)) {
+      val programCode = memoryChunk(memStart.intValue, memSize.intValue)
+      val contractAddress = Crypto.calcSaltAddr(senderAddress, programCode, salt.getData)
+      createContractImpl(value, programCode, contractAddress)
+    }
   }
 
   /**
     * Verifies CREATE attempt
     */
-  private def verifyCall(senderAddress: Array[Byte], endowment: BigInt): Boolean = {
-    //    if (getCallDeep == MAX_DEPTH) {
-    //      stackPushZero()
-    //      false
-    //    } else if (getStorage.getBalance(senderAddress) < endowment) {
-    //      stackPushZero()
-    //      false
-    //    } else {
-    //      true
-    //    }
-    throw new NotImplementedError
+  private def verifyCall(senderAddress: UInt160, endowment: BigInt): Boolean = {
+    if (getCallDeep == MAX_DEPTH) {
+      stackPushZero()
+      false
+    } else if (getStorage.getBalance(senderAddress).forall(_.value < endowment)) {
+      stackPushZero()
+      false
+    } else {
+      true
+    }
   }
 
   /**
@@ -319,12 +318,96 @@ class Program(settings: ContractSettings,
     * @param programCode Contract code
     * @param newAddress  Contract address
     */
-  private def createContractImpl(value: DataWord, programCode: Array[Byte], newAddress: Array[Byte]): Unit = { // [1] LOG, SPEND GAS
+  private def createContractImpl(value: DataWord, programCode: Array[Byte], newAddress: UInt160): Unit = { // [1] LOG, SPEND GAS
     import com.apex.vm._
-    val senderAddress = getOwnerAddress.getLast20Bytes
-    if (log.isInfoEnabled) log.info(s"creating a new contract inside contract run: [${senderAddress.toHex}]")
+    val senderAddress = getOwnerAddress.toUInt160
+    if (log.isInfoEnabled) log.info(s"creating a new contract inside contract run: [${senderAddress.toString}]")
 
-    throw new NotImplementedError
+    //  actual gas subtract
+    spendGas(getGas.longValue, "internal call")
+
+    //  [2] CREATE THE CONTRACT ADDRESS
+    val contractAlreadyExists = getStorage.accountExists(newAddress)
+
+    if (byTestingSuite) { // This keeps track of the contracts created for a test
+      getResult.addCallCreate(programCode, Array.empty, getGas.getNoLeadZeroesData, value.getNoLeadZeroesData)
+    }
+
+    val track = getStorage.startTracking
+    val oldBalance = track.getBalance(newAddress)
+    track.createAccount(newAddress)
+    track.increaseNonce(newAddress)
+    oldBalance.foreach(track.addBalance(newAddress, _))
+
+    // [4] TRANSFER THE BALANCE
+    val endowment = value.value
+    var newBalance = FixedNumber.Zero.value
+    if (!byTestingSuite) {
+      track.addBalance(senderAddress, -endowment)
+      newBalance = track.addBalance(newAddress, endowment)
+    }
+
+    // [5] COOK THE INVOKE AND EXECUTE
+    val nonce = getStorage.getNonce(senderAddress).toBytes
+    // create internal transaction
+    var result: ProgramResult = ProgramResult.createEmpty
+    val programInvoke = new ProgramInvokeImpl(
+      DataWord.of(newAddress), getOriginAddress, getOwnerAddress,
+      DataWord.of(newBalance), getGas, getGasPrice, value, null,
+      getPrevHash, getCoinbase, getTimestamp, getNumber, getDifficulty,
+      getGasLimit, track, invoke.getOrigDataBase, invoke.getBlockStore,
+      getCallDeep + 1, false, byTestingSuite)
+
+    if (contractAlreadyExists) {
+      result.setException(new BytecodeExecutionException(s"Trying to create a contract with existing contract address: ${newAddress.toString}"))
+    } else {
+      val program = new Program(settings, programCode, programInvoke, stopTime)
+      result = VM.play(settings, vmHook, program)
+    }
+
+    // 4. CREATE THE CONTRACT OUT OF RETURN
+    val code = result.getHReturn
+    val storageCost = code.length * GasCost.CREATE_DATA
+    val afterSpend = programInvoke.getGas.longValue - storageCost - result.getGasUsed
+    if (afterSpend < 0) {
+      result.setException(Program.notEnoughSpendingGas("No gas to return just created contract", storageCost, programInvoke, result))
+    } else if (code.length > settings.maxContractSize) {
+      result.setException(Program.notEnoughSpendingGas("Contract size too large: ", storageCost, programInvoke, result))
+    } else if (!result.isRevert) {
+      result.spendGas(storageCost)
+      track.saveCode(newAddress, code)
+    }
+
+    getResult.merge(result)
+    if (result.getException != null || result.isRevert) {
+      log.debug(s"contract run halted by Exception: contract: [${newAddress.toString}], exception: [${result.getException}]")
+
+//      result.rejectInternalTransactions()
+//      track.rollback()
+      stackPushZero()
+      if (result.getException == null) {
+        returnDataBuffer = result.getHReturn
+      }
+    } else {
+      if (!byTestingSuite) {
+        track.commit()
+      }
+
+      // IN SUCCESS PUSH THE ADDRESS INTO THE STACK
+      stackPush(DataWord.of(newAddress))
+    }
+
+    if (result.getException == null) {
+      // 5. REFUND THE REMAIN GAS
+      val refund = getGas.longValue - result.getGasUsed.toLong
+      if (refund > 0) {
+        refundGas(refund, "remain gas from the internal call")
+        if (log.isInfoEnabled) {
+          log.info(s"The remaining gas is refunded, account: [${getOwnerAddress.toUInt160.toString}], gas: [${refund}] ")
+        }
+      }
+      //    touchedAccounts.add(newAddress)
+    }
   }
 
   private def getReturnDataBufferSizeI = {

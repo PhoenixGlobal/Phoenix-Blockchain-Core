@@ -214,7 +214,7 @@ object VMTest {
   val caller = PublicKey("0345ffbf8dc9d8ff15785e2c228ac48d98d29b834c2e98fb8cfe6e71474d7f6322").pubKeyHash
   val author = PublicKey("022ac01a1ea9275241615ea6369c85b41e2016abc47485ec616c3c583f1b92a5c8").pubKeyHash
   val contractAddress = Crypto.calcNewAddr(author, BigInt(1).toByteArray)
-  val vmSettings = ContractSettings(0, false)
+  val vmSettings = ContractSettings(0, false, Int.MaxValue)
 
   def deploy(caller: UInt160, code: Array[Byte], value: Int = 0) = {
     val contract = Crypto.calcNewAddr(author, BigInt(1).toByteArray)

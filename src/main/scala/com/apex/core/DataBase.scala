@@ -68,6 +68,10 @@ class DataBase(settings: DataBaseSettings) extends ApexLogging {
     }
   }
 
+  def createAccount(address: UInt160) = {
+    accountStore.set(address, Account.newAccount(address))
+  }
+
   def transfer(from: UInt160, to: UInt160, value: FixedNumber): Unit = {
     val fromAcct = getAccount(from).getOrElse(Account.newAccount(from))
     val toAcct = getAccount(to).getOrElse(Account.newAccount(to))

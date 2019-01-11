@@ -36,7 +36,7 @@ class TransactionExecutor(var tx: Transaction,
   //this.vmHook = if (isNull(vmHook)) VMHook.EMPTY else vmHook
   //withCommonConfig(CommonConfig.getDefault)
 
-  private val vmSettings = ContractSettings(0, false)
+  private val vmSettings = ContractSettings(0, false, Int.MaxValue)
   //private[core] var config = null
 
   //private[core] var commonConfig: CommonConfig = null
