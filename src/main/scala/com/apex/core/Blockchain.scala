@@ -131,6 +131,8 @@ class LevelDBBlockchain(chainSettings: ChainSettings, consensusSettings: Consens
 
   private val unapplyTxs = mutable.Map.empty[UInt256, Transaction]
 
+  private var timeoutTx:Option[Transaction] = None
+
   private val pendingState = new PendingState
 
   populate()
@@ -253,11 +255,23 @@ class LevelDBBlockchain(chainSettings: ChainSettings, consensusSettings: Consens
     pendingState.txs.append(minerTx)
     pendingState.isProducingBlock = true
 
+    if (timeoutTx.isDefined) {
+      val oldTimeoutTx = timeoutTx.get
+
+      // must set to null before call applyTransaction() because applyTransaction() may set it again
+      timeoutTx = None
+
+      log.info(s"try again for the old timeout tx ${oldTimeoutTx.id().shortString()}")
+
+      // return value can be ignore
+      applyTransaction(oldTimeoutTx, producer.pubkey.pubKeyHash, stopProcessTxTime)
+    }
+
     val badTxs = ArrayBuffer.empty[Transaction]
 
     unapplyTxs.foreach(p => {
-      if (Instant.now.toEpochMilli < pendingState.stopProcessTxTime) {
-        if (applyTransaction(p._2, pendingState.producer.pubkey.pubKeyHash, pendingState.stopProcessTxTime))
+      if (Instant.now.toEpochMilli < stopProcessTxTime) {
+        if (applyTransaction(p._2, producer.pubkey.pubKeyHash, stopProcessTxTime))
           pendingState.txs.append(p._2)
         else
           badTxs.append(p._2)
@@ -265,6 +279,12 @@ class LevelDBBlockchain(chainSettings: ChainSettings, consensusSettings: Consens
     })
     pendingState.txs.foreach(tx => unapplyTxs.remove(tx.id))
     badTxs.foreach(tx => unapplyTxs.remove(tx.id))
+
+    //    for (p <- unapplyTxs if Instant.now.toEpochMilli < stopProcessTxTime) {
+    //      if (applyTransaction(p._2, producer.pubkey.pubKeyHash, stopProcessTxTime))
+    //        pendingState.txs.append(p._2)
+    //      unapplyTxs.remove(p._1)
+    //    }
   }
 
   override def isProducingBlock(): Boolean = {
@@ -367,7 +387,12 @@ class LevelDBBlockchain(chainSettings: ChainSettings, consensusSettings: Consens
         log.debug("add fail")
     }
     if (inserted) {
-      block.transactions.foreach(tx => unapplyTxs.remove(tx.id))
+      block.transactions.foreach(tx => {
+        unapplyTxs.remove(tx.id)
+        if (timeoutTx.isDefined && timeoutTx.get.id() == tx.id()) {
+          timeoutTx = None
+        }
+      })
     }
     inserted
   }
@@ -410,6 +435,8 @@ class LevelDBBlockchain(chainSettings: ChainSettings, consensusSettings: Consens
 
   private def applyContractTransaction(tx: Transaction, blockProducer: UInt160, stopTime: Long): Boolean = {
 
+    var applied = false
+
     val executor = new TransactionExecutor(tx, blockProducer, dataBase, stopTime)
 
     executor.init()
@@ -417,16 +444,23 @@ class LevelDBBlockchain(chainSettings: ChainSettings, consensusSettings: Consens
     executor.go()
 
     val summary = executor.finalization()
-
     val receipt = executor.getReceipt
 
     if (executor.getResult.isBlockTimeout) {
       log.error(s"tx ${tx.id.shortString()} executor time out")
+      if (isProducingBlock())
+        timeoutTx = Some(tx)
+      applied = false
     }
-
-    dataBase.setReceipt(tx.id(), receipt)
-
-    true   // TODO
+    else if (!receipt.isSuccessful()) {
+      log.error(s"tx ${tx.id().shortString()} execute error: ${receipt.error}")
+      applied = false
+    }
+    else {
+      applied = true
+      dataBase.setReceipt(tx.id(), receipt)
+    }
+    applied
   }
 
   private def applySendTransaction(tx: Transaction, blockProducer: UInt160): Boolean = {
@@ -436,12 +470,12 @@ class LevelDBBlockchain(chainSettings: ChainSettings, consensusSettings: Consens
     val toAccount = dataBase.getAccount(tx.toPubKeyHash).getOrElse(Account.newAccount(tx.toPubKeyHash))
 
     var txFee = FixedNumber.Zero
+    val txGas = tx.transactionCost()
 
     if (tx.txType == TransactionType.Miner) {
 
     }
     else {
-      val txGas = tx.transactionCost()
       txFee = FixedNumber(BigInt(txGas)) * tx.gasPrice
       if (txGas > tx.gasLimit) {
         log.info(s"Not enough gas for transaction tx ${tx.id().shortString()}")
@@ -464,6 +498,9 @@ class LevelDBBlockchain(chainSettings: ChainSettings, consensusSettings: Consens
       if (txFee.value > 0) {
         dataBase.transfer(tx.from, blockProducer, txFee)
       }
+
+      dataBase.setReceipt(tx.id(), TransactionReceipt(tx.id(), tx.txType, tx.from, tx.toPubKeyHash, txGas, BinaryData.empty, 0, ""))
+
     }
     txValid
   }

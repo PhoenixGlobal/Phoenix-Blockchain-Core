@@ -208,7 +208,22 @@ class ContractTxTest {
 
       val codebin = BinaryData("608060405234801561001057600080fd5b5060e68061001f6000396000f3fe6080604052600436106043576000357c01000000000000000000000000000000000000000000000000000000009004806360fe47b11460485780636d4ce63c14607f575b600080fd5b348015605357600080fd5b50607d60048036036020811015606857600080fd5b810190808035906020019092919050505060a7565b005b348015608a57600080fd5b50609160b1565b6040518082815260200191505060405180910390f35b8060008190555050565b6000805490509056fea165627a7a723058202c7cfe05b5e1b84938fa70727102e914fba062d91fde5a0f0a92613ad081732b0029")
 
-      val deployTx = new Transaction(TransactionType.Deploy, _acct1.publicKey.pubKeyHash,
+      var deployTx = new Transaction(TransactionType.Deploy, _acct1.publicKey.pubKeyHash,
+        UInt160.Zero, "", FixedNumber.fromDecimal(_minerAward),
+        1,
+        codebin,
+        FixedNumber(1), 99999999L, BinaryData.empty)
+      assert(!chain.addTransaction(deployTx))   // nonce error
+
+      deployTx = new Transaction(TransactionType.Deploy, _acct1.publicKey.pubKeyHash,
+        UInt160.Zero, "", FixedNumber.fromDecimal(_minerAward),
+        0,
+        codebin,
+        FixedNumber(1), 9, BinaryData.empty)
+      assert(!chain.addTransaction(deployTx))   // gas limit error
+
+
+      deployTx = new Transaction(TransactionType.Deploy, _acct1.publicKey.pubKeyHash,
         UInt160.Zero, "", FixedNumber.fromDecimal(_minerAward),
         0,
         codebin,
@@ -216,7 +231,14 @@ class ContractTxTest {
       assert(chain.addTransaction(deployTx))
 
       val settt = Abi.fromJson("[{\"constant\":false,\"inputs\":[{\"name\":\"withdraw_amount\",\"type\":\"uint256\"}],\"name\":\"set\",\"outputs\":[],\"payable\":false,\"stateMutability\":\"nonpayable\",\"type\":\"function\"},{\"constant\":false,\"inputs\":[],\"name\":\"get\",\"outputs\":[{\"name\":\"\",\"type\":\"uint256\"}],\"payable\":false,\"stateMutability\":\"nonpayable\",\"type\":\"function\"}]").encode("set(123)")
-      val setTx = new Transaction(TransactionType.Call, _acct1.publicKey.pubKeyHash,
+      var setTx = new Transaction(TransactionType.Call, _acct1.publicKey.pubKeyHash,
+        UInt160.fromBytes(BinaryData("7f97e6f4f660e6c09b894f34edae3626bf44039a")), "", FixedNumber.fromDecimal(_minerAward),
+        1,
+        settt,
+        FixedNumber(1), 9, BinaryData.empty)
+      assert(!chain.addTransaction(setTx))   // gas limit error
+
+      setTx = new Transaction(TransactionType.Call, _acct1.publicKey.pubKeyHash,
         UInt160.fromBytes(BinaryData("7f97e6f4f660e6c09b894f34edae3626bf44039a")), "", FixedNumber.fromDecimal(_minerAward),
         1,
         settt,

@@ -44,7 +44,7 @@ class TransactionExecutor(var tx: Transaction,
 
   private var cacheTrack = track //track.startTracking
   private var readyToExecute = false
-  private var execError: String = null
+  private var execError: String = ""
   private var receipt: TransactionReceipt = null
   private var result = new ProgramResult
   private var vm: VM = null
@@ -393,15 +393,16 @@ class TransactionExecutor(var tx: Transaction,
         getGasUsed,
         //gasUsedInTheBlock + getGasUsed,
         getResult.getHReturn,
-        0)
-        //      val totalGasUsed = gasUsedInTheBlock + getGasUsed
-        //      receipt.setCumulativeGas(totalGasUsed)
-        //      receipt.setTransaction(tx)
-        //      receipt.setLogInfoList(getVMLogs)
-        //      receipt.setGasUsed(getGasUsed)
-        //      receipt.setExecutionResult(getResult.getHReturn)
-        //      receipt.setError(execError)
-        //      //   receipt.setPostTxState(track.getRoot()); // TODO later when RepositoryTrack.getRoot() is implemented
+        0,
+        execError)
+      //      val totalGasUsed = gasUsedInTheBlock + getGasUsed
+      //      receipt.setCumulativeGas(totalGasUsed)
+      //      receipt.setTransaction(tx)
+      //      receipt.setLogInfoList(getVMLogs)
+      //      receipt.setGasUsed(getGasUsed)
+      //      receipt.setExecutionResult(getResult.getHReturn)
+      //receipt.error = execError     //setError(execError)
+      //      //   receipt.setPostTxState(track.getRoot()); // TODO later when RepositoryTrack.getRoot() is implemented
     }
     receipt
   }

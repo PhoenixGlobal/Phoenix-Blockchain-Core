@@ -35,8 +35,7 @@ class DataBase(settings: DataBaseSettings) extends ApexLogging {
   }
 
   def increaseNonce(address: UInt160) = {
-    val account = accountStore.get(address).getOrElse(Account.newAccount(address))
-    accountStore.set(address, new Account(address, account.active, account.name, account.balance, account.nextNonce + 1))
+    accountStore.set(address, Account.increaseNonce(accountStore.get(address).getOrElse(Account.newAccount(address))))
   }
 
   def getNonce(address: UInt160): Long = {
@@ -75,9 +74,9 @@ class DataBase(settings: DataBaseSettings) extends ApexLogging {
   def transfer(from: UInt160, to: UInt160, value: FixedNumber): Unit = {
     val fromAcct = getAccount(from).getOrElse(Account.newAccount(from))
     val toAcct = getAccount(to).getOrElse(Account.newAccount(to))
-    fromAcct.balance -= value
-    toAcct.balance += value
-    setAccount((from, fromAcct), (to, toAcct))
+
+    setAccount((from, Account.addBalance(fromAcct, -value)),
+      (to, Account.addBalance(toAcct, value)))
   }
 
   def transfer(from: UInt160, to: UInt160, value: BigInt): Unit = {
@@ -85,8 +84,7 @@ class DataBase(settings: DataBaseSettings) extends ApexLogging {
   }
 
   def addBalance(address: UInt160, value: FixedNumber): FixedNumber = {
-    val acct = getAccount(address).getOrElse(Account.newAccount(address))
-    acct.balance += value
+    val acct = Account.addBalance(getAccount(address).getOrElse(Account.newAccount(address)), value)
     accountStore.set(address, acct)
     acct.balance
   }

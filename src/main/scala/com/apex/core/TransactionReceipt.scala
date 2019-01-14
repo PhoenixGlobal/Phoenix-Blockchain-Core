@@ -21,7 +21,11 @@ case class TransactionReceipt(txId: UInt256,
                               gasUsed: BigInt,
                               //totalGasUsed: BigInt,
                               output: BinaryData,
-                              status: Int) extends com.apex.common.Serializable {
+                              status: Int,
+                              error: String) extends com.apex.common.Serializable {
+
+  def isSuccessful(): Boolean = { error.isEmpty() }
+
   override def serialize(os: DataOutputStream): Unit = {
     import com.apex.common.Serializable._
     os.write(txId)
@@ -32,6 +36,7 @@ case class TransactionReceipt(txId: UInt256,
     //os.writeByteArray(totalGasUsed.toByteArray)
     os.writeByteArray(output)
     os.writeVarInt(status)
+    os.writeString(error)
   }
 }
 
@@ -46,7 +51,8 @@ object TransactionReceipt {
       BigInt(is.readByteArray),
       //BigInt(is.readByteArray),
       is.readByteArray,
-      is.readVarInt)
+      is.readVarInt,
+      is.readString)
   }
 
   implicit val TransactionReceiptWrites = new Writes[TransactionReceipt] {
@@ -59,7 +65,8 @@ object TransactionReceipt {
         "gasUsed" -> o.gasUsed.longValue(),
         //"totalGasUsed" -> o.totalGasUsed.longValue(),
         "output" -> o.output.toString,
-        "status" -> o.status
+        "status" -> o.status,
+        "error" -> o.error
       )
     }
   }
