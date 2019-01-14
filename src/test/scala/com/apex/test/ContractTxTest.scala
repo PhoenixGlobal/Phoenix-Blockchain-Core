@@ -187,7 +187,7 @@ class ContractTxTest {
       var nowTime = Instant.now.toEpochMilli
       var blockTime = ProducerUtil.nextBlockTime(chain.getHeadTime(), nowTime, _produceInterval / 10, _produceInterval) //  chain.getHeadTime() + _consensusSettings.produceInterval
       blockTime += _produceInterval
-      chain.startProduceBlock(ProducerUtil.getWitness(blockTime, _consensusSettings), blockTime, blockTime - 100)
+      chain.startProduceBlock(ProducerUtil.getWitness(blockTime, _consensusSettings), blockTime, Long.MaxValue)
 
       assert(chain.isProducingBlock())
 
@@ -222,7 +222,6 @@ class ContractTxTest {
         FixedNumber(1), 9, BinaryData.empty)
       assert(!chain.addTransaction(deployTx))   // gas limit error
 
-
       deployTx = new Transaction(TransactionType.Deploy, _acct1.publicKey.pubKeyHash,
         UInt160.Zero, "", FixedNumber.fromDecimal(_minerAward),
         0,
@@ -246,9 +245,19 @@ class ContractTxTest {
       assert(chain.addTransaction(setTx))
 
       val gettt = Abi.fromJson("[{\"constant\":false,\"inputs\":[{\"name\":\"withdraw_amount\",\"type\":\"uint256\"}],\"name\":\"set\",\"outputs\":[],\"payable\":false,\"stateMutability\":\"nonpayable\",\"type\":\"function\"},{\"constant\":false,\"inputs\":[],\"name\":\"get\",\"outputs\":[{\"name\":\"\",\"type\":\"uint256\"}],\"payable\":false,\"stateMutability\":\"nonpayable\",\"type\":\"function\"}]").encode("get()")
-      val getTx = new Transaction(TransactionType.Call, _acct1.publicKey.pubKeyHash,
+
+      var getTx = new Transaction(TransactionType.Call, _acct1.publicKey.pubKeyHash,
         UInt160.fromBytes(BinaryData("7f97e6f4f660e6c09b894f34edae3626bf44039a")), "", FixedNumber.fromDecimal(_minerAward),
         2,
+        gettt,
+        FixedNumber(1), 21530, BinaryData.empty)
+      assert(chain.addTransaction(getTx))   // require gas 21540, but only give 21530
+      // TODO!!!
+
+
+      getTx = new Transaction(TransactionType.Call, _acct1.publicKey.pubKeyHash,
+        UInt160.fromBytes(BinaryData("7f97e6f4f660e6c09b894f34edae3626bf44039a")), "", FixedNumber.fromDecimal(_minerAward),
+        3,
         gettt,
         FixedNumber(1), 99999999L, BinaryData.empty)
       assert(chain.addTransaction(getTx))
