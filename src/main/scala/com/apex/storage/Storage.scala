@@ -4,6 +4,10 @@ import java.util.Map.Entry
 
 import scala.collection.mutable.ListBuffer
 
+object Storage {
+  type raw = Storage[Array[Byte], Array[Byte]]
+}
+
 // base trait for KV store
 trait Storage[Key, Value] {
   // whether key exists
@@ -50,6 +54,8 @@ trait Storage[Key, Value] {
 
   // return all uncommitted session revisions
   def uncommitted(): Seq[Int]
+
+  def onRollback(action: () => Unit): Unit
 }
 
 // low level db iterator adapter

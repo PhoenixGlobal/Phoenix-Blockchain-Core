@@ -51,6 +51,8 @@ class RocksDBStorage(db: RocksDB) extends Storage[Array[Byte], Array[Byte]] with
   override def revision(): Int = ???
 
   override def uncommitted(): Seq[Int] = ???
+
+  override def onRollback(action: () => Unit): Unit = ???
 }
 
 class RocksDBWriteBatch(val batch: WriteBatch) extends LowLevelWriteBatch {

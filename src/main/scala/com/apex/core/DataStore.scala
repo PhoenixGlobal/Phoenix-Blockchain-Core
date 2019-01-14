@@ -5,90 +5,90 @@ import java.io.{ByteArrayInputStream, ByteArrayOutputStream, DataInputStream, Da
 import com.apex.common.{Cache, LRUCache, Serializable}
 import com.apex.crypto.Ecdsa.PublicKey
 import com.apex.crypto.{UInt160, UInt256}
-import com.apex.storage.{Batch, LevelDbStorage}
+import com.apex.storage.{Batch, Storage}
 
-class BlockStore(db: LevelDbStorage, capacity: Int)
+class BlockStore(db: Storage.raw, capacity: Int)
   extends StoreBase[UInt256, Block](db, capacity)
     with BlockPrefix
     with UInt256Key
     with BlockValue
 
-class HeaderStore(db: LevelDbStorage, capacity: Int)
+class HeaderStore(db: Storage.raw, capacity: Int)
   extends StoreBase[UInt256, BlockHeader](db, capacity)
     with HeaderPrefix
     with UInt256Key
     with BlockHeaderValue
 
-class TransactionStore(db: LevelDbStorage, capacity: Int)
+class TransactionStore(db: Storage.raw, capacity: Int)
   extends StoreBase[UInt256, Transaction](db, capacity)
     with TxPrefix
     with UInt256Key
     with TransactionValue
 
-class AccountStore(db: LevelDbStorage, capacity: Int)
+class AccountStore(db: Storage.raw, capacity: Int)
   extends StoreBase[UInt160, Account](db, capacity)
     with AccountPrefix
     with UInt160Key
     with AccountValue
 
-class ContractStore(db: LevelDbStorage, capacity: Int)
+class ContractStore(db: Storage.raw, capacity: Int)
   extends StoreBase[UInt160, Contract](db, capacity)
     with ContractPrefix
     with UInt160Key
     with ContractValue
 
-class ContractStateStore(db: LevelDbStorage, capacity: Int)
+class ContractStateStore(db: Storage.raw, capacity: Int)
   extends StoreBase[Array[Byte], Array[Byte]](db, capacity)
     with ContractStatePrefix
     with ByteArrayKey
     with ByteArrayValue
 
-class ReceiptStore(db: LevelDbStorage, capacity:Int)
+class ReceiptStore(db: Storage.raw, capacity:Int)
   extends StoreBase[UInt256, TransactionReceipt](db, capacity)
     with ReceiptPrefix
     with UInt256Key
     with ReceiptValue
 
-class HeightStore(db: LevelDbStorage, capacity: Int)
+class HeightStore(db: Storage.raw, capacity: Int)
   extends StoreBase[Int, UInt256](db, capacity)
     with HeightToIdIndexPrefix
     with IntKey
     with UInt256Value
 
-class BlkTxMappingStore(db: LevelDbStorage, capacity: Int)
+class BlkTxMappingStore(db: Storage.raw, capacity: Int)
   extends StoreBase[UInt256, BlkTxMapping](db, capacity)
     with BlockIdToTxIdIndexPrefix
     with UInt256Key
     with BlkTxMappingValue
 
-class NameToAccountStore(db: LevelDbStorage, capacity: Int)
+class NameToAccountStore(db: Storage.raw, capacity: Int)
   extends StoreBase[String, UInt160](db, capacity)
     with NameToAccountIndexPrefix
     with StringKey
     with UInt160Value
 
-class ForkItemStore(db: LevelDbStorage, capacity: Int)
+class ForkItemStore(db: Storage.raw, capacity: Int)
   extends StoreBase[UInt256, ForkItem](db, capacity)
     with ForkItemPrefix
     with UInt256Key
     with ForkItemValue
 
-class HeadBlockStore(db: LevelDbStorage)
+class HeadBlockStore(db: Storage.raw)
   extends StateStore[BlockHeader](db)
     with HeadBlockStatePrefix
     with BlockHeaderValue
 
-class ProducerStateStore(db: LevelDbStorage)
+class ProducerStateStore(db: Storage.raw)
   extends StateStore[ProducerStatus](db)
     with ProducerStatePrefix
     with ProducerStatusValue
 
-class LatestConfirmedBlockStore(db: LevelDbStorage)
+class LatestConfirmedBlockStore(db: Storage.raw)
   extends StateStore[BlockHeader](db)
     with LatestConfirmedStatePrefix
     with BlockHeaderValue
 
-class SwitchStateStore(db: LevelDbStorage)
+class SwitchStateStore(db: Storage.raw)
   extends StateStore[SwitchState](db)
     with SwitchStatePrefix
     with SwitchStateValue
@@ -439,7 +439,7 @@ object ProducerStatus {
   }
 }
 
-abstract class StateStore[V <: Serializable](db: LevelDbStorage) {
+abstract class StateStore[V <: Serializable](db: Storage.raw) {
   protected var cached: Option[V] = None
 
   def prefixBytes(): Array[Byte]
@@ -459,7 +459,7 @@ abstract class StateStore[V <: Serializable](db: LevelDbStorage) {
   }
 }
 
-abstract class StoreBase[K, V](val db: LevelDbStorage, cacheCapacity: Int) {
+abstract class StoreBase[K, V](val db: Storage.raw, cacheCapacity: Int) {
   protected val cache: Cache[K, V] = new LRUCache(cacheCapacity)
 
   db.onRollback(() => cache.clear)
