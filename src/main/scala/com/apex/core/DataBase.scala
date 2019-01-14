@@ -28,8 +28,8 @@ class DataBase(settings: DataBaseSettings) extends ApexLogging {
     nameToAccountStore.contains(name)
   }
 
-  def accountExists(register: UInt160): Boolean = {
-    accountStore.contains(register)
+  def accountExists(address: UInt160): Boolean = {
+    accountStore.contains(address)
   }
 
   // increase nonce by one
@@ -51,24 +51,6 @@ class DataBase(settings: DataBaseSettings) extends ApexLogging {
     accountStore.get(address)
   }
 
-  // set two accounts in batch
-  def setAccount(from: (UInt160, Account),
-                 to: (UInt160, Account)) = {
-    try {
-      db.batchWrite(batch => {
-        accountStore.set(from._1, from._2, batch)
-        accountStore.set(to._1, to._2, batch)
-      })
-      true
-    }
-    catch {
-      case e: Throwable => {
-        log.error("setAccount failed", e)
-        false
-      }
-    }
-  }
-
   // create empty account
   def createAccount(address: UInt160) = {
     accountStore.set(address, Account.newAccount(address))
@@ -76,13 +58,17 @@ class DataBase(settings: DataBaseSettings) extends ApexLogging {
 
   // transfer values
   def transfer(from: UInt160, to: UInt160, value: FixedNumber): Unit = {
-    val fromAcct = getAccount(from).getOrElse(Account.newAccount(from))
-    val toAcct = getAccount(to).getOrElse(Account.newAccount(to))
+    val fromAcct = getAccount(from)
+      .getOrElse(Account.newAccount(from))
+      .addBalance(-value)
+    val toAcct = getAccount(to)
+      .getOrElse(Account.newAccount(to))
+      .addBalance(value)
 
-    setAccount(
-      (from, fromAcct.addBalance(-value)),
-      (to, toAcct.addBalance(value))
-    )
+    db.batchWrite(batch => {
+      accountStore.set(from, fromAcct, batch)
+      accountStore.set(to, toAcct, batch)
+    })
   }
 
   // transfer values
