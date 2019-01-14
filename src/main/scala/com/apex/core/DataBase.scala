@@ -10,15 +10,13 @@
 
 package com.apex.core
 
-import java.math.BigInteger
-
 import com.apex.common.ApexLogging
 import com.apex.crypto.{FixedNumber, UInt160, UInt256}
 import com.apex.settings.DataBaseSettings
-import com.apex.storage.LevelDbStorage
+import com.apex.storage.Storage
 
 class DataBase(settings: DataBaseSettings) extends ApexLogging {
-  private val db = LevelDbStorage.open(settings.dir)
+  private val db = Storage.open(settings.dbType, settings.dir)
 
   private val accountStore = new AccountStore(db, settings.cacheSize)
   private val receiptStore = new ReceiptStore(db, settings.cacheSize)
@@ -36,7 +34,8 @@ class DataBase(settings: DataBaseSettings) extends ApexLogging {
 
   // increase nonce by one
   def increaseNonce(address: UInt160) = {
-    accountStore.set(address, Account.increaseNonce(accountStore.get(address).getOrElse(Account.newAccount(address))))
+    val account = accountStore.get(address).getOrElse(Account.newAccount(address))
+    accountStore.set(address, account.increaseNonce)
   }
 
   // get the expected next nonce
@@ -80,8 +79,10 @@ class DataBase(settings: DataBaseSettings) extends ApexLogging {
     val fromAcct = getAccount(from).getOrElse(Account.newAccount(from))
     val toAcct = getAccount(to).getOrElse(Account.newAccount(to))
 
-    setAccount((from, Account.addBalance(fromAcct, -value)),
-      (to, Account.addBalance(toAcct, value)))
+    setAccount(
+      (from, fromAcct.addBalance(-value)),
+      (to, toAcct.addBalance(value))
+    )
   }
 
   // transfer values
@@ -91,9 +92,11 @@ class DataBase(settings: DataBaseSettings) extends ApexLogging {
 
   // add balance for single account
   def addBalance(address: UInt160, value: FixedNumber): FixedNumber = {
-    val acct = Account.addBalance(getAccount(address).getOrElse(Account.newAccount(address)), value)
-    accountStore.set(address, acct)
-    acct.balance
+    val account = getAccount(address)
+      .getOrElse(Account.newAccount(address))
+      .addBalance(value)
+    accountStore.set(address, account)
+    account.balance
   }
 
   // add balance for single account

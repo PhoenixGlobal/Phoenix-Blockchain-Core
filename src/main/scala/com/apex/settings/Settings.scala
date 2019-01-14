@@ -53,11 +53,17 @@ case class ApexSettings(network: NetworkSettings,
                         plugins: PluginsSettings,
                         runtimeParas: RuntimeParas)
 
-case class BlockBaseSettings(dir: String, cacheEnabled: Boolean, cacheSize: Int)
+object DBType extends Enumeration {
+  val Memory = Value(0)
+  val LevelDB = Value(1)
+  val RocksDB = Value(2)
+}
 
-case class DataBaseSettings(dir: String, cacheEnabled: Boolean, cacheSize: Int)
+case class BlockBaseSettings(dir: String, cacheEnabled: Boolean, cacheSize: Int, dbType: DBType.Value)
 
-case class ForkBaseSettings(dir: String, cacheEnabled: Boolean, cacheSize: Int)
+case class DataBaseSettings(dir: String, cacheEnabled: Boolean, cacheSize: Int, dbType: DBType.Value)
+
+case class ForkBaseSettings(dir: String, cacheEnabled: Boolean, cacheSize: Int, dbType: DBType.Value)
 
 case class GenesisSettings(timeStamp: Instant,
                            publicKey: String,
@@ -71,7 +77,9 @@ case class ChainSettings(blockBase: BlockBaseSettings,
                          genesis: GenesisSettings)
 
 case class PluginsSettings(mongodb: MongodbSettings)
+
 case class RuntimeParas(stopProcessTxTimeSlot: Int)
+
 case class MongodbSettings(enabled: Boolean, uri: String)
 
 case class ConsensusSettings(produceInterval: Int,
@@ -94,7 +102,7 @@ case class ConsensusSettings(produceInterval: Int,
 }
 
 case class CoinAirdrop(addr: String,
-                      coins: Double)
+                       coins: Double)
 
 case class Witness(name: String,
                    pubkey: PublicKey,
@@ -116,6 +124,12 @@ object ApexSettings extends SettingsReaders with ApexLogging {
     val fmt = new SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss'Z'")
     fmt.setTimeZone(TimeZone.getTimeZone("UTC"))
     fmt.parse(dateStr).toInstant
+  }
+
+  implicit val dbTypeReader: ValueReader[DBType.Value] = (cfg, path) => {
+    val conf = cfg.getString(path)
+    conf
+    DBType.LevelDB
   }
 
   def read(configFilePath: String): ApexSettings = {

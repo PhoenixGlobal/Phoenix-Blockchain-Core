@@ -12,10 +12,10 @@ package com.apex.core
 
 import com.apex.crypto.UInt256
 import com.apex.settings.BlockBaseSettings
-import com.apex.storage.LevelDbStorage
+import com.apex.storage.Storage
 
 class BlockBase(settings: BlockBaseSettings) {
-  private val db = LevelDbStorage.open(settings.dir)
+  private val db = Storage.open(settings.dbType, settings.dir)
 
   private val blockStore = new BlockStore(db, settings.cacheSize)
   private val heightStore = new HeightStore(db, settings.cacheSize)

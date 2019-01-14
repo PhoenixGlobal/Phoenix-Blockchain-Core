@@ -159,9 +159,9 @@ class ContractTxTest {
   private def createChain(path: String): LevelDBBlockchain = {
     val baseDir = s"ContractTxTest/$path"
     val chainSetting = ChainSettings(
-      BlockBaseSettings(s"$baseDir/block", false, 0),
-      DataBaseSettings(s"$baseDir/data", false, 0),
-      ForkBaseSettings(s"$baseDir/fork", false, 0),
+      BlockBaseSettings(s"$baseDir/block", false, 0, DBType.LevelDB),
+      DataBaseSettings(s"$baseDir/data", false, 0, DBType.LevelDB),
+      ForkBaseSettings(s"$baseDir/fork", false, 0, DBType.LevelDB),
       _minerAward,
       GenesisSettings(Instant.EPOCH,
         "03b4534b44d1da47e4b4a504a210401a583f860468dec766f507251a057594e682",

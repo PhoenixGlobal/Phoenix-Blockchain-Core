@@ -18,10 +18,9 @@ import com.apex.common.ApexLogging
 import com.apex.crypto.Ecdsa.PublicKey
 import com.apex.crypto.UInt256
 import com.apex.settings.{ForkBaseSettings, Witness}
-import com.apex.storage.{Batch, LevelDbStorage}
+import com.apex.storage.{Batch, Storage}
 
 import scala.collection.immutable.{Map => IMap}
-import scala.collection.immutable.{Seq => ISeq}
 import scala.collection.mutable
 import scala.collection.mutable.{ListBuffer, Map, Seq, SortedMap}
 
@@ -30,10 +29,10 @@ import scala.collection.mutable.{ListBuffer, Map, Seq, SortedMap}
 //     k2 -> [v2, v3] 
 class MultiMap[K, V] extends mutable.Iterable[(K, V)] {
   private val container = Map.empty[K, ListBuffer[V]]
-  
+
   // total count of key/value pairs
   override def size: Int = container.values.map(_.size).sum
-  
+
   // whether this map contains the key
   def contains(k: K): Boolean = {
     container.contains(k)
@@ -43,7 +42,7 @@ class MultiMap[K, V] extends mutable.Iterable[(K, V)] {
   def get(k: K): Option[Seq[V]] = {
     container.get(k)
   }
-  
+
   // add a new key/[value] pair if the key not exist or add value to the associated value list
   def put(k: K, v: V): Unit = {
     if (!container.contains(k)) {
@@ -346,7 +345,7 @@ class ForkBase(settings: ForkBaseSettings,
                witnesses: Array[Witness],
                onConfirmed: Block => Unit,
                onSwitch: (Seq[ForkItem], Seq[ForkItem], SwitchState) => SwitchResult) extends ApexLogging {
-  private val db = LevelDbStorage.open(settings.dir)
+  private val db = Storage.open(settings.dbType, settings.dir)
   private val forkStore = new ForkItemStore(db, settings.cacheSize)
   private val switchStateStore = new SwitchStateStore(db)
 
@@ -483,7 +482,7 @@ class ForkBase(settings: ForkBaseSettings,
     if (switchResult.succeed) {
       val oldItems = oldBranch.map(item => item.copy(master = false))
       val newItems = newBranch.map(item => item.copy(master = true))
-      if(db.batchWrite(batch => {
+      if (db.batchWrite(batch => {
         oldItems.foreach(item => forkStore.set(item.id, item, batch))
         newItems.foreach(item => forkStore.set(item.id, item, batch))
         switchStateStore.delete(batch)

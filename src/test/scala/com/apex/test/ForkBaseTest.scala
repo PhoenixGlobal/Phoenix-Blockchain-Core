@@ -15,7 +15,7 @@ import java.time.Instant
 import com.apex.core._
 import com.apex.crypto.{BinaryData, UInt256}
 import com.apex.crypto.Ecdsa.{PrivateKey, PublicKey}
-import com.apex.settings.{ForkBaseSettings, Witness}
+import com.apex.settings.{DBType, ForkBaseSettings, Witness}
 import org.junit.{AfterClass, Test}
 
 import scala.collection.mutable.{ListBuffer, Seq}
@@ -320,7 +320,7 @@ object ForkBaseTest {
       }
     }
 
-    val settings = new ForkBaseSettings(dir, false, 0)
+    val settings = new ForkBaseSettings(dir, false, 0, DBType.LevelDB)
     val forkBase = new ForkBase(settings, witnesses,
       blk => println(s"confirm block ${blk.height}"),
       switchCallback)

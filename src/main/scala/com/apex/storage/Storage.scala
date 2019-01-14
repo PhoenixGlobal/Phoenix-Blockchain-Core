@@ -2,10 +2,19 @@ package com.apex.storage
 
 import java.util.Map.Entry
 
+import com.apex.settings.DBType
+
 import scala.collection.mutable.ListBuffer
 
 object Storage {
   type raw = Storage[Array[Byte], Array[Byte]]
+
+  def open(dbType: DBType.Value, path: String): raw = {
+    dbType match {
+      case DBType.LevelDB => LevelDbStorage.open(path)
+      case _ => throw new NotImplementedError
+    }
+  }
 }
 
 // base trait for KV store

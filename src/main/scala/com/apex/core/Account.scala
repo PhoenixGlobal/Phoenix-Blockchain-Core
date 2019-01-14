@@ -33,15 +33,24 @@ class Account(val pubKeyHash: UInt160,
 }
 
 object Account {
+  implicit class Extension(account: Account) {
+    def increaseNonce(): Account = {
+      new Account(account.pubKeyHash, account.active, account.name, account.balance, account.nextNonce + 1, account.codeHash, account.version)
+    }
+
+    def addBalance(value: FixedNumber): Account = {
+      new Account(account.pubKeyHash, account.active, account.name, account.balance + value, account.nextNonce, account.codeHash, account.version)
+    }
+  }
 
   def newAccount(pubKeyHash: UInt160): Account =
     new Account(pubKeyHash, true, "", FixedNumber.Zero, 0)
 
-  def increaseNonce(acct: Account): Account =
-    new Account(acct.pubKeyHash, acct.active, acct.name, acct.balance, acct.nextNonce + 1, acct.codeHash, acct.version)
-
-  def addBalance(acct: Account, value: FixedNumber): Account =
-    new Account(acct.pubKeyHash, acct.active, acct.name, acct.balance + value, acct.nextNonce, acct.codeHash, acct.version)
+//  def increaseNonce(acct: Account): Account =
+//    new Account(acct.pubKeyHash, acct.active, acct.name, acct.balance, acct.nextNonce + 1, acct.codeHash, acct.version)
+//
+//  def addBalance(acct: Account, value: FixedNumber): Account =
+//    new Account(acct.pubKeyHash, acct.active, acct.name, acct.balance + value, acct.nextNonce, acct.codeHash, acct.version)
 
   def deserialize(is: DataInputStream): Account = {
     import com.apex.common.Serializable._

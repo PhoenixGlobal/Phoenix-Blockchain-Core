@@ -13,7 +13,7 @@ package com.apex.test
 import com.apex.core.DataBase
 import com.apex.crypto.Ecdsa.PublicKey
 import com.apex.crypto.{BinaryData, Crypto, UInt160}
-import com.apex.settings.{ContractSettings, DataBaseSettings}
+import com.apex.settings.{ContractSettings, DBType, DataBaseSettings}
 import com.apex.solidity.Abi
 import com.apex.vm.hook.VMHook
 import com.apex.vm.program.invoke.{ProgramInvoke, ProgramInvokeImpl}
@@ -208,7 +208,7 @@ class VMTest {
 
 object VMTest {
   private val dir = "VMTest"
-  private val settings = DataBaseSettings(dir, true, 10)
+  private val settings = DataBaseSettings(dir, true, 10, DBType.LevelDB)
   private val dataBase = new DataBase(settings)
 
   val caller = PublicKey("0345ffbf8dc9d8ff15785e2c228ac48d98d29b834c2e98fb8cfe6e71474d7f6322").pubKeyHash
