@@ -34,10 +34,12 @@ class DataBase(settings: DataBaseSettings) extends ApexLogging {
     accountStore.contains(register)
   }
 
+  // increase nonce by one
   def increaseNonce(address: UInt160) = {
     accountStore.set(address, Account.increaseNonce(accountStore.get(address).getOrElse(Account.newAccount(address))))
   }
 
+  // get the expected next nonce
   def getNonce(address: UInt160): Long = {
     val account = getAccount(address)
     if (account.isDefined)
@@ -50,6 +52,7 @@ class DataBase(settings: DataBaseSettings) extends ApexLogging {
     accountStore.get(address)
   }
 
+  // set two accounts in batch
   def setAccount(from: (UInt160, Account),
                  to: (UInt160, Account)) = {
     try {
@@ -67,10 +70,12 @@ class DataBase(settings: DataBaseSettings) extends ApexLogging {
     }
   }
 
+  // create empty account
   def createAccount(address: UInt160) = {
     accountStore.set(address, Account.newAccount(address))
   }
 
+  // transfer values
   def transfer(from: UInt160, to: UInt160, value: FixedNumber): Unit = {
     val fromAcct = getAccount(from).getOrElse(Account.newAccount(from))
     val toAcct = getAccount(to).getOrElse(Account.newAccount(to))
@@ -79,48 +84,59 @@ class DataBase(settings: DataBaseSettings) extends ApexLogging {
       (to, Account.addBalance(toAcct, value)))
   }
 
+  // transfer values
   def transfer(from: UInt160, to: UInt160, value: BigInt): Unit = {
     transfer(from, to, FixedNumber(value))
   }
 
+  // add balance for single account
   def addBalance(address: UInt160, value: FixedNumber): FixedNumber = {
     val acct = Account.addBalance(getAccount(address).getOrElse(Account.newAccount(address)), value)
     accountStore.set(address, acct)
     acct.balance
   }
 
+  // add balance for single account
   def addBalance(address: UInt160, value: BigInt): BigInt = {
     addBalance(address, FixedNumber(value)).value
   }
 
+  // get balance for specified account
   def getBalance(address: UInt160): Option[FixedNumber] = {
     accountStore.get(address).map(_.balance)
   }
 
+  // get code hash
   def getCodeHash(address:UInt160): Array[Byte] = {
     accountStore.get(address).map(_.codeHash).getOrElse(Array.empty)
   }
 
+  // get code
   def getCode(address: UInt160): Array[Byte] = {
     contractStore.get(address).map(_.code).getOrElse(Array.empty)
   }
 
+  // save code
   def saveCode(address: UInt160, code: Array[Byte]) = {
     contractStore.set(address, Contract(address, code))
   }
 
+  // get contract state of key
   def getContractState(address: UInt160, key: Array[Byte]): Array[Byte] = {
     contractStateStore.get(address.data ++ key).getOrElse(Array.empty)
   }
 
+  // save contract state key-value pairs
   def saveContractState(address: UInt160, key: Array[Byte], value: Array[Byte]): Unit = {
     contractStateStore.set(address.data ++ key, value)
   }
 
+  // get tx receipt
   def getReceipt(txid: UInt256): Option[TransactionReceipt] = {
     receiptStore.get(txid)
   }
 
+  // set tx receipt
   def setReceipt(txid: UInt256, receipt: TransactionReceipt) = {
     receiptStore.set(txid, receipt)
   }
@@ -129,18 +145,22 @@ class DataBase(settings: DataBaseSettings) extends ApexLogging {
     this
   }
 
+  // start new session
   def startSession(): Unit = {
     db.newSession()
   }
 
+  // undo all operations in the latest session
   def rollBack(): Unit = {
     db.rollBack()
   }
 
+  // commit all operations in sessions whose revision is equal to or larger than the specified revision
   def commit(revision: Int): Unit = {
     db.commit(revision)
   }
 
+  // commit all operations in the latest session
   def commit(): Unit = {
     db.commit()
   }
@@ -149,6 +169,7 @@ class DataBase(settings: DataBaseSettings) extends ApexLogging {
     db.close()
   }
 
+  // return latest revision
   def revision(): Int = {
     db.revision()
   }
