@@ -458,8 +458,8 @@ class LevelDBBlockchain(chainSettings: ChainSettings, consensusSettings: Consens
     }
     else {
       applied = true
-      dataBase.setReceipt(tx.id(), receipt)
     }
+    dataBase.setReceipt(tx.id(), receipt)
     applied
   }
 
