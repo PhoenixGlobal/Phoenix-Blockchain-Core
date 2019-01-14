@@ -1,11 +1,10 @@
 package com.apex.core
 
-import java.io.{ByteArrayOutputStream, DataInputStream, DataOutputStream}
+import java.io.{DataInputStream, DataOutputStream}
 
-import com.apex.crypto.{Crypto, Ecdsa, FixedNumber, UInt160, UInt256}
-import play.api.libs.json.{JsValue, Json, Writes}
-import com.apex.common.Serializable
+import com.apex.crypto.{Ecdsa, FixedNumber, UInt160}
 import org.bouncycastle.util.encoders.Hex
+import play.api.libs.json.{JsValue, Json, Writes}
 
 class Account(val pubKeyHash: UInt160,
               val active: Boolean,

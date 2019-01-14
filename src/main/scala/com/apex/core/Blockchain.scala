@@ -131,7 +131,7 @@ class LevelDBBlockchain(chainSettings: ChainSettings, consensusSettings: Consens
 
   private val unapplyTxs = mutable.Map.empty[UInt256, Transaction]
 
-  private var timeoutTx:Option[Transaction] = None
+  private var timeoutTx: Option[Transaction] = None
 
   private val pendingState = new PendingState
 
@@ -406,7 +406,7 @@ class LevelDBBlockchain(chainSettings: ChainSettings, consensusSettings: Consens
       if (enableSession)
         dataBase.startSession()
       block.transactions.foreach(tx => {
-        if (applied && !applyTransaction(tx, block.header.producer.pubKeyHash, Long.MaxValue))  // TODO: stopTime
+        if (applied && !applyTransaction(tx, block.header.producer.pubKeyHash, Long.MaxValue)) // TODO: stopTime
           applied = false
       })
       if (enableSession && !applied)
@@ -423,12 +423,12 @@ class LevelDBBlockchain(chainSettings: ChainSettings, consensusSettings: Consens
   private def applyTransaction(tx: Transaction, blockProducer: UInt160, stopTime: Long): Boolean = {
     var txValid = false
     tx.txType match {
-      case TransactionType.Miner =>      txValid = applySendTransaction(tx, blockProducer)
-      case TransactionType.Transfer =>   txValid = applySendTransaction(tx, blockProducer)
+      case TransactionType.Miner => txValid = applySendTransaction(tx, blockProducer)
+      case TransactionType.Transfer => txValid = applySendTransaction(tx, blockProducer)
       //case TransactionType.Fee =>
       //case TransactionType.RegisterName =>
-      case TransactionType.Deploy =>     txValid = applyContractTransaction(tx, blockProducer, stopTime)
-      case TransactionType.Call =>       txValid = applyContractTransaction(tx, blockProducer, stopTime)
+      case TransactionType.Deploy => txValid = applyContractTransaction(tx, blockProducer, stopTime)
+      case TransactionType.Call => txValid = applyContractTransaction(tx, blockProducer, stopTime)
     }
     txValid
   }
