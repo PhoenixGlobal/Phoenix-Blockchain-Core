@@ -250,7 +250,7 @@ class LevelDBBlockchain(chainSettings: ChainSettings, consensusSettings: Consens
     //isPendingBlock = true
     dataBase.startSession()
 
-    val applied = applyTransaction(minerTx, producer.pubkey.pubKeyHash, stopProcessTxTime)
+    val applied = applyTransaction(minerTx, producer.pubkey.pubKeyHash, stopProcessTxTime, blockTime)
     require(applied)
     pendingState.txs.append(minerTx)
     pendingState.isProducingBlock = true
@@ -264,14 +264,14 @@ class LevelDBBlockchain(chainSettings: ChainSettings, consensusSettings: Consens
       log.info(s"try again for the old timeout tx ${oldTimeoutTx.id().shortString()}")
 
       // return value can be ignore
-      applyTransaction(oldTimeoutTx, producer.pubkey.pubKeyHash, stopProcessTxTime)
+      applyTransaction(oldTimeoutTx, producer.pubkey.pubKeyHash, stopProcessTxTime, blockTime)
     }
 
     val badTxs = ArrayBuffer.empty[Transaction]
 
     unapplyTxs.foreach(p => {
       if (Instant.now.toEpochMilli < stopProcessTxTime) {
-        if (applyTransaction(p._2, producer.pubkey.pubKeyHash, stopProcessTxTime))
+        if (applyTransaction(p._2, producer.pubkey.pubKeyHash, stopProcessTxTime, blockTime))
           pendingState.txs.append(p._2)
         else
           badTxs.append(p._2)
@@ -305,7 +305,7 @@ class LevelDBBlockchain(chainSettings: ChainSettings, consensusSettings: Consens
         added = addTransactionToUnapplyTxs(tx)
       }
       else {
-        if (applyTransaction(tx, pendingState.producer.pubkey.pubKeyHash, pendingState.stopProcessTxTime)) {
+        if (applyTransaction(tx, pendingState.producer.pubkey.pubKeyHash, pendingState.stopProcessTxTime, pendingState.blockTime)) {
           pendingState.txs.append(tx)
           added = true
         }
@@ -406,7 +406,7 @@ class LevelDBBlockchain(chainSettings: ChainSettings, consensusSettings: Consens
       if (enableSession)
         dataBase.startSession()
       block.transactions.foreach(tx => {
-        if (applied && !applyTransaction(tx, block.header.producer.pubKeyHash, Long.MaxValue)) // TODO: stopTime
+        if (applied && !applyTransaction(tx, block.header.producer.pubKeyHash, Long.MaxValue, block.header.timeStamp))
           applied = false
       })
       if (enableSession && !applied)
@@ -420,24 +420,24 @@ class LevelDBBlockchain(chainSettings: ChainSettings, consensusSettings: Consens
     applied
   }
 
-  private def applyTransaction(tx: Transaction, blockProducer: UInt160, stopTime: Long): Boolean = {
+  private def applyTransaction(tx: Transaction, blockProducer: UInt160, stopTime: Long, timeStamp: Long): Boolean = {
     var txValid = false
     tx.txType match {
       case TransactionType.Miner => txValid = applySendTransaction(tx, blockProducer)
       case TransactionType.Transfer => txValid = applySendTransaction(tx, blockProducer)
       //case TransactionType.Fee =>
       //case TransactionType.RegisterName =>
-      case TransactionType.Deploy => txValid = applyContractTransaction(tx, blockProducer, stopTime)
-      case TransactionType.Call => txValid = applyContractTransaction(tx, blockProducer, stopTime)
+      case TransactionType.Deploy => txValid = applyContractTransaction(tx, blockProducer, stopTime, timeStamp)
+      case TransactionType.Call => txValid = applyContractTransaction(tx, blockProducer, stopTime, timeStamp)
     }
     txValid
   }
 
-  private def applyContractTransaction(tx: Transaction, blockProducer: UInt160, stopTime: Long): Boolean = {
+  private def applyContractTransaction(tx: Transaction, blockProducer: UInt160, stopTime: Long, timeStamp: Long): Boolean = {
 
     var applied = false
 
-    val executor = new TransactionExecutor(tx, blockProducer, dataBase, stopTime)
+    val executor = new TransactionExecutor(tx, blockProducer, dataBase, stopTime, timeStamp)
 
     executor.init()
     executor.execute()

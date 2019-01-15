@@ -21,10 +21,11 @@ object TransactionExecutor {
   private val stateLogger = LoggerFactory.getLogger("state")
 }
 
-class TransactionExecutor(var tx: Transaction,
-                          var coinbase: UInt160,
-                          var track: DataBase,
-                          val stopTime: Long
+class TransactionExecutor(val tx: Transaction,
+                          val coinbase: UInt160,
+                          val track: DataBase,
+                          val stopTime: Long,
+                          val timeStamp: Long
                           //var blockStore: BlockStore,
                           //var programInvokeFactory: ProgramInvokeFactory,
                           //var currentBlock: Block,
@@ -198,15 +199,13 @@ class TransactionExecutor(var tx: Transaction,
       DataWord.of(tx.sender().data),
       DataWord.ZERO,
       DataWord.of(tx.gasPrice.value),
-      DataWord.of(Int.MaxValue),
-      DataWord.ZERO,
-      data,
-      DataWord.ZERO,
-      DataWord.ZERO,
-      DataWord.ZERO,
-      DataWord.ZERO,
-      DataWord.ZERO,
       DataWord.of(tx.gasLimit),
+      DataWord.ZERO,
+      data,   // msgData
+      DataWord.ZERO,
+      DataWord.ZERO,
+      DataWord.of(timeStamp),
+      DataWord.ZERO,
       track,
       track,
       null)

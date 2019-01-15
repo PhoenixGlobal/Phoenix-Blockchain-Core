@@ -247,8 +247,6 @@ object VMTest {
       DataWord.ZERO,
       DataWord.ZERO,
       DataWord.ZERO,
-      DataWord.ZERO,
-      DataWord.ZERO,
       dataBase,
       dataBase,
       null)

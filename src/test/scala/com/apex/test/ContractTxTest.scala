@@ -246,18 +246,18 @@ class ContractTxTest {
 
       val gettt = Abi.fromJson("[{\"constant\":false,\"inputs\":[{\"name\":\"withdraw_amount\",\"type\":\"uint256\"}],\"name\":\"set\",\"outputs\":[],\"payable\":false,\"stateMutability\":\"nonpayable\",\"type\":\"function\"},{\"constant\":false,\"inputs\":[],\"name\":\"get\",\"outputs\":[{\"name\":\"\",\"type\":\"uint256\"}],\"payable\":false,\"stateMutability\":\"nonpayable\",\"type\":\"function\"}]").encode("get()")
 
+//      var getTx = new Transaction(TransactionType.Call, _acct1.publicKey.pubKeyHash,
+//        UInt160.fromBytes(BinaryData("7f97e6f4f660e6c09b894f34edae3626bf44039a")), "", FixedNumber.fromDecimal(_minerAward),
+//        2,
+//        gettt,
+//        FixedNumber(1), 21530, BinaryData.empty)
+//      assert(chain.addTransaction(getTx))   // require gas 21540, but only give 21530
+//      // TODO!!!
+
+
       var getTx = new Transaction(TransactionType.Call, _acct1.publicKey.pubKeyHash,
         UInt160.fromBytes(BinaryData("7f97e6f4f660e6c09b894f34edae3626bf44039a")), "", FixedNumber.fromDecimal(_minerAward),
         2,
-        gettt,
-        FixedNumber(1), 21530, BinaryData.empty)
-      assert(chain.addTransaction(getTx))   // require gas 21540, but only give 21530
-      // TODO!!!
-
-
-      getTx = new Transaction(TransactionType.Call, _acct1.publicKey.pubKeyHash,
-        UInt160.fromBytes(BinaryData("7f97e6f4f660e6c09b894f34edae3626bf44039a")), "", FixedNumber.fromDecimal(_minerAward),
-        3,
         gettt,
         FixedNumber(1), 99999999L, BinaryData.empty)
       assert(chain.addTransaction(getTx))

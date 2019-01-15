@@ -39,9 +39,10 @@ trait ProgramInvoke {
 
   def getMinGasPrice: DataWord
 
-  def getGas: DataWord
+  //  def getGas: DataWord
+  def getGaslimit: DataWord
 
-  def getGasLong: Long
+  def getGasLimitLong: Long
 
   def getCallValue: DataWord
 
@@ -59,9 +60,7 @@ trait ProgramInvoke {
 
   def getNumber: DataWord
 
-  def getDifficulty: DataWord
-
-  def getGaslimit: DataWord
+  //def getDifficulty: DataWord
 
   def byTransaction: Boolean
 

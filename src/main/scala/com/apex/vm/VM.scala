@@ -609,7 +609,7 @@ class VM(settings: ContractSettings, hook: VMHook) extends com.apex.common.ApexL
           program.step()
         }
         case OpCode.DIFFICULTY => {
-          val difficulty = program.getDifficulty
+          val difficulty = DataWord.ZERO  //program.getDifficulty
           if (log.isInfoEnabled) hint = s"difficulty: $difficulty"
           program.stackPush(difficulty)
           program.step()

@@ -18,15 +18,13 @@ class ProgramInvokeImpl(address: DataWord,
                         caller: DataWord,
                         balance: DataWord,
                         gasPrice: DataWord,
-                        gas: DataWord,
+                        gasLimit: DataWord,
                         callValue: DataWord,
                         msgData: Array[Byte],
                         lastHash: DataWord,
                         coinbase: DataWord,
                         timestamp: DataWord,
                         number: DataWord,
-                        difficulty: DataWord,
-                        gaslimit: DataWord,
                         dataBase: DataBase,
                         origDataBase: DataBase,
                         blockStore: BlockBase,
@@ -57,12 +55,15 @@ class ProgramInvokeImpl(address: DataWord,
 
   /*           GASPRICE op       */
   override def getMinGasPrice: DataWord = gasPrice
+  //
+  //  /*           GAS op       */
+  //  override def getGas: DataWord = gaslimit
 
-  /*           GAS op       */
-  override def getGas: DataWord = gas
+  /*           GASLIMIT op       */
+  override def getGasLimitLong: Long = gasLimit.longValueSafe
 
-  /*           GAS op       */
-  override def getGasLong: Long = gas.longValueSafe
+  /*     GASLIMIT op    */
+  override def getGaslimit: DataWord = gasLimit
 
   /*          CALLVALUE op    */
   override def getCallValue: DataWord = callValue
@@ -129,10 +130,9 @@ class ProgramInvokeImpl(address: DataWord,
   override def getNumber: DataWord = number
 
   /*     DIFFICULTY op    */
-  override def getDifficulty: DataWord = difficulty
+  //override def getDifficulty: DataWord = difficulty
 
-  /*     GASLIMIT op    */
-  override def getGaslimit: DataWord = gaslimit
+
 
   override def byTransaction: Boolean = byTx
 
