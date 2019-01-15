@@ -14,7 +14,6 @@ import org.slf4j.LoggerFactory
 //import java.math.BigInteger
 import org.apache.commons.lang3.ArrayUtils.getLength
 import org.apache.commons.lang3.ArrayUtils.isEmpty
-//import com.apex.utils.ByteUtil.toBI
 
 object TransactionExecutor {
   private val logger = LoggerFactory.getLogger("execute")
@@ -25,14 +24,7 @@ class TransactionExecutor(val tx: Transaction,
                           val coinbase: UInt160,
                           val track: DataBase,
                           val stopTime: Long,
-                          val timeStamp: Long
-                          //var blockStore: BlockStore,
-                          //var programInvokeFactory: ProgramInvokeFactory,
-                          //var currentBlock: Block,
-                          //val listener: EthereumListener,
-                          //val gasUsedInTheBlock: BigInt = 0
-                          //val vmHook: VMHook
-                         ) {
+                          val timeStamp: Long) {
   //this.m_endGas = toBI(tx.getGasLimit)
   //this.vmHook = if (isNull(vmHook)) VMHook.EMPTY else vmHook
   //withCommonConfig(CommonConfig.getDefault)
@@ -58,27 +50,6 @@ class TransactionExecutor(val tx: Transaction,
   private[core] var localCall = false
   //final private var vmHook = null
 
-  //  def this(tx: Transaction, coinbase: Array[Byte], track: DataBase, blockStore: BlockStore, currentBlock: Block) {
-  //    this(tx, coinbase, track, blockStore, currentBlock, 0, VMHook.EMPTY)
-  //  }
-  //
-  //  def this(tx: Transaction, coinbase: Array[Byte], track: DataBase,
-  //           blockStore: BlockStore,
-  //           currentBlock: Block,
-  //           //listener: EthereumListener,
-  //           gasUsedInTheBlock: Long) {
-  //    this(tx, coinbase, track, blockStore, currentBlock,
-  //      //listener,
-  //      gasUsedInTheBlock, VMHook.EMPTY)
-  //  }
-
-  //  def withCommonConfig(commonConfig: CommonConfig): TransactionExecutor = {
-  //    this.commonConfig = commonConfig
-  //    this.config = commonConfig.systemProperties
-  //    this.blockchainConfig = config.getBlockchainConfig.getConfigForBlock(currentBlock.getNumber)
-  //    this
-  //  }
-
   private def execError(err: String): Unit = {
     TransactionExecutor.logger.warn(err)
     execError = err
@@ -95,13 +66,7 @@ class TransactionExecutor(val tx: Transaction,
       readyToExecute = true
       return
     }
-    val txGasLimit = tx.gasLimit  //new BigInteger(1, tx.gasLimit)
-    //    val curBlockGasLimit = currentBlock.header.gasLimit
-    //    val cumulativeGasReached = (txGasLimit + gasUsedInTheBlock > curBlockGasLimit)
-    //    if (cumulativeGasReached) {
-    //      execError(s"Too much gas used in this block, Require: ${currentBlock.header.gasLimit - tx.gasLimit}  Got: ${tx.gasLimit} ")
-    //      return
-    //    }
+    val txGasLimit = tx.gasLimit
     if (txGasLimit < basicTxCost) {
       execError(s"Not enough gas for transaction execution: Require: ${basicTxCost} Got: ${txGasLimit}")
       //execError(String.format("Not enough gas for transaction execution: Require: %s Got: %s", basicTxCost, txGasLimit))
@@ -120,14 +85,6 @@ class TransactionExecutor(val tx: Transaction,
       execError(s"Not enough cash: Require: ${totalCost}, Sender cash ${senderBalance}")
       return
     }
-    //    if (!isCovers(senderBalance, totalCost)) {
-    //      execError(String.format("Not enough cash: Require: %s, Sender cash: %s", totalCost, senderBalance))
-    //      return
-    //    }
-    //    if (!blockchainConfig.acceptTransactionSignature(tx)) {
-    //      execError("Transaction signature not accepted ")
-    //      return
-    //    }
     readyToExecute = true
   }
 
@@ -214,14 +171,6 @@ class TransactionExecutor(val tx: Transaction,
   private def create(): Unit = {
     val newContractAddress = tx.getContractAddress
 
-      //    val existingAddr = cacheTrack.getAccountState(newContractAddress)
-      //    if (existingAddr != null && existingAddr.isContractExist(blockchainConfig)) {
-      //      //execError("Trying to create a contract with existing contract address: 0x" + toHexString(newContractAddress))
-      //      execError("Trying to create a contract with existing contract address")
-      //      m_endGas = BigInteger.ZERO
-      //      return
-      //    }
-
     //In case of hashing collisions (for TCK tests only), check for any balance before createAccount()
     val oldBalance = track.getBalance(newContractAddress.get)
     //cacheTrack.createAccount(tx.getContractAddress)
@@ -234,16 +183,9 @@ class TransactionExecutor(val tx: Transaction,
     }
     else {
       val programInvoke = createInvoker(Array.empty)
-      //val programInvoke = programInvokeFactory.createProgramInvoke(tx, currentBlock, cacheTrack, track, blockStore)
       this.vm = new VM(vmSettings, VMHook.EMPTY)
       this.program = new Program(vmSettings, tx.data, programInvoke, stopTime) //.withCommonConfig(commonConfig)
-      // reset storage if the contract with the same address already exists
-      // TCK test case only - normally this is near-impossible situation in the real network
-      // TODO make via Trie.clear() without keyset
-      //            ContractDetails contractDetails = program.getStorage().getContractDetails(newContractAddress);
-      //            for (DataWord key : contractDetails.getStorageKeys()) {
-      //                program.storageSave(key, DataWord.ZERO);
-      //            }
+
     }
     val endowment = tx.amount
     //transfer(cacheTrack, tx.sender(), newContractAddress, endowment)
@@ -333,16 +275,8 @@ class TransactionExecutor(val tx: Transaction,
       summaryBuilder.deletedAccounts(result.getDeleteAccounts)
       //summaryBuilder.internalTransactions(result.getInternalTransactions)
 
-      //      val contractDetails = track.getContractDetails(addr)
-      //      if (contractDetails != null) {
-      //        // TODO
-      //        //                summaryBuilder.storageDiff(track.getContractDetails(addr).getStorage());
-      //        //
-      //        //                if (program != null) {
-      //        //                    summaryBuilder.touchedStorage(contractDetails.getStorage(), program.getStorageDiff());
-      //        //                }
-      //      }
-      if (result.getException != null) summaryBuilder.markAsFailed
+      if (result.getException != null)
+        summaryBuilder.markAsFailed
     }
     val summary = summaryBuilder.build
     // Refund for gas leftover
@@ -352,29 +286,7 @@ class TransactionExecutor(val tx: Transaction,
     track.addBalance(coinbase, summary.getFee)
     //touchedAccounts.add(coinbase)
     TransactionExecutor.logger.info("Pay fees to miner: [{}], feesEarned: [{}]", coinbase.address, summary.getFee.longValue())
-    //    if (result != null) {
-    //      logs = result.getLogInfoList
-    //      // Traverse list of suicides
-    //      import scala.collection.JavaConversions._
-    //      for (address <- result.getDeleteAccounts) {
-    //        track.delete(address.getLast20Bytes)
-    //      }
-    //    }
-    //    //    if (blockchainConfig.eip161) {
-    //    //      import scala.collection.JavaConversions._
-    //    //      for (acctAddr <- touchedAccounts) {
-    //    //        val state = track.getAccountState(acctAddr)
-    //    //        if (state != null && state.isEmpty) track.delete(acctAddr)
-    //    //      }
-    //    //    }
-    //    listener.onTransactionExecuted(summary)
-    //    if (config.vmTrace && program != null && result != null) {
-    //      var trace = program.getTrace.result(result.getHReturn).error(result.getException).toString
-    //      if (config.vmTraceCompressed) trace = zipAndEncode(trace)
-    //      val txHash = toHexString(tx.getHash)
-    //      saveProgramTraceFile(config, txHash, trace)
-    //      //listener.onVMTraceCreated(txHash, trace)
-    //    }
+
     summary
   }
 
