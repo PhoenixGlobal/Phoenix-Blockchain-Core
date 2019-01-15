@@ -24,7 +24,8 @@ class TransactionExecutor(val tx: Transaction,
                           val coinbase: UInt160,
                           val track: DataBase,
                           val stopTime: Long,
-                          val timeStamp: Long) {
+                          val timeStamp: Long,
+                          val blockIndex: Long) {
   //this.m_endGas = toBI(tx.getGasLimit)
   //this.vmHook = if (isNull(vmHook)) VMHook.EMPTY else vmHook
   //withCommonConfig(CommonConfig.getDefault)
@@ -160,9 +161,9 @@ class TransactionExecutor(val tx: Transaction,
       DataWord.ZERO,
       data,   // msgData
       DataWord.ZERO,
-      DataWord.ZERO,
+      DataWord.of(coinbase),
       DataWord.of(timeStamp),
-      DataWord.ZERO,
+      DataWord.of(blockIndex),
       track,
       track,
       null)

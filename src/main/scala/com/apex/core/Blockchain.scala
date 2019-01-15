@@ -85,16 +85,18 @@ class PendingState {
   var producer: Witness = _
   var blockTime: Long = _
   var startTime: Long = _
+  var blockIndex: Long = _
   var stopProcessTxTime: Long = _
   var isProducingBlock = false
 
   val txs = ArrayBuffer.empty[Transaction]
 
-  def set(producer: Witness, blockTime: Long, stopProcessTxTime: Long) = {
+  def set(producer: Witness, blockTime: Long, stopProcessTxTime: Long, blockIndex: Long) = {
     this.producer = producer
     this.blockTime = blockTime
     this.stopProcessTxTime = stopProcessTxTime
     this.startTime = Instant.now.toEpochMilli
+    this.blockIndex = blockIndex
   }
 }
 
@@ -237,10 +239,10 @@ class LevelDBBlockchain(chainSettings: ChainSettings, consensusSettings: Consens
 
   override def startProduceBlock(producer: Witness, blockTime: Long, stopProcessTxTime: Long): Unit = {
     require(!isProducingBlock())
-    pendingState.set(producer, blockTime, stopProcessTxTime)
+    val forkHead = forkBase.head.get
+    pendingState.set(producer, blockTime, stopProcessTxTime, forkHead.block.height + 1)
     log.debug(s"start block at: ${pendingState.startTime}  blockTime=${blockTime}  stopProcessTxTime=${stopProcessTxTime}")
 
-    val forkHead = forkBase.head.get
     val minerTx = new Transaction(TransactionType.Miner, minerCoinFrom,
       producer.pubkey.pubKeyHash, "", minerAward,
       forkHead.block.height + 1,
@@ -250,7 +252,7 @@ class LevelDBBlockchain(chainSettings: ChainSettings, consensusSettings: Consens
     //isPendingBlock = true
     dataBase.startSession()
 
-    val applied = applyTransaction(minerTx, producer.pubkey.pubKeyHash, stopProcessTxTime, blockTime)
+    val applied = applyTransaction(minerTx, producer.pubkey.pubKeyHash, stopProcessTxTime, blockTime, forkHead.block.height + 1)
     require(applied)
     pendingState.txs.append(minerTx)
     pendingState.isProducingBlock = true
@@ -264,14 +266,14 @@ class LevelDBBlockchain(chainSettings: ChainSettings, consensusSettings: Consens
       log.info(s"try again for the old timeout tx ${oldTimeoutTx.id().shortString()}")
 
       // return value can be ignore
-      applyTransaction(oldTimeoutTx, producer.pubkey.pubKeyHash, stopProcessTxTime, blockTime)
+      applyTransaction(oldTimeoutTx, producer.pubkey.pubKeyHash, stopProcessTxTime, blockTime, forkHead.block.height + 1)
     }
 
     val badTxs = ArrayBuffer.empty[Transaction]
 
     unapplyTxs.foreach(p => {
       if (Instant.now.toEpochMilli < stopProcessTxTime) {
-        if (applyTransaction(p._2, producer.pubkey.pubKeyHash, stopProcessTxTime, blockTime))
+        if (applyTransaction(p._2, producer.pubkey.pubKeyHash, stopProcessTxTime, blockTime, forkHead.block.height + 1))
           pendingState.txs.append(p._2)
         else
           badTxs.append(p._2)
@@ -305,7 +307,7 @@ class LevelDBBlockchain(chainSettings: ChainSettings, consensusSettings: Consens
         added = addTransactionToUnapplyTxs(tx)
       }
       else {
-        if (applyTransaction(tx, pendingState.producer.pubkey.pubKeyHash, pendingState.stopProcessTxTime, pendingState.blockTime)) {
+        if (applyTransaction(tx, pendingState.producer.pubkey.pubKeyHash, pendingState.stopProcessTxTime, pendingState.blockTime, pendingState.blockIndex)) {
           pendingState.txs.append(tx)
           added = true
         }
@@ -406,7 +408,7 @@ class LevelDBBlockchain(chainSettings: ChainSettings, consensusSettings: Consens
       if (enableSession)
         dataBase.startSession()
       block.transactions.foreach(tx => {
-        if (applied && !applyTransaction(tx, block.header.producer.pubKeyHash, Long.MaxValue, block.header.timeStamp))
+        if (applied && !applyTransaction(tx, block.header.producer.pubKeyHash, Long.MaxValue, block.header.timeStamp, block.height()))
           applied = false
       })
       if (enableSession && !applied)
@@ -420,24 +422,26 @@ class LevelDBBlockchain(chainSettings: ChainSettings, consensusSettings: Consens
     applied
   }
 
-  private def applyTransaction(tx: Transaction, blockProducer: UInt160, stopTime: Long, timeStamp: Long): Boolean = {
+  private def applyTransaction(tx: Transaction, blockProducer: UInt160,
+                               stopTime: Long, timeStamp: Long, blockIndex: Long): Boolean = {
     var txValid = false
     tx.txType match {
       case TransactionType.Miner => txValid = applySendTransaction(tx, blockProducer)
       case TransactionType.Transfer => txValid = applySendTransaction(tx, blockProducer)
       //case TransactionType.Fee =>
       //case TransactionType.RegisterName =>
-      case TransactionType.Deploy => txValid = applyContractTransaction(tx, blockProducer, stopTime, timeStamp)
-      case TransactionType.Call => txValid = applyContractTransaction(tx, blockProducer, stopTime, timeStamp)
+      case TransactionType.Deploy => txValid = applyContractTransaction(tx, blockProducer, stopTime, timeStamp, blockIndex)
+      case TransactionType.Call => txValid = applyContractTransaction(tx, blockProducer, stopTime, timeStamp, blockIndex)
     }
     txValid
   }
 
-  private def applyContractTransaction(tx: Transaction, blockProducer: UInt160, stopTime: Long, timeStamp: Long): Boolean = {
+  private def applyContractTransaction(tx: Transaction, blockProducer: UInt160,
+                                       stopTime: Long, timeStamp: Long, blockIndex: Long): Boolean = {
 
     var applied = false
 
-    val executor = new TransactionExecutor(tx, blockProducer, dataBase, stopTime, timeStamp)
+    val executor = new TransactionExecutor(tx, blockProducer, dataBase, stopTime, timeStamp, blockIndex)
 
     executor.init()
     executor.execute()
