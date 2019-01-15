@@ -247,6 +247,18 @@ class ContractTxTest {
 
       assert(DataWord.of(receipt.output).longValue == 123)
 
+      assert(chain.getBalance(_acct1.publicKey.pubKeyHash).get == FixedNumber.fromDecimal(123.12))
+      assert(chain.getBalance(producer.pubkey.pubKeyHash).get == FixedNumber.fromDecimal(12.3))
+
+      getTx = new Transaction(TransactionType.Call, _acct1.publicKey.pubKeyHash,
+        UInt160.fromBytes(BinaryData("7f97e6f4f660e6c09b894f34edae3626bf44039a")), "", FixedNumber.Zero,
+        3, gettt, FixedNumber(1000000000L), 21539, BinaryData.empty)
+      assert(chain.addTransaction(getTx))   // require gas 21540, but only give 21539
+      receipt = chain.getReceipt(getTx.id()).get
+      assert(receipt.error.contains("Not enough gas"))
+      // Fee = 0.000021539
+      assert(chain.getBalance(_acct1.publicKey.pubKeyHash).get == FixedNumber.fromDecimal(123.119978461))
+      assert(chain.getBalance(producer.pubkey.pubKeyHash).get == FixedNumber.fromDecimal(12.300021539))
 
     }
     finally {
