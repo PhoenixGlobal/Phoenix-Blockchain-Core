@@ -5,7 +5,7 @@ import java.time.{Instant, ZoneId, ZonedDateTime}
 import java.time.format.DateTimeFormatter
 
 import com.apex.crypto.Ecdsa.{PrivateKey, PublicKey}
-import com.apex.crypto.{BinaryData, Crypto, UInt256}
+import com.apex.crypto.{BinaryData, Crypto, UInt160, UInt256}
 import com.apex.vm.DataWord
 import play.api.libs.json.{JsValue, Json, Writes}
 
@@ -13,7 +13,7 @@ class BlockHeader(val index: Long,
                   val timeStamp: Long,
                   val merkleRoot: UInt256,
                   val prevBlock: UInt256,
-                  val producer: PublicKey,   // 33 bytes pub key
+                  val producer: UInt160,
                   var producerSig: BinaryData,
                   val version: Int = 0x01) extends Identifier[UInt256] {
 
@@ -74,7 +74,18 @@ class BlockHeader(val index: Long,
   }
 
   def verifySig(): Boolean = {
-    Crypto.verifySignature(getSigTargetData, producerSig, producer.toBin)
+    val message = getSigTargetData()
+    if (Crypto.verifySignature(message, producerSig)) {
+      val (pub1, pub2) = Crypto.recoverPublicKey(producerSig, message)
+      val addr1 = pub1.pubKeyHash
+      val addr2 = pub2.pubKeyHash
+      if (addr1 == producer || addr2 == producer)
+        true
+      else
+        false
+    }
+    else
+      false
   }
 }
 
@@ -87,18 +98,17 @@ object BlockHeader {
       "time" -> o.timeString(),
       "merkleRoot" -> o.merkleRoot.toString,
       "prevBlock" -> o.prevBlock.toString,
-      "producer" -> o.producer.toString,
+      "producer" -> o.producer.address,
       "producerSig" -> o.producerSig.toString,
       "version" -> o.version
     )
   }
 
   def build(index: Long, timeStamp: Long, merkleRoot: UInt256, prevBlock: UInt256,
-    producer: PublicKey, privateKey: PrivateKey): BlockHeader = {
+            privateKey: PrivateKey): BlockHeader = {
 
-    assert(producer.length == 33)
     val header = new BlockHeader(index, timeStamp, merkleRoot, prevBlock,
-      producer, BinaryData.empty)
+      privateKey.publicKey.pubKeyHash, BinaryData.empty)
     header.sign(privateKey)
     header
   }
@@ -111,7 +121,7 @@ object BlockHeader {
       timeStamp = is.readLong,
       merkleRoot = is.readObj(UInt256.deserialize),
       prevBlock = is.readObj(UInt256.deserialize),
-      producer = is.readObj(PublicKey.deserialize),
+      producer = is.readObj(UInt160.deserialize),
       producerSig = is.readByteArray,
       version = version
     )

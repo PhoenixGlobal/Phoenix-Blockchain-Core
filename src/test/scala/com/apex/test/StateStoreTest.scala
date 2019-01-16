@@ -23,7 +23,7 @@ class StateStoreTest {
   @Test
   def testCommitRollBack: Unit = {
     val genesis = BlockBuilder.genesisBlock()
-    val blk1 = BlockBuilder.newBlock(PubA, PriA, genesis)
+    val blk1 = BlockBuilder.newBlock(PriA, genesis)
 
     {
       val db = DbManager.open(StateStoreTest.testClass, "testCommitRollBack")

@@ -19,6 +19,7 @@ import akka.actor.{Actor, ActorContext, ActorRef, Props}
 import com.apex.common.ApexLogging
 import com.apex.core.Blockchain
 import com.apex.crypto.Ecdsa.PublicKey
+import com.apex.crypto.UInt160
 import com.apex.network.ProduceTask
 import com.apex.settings.{ApexSettings, ConsensusSettings, Witness}
 
@@ -192,9 +193,9 @@ object ProducerUtil {
       false
   }
 
-  def isProducerValid(timeStamp: Long, producer: PublicKey, settings: ConsensusSettings): Boolean = {
+  def isProducerValid(timeStamp: Long, producer: UInt160, settings: ConsensusSettings): Boolean = {
     var isValid = false
-    if (getWitness(timeStamp, settings).pubkey.toBin sameElements producer.toBin) {
+    if (getWitness(timeStamp, settings).pubkey.pubKeyHash.data sameElements producer.data) {
       if (isTimeStampValid(timeStamp, settings.produceInterval)) {
         isValid = true
       }

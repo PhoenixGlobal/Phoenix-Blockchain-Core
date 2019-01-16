@@ -129,7 +129,7 @@ class ContractTxTest {
 
     val header: BlockHeader = BlockHeader.build(preBlock.header.index + 1,
       blockTime, MerkleTree.root(allTxs.map(_.id)),
-      preBlock.id(), miner.pubkey, miner.privkey.get)
+      preBlock.id(), miner.privkey.get)
 
     Block.build(header, allTxs)
   }
@@ -153,7 +153,7 @@ class ContractTxTest {
 
     val header: BlockHeader = BlockHeader.build(preBlock.header.index + 1,
       blockTime, MerkleTree.root(allTxs.map(_.id)),
-      preBlock.id(), miner.pubkey, miner.privkey.get)
+      preBlock.id(), miner.privkey.get)
 
     Block.build(header, allTxs)
   }

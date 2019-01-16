@@ -156,7 +156,7 @@ class LevelDBBlockchain(chainSettings: ChainSettings,
 
     val genesisBlockHeader: BlockHeader = BlockHeader.build(0,
       chainSettings.genesis.timeStamp.toEpochMilli, MerkleTree.root(genesisTxs.map(_.id)),
-      UInt256.Zero, genesisProducer, genesisProducerPrivKey)
+      UInt256.Zero, genesisProducerPrivKey)
 
     Block.build(genesisBlockHeader, genesisTxs)
   }
@@ -340,11 +340,10 @@ class LevelDBBlockchain(chainSettings: ChainSettings,
       val forkHead = forkBase.head.get
       val merkleRoot = MerkleTree.root(pendingState.txs.map(_.id))
       val privateKey = pendingState.producer.privkey.get
-      val publicKey = pendingState.producer.pubkey
       val timeStamp = pendingState.blockTime
       val header = BlockHeader.build(
         forkHead.block.height + 1, timeStamp, merkleRoot,
-        forkHead.block.id, publicKey, privateKey)
+        forkHead.block.id, privateKey)
       val block = Block.build(header, pendingState.txs.clone)
       pendingState.txs.clear()
       pendingState.isProducingBlock = false
@@ -417,7 +416,7 @@ class LevelDBBlockchain(chainSettings: ChainSettings,
       if (enableSession)
         dataBase.startSession()
       block.transactions.foreach(tx => {
-        if (applied && !applyTransaction(tx, block.header.producer.pubKeyHash, Long.MaxValue, block.header.timeStamp, block.height()))
+        if (applied && !applyTransaction(tx, block.header.producer, Long.MaxValue, block.header.timeStamp, block.height()))
           applied = false
       })
       if (enableSession && !applied)

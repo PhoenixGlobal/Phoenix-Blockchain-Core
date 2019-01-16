@@ -74,12 +74,12 @@ object DbManager {
 }
 
 object BlockBuilder {
-  def newBlock(pub: PublicKey, pri: PrivateKey, prevBlock: Block) = {
+  def newBlock(pri: PrivateKey, prevBlock: Block) = {
     val root = SerializerHelper.testHash256("test")
     val timeStamp = Instant.now.toEpochMilli
     val header = BlockHeader.build(
       prevBlock.height + 1, timeStamp,
-      root, prevBlock.id, pub, pri)
+      root, prevBlock.id, pri)
     Block.build(header, Seq.empty)
   }
 
@@ -89,7 +89,7 @@ object BlockBuilder {
 
     val genesisHeader = BlockHeader.build(
       0, Instant.now.toEpochMilli,
-      UInt256.Zero, UInt256.Zero, pub, pri)
+      UInt256.Zero, UInt256.Zero, pri)
     Block.build(genesisHeader, Seq.empty)
   }
 }

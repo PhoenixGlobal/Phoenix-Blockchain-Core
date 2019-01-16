@@ -16,7 +16,7 @@ import java.io.{ByteArrayInputStream, ByteArrayOutputStream, DataInputStream, Da
 
 import com.apex.common.ApexLogging
 import com.apex.crypto.Ecdsa.PublicKey
-import com.apex.crypto.UInt256
+import com.apex.crypto.{UInt160, UInt256}
 import com.apex.settings.{ForkBaseSettings, Witness}
 import com.apex.storage.{Batch, Storage}
 
@@ -249,7 +249,7 @@ object SortedMultiMap {
 }
 
 // element of ForkBase
-case class ForkItem(block: Block, lastProducerHeight: mutable.Map[PublicKey, Long], master: Boolean = false) extends com.apex.common.Serializable {
+case class ForkItem(block: Block, lastProducerHeight: mutable.Map[UInt160, Long], master: Boolean = false) extends com.apex.common.Serializable {
   private var _confirmedHeight: Long = -1
 
   // block id
@@ -284,7 +284,7 @@ case class ForkItem(block: Block, lastProducerHeight: mutable.Map[PublicKey, Lon
     os.writeBoolean(master)
     os.writeVarInt(lastProducerHeight.size)
     lastProducerHeight.foreach(p => {
-      os.writeByteArray(p._1.toBin)
+      os.writeByteArray(p._1.data)
       os.writeLong(p._2)
     })
   }
@@ -295,9 +295,9 @@ object ForkItem {
     import com.apex.common.Serializable._
     val block = is.readObj[Block]
     val master = is.readBoolean
-    val lastProducerHeight = Map.empty[PublicKey, Long]
+    val lastProducerHeight = Map.empty[UInt160, Long]
     for (_ <- 1 to is.readVarInt) {
-      lastProducerHeight += PublicKey(is.readByteArray) -> is.readLong
+      lastProducerHeight += UInt160.fromBytes(is.readByteArray) -> is.readLong
     }
     ForkItem(block, lastProducerHeight, master)
   }
@@ -412,19 +412,19 @@ class ForkBase(settings: ForkBaseSettings,
 
   // add a block
   def add(block: Block): Boolean = {
-    def makeItem(heights: IMap[PublicKey, Long], master: Boolean) = {
-      val lph = Map.empty[PublicKey, Long]
+    def makeItem(heights: IMap[UInt160, Long], master: Boolean) = {
+      val lph = Map.empty[UInt160, Long]
       heights.foreach(lph +=)
       // update height of block produced by this producer
-      val pub = block.header.producer
-      if (lph.contains(pub)) {
-        lph.put(pub, block.height)
+      val producer = block.header.producer
+      if (lph.contains(producer)) {
+        lph.put(producer, block.height)
       }
       ForkItem(block, lph, master)
     }
 
     if (_head.isEmpty) {
-      val prodHeights = witnesses.map(_.pubkey -> 0L).toMap
+      val prodHeights = witnesses.map(_.pubkey.pubKeyHash -> 0L).toMap
       val item = makeItem(prodHeights, true)
       add(item)
     } else {

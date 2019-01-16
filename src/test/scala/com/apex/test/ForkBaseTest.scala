@@ -34,12 +34,12 @@ class ForkBaseTest {
 
   @Test
   def testHead(): Unit = {
-    val blk1a = ForkBaseTest.newBlock(PubA, PriA, genesis)
-    val blk2a = ForkBaseTest.newBlock(PubA, PriA, blk1a)
-    val blk3a = ForkBaseTest.newBlock(PubA, PriA, blk2a)
-    val blk4a = ForkBaseTest.newBlock(PubA, PriA, blk3a)
-    val blk3b = ForkBaseTest.newBlock(PubB, PriB, blk2a)
-    val blk4b = ForkBaseTest.newBlock(PubB, PriB, blk3b)
+    val blk1a = ForkBaseTest.newBlock(PriA, genesis)
+    val blk2a = ForkBaseTest.newBlock(PriA, blk1a)
+    val blk3a = ForkBaseTest.newBlock(PriA, blk2a)
+    val blk4a = ForkBaseTest.newBlock(PriA, blk3a)
+    val blk3b = ForkBaseTest.newBlock(PriB, blk2a)
+    val blk4b = ForkBaseTest.newBlock(PriB, blk3b)
     val forkBase = ForkBaseTest.open("forkBase_head", witnesses)
     assert(forkBase.head.isEmpty)
     forkBase.add(genesis)
@@ -76,16 +76,16 @@ class ForkBaseTest {
 
     assertBlock(genesis)
 
-    val blk1a = ForkBaseTest.newBlock(PubA, PriA, genesis)
+    val blk1a = ForkBaseTest.newBlock(PriA, genesis)
     assertBlock(blk1a)
 
-    val blk2a = ForkBaseTest.newBlock(PubA, PriA, blk1a)
+    val blk2a = ForkBaseTest.newBlock(PriA, blk1a)
     assertBlock(blk2a)
 
-    val blk3a = ForkBaseTest.newBlock(PubA, PriA, blk2a)
+    val blk3a = ForkBaseTest.newBlock(PriA, blk2a)
     assertBlock(blk3a)
 
-    val blk3b = ForkBaseTest.newBlock(PubB, PriB, blk2a)
+    val blk3b = ForkBaseTest.newBlock(PriB, blk2a)
     assertBlock(blk3b, false, true, true, true)
   }
 
@@ -95,9 +95,9 @@ class ForkBaseTest {
     assert(forkBase.getNext(genesis.id).isEmpty)
     forkBase.add(genesis)
     assert(forkBase.getNext(genesis.id).isEmpty)
-    val blk1a = ForkBaseTest.newBlock(PubA, PriA, genesis)
-    val blk1b = ForkBaseTest.newBlock(PubB, PriB, genesis)
-    val blk2b = ForkBaseTest.newBlock(PubB, PriB, blk1b)
+    val blk1a = ForkBaseTest.newBlock(PriA, genesis)
+    val blk1b = ForkBaseTest.newBlock(PriB, genesis)
+    val blk2b = ForkBaseTest.newBlock(PriB, blk1b)
     forkBase.add(blk1a)
     assert(forkBase.getNext(genesis.id).forall(_.equals(blk1a.id)))
     forkBase.add(blk1b)
@@ -111,24 +111,24 @@ class ForkBaseTest {
     val forkBase = ForkBaseTest.open("forkBase_add", witnesses)
     assert(forkBase.add(genesis))
     assert(!forkBase.add(genesis))
-    val blk1a = ForkBaseTest.newBlock(PubA, PriA, genesis)
+    val blk1a = ForkBaseTest.newBlock(PriA, genesis)
     assert(forkBase.add(blk1a))
-    val blk2a = ForkBaseTest.newBlock(PubA, PriA, blk1a)
-    val blk3a = ForkBaseTest.newBlock(PubA, PriA, blk2a)
+    val blk2a = ForkBaseTest.newBlock(PriA, blk1a)
+    val blk3a = ForkBaseTest.newBlock(PriA, blk2a)
     assert(!forkBase.add(blk3a))
   }
 
   @Test
   def testSwitch(): Unit = {
     val forkBase = ForkBaseTest.open("forkBase_switch", witnesses :+ Witness("C", PubC, Some(PriC)))
-    val blk1a = ForkBaseTest.newBlock(PubA, PriA, genesis)
-    val blk2a = ForkBaseTest.newBlock(PubA, PriA, blk1a)
-    val blk3a = ForkBaseTest.newBlock(PubA, PriA, blk2a)
-    val blk4a = ForkBaseTest.newBlock(PubA, PriA, blk3a)
-    val blk5a = ForkBaseTest.newBlock(PubA, PriA, blk4a)
-    val blk3b = ForkBaseTest.newBlock(PubB, PriB, blk2a)
-    val blk4b = ForkBaseTest.newBlock(PubB, PriB, blk3b)
-    val blk4c = ForkBaseTest.newBlock(PubC, PriC, blk3b)
+    val blk1a = ForkBaseTest.newBlock(PriA, genesis)
+    val blk2a = ForkBaseTest.newBlock(PriA, blk1a)
+    val blk3a = ForkBaseTest.newBlock(PriA, blk2a)
+    val blk4a = ForkBaseTest.newBlock(PriA, blk3a)
+    val blk5a = ForkBaseTest.newBlock(PriA, blk4a)
+    val blk3b = ForkBaseTest.newBlock(PriB, blk2a)
+    val blk4b = ForkBaseTest.newBlock(PriB, blk3b)
+    val blk4c = ForkBaseTest.newBlock(PriC, blk3b)
     forkBase.add(genesis)
     forkBase.add(blk1a)
     forkBase.add(blk2a)
@@ -166,7 +166,7 @@ class ForkBaseTest {
   @Test
   def testSwitchFailed(): Unit = {
     def  applyBlock(blk: Block) = {
-      !blk.header.producer.equals(PubC)
+      !blk.header.producer.equals(PubC.pubKeyHash)
     }
 
     def onSwitch(a: Seq[ForkItem], b: Seq[ForkItem], c: SwitchState) = {
@@ -182,14 +182,14 @@ class ForkBaseTest {
     }
 
     val forkBase = ForkBaseTest.open("forkBase_switchFailed", witnesses :+ Witness("C", PubC, Some(PriC)), onSwitch)
-    val blk1a = ForkBaseTest.newBlock(PubA, PriA, genesis)
-    val blk2a = ForkBaseTest.newBlock(PubA, PriA, blk1a)
-    val blk3a = ForkBaseTest.newBlock(PubA, PriA, blk2a)
-    val blk4a = ForkBaseTest.newBlock(PubA, PriA, blk3a)
-    val blk5a = ForkBaseTest.newBlock(PubA, PriA, blk4a)
-    val blk3b = ForkBaseTest.newBlock(PubB, PriB, blk2a)
-    val blk4b = ForkBaseTest.newBlock(PubB, PriB, blk3b)
-    val blk4c = ForkBaseTest.newBlock(PubC, PriC, blk3b)
+    val blk1a = ForkBaseTest.newBlock(PriA, genesis)
+    val blk2a = ForkBaseTest.newBlock(PriA, blk1a)
+    val blk3a = ForkBaseTest.newBlock(PriA, blk2a)
+    val blk4a = ForkBaseTest.newBlock(PriA, blk3a)
+    val blk5a = ForkBaseTest.newBlock(PriA, blk4a)
+    val blk3b = ForkBaseTest.newBlock(PriB, blk2a)
+    val blk4b = ForkBaseTest.newBlock(PriB, blk3b)
+    val blk4c = ForkBaseTest.newBlock(PriC, blk3b)
 
     forkBase.add(genesis)
     forkBase.add(blk1a)
@@ -230,14 +230,14 @@ class ForkBaseTest {
   @Test
   def testRemoveFork(): Unit = {
     val forkBase = ForkBaseTest.open("forkBase_removeFork", witnesses :+ Witness("C", PubC, Some(PriC)))
-    val blk1a = ForkBaseTest.newBlock(PubA, PriA, genesis)
-    val blk2a = ForkBaseTest.newBlock(PubA, PriA, blk1a)
-    val blk3a = ForkBaseTest.newBlock(PubA, PriA, blk2a)
-    val blk4a = ForkBaseTest.newBlock(PubA, PriA, blk3a)
-    val blk5a = ForkBaseTest.newBlock(PubA, PriA, blk4a)
-    val blk3b = ForkBaseTest.newBlock(PubB, PriB, blk2a)
-    val blk4b = ForkBaseTest.newBlock(PubB, PriB, blk3b)
-    val blk3c = ForkBaseTest.newBlock(PubC, PriC, blk2a)
+    val blk1a = ForkBaseTest.newBlock(PriA, genesis)
+    val blk2a = ForkBaseTest.newBlock(PriA, blk1a)
+    val blk3a = ForkBaseTest.newBlock(PriA, blk2a)
+    val blk4a = ForkBaseTest.newBlock(PriA, blk3a)
+    val blk5a = ForkBaseTest.newBlock(PriA, blk4a)
+    val blk3b = ForkBaseTest.newBlock(PriB, blk2a)
+    val blk4b = ForkBaseTest.newBlock(PriB, blk3b)
+    val blk3c = ForkBaseTest.newBlock(PriC, blk2a)
     forkBase.add(genesis)
     forkBase.add(blk1a)
     forkBase.add(blk2a)
@@ -266,10 +266,10 @@ class ForkBaseTest {
   @Test
   def testFork(): Unit = {
     val forkBase = ForkBaseTest.open("forkBase_fork", witnesses)
-    val blk1a = ForkBaseTest.newBlock(PubA, PriA, genesis)
-    val blk2a = ForkBaseTest.newBlock(PubA, PriA, blk1a)
-    val blk3a = ForkBaseTest.newBlock(PubA, PriA, blk2a)
-    val blk4a = ForkBaseTest.newBlock(PubA, PriA, blk3a)
+    val blk1a = ForkBaseTest.newBlock(PriA, genesis)
+    val blk2a = ForkBaseTest.newBlock(PriA, blk1a)
+    val blk3a = ForkBaseTest.newBlock(PriA, blk2a)
+    val blk4a = ForkBaseTest.newBlock(PriA, blk3a)
     forkBase.add(genesis)
     forkBase.add(blk1a)
     assert(forkBase.head.exists(_.block.id.equals(blk1a.id)))
@@ -277,8 +277,8 @@ class ForkBaseTest {
     assert(forkBase.head.exists(_.block.id.equals(blk2a.id)))
     forkBase.add(blk3a)
     assert(forkBase.head.exists(_.block.id.equals(blk3a.id)))
-    val blk3b = ForkBaseTest.newBlock(PubB, PriB, blk2a)
-    val blk4b = ForkBaseTest.newBlock(PubB, PriB, blk3b)
+    val blk3b = ForkBaseTest.newBlock(PriB, blk2a)
+    val blk4b = ForkBaseTest.newBlock(PriB, blk3b)
     forkBase.add(blk3b)
     assert(forkBase.head.exists(_.block.id.equals(blk3b.id)))
     assert(forkBase.get(blk3a.id).exists(_.master == false))
@@ -329,8 +329,8 @@ object ForkBaseTest {
     forkBase
   }
 
-  def newBlock(pub: PublicKey, pri: PrivateKey, prevBlock: Block) = {
-    BlockBuilder.newBlock(pub, pri, prevBlock)
+  def newBlock(pri: PrivateKey, prevBlock: Block) = {
+    BlockBuilder.newBlock(pri, prevBlock)
   }
 
   private def deleteDir(dir: String): Unit = {
