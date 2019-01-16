@@ -89,6 +89,8 @@ class ContractTxTest {
 
   val _consensusSettings = ConsensusSettings(_produceInterval, 500, 1, Array(_witness1, _witness2, _witness3, _witness4))
 
+  val _runtimeParas = RuntimeParas(100, 9000000)
+
   val _acct1 = Ecdsa.PrivateKey.fromWIF("KwmuSp41VWBtGSWaQQ82ZRRSFzkJVTAyuDLQ9NzP9CPqLWirh4UQ").get
   val _acct2 = Ecdsa.PrivateKey.fromWIF("L32JpLopG2hWjEMSCkAjS1nUnPixVrDTPqFAGYbddQrtUjRfkjEP").get
   val _acct3 = Ecdsa.PrivateKey.fromWIF("KyUTLv2BeP9SJD6Sa8aHBVmuRkgw9eThjNGJDE4PySEgf2TvCQCn").get
@@ -171,7 +173,7 @@ class ContractTxTest {
       )
     )
 
-    Blockchain.populate(chainSetting, _consensusSettings, Notification())
+    Blockchain.populate(chainSetting, _consensusSettings, _runtimeParas, Notification())
   }
 
   @Test
@@ -211,7 +213,7 @@ class ContractTxTest {
 
       var deployTx = new Transaction(TransactionType.Deploy, _acct1.publicKey.pubKeyHash,
         UInt160.Zero, "", FixedNumber.Zero, 1, codebin,
-        FixedNumber(0), 99999999L, BinaryData.empty)
+        FixedNumber(0), 9000000L, BinaryData.empty)
       assert(!chain.addTransaction(deployTx))   // nonce error
 
       deployTx = new Transaction(TransactionType.Deploy, _acct1.publicKey.pubKeyHash,
@@ -221,7 +223,7 @@ class ContractTxTest {
 
       deployTx = new Transaction(TransactionType.Deploy, _acct1.publicKey.pubKeyHash,
         UInt160.Zero, "", FixedNumber.Zero, 0, codebin,
-        FixedNumber(0), 99999999L, BinaryData.empty)
+        FixedNumber(0), 9000000L, BinaryData.empty)
       assert(chain.addTransaction(deployTx))
 
       val settt = Abi.fromJson("[{\"constant\":false,\"inputs\":[{\"name\":\"withdraw_amount\",\"type\":\"uint256\"}],\"name\":\"set\",\"outputs\":[],\"payable\":false,\"stateMutability\":\"nonpayable\",\"type\":\"function\"},{\"constant\":false,\"inputs\":[],\"name\":\"get\",\"outputs\":[{\"name\":\"\",\"type\":\"uint256\"}],\"payable\":false,\"stateMutability\":\"nonpayable\",\"type\":\"function\"}]").encode("set(123)")
@@ -232,14 +234,14 @@ class ContractTxTest {
 
       setTx = new Transaction(TransactionType.Call, _acct1.publicKey.pubKeyHash,
         UInt160.fromBytes(BinaryData("7f97e6f4f660e6c09b894f34edae3626bf44039a")), "", FixedNumber.Zero,
-        1, settt, FixedNumber(0), 99999999L, BinaryData.empty)
+        1, settt, FixedNumber(0), 9000000L, BinaryData.empty)
       assert(chain.addTransaction(setTx))
 
       val gettt = Abi.fromJson("[{\"constant\":false,\"inputs\":[{\"name\":\"withdraw_amount\",\"type\":\"uint256\"}],\"name\":\"set\",\"outputs\":[],\"payable\":false,\"stateMutability\":\"nonpayable\",\"type\":\"function\"},{\"constant\":false,\"inputs\":[],\"name\":\"get\",\"outputs\":[{\"name\":\"\",\"type\":\"uint256\"}],\"payable\":false,\"stateMutability\":\"nonpayable\",\"type\":\"function\"}]").encode("get()")
 
       var getTx = new Transaction(TransactionType.Call, _acct1.publicKey.pubKeyHash,
         UInt160.fromBytes(BinaryData("7f97e6f4f660e6c09b894f34edae3626bf44039a")), "", FixedNumber.Zero,
-        2, gettt, FixedNumber(0), 99999999L, BinaryData.empty)
+        2, gettt, FixedNumber(0), 9000000L, BinaryData.empty)
       assert(chain.addTransaction(getTx))
       assert(chain.getTransactionFromPendingTxs(getTx.id).isDefined)
 

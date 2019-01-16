@@ -48,7 +48,7 @@ class Node(val settings: ApexSettings)
     notification.register(mongodbPlugin)
   }
 
-  private val chain = Blockchain.populate(settings.chain, settings.consensus, notification)
+  private val chain = Blockchain.populate(settings.chain, settings.consensus, settings.runtimeParas, notification)
 
   private val peerHandlerManager = PeerHandlerManagerRef(settings.network, timeProvider)
   notification.register(peerHandlerManager)

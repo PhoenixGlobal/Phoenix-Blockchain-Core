@@ -6,7 +6,7 @@ import com.apex.consensus.ProducerUtil
 import com.apex.core._
 import com.apex.crypto.{BinaryData, Crypto, Ecdsa, FixedNumber, MerkleTree, UInt160, UInt256}
 import com.apex.crypto.Ecdsa.{PrivateKey, PublicKey}
-import com.apex.settings._
+import com.apex.settings.{RuntimeParas, _}
 import com.apex.solidity.Abi
 import com.apex.vm.DataWord
 import org.junit.{AfterClass, Test}
@@ -88,6 +88,8 @@ class BlockchainTest {
     Some(new PrivateKey(BinaryData("9456beec947b368eda4be03f6c306703d9b2eda49f661285944b4e1f07ae18f3"))))
 
   val _consensusSettings = ConsensusSettings(_produceInterval, 500, 1, Array(_witness1, _witness2, _witness3, _witness4))
+
+  val _runtimeParas = RuntimeParas(100, 9000000)
 
   val _acct1 = Ecdsa.PrivateKey.fromWIF("KwmuSp41VWBtGSWaQQ82ZRRSFzkJVTAyuDLQ9NzP9CPqLWirh4UQ").get
   val _acct2 = Ecdsa.PrivateKey.fromWIF("L32JpLopG2hWjEMSCkAjS1nUnPixVrDTPqFAGYbddQrtUjRfkjEP").get
@@ -173,7 +175,7 @@ class BlockchainTest {
       )
     )
 
-    Blockchain.populate(chainSetting, _consensusSettings, Notification())
+    Blockchain.populate(chainSetting, _consensusSettings, _runtimeParas, Notification())
   }
 
   private def sleepTo(time: Long) = {

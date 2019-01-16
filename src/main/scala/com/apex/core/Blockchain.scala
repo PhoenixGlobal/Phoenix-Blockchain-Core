@@ -7,7 +7,7 @@ import com.apex.common.ApexLogging
 import com.apex.consensus.ProducerUtil
 import com.apex.crypto.Ecdsa.{PrivateKey, PublicKey, PublicKeyHash}
 import com.apex.crypto.{BinaryData, Crypto, FixedNumber, MerkleTree, UInt160, UInt256}
-import com.apex.settings.{ChainSettings, ConsensusSettings, Witness}
+import com.apex.settings.{ChainSettings, ConsensusSettings, RuntimeParas, Witness}
 
 import scala.collection.{immutable, mutable}
 import scala.collection.mutable.{ArrayBuffer, Set}
@@ -74,8 +74,11 @@ object Blockchain {
   //private var chain: LevelDBBlockchain = null
 
   //  final val Current: Blockchain = new LevelDBBlockchain()
-  def populate(chainSettings: ChainSettings, consensusSettings: ConsensusSettings, notification: Notification): LevelDBBlockchain = {
-    new LevelDBBlockchain(chainSettings, consensusSettings, notification)
+  def populate(chainSettings: ChainSettings,
+               consensusSettings: ConsensusSettings,
+               runtimeParas: RuntimeParas,
+               notification: Notification): LevelDBBlockchain = {
+    new LevelDBBlockchain(chainSettings, consensusSettings, runtimeParas, notification)
   }
 
   //def getLevelDBBlockchain: LevelDBBlockchain = chain
@@ -100,7 +103,10 @@ class PendingState {
   }
 }
 
-class LevelDBBlockchain(chainSettings: ChainSettings, consensusSettings: ConsensusSettings, notification: Notification) extends Blockchain {
+class LevelDBBlockchain(chainSettings: ChainSettings,
+                        consensusSettings: ConsensusSettings,
+                        runtimeParas: RuntimeParas,
+                        notification: Notification) extends Blockchain {
 
   log.info("LevelDBBlockchain starting")
 
@@ -302,7 +308,10 @@ class LevelDBBlockchain(chainSettings: ChainSettings, consensusSettings: Consens
 
   override def addTransaction(tx: Transaction): Boolean = {
     var added = false
-    if (isProducingBlock()) {
+    if (tx.gasLimit > runtimeParas.txAcceptGasLimit) {
+      added = false
+    }
+    else if (isProducingBlock()) {
       if (Instant.now.toEpochMilli > pendingState.stopProcessTxTime) {
         added = addTransactionToUnapplyTxs(tx)
       }
