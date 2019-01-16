@@ -145,7 +145,7 @@ class DataBase(settings: DataBaseSettings) extends ApexLogging {
   }
 
   // commit all operations in sessions whose revision is equal to or larger than the specified revision
-  def commit(revision: Int): Unit = {
+  def commit(revision: Long): Unit = {
     db.commit(revision)
   }
 
@@ -159,7 +159,7 @@ class DataBase(settings: DataBaseSettings) extends ApexLogging {
   }
 
   // return latest revision
-  def revision(): Int = {
+  def revision(): Long = {
     db.revision()
   }
 }

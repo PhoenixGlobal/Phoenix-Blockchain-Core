@@ -249,23 +249,23 @@ object SortedMultiMap {
 }
 
 // element of ForkBase
-case class ForkItem(block: Block, lastProducerHeight: mutable.Map[PublicKey, Int], master: Boolean = false) extends com.apex.common.Serializable {
-  private var _confirmedHeight: Int = -1
+case class ForkItem(block: Block, lastProducerHeight: mutable.Map[PublicKey, Long], master: Boolean = false) extends com.apex.common.Serializable {
+  private var _confirmedHeight: Long = -1
 
   // block id
   def id(): UInt256 = block.id()
 
   // block height
-  def height(): Int = block.height()
+  def height(): Long = block.height()
 
   // previous block id
   def prev(): UInt256 = block.prev()
 
   // height of the latest confirmed block
-  def confirmedHeight: Int = {
+  def confirmedHeight: Long = {
     if (_confirmedHeight == -1) {
       val index = lastProducerHeight.size * 2 / 3
-      val lastHeights = lastProducerHeight.values.toSeq.sorted(Ordering[Int].reverse)
+      val lastHeights = lastProducerHeight.values.toSeq.sorted(Ordering[Long].reverse)
       _confirmedHeight = lastHeights(index)
     }
     _confirmedHeight
@@ -285,7 +285,7 @@ case class ForkItem(block: Block, lastProducerHeight: mutable.Map[PublicKey, Int
     os.writeVarInt(lastProducerHeight.size)
     lastProducerHeight.foreach(p => {
       os.writeByteArray(p._1.toBin)
-      os.writeVarInt(p._2)
+      os.writeLong(p._2)
     })
   }
 }
@@ -295,9 +295,9 @@ object ForkItem {
     import com.apex.common.Serializable._
     val block = is.readObj[Block]
     val master = is.readBoolean
-    val lastProducerHeight = Map.empty[PublicKey, Int]
+    val lastProducerHeight = Map.empty[PublicKey, Long]
     for (_ <- 1 to is.readVarInt) {
-      lastProducerHeight += PublicKey(is.readByteArray) -> is.readVarInt
+      lastProducerHeight += PublicKey(is.readByteArray) -> is.readLong
     }
     ForkItem(block, lastProducerHeight, master)
   }
@@ -310,13 +310,13 @@ object ForkItem {
 }
 
 // context information about chain switching
-case class SwitchState(oldHead: UInt256, newHead: UInt256, forkPoint: UInt256, height: Int) extends com.apex.common.Serializable {
+case class SwitchState(oldHead: UInt256, newHead: UInt256, forkPoint: UInt256, height: Long) extends com.apex.common.Serializable {
   override def serialize(os: DataOutputStream): Unit = {
     import com.apex.common.Serializable._
     os.write(oldHead)
     os.write(newHead)
     os.write(forkPoint)
-    os.writeVarInt(height)
+    os.writeLong(height)
   }
 }
 
@@ -327,7 +327,7 @@ object SwitchState {
       is.readObj(UInt256.deserializer),
       is.readObj(UInt256.deserializer),
       is.readObj(UInt256.deserializer),
-      is.readVarInt
+      is.readLong
     )
   }
 
@@ -351,8 +351,8 @@ class ForkBase(settings: ForkBaseSettings,
 
   private val indexById = Map.empty[UInt256, ForkItem]
   private val indexByPrev = MultiMap.empty[UInt256, UInt256]
-  private val indexByHeight = SortedMultiMap.empty[Int, Boolean, UInt256]()(implicitly[Ordering[Int]], implicitly[Ordering[Boolean]].reverse)
-  private val indexByConfirmedHeight = SortedMultiMap.empty[Int, Int, UInt256]()(implicitly[Ordering[Int]].reverse, implicitly[Ordering[Int]].reverse)
+  private val indexByHeight = SortedMultiMap.empty[Long, Boolean, UInt256]()(implicitly[Ordering[Long]], implicitly[Ordering[Boolean]].reverse)
+  private val indexByConfirmedHeight = SortedMultiMap.empty[Long, Long, UInt256]()(implicitly[Ordering[Long]].reverse, implicitly[Ordering[Long]].reverse)
 
   private var _head: Option[ForkItem] = None
 
@@ -396,7 +396,7 @@ class ForkBase(settings: ForkBaseSettings,
   }
 
   // try get the block with this height from master branch
-  def get(height: Int): Option[ForkItem] = {
+  def get(height: Long): Option[ForkItem] = {
     indexByHeight.get(height, true)
       .flatMap(_.headOption)
       .flatMap(get)
@@ -412,8 +412,8 @@ class ForkBase(settings: ForkBaseSettings,
 
   // add a block
   def add(block: Block): Boolean = {
-    def makeItem(heights: IMap[PublicKey, Int], master: Boolean) = {
-      val lph = Map.empty[PublicKey, Int]
+    def makeItem(heights: IMap[PublicKey, Long], master: Boolean) = {
+      val lph = Map.empty[PublicKey, Long]
       heights.foreach(lph +=)
       // update height of block produced by this producer
       val pub = block.header.producer
@@ -424,7 +424,7 @@ class ForkBase(settings: ForkBaseSettings,
     }
 
     if (_head.isEmpty) {
-      val prodHeights = witnesses.map(_.pubkey -> 0).toMap
+      val prodHeights = witnesses.map(_.pubkey -> 0L).toMap
       val item = makeItem(prodHeights, true)
       add(item)
     } else {
@@ -545,8 +545,8 @@ class ForkBase(settings: ForkBaseSettings,
     old
   }
 
-  private def removeConfirmed(height: Int): Unit = {
-    def tryConfirm(key: (Int, Boolean, UInt256)): Boolean = {
+  private def removeConfirmed(height: Long): Unit = {
+    def tryConfirm(key: (Long, Boolean, UInt256)): Boolean = {
       if (key._1 < height) {
         indexById.get(key._3).exists(item => {
           if (item.master) {

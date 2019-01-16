@@ -106,7 +106,7 @@ class LevelDbStorage(private val db: DB) extends Storage[Array[Byte], Array[Byte
   }
 
   // commit all operations in sessions whose revision is equal to or larger than the specified revision
-  override def commit(revision: Int): Unit = {
+  override def commit(revision: Long): Unit = {
     sessionMgr.commit(revision)
   }
 
@@ -127,12 +127,12 @@ class LevelDbStorage(private val db: DB) extends Storage[Array[Byte], Array[Byte
   }
 
   // return latest revision
-  override def revision(): Int = {
+  override def revision(): Long = {
     sessionMgr.revision()
   }
 
   // return all uncommitted session revisions
-  override def uncommitted(): Seq[Int] = {
+  override def uncommitted(): Seq[Long] = {
     sessionMgr.revisions()
   }
 
@@ -321,7 +321,7 @@ class Session {
 }
 
 // session with capable of undoing all operations happened in this session
-class RollbackSession(db: DB, val prefix: Array[Byte], val revision: Int) extends Session {
+class RollbackSession(db: DB, val prefix: Array[Byte], val revision: Long) extends Session {
   private val sessionId = prefix ++ BigInt(revision).toByteArray
 
   private val item = new SessionItem
@@ -438,13 +438,13 @@ class SessionManager(db: DB) {
 
   private val defaultSession = new Session
 
-  private var _revision = 1
+  private var _revision: Long = 1
 
   init()
 
-  def revision(): Int = _revision
+  def revision(): Long = _revision
 
-  def revisions(): Seq[Int] = sessions.map(_.revision)
+  def revisions(): Seq[Long] = sessions.map(_.revision)
 
   def beginSet(key: Array[Byte], value: Array[Byte], batch: Batch): Batch = {
     sessions.lastOption.getOrElse(defaultSession).onSet(key, value, batch)
@@ -455,7 +455,7 @@ class SessionManager(db: DB) {
   }
 
   // commit all operations in sessions whose revision is equal to or larger than the specified revision
-  def commit(revision: Int): Unit = {
+  def commit(revision: Long): Unit = {
     val toCommit = sessions.takeWhile(_.revision <= revision)
     sessions.remove(0, toCommit.length)
     toCommit.foreach(_.close)
@@ -494,7 +494,7 @@ class SessionManager(db: DB) {
         val kv = iterator.peekNext()
         if (kv.getKey.startsWith(prefix)) {
           require(kv.getKey.sameElements(prefix))
-          _revision = BigInt(kv.getValue).toInt
+          _revision = BigInt(kv.getValue).toLong
           iterator.next
           true
         } else {
@@ -515,7 +515,7 @@ class SessionManager(db: DB) {
         val key = kv.getKey
         if (key.startsWith(prefix)) {
           val value = kv.getValue
-          val revision = BigInt(key.drop(prefix.length)).toInt
+          val revision = BigInt(key.drop(prefix.length)).toLong
           val session = new RollbackSession(db, prefix, revision)
           session.init(value)
           temp.append(session)

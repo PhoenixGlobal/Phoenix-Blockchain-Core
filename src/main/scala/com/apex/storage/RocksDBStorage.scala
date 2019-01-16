@@ -40,7 +40,7 @@ class RocksDBStorage(db: RocksDB) extends Storage[Array[Byte], Array[Byte]] with
 
   override def newSession(): Unit = ???
 
-  override def commit(revision: Int): Unit = ???
+  override def commit(revision: Long): Unit = ???
 
   override def commit(): Unit = ???
 
@@ -48,9 +48,9 @@ class RocksDBStorage(db: RocksDB) extends Storage[Array[Byte], Array[Byte]] with
 
   override def close(): Unit = ???
 
-  override def revision(): Int = ???
+  override def revision(): Long = ???
 
-  override def uncommitted(): Seq[Int] = ???
+  override def uncommitted(): Seq[Long] = ???
 
   override def onRollback(action: () => Unit): Unit = ???
 }

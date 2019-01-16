@@ -50,9 +50,9 @@ class ReceiptStore(db: Storage.raw, capacity:Int)
     with ReceiptValue
 
 class HeightStore(db: Storage.raw, capacity: Int)
-  extends StoreBase[Int, UInt256](db, capacity)
+  extends StoreBase[Long, UInt256](db, capacity)
     with HeightToIdIndexPrefix
-    with IntKey
+    with LongKey
     with UInt256Value
 
 class BlkTxMappingStore(db: Storage.raw, capacity: Int)
@@ -234,6 +234,10 @@ trait IntKey extends KeyConverterProvider[Int] {
   override val keyConverter: Converter[Int] = new IntConverter
 }
 
+trait LongKey extends KeyConverterProvider[Long] {
+  override val keyConverter: Converter[Long] = new LongConverter
+}
+
 trait StringKey extends KeyConverterProvider[String] {
   override val keyConverter: Converter[String] = new StringConverter
 }
@@ -342,6 +346,18 @@ class IntConverter extends Converter[Int] {
   }
 }
 
+class LongConverter extends Converter[Long] {
+  override def deserializer(is: DataInputStream): Long = {
+    import com.apex.common.Serializable._
+    is.readLong
+  }
+
+  override def serializer(key: Long, os: DataOutputStream): Unit = {
+    import com.apex.common.Serializable._
+    os.writeLong(key)
+  }
+}
+
 class StringConverter extends Converter[String] {
   override def deserializer(is: DataInputStream): String = {
     import com.apex.common.Serializable._
@@ -402,20 +418,20 @@ object BlkTxMapping {
   }
 }
 
-case class HeadBlock(height: Int, id: UInt256) extends Serializable {
+case class HeadBlock(height: Long, id: UInt256) extends Serializable {
   override def serialize(os: DataOutputStream): Unit = {
-    os.writeInt(height)
+    os.writeLong(height)
     os.write(id)
   }
 }
 
 object HeadBlock {
-  final val Size = 4 + UInt256.Size
+  //final val Size = 8 + UInt256.Size
 
   def deserialize(is: DataInputStream): HeadBlock = {
     import com.apex.common.Serializable._
     HeadBlock(
-      is.readInt(),
+      is.readLong(),
       is.readObj(UInt256.deserialize)
     )
   }

@@ -39,7 +39,7 @@ class BlockBase(settings: BlockBaseSettings) {
     blockStore.get(id)
   }
 
-  def getBlock(height: Int): Option[Block] = {
+  def getBlock(height: Long): Option[Block] = {
     heightStore.get(height).flatMap(getBlock)
   }
 

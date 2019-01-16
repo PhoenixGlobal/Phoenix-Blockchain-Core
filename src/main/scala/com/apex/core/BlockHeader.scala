@@ -9,7 +9,7 @@ import com.apex.crypto.{BinaryData, Crypto, UInt256}
 import com.apex.vm.DataWord
 import play.api.libs.json.{JsValue, Json, Writes}
 
-class BlockHeader(val index: Int,
+class BlockHeader(val index: Long,
                   val timeStamp: Long,
                   val merkleRoot: UInt256,
                   val prevBlock: UInt256,
@@ -48,7 +48,7 @@ class BlockHeader(val index: Int,
   private def serializeForSign(os: DataOutputStream) = {
     import com.apex.common.Serializable._
     os.writeInt(version)
-    os.writeInt(index)
+    os.writeLong(index)
     os.writeLong(timeStamp)
     os.write(merkleRoot)
     os.write(prevBlock)
@@ -93,7 +93,7 @@ object BlockHeader {
     )
   }
 
-  def build(index: Int, timeStamp: Long, merkleRoot: UInt256, prevBlock: UInt256,
+  def build(index: Long, timeStamp: Long, merkleRoot: UInt256, prevBlock: UInt256,
     producer: PublicKey, privateKey: PrivateKey): BlockHeader = {
 
     assert(producer.length == 33)
@@ -107,7 +107,7 @@ object BlockHeader {
     import com.apex.common.Serializable._
     val version = is.readInt
     new BlockHeader(
-      index = is.readInt,
+      index = is.readLong,
       timeStamp = is.readLong,
       merkleRoot = is.readObj(UInt256.deserialize),
       prevBlock = is.readObj(UInt256.deserialize),

@@ -20,7 +20,7 @@ class Block(val header: BlockHeader,
     header.shortId()
   }
 
-  def height(): Int = {
+  def height(): Long = {
     header.index
   }
 

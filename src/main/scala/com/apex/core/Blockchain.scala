@@ -19,7 +19,7 @@ trait Blockchain extends Iterable[Block] with ApexLogging {
 
   def getLatestHeader(): BlockHeader
 
-  def getHeight(): Int
+  def getHeight(): Long
 
   def getHeadTime(): Long
 
@@ -27,11 +27,11 @@ trait Blockchain extends Iterable[Block] with ApexLogging {
 
   def getHeader(id: UInt256): Option[BlockHeader]
 
-  def getHeader(index: Int): Option[BlockHeader]
+  def getHeader(index: Long): Option[BlockHeader]
 
   def getNextBlockId(id: UInt256): Option[UInt256]
 
-  def getBlock(height: Int): Option[Block]
+  def getBlock(height: Long): Option[Block]
 
   def getBlock(id: UInt256): Option[Block]
 
@@ -177,7 +177,7 @@ class LevelDBBlockchain(chainSettings: ChainSettings,
     ChainInfo(genesisBlock.id.toString)
   }
 
-  override def getHeight(): Int = {
+  override def getHeight(): Long = {
     forkBase.head.map(_.block.height).getOrElse(genesisBlock.height)
   }
 
@@ -201,7 +201,7 @@ class LevelDBBlockchain(chainSettings: ChainSettings,
     forkBase.get(id).map(_.block.header).orElse(blockBase.getBlock(id).map(_.header))
   }
 
-  override def getHeader(height: Int): Option[BlockHeader] = {
+  override def getHeader(height: Long): Option[BlockHeader] = {
     forkBase.get(height).map(_.block.header).orElse(blockBase.getBlock(height).map(_.header))
   }
 
@@ -223,7 +223,7 @@ class LevelDBBlockchain(chainSettings: ChainSettings,
     forkBase.get(id).map(_.block).orElse(blockBase.getBlock(id))
   }
 
-  override def getBlock(height: Int): Option[Block] = {
+  override def getBlock(height: Long): Option[Block] = {
     forkBase.get(height).map(_.block).orElse(blockBase.getBlock(height))
   }
 

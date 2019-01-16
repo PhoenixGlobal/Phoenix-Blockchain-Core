@@ -47,7 +47,7 @@ trait Storage[Key, Value] {
   def newSession(): Unit
 
   // commit all operations in sessions whose revision is equal to or larger than the specified revision
-  def commit(revision: Int): Unit
+  def commit(revision: Long): Unit
 
   // commit all operations in the latest session
   def commit(): Unit
@@ -59,10 +59,10 @@ trait Storage[Key, Value] {
   def close(): Unit
 
   // return latest revision
-  def revision(): Int
+  def revision(): Long
 
   // return all uncommitted session revisions
-  def uncommitted(): Seq[Int]
+  def uncommitted(): Seq[Long]
 
   def onRollback(action: () => Unit): Unit
 }
