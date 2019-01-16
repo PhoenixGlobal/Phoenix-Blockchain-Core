@@ -13,7 +13,7 @@ import java.io.{DataInputStream, DataOutputStream}
 import com.apex.common.Serializable
 import com.apex.exceptions.OverflowException
 
-case class FixedNumber(val value: BigInt = 0) extends Serializable {
+case class FixedNumber(value: BigInt = 0) extends Serializable {
   def isZero: Boolean = value == 0
 
   def ceiling: FixedNumber = {
@@ -21,9 +21,9 @@ case class FixedNumber(val value: BigInt = 0) extends Serializable {
     if (remainder == 0)
       this
     else if (remainder > 0) {
-      new FixedNumber(value - remainder + FixedNumber.One.value)
+      FixedNumber(value - remainder + FixedNumber.One.value)
     } else {
-      new FixedNumber(value - remainder)
+      FixedNumber(value - remainder)
     }
   }
 
@@ -47,15 +47,15 @@ case class FixedNumber(val value: BigInt = 0) extends Serializable {
     os.writeByteArray(value.toByteArray)
   }
 
-  def unary_-(): FixedNumber = new FixedNumber(-value)
+  def unary_-(): FixedNumber = FixedNumber(-value)
 
-  def +(that: FixedNumber): FixedNumber = new FixedNumber(value + that.value)
+  def +(that: FixedNumber): FixedNumber = FixedNumber(value + that.value)
 
-  def -(that: FixedNumber): FixedNumber = new FixedNumber(value - that.value)
+  def -(that: FixedNumber): FixedNumber = FixedNumber(value - that.value)
 
-  def *(that: FixedNumber): FixedNumber = new FixedNumber(value * that.value)
+  def *(that: FixedNumber): FixedNumber = FixedNumber(value * that.value)
 
-  def *(that: BigInt): FixedNumber = new FixedNumber(value * that)
+  def *(that: BigInt): FixedNumber = FixedNumber(value * that)
 
   def >(that: FixedNumber): Boolean = value > that.value
 
@@ -71,10 +71,10 @@ case class FixedNumber(val value: BigInt = 0) extends Serializable {
 
 object FixedNumber {
   //final val MaxValue: Fixed18 = new Fixed18(Long.MaxValue)
-  final val MinValue: FixedNumber = new FixedNumber(1)
-  final val One: FixedNumber = new FixedNumber(1000000000000000000L)  // 10^18
-  final val Ten: FixedNumber = new FixedNumber(One.value * 10)
-  final val Zero: FixedNumber = new FixedNumber(0)
+  final val MinValue: FixedNumber = FixedNumber(1)
+  final val One: FixedNumber = FixedNumber(1000000000000000000L)  // 10^18
+  final val Ten: FixedNumber = FixedNumber(One.value * 10)
+  final val Zero: FixedNumber = FixedNumber(0)
 
   implicit val serializer: DataInputStream => FixedNumber = deserialize
 
@@ -97,7 +97,7 @@ object FixedNumber {
 
     override def negate(x: FixedNumber): FixedNumber = -x
 
-    override def fromInt(x: Int): FixedNumber = new FixedNumber(x)
+    override def fromInt(x: Int): FixedNumber = FixedNumber(x)
 
     override def toInt(x: FixedNumber): Int = x.value.toInt
 

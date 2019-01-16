@@ -36,7 +36,7 @@ class TransactionExecutor(val tx: Transaction,
   //private[core] var commonConfig: CommonConfig = null
   //private[core] var blockchainConfig: BlockchainConfig = null
 
-  private var cacheTrack = track //track.startTracking
+  private var cacheTrack = track.startTracking
   private var readyToExecute = false
   private var execError: String = ""
   private var receipt: TransactionReceipt = null
@@ -159,12 +159,12 @@ class TransactionExecutor(val tx: Transaction,
       DataWord.of(tx.gasPrice.value),
       DataWord.of(tx.gasLimit),
       DataWord.ZERO,
-      data,   // msgData
+      data, // msgData
       DataWord.ZERO,
       DataWord.of(coinbase),
       DataWord.of(timeStamp),
       DataWord.of(blockIndex),
-      track,
+      cacheTrack,
       track,
       null)
   }
@@ -252,7 +252,7 @@ class TransactionExecutor(val tx: Transaction,
   }
 
   private def rollback(): Unit = {
-    //cacheTrack.rollback()
+    cacheTrack.rollBack()
     // remove touched account
     //touchedAccounts.remove(if (tx.isContractCreation) tx.getContractAddress else tx.getReceiveAddress)
   }

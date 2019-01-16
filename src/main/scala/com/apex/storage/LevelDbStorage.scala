@@ -13,7 +13,7 @@ import scala.collection.mutable.{ListBuffer, Map}
 import scala.util.Try
 
 // KV Store implementation, use LevelDB as low level store
-class LevelDbStorage(private val db: DB) extends Storage[Array[Byte], Array[Byte]] with ApexLogging {
+class LevelDbStorage(private val db: DB) extends LowLevelStorage[Array[Byte], Array[Byte]] with ApexLogging {
   private lazy val sessionMgr = new SessionManager(db)
 
   private val actions = ListBuffer.empty[() => Unit]
@@ -235,28 +235,9 @@ class LevelDB(db: DB) extends LowLevelDB {
   }
 }
 
-// wrapper class for Array[Byte], can be used as Map key
-case class ByteArrayKey(bytes: Array[Byte]) extends com.apex.common.Serializable {
-  override def equals(obj: scala.Any): Boolean = {
-    obj match {
-      case that: ByteArrayKey => bytes sameElements that.bytes
-      case _ => false
-    }
-  }
-
-  override def hashCode(): Int = {
-    util.Arrays.hashCode(bytes)
-  }
-
-  override def serialize(os: DataOutputStream): Unit = {
-    import com.apex.common.Serializable._
-    os.writeByteArray(bytes)
-  }
-}
-
-class SessionItem(val insert: Map[ByteArrayKey, Array[Byte]] = Map.empty[ByteArrayKey, Array[Byte]],
-                  val update: Map[ByteArrayKey, Array[Byte]] = Map.empty[ByteArrayKey, Array[Byte]],
-                  val delete: Map[ByteArrayKey, Array[Byte]] = Map.empty[ByteArrayKey, Array[Byte]])
+class SessionItem(val insert: Map[ByteArray, Array[Byte]] = Map.empty[ByteArray, Array[Byte]],
+                  val update: Map[ByteArray, Array[Byte]] = Map.empty[ByteArray, Array[Byte]],
+                  val delete: Map[ByteArray, Array[Byte]] = Map.empty[ByteArray, Array[Byte]])
   extends Serializable {
   override def serialize(os: DataOutputStream): Unit = {
     writeBytes(os, insert)
@@ -280,18 +261,18 @@ class SessionItem(val insert: Map[ByteArrayKey, Array[Byte]] = Map.empty[ByteArr
   }
 
   private def fillInsert(kv: (Array[Byte], Array[Byte])): Unit = {
-    insert.put(ByteArrayKey(kv._1), kv._2)
+    insert.put(ByteArray(kv._1), kv._2)
   }
 
   private def fillUpdate(kv: (Array[Byte], Array[Byte])): Unit = {
-    update.put(ByteArrayKey(kv._1), kv._2)
+    update.put(ByteArray(kv._1), kv._2)
   }
 
   private def fillDelete(kv: (Array[Byte], Array[Byte])): Unit = {
-    delete.put(ByteArrayKey(kv._1), kv._2)
+    delete.put(ByteArray(kv._1), kv._2)
   }
 
-  private def writeBytes(os: DataOutputStream, dict: Map[ByteArrayKey, Array[Byte]]): Unit = {
+  private def writeBytes(os: DataOutputStream, dict: Map[ByteArray, Array[Byte]]): Unit = {
     import com.apex.common.Serializable._
     os.writeVarInt(dict.size)
     for (elem <- dict) {
@@ -380,7 +361,7 @@ class RollbackSession(db: DB, val prefix: Array[Byte], val revision: Long) exten
     newBatch.put(key, v)
 
     var modified = true
-    val k = ByteArrayKey(key)
+    val k = ByteArray(key)
     if (item.insert.contains(k) || item.update.contains(k)) {
       modified = false
     } else if (item.delete.contains(k)) {
@@ -408,7 +389,7 @@ class RollbackSession(db: DB, val prefix: Array[Byte], val revision: Long) exten
     newBatch.delete(key)
 
     var modified = false
-    val k = ByteArrayKey(key)
+    val k = ByteArray(key)
     if (item.insert.contains(k)) {
       item.insert.remove(k)
       modified = true

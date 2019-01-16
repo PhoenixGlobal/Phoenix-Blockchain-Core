@@ -1,11 +1,13 @@
 package com.apex.core
 
 import java.io.{ByteArrayInputStream, ByteArrayOutputStream, DataInputStream, DataOutputStream}
+import java.util.Map
 
 import com.apex.common.{Cache, LRUCache, Serializable}
 import com.apex.crypto.Ecdsa.PublicKey
 import com.apex.crypto.{UInt160, UInt256}
-import com.apex.storage.{Batch, Storage}
+import com.apex.settings.DataBaseSettings
+import com.apex.storage.{Batch, ByteArray, Storage}
 
 class BlockStore(db: Storage.raw, capacity: Int)
   extends StoreBase[UInt256, Block](db, capacity)
@@ -43,7 +45,7 @@ class ContractStateStore(db: Storage.raw, capacity: Int)
     with ByteArrayKey
     with ByteArrayValue
 
-class ReceiptStore(db: Storage.raw, capacity:Int)
+class ReceiptStore(db: Storage.raw, capacity: Int)
   extends StoreBase[UInt256, TransactionReceipt](db, capacity)
     with ReceiptPrefix
     with UInt256Key
@@ -302,15 +304,15 @@ trait AccountValue extends ValueConverterProvider[Account] {
   override val valConverter: Converter[Account] = new SerializableConverter(Account.deserialize)
 }
 
-trait ContractValue extends ValueConverterProvider[Contract]{
+trait ContractValue extends ValueConverterProvider[Contract] {
   override val valConverter: Converter[Contract] = new SerializableConverter(Contract.deserialize)
 }
 
-trait ContractStateValue extends ValueConverterProvider[ContractState]{
+trait ContractStateValue extends ValueConverterProvider[ContractState] {
   override val valConverter: Converter[ContractState] = new SerializableConverter(ContractState.deserialize)
 }
 
-trait ReceiptValue extends ValueConverterProvider[TransactionReceipt]{
+trait ReceiptValue extends ValueConverterProvider[TransactionReceipt] {
   override val valConverter: Converter[TransactionReceipt] = new SerializableConverter(TransactionReceipt.deserialize)
 }
 
@@ -475,62 +477,170 @@ abstract class StateStore[V <: Serializable](db: Storage.raw) {
   }
 }
 
+//
+//class TrackKey[K](val key: K) {
+//  override def equals(obj: scala.Any): Boolean = {
+//    obj match {
+//      case that: TrackKey[K] => key.equals(that.key)
+//      case _ => false
+//    }
+//  }
+//
+//  override def hashCode(): Int = {
+//    key.hashCode()
+//  }
+//}
+
+class TrackValue(var value: Array[Byte], var deleted: Boolean) {
+  def this(v: Array[Byte]) = this(v, false)
+
+  def this() = this(null, true)
+
+  def set(v: Array[Byte]): Unit = {
+    deleted = false
+    value = v
+  }
+
+  def delete(): Unit = {
+    deleted = true
+    value = null
+  }
+}
+
+class Tracking(backend: Storage.raw) extends Storage.raw {
+  protected val buffer = collection.mutable.Map.empty[ByteArray, TrackValue]
+
+  def newTracking() = {
+    new Tracking(this)
+  }
+
+  override def get(key: Array[Byte]): Option[Array[Byte]] = {
+    buffer.get(ByteArray(key)) match {
+      case Some(trackValue) if trackValue.deleted =>
+        None
+      case Some(trackValue) =>
+        Some(trackValue.value)
+      case None =>
+        backend.get(key)
+    }
+  }
+
+  override def set(k: Array[Byte], value: Array[Byte], batch: Batch = null): Boolean = {
+    val key = ByteArray(k)
+    buffer.get(key) match {
+      case Some(trackValue) =>
+        trackValue.set(value)
+      case None =>
+        buffer.put(key, new TrackValue(value))
+    }
+    true
+  }
+
+  override def delete(k: Array[Byte], batch: Batch = null): Boolean = {
+    val key = ByteArray(k)
+    buffer.get(key) match {
+      case Some(trackValue) =>
+        trackValue.delete()
+      case None =>
+        buffer.put(key, new TrackValue())
+    }
+    true
+  }
+
+  override def commit(): Unit = {
+    for ((key, trackValue) <- buffer) {
+      if (trackValue.deleted) {
+        backend.delete(key.bytes, null)
+      } else {
+        backend.set(key.bytes, trackValue.value, null)
+      }
+    }
+    buffer.clear()
+  }
+
+  override def commit(revision: Long): Unit = {
+    commit()
+    backend.commit(revision)
+  }
+
+  override def rollBack(): Unit = {
+    buffer.clear()
+  }
+
+  override def newSession(): Unit = ???
+
+  override def revision(): Long = ???
+}
+
+class TrackingRoot(db: Storage.lowLevelRaw) extends Tracking(db) {
+  override def newSession(): Unit = {
+    db.newSession()
+  }
+
+  override def revision(): Long = {
+    db.revision()
+  }
+
+  override def commit(): Unit = {
+    db.batchWrite(batch => {
+      for ((key, trackValue) <- buffer) {
+        if (trackValue.deleted) {
+          db.delete(key.bytes, batch)
+        } else {
+          db.set(key.bytes, trackValue.value, batch)
+        }
+      }
+    })
+    buffer.clear()
+  }
+
+  override def commit(revision: Long): Unit = {
+    commit()
+    db.commit(revision)
+  }
+
+  override def rollBack(): Unit = {
+    buffer.clear()
+    db.rollBack()
+  }
+}
+
+object TrackingRoot {
+  def create(db: Storage.lowLevelRaw) = {
+    new TrackingRoot(db)
+  }
+}
+
 abstract class StoreBase[K, V](val db: Storage.raw, cacheCapacity: Int) {
-  protected val cache: Cache[K, V] = new LRUCache(cacheCapacity)
-
-  db.onRollback(() => cache.clear)
-
   val prefixBytes: Array[Byte]
 
   val keyConverter: Converter[K]
 
   val valConverter: Converter[V]
 
-  def foreach(func: (K, V) => Unit): Unit = {
-    db.find(prefixBytes, (k, v) => {
-      val kData = k.drop(prefixBytes.length)
-      func(keyConverter.fromBytes(kData),
-        valConverter.fromBytes(v))
+  def contains(key: K) = {
+    backContains(key)
+  }
+
+  def get(key: K) = {
+    getFromBackStore(key)
+  }
+
+  def set(key: K, value: V, batch: Batch = null) = {
+    setBackStore(key, value, batch)
+  }
+
+  def delete(key: K, batch: Batch = null) = {
+    deleteBackStore(key, batch)
+  }
+
+  def foreach(action: (K, V) => Unit) = {
+    val lowLevelDB = db.asInstanceOf[Storage.lowLevelRaw]
+    lowLevelDB.find(prefixBytes, (k, v) => {
+      val key = keyConverter.fromBytes(k.drop(prefixBytes.length))
+      val value = valConverter.fromBytes(v)
+      action(key, value)
     })
-  }
-
-  def contains(key: K): Boolean = {
-    cache.contains(key) || backContains(key)
-  }
-
-  def get(key: K): Option[V] = {
-    var item = cache.get(key)
-    if (item.isEmpty) {
-      item = getFromBackStore(key)
-      if (item.isDefined) {
-        cache.set(key, item.get)
-        item
-      } else {
-        None
-      }
-    } else {
-      item
-    }
-  }
-
-  def set(key: K, value: V, batch: Batch = null): Boolean = {
-    //    val batch = sessionMgr.beginSet(key, value, writeBatch)
-    if (setBackStore(key, value, batch)) {
-      cache.set(key, value)
-      true
-    } else {
-      false
-    }
-  }
-
-  def delete(key: K, batch: Batch = null): Boolean = {
-    //    val batch = sessionMgr.beginDelete(key, writeBatch)
-    if (deleteBackStore(key, batch)) {
-      cache.delete(key)
-      true
-    } else {
-      false
-    }
   }
 
   protected def genKey(key: K): Array[Byte] = {
@@ -538,7 +648,7 @@ abstract class StoreBase[K, V](val db: Storage.raw, cacheCapacity: Int) {
   }
 
   protected def backContains(key: K): Boolean = {
-    db.containsKey(genKey(key))
+    db.contains(genKey(key))
   }
 
   protected def getFromBackStore(key: K): Option[V] = {

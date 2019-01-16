@@ -135,7 +135,7 @@ class LevelDBStorageTest {
 //  @Test
   def testSession(): Unit = {
 
-    def assertUncommittedSessions(levels: Seq[Int], min: Int, max: Int) = {
+    def assertUncommittedSessions(levels: Seq[Long], min: Int, max: Int) = {
       assert(levels.length == max - min + 1)
       var start = min
       for (elem <- levels) {

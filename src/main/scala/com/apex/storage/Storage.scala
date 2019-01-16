@@ -1,5 +1,7 @@
 package com.apex.storage
 
+import java.io.DataOutputStream
+import java.util
 import java.util.Map.Entry
 
 import com.apex.settings.DBType
@@ -9,7 +11,9 @@ import scala.collection.mutable.ListBuffer
 object Storage {
   type raw = Storage[Array[Byte], Array[Byte]]
 
-  def open(dbType: DBType.Value, path: String): raw = {
+  type lowLevelRaw = LowLevelStorage[Array[Byte], Array[Byte]]
+
+  def open(dbType: DBType.Value, path: String): lowLevelRaw = {
     dbType match {
       case DBType.LevelDB => LevelDbStorage.open(path)
       case _ => throw new NotImplementedError
@@ -20,7 +24,7 @@ object Storage {
 // base trait for KV store
 trait Storage[Key, Value] {
   // whether key exists
-  def containsKey(key: Key): Boolean = get(key).isDefined
+  def contains(key: Key): Boolean = get(key).isDefined
 
   // get value the key associated with
   def get(key: Key): Option[Value]
@@ -30,18 +34,6 @@ trait Storage[Key, Value] {
 
   // delete the key and associated value
   def delete(key: Key, batch: Batch): Boolean
-
-  //
-  def batchWrite(action: Batch => Unit): Boolean
-
-  // return last element
-  def last(): Option[Entry[Array[Byte], Array[Byte]]]
-
-  // apply func to all key/value pairs
-  def scan(func: (Key, Value) => Unit): Unit
-
-  // apply func to all key/value pairs which key is start with prefix
-  def find(prefix: Array[Byte], func: (Key, Value) => Unit): Unit
 
   // start a new session
   def newSession(): Unit
@@ -55,11 +47,25 @@ trait Storage[Key, Value] {
   // undo all operations in the latest session
   def rollBack(): Unit
 
-  // close this KV Store
-  def close(): Unit
-
   // return latest revision
   def revision(): Long
+}
+
+trait LowLevelStorage[Key, Value] extends Storage[Key, Value] {
+  //
+  def batchWrite(action: Batch => Unit): Boolean
+
+  // return last element
+  def last(): Option[Entry[Array[Byte], Array[Byte]]]
+
+  // apply func to all key/value pairs
+  def scan(func: (Key, Value) => Unit): Unit
+
+  // apply func to all key/value pairs which key is start with prefix
+  def find(prefix: Array[Byte], func: (Key, Value) => Unit): Unit
+
+  // close this KV Store
+  def close(): Unit
 
   // return all uncommitted session revisions
   def uncommitted(): Seq[Long]
@@ -113,5 +119,24 @@ class Batch(val ops: ListBuffer[BatchItem] = ListBuffer.empty[BatchItem]) {
   def delete(key: Array[Byte]): Batch = {
     ops.append(DeleteOperationItem(key))
     this
+  }
+}
+
+// wrapper class for Array[Byte], can be used as Map key
+case class ByteArray(bytes: Array[Byte]) extends com.apex.common.Serializable {
+  override def equals(obj: scala.Any): Boolean = {
+    obj match {
+      case that: ByteArray => bytes sameElements that.bytes
+      case _ => false
+    }
+  }
+
+  override def hashCode(): Int = {
+    util.Arrays.hashCode(bytes)
+  }
+
+  override def serialize(os: DataOutputStream): Unit = {
+    import com.apex.common.Serializable._
+    os.writeByteArray(bytes)
   }
 }

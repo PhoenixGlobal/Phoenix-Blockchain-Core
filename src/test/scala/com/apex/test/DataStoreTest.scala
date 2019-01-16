@@ -15,11 +15,7 @@ import java.time.Instant
 import com.apex.core.{BlockHeader, HeaderStore}
 import com.apex.crypto.BinaryData
 import com.apex.crypto.Ecdsa.{PrivateKey, PublicKey}
-import com.apex.storage.LevelDbStorage
 import org.junit.{AfterClass, Test}
-
-import scala.collection.mutable.ListBuffer
-import scala.reflect.io.Directory
 
 @Test
 class DataStoreTest {

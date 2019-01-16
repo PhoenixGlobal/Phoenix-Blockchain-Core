@@ -128,8 +128,7 @@ object ApexSettings extends SettingsReaders with ApexLogging {
 
   implicit val dbTypeReader: ValueReader[DBType.Value] = (cfg, path) => {
     val conf = cfg.getString(path)
-    conf
-    DBType.LevelDB
+    DBType(conf.toInt)
   }
 
   def read(configFilePath: String): ApexSettings = {

@@ -15,14 +15,20 @@ import com.apex.crypto.{FixedNumber, UInt160, UInt256}
 import com.apex.settings.DataBaseSettings
 import com.apex.storage.Storage
 
-class DataBase(settings: DataBaseSettings) extends ApexLogging {
-  private val db = Storage.open(settings.dbType, settings.dir)
+class DataBase(settings: DataBaseSettings, db: Storage.lowLevelRaw, tracking: Tracking) extends ApexLogging {
+  private val accountStore = new AccountStore(tracking, settings.cacheSize)
+  private val receiptStore = new ReceiptStore(tracking, settings.cacheSize)
+  private val contractStore = new ContractStore(tracking, settings.cacheSize)
+  private val contractStateStore = new ContractStateStore(tracking, settings.cacheSize)
+  private val nameToAccountStore = new NameToAccountStore(tracking, settings.cacheSize)
 
-  private val accountStore = new AccountStore(db, settings.cacheSize)
-  private val receiptStore = new ReceiptStore(db, settings.cacheSize)
-  private val contractStore = new ContractStore(db, settings.cacheSize)
-  private val contractStateStore = new ContractStateStore(db, settings.cacheSize)
-  private val nameToAccountStore = new NameToAccountStore(db, settings.cacheSize)
+  def this(settings: DataBaseSettings, db: Storage.lowLevelRaw) = {
+    this(settings, db, TrackingRoot.create(db))
+  }
+
+  def this(settings: DataBaseSettings) = {
+    this(settings, Storage.open(settings.dbType, settings.dir))
+  }
 
   def nameExists(name: String): Boolean = {
     nameToAccountStore.contains(name)
@@ -65,10 +71,8 @@ class DataBase(settings: DataBaseSettings) extends ApexLogging {
       .getOrElse(Account.newAccount(to))
       .addBalance(value)
 
-    db.batchWrite(batch => {
-      accountStore.set(from, fromAcct, batch)
-      accountStore.set(to, toAcct, batch)
-    })
+    accountStore.set(from, fromAcct)
+    accountStore.set(to, toAcct)
   }
 
   // transfer values
@@ -96,7 +100,7 @@ class DataBase(settings: DataBaseSettings) extends ApexLogging {
   }
 
   // get code hash
-  def getCodeHash(address:UInt160): Array[Byte] = {
+  def getCodeHash(address: UInt160): Array[Byte] = {
     accountStore.get(address).map(_.codeHash).getOrElse(Array.empty)
   }
 
@@ -131,35 +135,35 @@ class DataBase(settings: DataBaseSettings) extends ApexLogging {
   }
 
   def startTracking(): DataBase = {
-    this
+    new DataBase(settings, db, tracking.newTracking)
   }
 
   // start new session
   def startSession(): Unit = {
-    db.newSession()
+    tracking.newSession()
   }
 
   // undo all operations in the latest session
   def rollBack(): Unit = {
-    db.rollBack()
+    tracking.rollBack()
   }
 
   // commit all operations in sessions whose revision is equal to or larger than the specified revision
   def commit(revision: Long): Unit = {
-    db.commit(revision)
+    tracking.commit(revision)
   }
 
   // commit all operations in the latest session
   def commit(): Unit = {
-    db.commit()
-  }
-
-  def close(): Unit = {
-    db.close()
+    tracking.commit()
   }
 
   // return latest revision
   def revision(): Long = {
-    db.revision()
+    tracking.revision()
+  }
+
+  def close(): Unit = {
+    db.close()
   }
 }

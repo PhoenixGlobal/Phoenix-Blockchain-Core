@@ -15,7 +15,7 @@ import java.util.Map
 import com.apex.common.ApexLogging
 import org.rocksdb._
 
-class RocksDBStorage(db: RocksDB) extends Storage[Array[Byte], Array[Byte]] with ApexLogging {
+class RocksDBStorage(db: RocksDB) extends LowLevelStorage[Array[Byte], Array[Byte]] with ApexLogging {
   override def get(key: Array[Byte]): Option[Array[Byte]] = {
     val opt = new ReadOptions().setFillCache(true)
     val value = db.get(opt, key)
