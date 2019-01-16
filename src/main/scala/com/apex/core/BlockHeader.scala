@@ -13,8 +13,6 @@ class BlockHeader(val index: Int,
                   val timeStamp: Long,
                   val merkleRoot: UInt256,
                   val prevBlock: UInt256,
-                  val gasLimit: BigInt,
-                  val gasUsed: BigInt,
                   val producer: PublicKey,   // 33 bytes pub key
                   var producerSig: BinaryData,
                   val version: Int = 0x01) extends Identifier[UInt256] {
@@ -54,8 +52,6 @@ class BlockHeader(val index: Int,
     os.writeLong(timeStamp)
     os.write(merkleRoot)
     os.write(prevBlock)
-    os.writeByteArray(gasLimit.toByteArray)
-    os.writeByteArray(gasUsed.toByteArray)
     os.write(producer)
     // skip the producerSig
   }
@@ -91,8 +87,6 @@ object BlockHeader {
       "time" -> o.timeString(),
       "merkleRoot" -> o.merkleRoot.toString,
       "prevBlock" -> o.prevBlock.toString,
-      "gasLimit" -> o.gasLimit.longValue(),
-      "gasUsed" -> o.gasUsed.longValue(),
       "producer" -> o.producer.toString,
       "producerSig" -> o.producerSig.toString,
       "version" -> o.version
@@ -104,7 +98,6 @@ object BlockHeader {
 
     assert(producer.length == 33)
     val header = new BlockHeader(index, timeStamp, merkleRoot, prevBlock,
-      9999999999L, 0,
       producer, BinaryData.empty)
     header.sign(privateKey)
     header
@@ -118,8 +111,6 @@ object BlockHeader {
       timeStamp = is.readLong,
       merkleRoot = is.readObj(UInt256.deserialize),
       prevBlock = is.readObj(UInt256.deserialize),
-      gasLimit = BigInt(is.readByteArray),
-      gasUsed = BigInt(is.readByteArray),
       producer = is.readObj(PublicKey.deserialize),
       producerSig = is.readByteArray,
       version = version

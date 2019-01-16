@@ -87,8 +87,6 @@ class MongodbPlugin(settings: ApexSettings)
       "blockHash" -> block.id().toString,
       "timeStamp" -> BsonDateTime(block.timeStamp()),
       "prevBlock" -> block.prev().toString,
-      "gasLimit" -> block.header.gasLimit.longValue(),
-      "gasUsed" -> block.header.gasUsed.longValue(),
       "producer" -> block.header.producer.toString,
       "producerSig" -> block.header.producerSig.toString,
       "version" -> block.header.version,
