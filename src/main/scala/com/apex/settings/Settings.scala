@@ -66,7 +66,6 @@ case class DataBaseSettings(dir: String, cacheEnabled: Boolean, cacheSize: Int, 
 case class ForkBaseSettings(dir: String, cacheEnabled: Boolean, cacheSize: Int, dbType: DBType.Value)
 
 case class GenesisSettings(timeStamp: Instant,
-                           publicKey: String,
                            privateKey: String,
                            genesisCoinAirdrop: Array[CoinAirdrop])
 

@@ -110,7 +110,6 @@ class LevelDBBlockchain(chainSettings: ChainSettings,
 
   log.info("LevelDBBlockchain starting")
 
-  private val genesisProducer = PublicKey(BinaryData(chainSettings.genesis.publicKey)) // TODO: read from settings
   private val genesisProducerPrivKey = new PrivateKey(BinaryData(chainSettings.genesis.privateKey))
 
   log.info("creating BlockBase")

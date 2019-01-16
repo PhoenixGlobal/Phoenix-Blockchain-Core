@@ -166,7 +166,6 @@ class ContractTxTest {
       ForkBaseSettings(s"$baseDir/fork", false, 0, DBType.LevelDB),
       _minerAward,
       GenesisSettings(Instant.EPOCH,
-        "03b4534b44d1da47e4b4a504a210401a583f860468dec766f507251a057594e682",
         "7a93d447bffe6d89e690f529a3a0bdff8ff6169172458e04849ef1d4eafd7f86",
         Array(CoinAirdrop(_acct1.publicKey.address, 123.12),
           CoinAirdrop(_acct2.publicKey.address, 234.2))
