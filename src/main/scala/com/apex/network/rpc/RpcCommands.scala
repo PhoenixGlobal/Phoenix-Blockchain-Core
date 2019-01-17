@@ -8,15 +8,10 @@
 
 package com.apex.network.rpc
 
-import com.apex.core.Block
 import com.apex.crypto.{BinaryData, UInt160, UInt256}
 import com.apex.crypto.Ecdsa.PublicKeyHash
-import org.bouncycastle.util.encoders.Hex
-import play.api.libs.functional.syntax._
 import play.api.libs.json.Reads._
 import play.api.libs.json._
-
-import scala.collection.mutable.ArrayBuffer
 
 object Validators {
   def uint256Validator = Reads.StringReads.filter(JsonValidationError("invalid UInt256"))(UInt256.parse(_).isDefined)
@@ -57,6 +52,21 @@ object GetAccountCmd {
     (__ \ "address").read[String](Validators.addressValidator).map(c => PublicKeyHash.fromAddress(c).get)
     ) map (GetAccountCmd.apply _)
 }
+
+case class SetGasLimitCmd(gasLimit: BigInt) extends RPCCommand
+
+object SetGasLimitCmd {
+  implicit val testWrites = new Writes[SetGasLimitCmd] {
+    override def writes(o: SetGasLimitCmd): JsValue = Json.obj(
+      "gasLimit" -> o.gasLimit.longValue()
+    )
+  }
+  implicit val testReads: Reads[SetGasLimitCmd] = (
+    (__ \ "gasLimit").read[String](Validators.amountValidator).map(c => BigInt.apply(c))
+    ) map (SetGasLimitCmd.apply _)
+}
+
+case class getGasLimitCmd() extends RPCCommand
 
 case class SendRawTransactionCmd(rawTx: BinaryData) extends RPCCommand
 

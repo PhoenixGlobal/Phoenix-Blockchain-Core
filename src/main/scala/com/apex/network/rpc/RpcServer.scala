@@ -19,7 +19,6 @@ import com.apex.common.ApexLogging
 import com.apex.core.{Account, Block, TransactionReceipt}
 import com.apex.settings.RPCSettings
 import play.api.libs.json._
-
 import scala.collection.mutable.ArrayBuffer
 import scala.concurrent.Future
 import scala.concurrent.duration._
@@ -130,7 +129,30 @@ object RpcServer extends ApexLogging {
               complete(f)
             }
           }
-        }
+        }/*~
+        path("getGasLimit") { // TODO need delete
+          post {
+            entity(as[String]) {_ =>
+              val f = (nodeRef ? getGasLimitCmd()).mapTo[Long].map(Json.toJson(_).toString)
+              complete(f)
+            }
+          }
+        } ~
+        path("setGasLimit") { // TODO need delete
+          post {
+            entity(as[String]) { data =>
+              Json.parse(data).validate[SetGasLimitCmd] match {
+                case cmd: JsSuccess[SetGasLimitCmd] => {
+                  val f = (nodeRef ? cmd.get).mapTo[Boolean].map(Json.toJson(_).toString)
+                  complete(f)
+                }
+                case _: JsError => {
+                  complete(HttpEntity(ContentTypes.`application/json`, Json.parse( """ {"result": "Error"}""").toString()))
+                }
+              }
+            }
+          }
+        }*/
 
     bindingFuture = Http().bindAndHandle(route, rpcSettings.host, rpcSettings.port)
 //    println(s"Server online at http://${rpcSettings.host}:${rpcSettings.port}/\n")

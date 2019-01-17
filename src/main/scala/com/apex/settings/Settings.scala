@@ -7,6 +7,7 @@ import java.time.Instant
 import java.util.TimeZone
 
 import com.apex.common.ApexLogging
+import com.apex.core.PeerBase
 import com.apex.crypto.BinaryData
 import com.apex.crypto.Crypto.hash256
 import com.apex.crypto.Ecdsa.{Point, PrivateKey, PublicKey}
@@ -53,11 +54,14 @@ case class ApexSettings(network: NetworkSettings,
                         plugins: PluginsSettings,
                         runtimeParas: RuntimeParas)
 
+
 object DBType extends Enumeration {
   val Memory = Value(0)
   val LevelDB = Value(1)
   val RocksDB = Value(2)
 }
+
+case class PeerBaseSettings(dir: String, cacheEnabled: Boolean, cacheSize: Int, dbType: DBType.Value)
 
 case class BlockBaseSettings(dir: String, cacheEnabled: Boolean, cacheSize: Int, dbType: DBType.Value)
 
@@ -72,13 +76,19 @@ case class GenesisSettings(timeStamp: Instant,
 case class ChainSettings(blockBase: BlockBaseSettings,
                          dataBase: DataBaseSettings,
                          forkBase: ForkBaseSettings,
+                         peerBase: PeerBaseSettings,
                          minerAward: Double,
                          genesis: GenesisSettings)
 
 case class PluginsSettings(mongodb: MongodbSettings)
 
 case class RuntimeParas(stopProcessTxTimeSlot: Int,
-                        txAcceptGasLimit: Long)
+                        var txAcceptGasLimit: Long){
+
+  def setAcceptGasLimit(gasLimit: Long): Unit ={
+    txAcceptGasLimit = gasLimit
+  }
+}
 
 case class MongodbSettings(enabled: Boolean, uri: String)
 

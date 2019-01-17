@@ -9,7 +9,6 @@
 package com.apex.network
 
 import java.io.{ByteArrayInputStream, DataInputStream}
-
 import akka.actor.{Actor, ActorRef, ActorSystem, Props}
 import com.apex.common.ApexLogging
 import com.apex.consensus._
@@ -59,6 +58,7 @@ class Node(val settings: ApexSettings)
 
   if (settings.rpc.enabled) {
     RpcServer.run(settings.rpc, self)
+    /*SecretRpcServer.run(settings.rpc, self)*/
   }
 
   override def receive: Receive = {
@@ -84,6 +84,7 @@ class Node(val settings: ApexSettings)
   override def postStop(): Unit = {
     if (settings.rpc.enabled) {
       RpcServer.stop()
+      /*SecretRpcServer.stop()*/
     }
     chain.close()
     super.postStop()
@@ -138,6 +139,12 @@ class Node(val settings: ApexSettings)
       }
       case GetContractByIdCmd(id) => {
         sender() ! chain.getReceipt(id)
+      }
+      case SetGasLimitCmd(gasLimit) => {
+        sender() ! chain.setGasLimit(gasLimit)
+      }
+      case getGasLimitCmd() => {
+        sender() ! chain.getGasLimit()
       }
     }
   }

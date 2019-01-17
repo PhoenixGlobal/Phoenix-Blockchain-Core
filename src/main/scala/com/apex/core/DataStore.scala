@@ -45,7 +45,7 @@ class ContractStateStore(db: Storage.raw, capacity: Int)
     with ByteArrayKey
     with ByteArrayValue
 
-class ReceiptStore(db: Storage.raw, capacity: Int)
+class ReceiptStore(db: Storage.raw, capacity:Int)
   extends StoreBase[UInt256, TransactionReceipt](db, capacity)
     with ReceiptPrefix
     with UInt256Key
@@ -74,6 +74,12 @@ class ForkItemStore(db: Storage.raw, capacity: Int)
     with ForkItemPrefix
     with UInt256Key
     with ForkItemValue
+
+class PeerStore(db: Storage.raw, capacity: Int)
+  extends StoreBase[String, BigInt](db, capacity)
+    with PeerPrefix
+    with StringKey
+    with BigIntValue
 
 class HeadBlockStore(db: Storage.raw)
   extends StateStore[BlockHeader](db)
@@ -111,6 +117,7 @@ object DataType extends Enumeration {
   val Contract = Value(0x06)
   val ContractState = Value(0x07)
   val Receipt = Value(0x08)
+  val Peer = Value(0x09)
 }
 
 object IndexType extends Enumeration {
@@ -141,6 +148,10 @@ trait IndexPrefix extends Prefix {
   val storeType = StoreType.Index
   val indexType: IndexType.Value
   override lazy val prefixBytes: Array[Byte] = Array(storeType.id.toByte, indexType.id.toByte)
+}
+
+trait PeerPrefix extends DataPrefix {
+  override val dataType: DataType.Value = DataType.Peer
 }
 
 trait StatePrefix extends Prefix {
@@ -280,6 +291,10 @@ trait ByteArrayValue extends ValueConverterProvider[Array[Byte]] {
   override val valConverter: Converter[Array[Byte]] = new ByteArrayConverter
 }
 
+trait BigIntValue extends ValueConverterProvider[BigInt] {
+  override val valConverter: Converter[BigInt] = new BigIntConverter
+}
+
 trait UInt160Value extends ValueConverterProvider[UInt160] {
   override val valConverter: Converter[UInt160] = new SerializableConverter(UInt160.deserialize)
 }
@@ -304,15 +319,15 @@ trait AccountValue extends ValueConverterProvider[Account] {
   override val valConverter: Converter[Account] = new SerializableConverter(Account.deserialize)
 }
 
-trait ContractValue extends ValueConverterProvider[Contract] {
+trait ContractValue extends ValueConverterProvider[Contract]{
   override val valConverter: Converter[Contract] = new SerializableConverter(Contract.deserialize)
 }
 
-trait ContractStateValue extends ValueConverterProvider[ContractState] {
+trait ContractStateValue extends ValueConverterProvider[ContractState]{
   override val valConverter: Converter[ContractState] = new SerializableConverter(ContractState.deserialize)
 }
 
-trait ReceiptValue extends ValueConverterProvider[TransactionReceipt] {
+trait ReceiptValue extends ValueConverterProvider[TransactionReceipt]{
   override val valConverter: Converter[TransactionReceipt] = new SerializableConverter(TransactionReceipt.deserialize)
 }
 
@@ -345,6 +360,17 @@ class IntConverter extends Converter[Int] {
   override def serializer(key: Int, os: DataOutputStream): Unit = {
     import com.apex.common.Serializable._
     os.writeVarInt(key)
+  }
+}
+class BigIntConverter extends Converter[BigInt] {
+  override def deserializer(is: DataInputStream): BigInt = {
+    import com.apex.common.Serializable._
+    BigInt(is.readByteArray)
+  }
+
+  override def serializer(key: BigInt, os: DataOutputStream): Unit = {
+    import com.apex.common.Serializable._
+    os.writeByteArray(key.toByteArray)
   }
 }
 

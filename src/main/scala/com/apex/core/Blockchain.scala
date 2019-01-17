@@ -128,6 +128,14 @@ class LevelDBBlockchain(chainSettings: ChainSettings,
     onConfirmed,
     onSwitch)
 
+  log.info("creating PeerBase")
+
+  private val peerBase = new PeerBase(chainSettings.peerBase)
+  val dbGasLimit =  peerBase.getGasLimit()
+  if(dbGasLimit != null && dbGasLimit != None){
+    runtimeParas.setAcceptGasLimit(dbGasLimit.get.longValue())
+  }
+
   log.info("creating Genesis Block")
 
   private val minerCoinFrom = UInt160.Zero
@@ -169,6 +177,7 @@ class LevelDBBlockchain(chainSettings: ChainSettings,
     blockBase.close()
     dataBase.close()
     forkBase.close()
+    peerBase.close()
     log.info("blockchain closed")
   }
 
@@ -695,6 +704,19 @@ class LevelDBBlockchain(chainSettings: ChainSettings,
       notification.broadcast(ForkSwitchNotify(from, to))
       SwitchResult(true)
     }
+  }
+
+  def setGasLimit(gasLimit: BigInt): Boolean = {
+    try {
+      peerBase.setGasLimit(gasLimit)
+      runtimeParas.setAcceptGasLimit(gasLimit.longValue())
+      true
+    }catch {
+      case e: Throwable =>false
+    }
+  }
+  def getGasLimit(): Long = {
+    peerBase.getGasLimit().get.longValue()
   }
 }
 
