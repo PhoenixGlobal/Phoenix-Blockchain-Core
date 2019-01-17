@@ -384,8 +384,10 @@ class LevelDBBlockchain(chainSettings: ChainSettings,
       }
       else
         log.info(s"block ${block.height} ${block.shortId} apply error")
-      if (inserted)
+      if (inserted) {
+        dataBase.commit()
         notification.broadcast(BlockAddedToHeadNotify(block))
+      }
     }
     else {
       if (forkBase.add(block)) {

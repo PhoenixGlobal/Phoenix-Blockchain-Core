@@ -23,7 +23,7 @@ class DataBase(settings: DataBaseSettings, db: Storage.lowLevelRaw, tracking: Tr
   private val nameToAccountStore = new NameToAccountStore(tracking, settings.cacheSize)
 
   def this(settings: DataBaseSettings, db: Storage.lowLevelRaw) = {
-    this(settings, db, TrackingRoot.create(db))
+    this(settings, db, Tracking.root(db))
   }
 
   def this(settings: DataBaseSettings) = {
@@ -153,7 +153,7 @@ class DataBase(settings: DataBaseSettings, db: Storage.lowLevelRaw, tracking: Tr
     tracking.commit(revision)
   }
 
-  // commit all operations in the latest session
+  // apply changes
   def commit(): Unit = {
     tracking.commit()
   }

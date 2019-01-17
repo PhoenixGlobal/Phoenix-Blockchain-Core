@@ -558,14 +558,11 @@ class Tracking(backend: Storage.raw) extends Storage.raw {
     buffer.clear()
   }
 
-  override def commit(revision: Long): Unit = {
-    commit()
-    backend.commit(revision)
-  }
-
   override def rollBack(): Unit = {
     buffer.clear()
   }
+
+  override def commit(revision: Long): Unit = ???
 
   override def newSession(): Unit = ???
 
@@ -605,8 +602,8 @@ class TrackingRoot(db: Storage.lowLevelRaw) extends Tracking(db) {
   }
 }
 
-object TrackingRoot {
-  def create(db: Storage.lowLevelRaw) = {
+object Tracking {
+  def root(db: Storage.lowLevelRaw) = {
     new TrackingRoot(db)
   }
 }
