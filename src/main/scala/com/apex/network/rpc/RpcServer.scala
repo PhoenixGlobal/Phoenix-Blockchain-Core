@@ -31,6 +31,7 @@ object RpcServer extends ApexLogging {
   implicit val timeout = Timeout(5.seconds)
 
   private var bindingFuture: Future[Http.ServerBinding] = null
+  private var secretBindingFuture: Future[Http.ServerBinding] = null
 
   def run(rpcSettings: RPCSettings, nodeRef: ActorRef) = {
     val route =
@@ -125,20 +126,22 @@ object RpcServer extends ApexLogging {
         path("getblockheight") {
           post {
             entity(as[String]) { _ =>
-              val f = (nodeRef ? GetBlockCountCmd()).mapTo[Int].map(GetBlockCountResult(_)).map(Json.toJson(_).toString)
+              val f = (nodeRef ? GetBlockCountCmd()).mapTo[Long].map(GetBlockCountResult(_)).map(Json.toJson(_).toString)
               complete(f)
             }
           }
-        }/*~
-        path("getGasLimit") { // TODO need delete
-          post {
-            entity(as[String]) {_ =>
-              val f = (nodeRef ? getGasLimitCmd()).mapTo[Long].map(Json.toJson(_).toString)
-              complete(f)
-            }
+        }
+
+    val secretRoute =
+      path("getGasLimit") {
+        post {
+          entity(as[String]) {_ =>
+            val f = (nodeRef ? getGasLimitCmd()).mapTo[Long].map(Json.toJson(_).toString)
+            complete(f)
           }
-        } ~
-        path("setGasLimit") { // TODO need delete
+        }
+      } ~
+        path("setGasLimit") {
           post {
             entity(as[String]) { data =>
               Json.parse(data).validate[SetGasLimitCmd] match {
@@ -152,9 +155,10 @@ object RpcServer extends ApexLogging {
               }
             }
           }
-        }*/
+        }
 
     bindingFuture = Http().bindAndHandle(route, rpcSettings.host, rpcSettings.port)
+    secretBindingFuture = Http().bindAndHandle(secretRoute, "127.0.0.1", 8081)
 //    println(s"Server online at http://${rpcSettings.host}:${rpcSettings.port}/\n")
     //  StdIn.readLine() // let it run until user presses return
   }

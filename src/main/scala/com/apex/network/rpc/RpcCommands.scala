@@ -30,12 +30,12 @@ case class GetBlocksCmd() extends RPCCommand
 
 case class GetBlockCountCmd() extends RPCCommand
 
-case class GetBlockCountResult(count: Int)
+case class GetBlockCountResult(count: Long)
 
 object GetBlockCountResult {
   implicit val writes = new Writes[GetBlockCountResult] {
     override def writes(o: GetBlockCountResult): JsValue = Json.obj(
-      "count" -> o.count
+      "count" -> o.count.toLong
     )
   }
 }

@@ -58,7 +58,6 @@ class Node(val settings: ApexSettings)
 
   if (settings.rpc.enabled) {
     RpcServer.run(settings.rpc, self)
-    /*SecretRpcServer.run(settings.rpc, self)*/
   }
 
   override def receive: Receive = {
@@ -84,7 +83,6 @@ class Node(val settings: ApexSettings)
   override def postStop(): Unit = {
     if (settings.rpc.enabled) {
       RpcServer.stop()
-      /*SecretRpcServer.stop()*/
     }
     chain.close()
     super.postStop()
