@@ -380,16 +380,12 @@ class LevelDBBlockchain(chainSettings: ChainSettings,
 
     if (forkBase.head.get.block.id.equals(block.prev())) {
       if (doApply == false) { // check first !
-        if (forkBase.add(block))
-          inserted = true
-        else
-          log.error(s"Error during forkBase add block ${block.height()}  ${block.shortId}")
+        require(forkBase.add(block))
+        inserted = true
       }
       else if (applyBlock(block)) {
-        if (forkBase.add(block))
-          inserted = true
-        else
-          log.error(s"Error during forkBase add block ${block.height()}  ${block.shortId}")
+        require(forkBase.add(block))
+        inserted = true
       }
       else
         log.info(s"block ${block.height} ${block.shortId} apply error")
@@ -399,12 +395,11 @@ class LevelDBBlockchain(chainSettings: ChainSettings,
       }
     }
     else {
-      if (forkBase.add(block)) {
-        log.info(s"received block added to minor fork chain. block ${block.height} ${block.shortId}")
+      log.info(s"try add received block to minor fork chain. block ${block.height} ${block.shortId}")
+      if (forkBase.add(block))
         inserted = true
-      }
       else
-        log.debug("add fail")
+        log.debug("fail add to minor fork chain")
     }
     if (inserted) {
       block.transactions.foreach(tx => {
