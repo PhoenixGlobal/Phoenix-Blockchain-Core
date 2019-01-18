@@ -229,11 +229,14 @@ class BlockchainTest {
       assert(!chain.isProducingBlock())
       assert(chain.getHeight() == 1)
       assert(chain.getHeadTime() == blockTime)
+      assert(chain.head.id() == block1.get.id())
       assert(chain.getBalance(_acct3.publicKey.pubKeyHash).get == FixedNumber.fromDecimal(20))
       assert(chain.getBalance(_acct1.publicKey.pubKeyHash).get == FixedNumber.fromDecimal(0.1))
 
       val block2 = makeBlock(block1.get, Seq(makeTx(_acct3, _acct4.publicKey.pubKeyHash, FixedNumber.fromDecimal(11), 1)))
+      println("call tryInsertBlock block2")
       assert(chain.tryInsertBlock(block2, true))
+      println("block2 inserted")
 
       assert(chain.getBalance(_acct4.publicKey.pubKeyHash).get == FixedNumber.fromDecimal(11))
 
@@ -241,9 +244,13 @@ class BlockchainTest {
 
       assert(!chain.tryInsertBlock(makeBlock(block2, Seq.empty[Transaction], _minerAward + 0.1), true))
 
+      assert(chain.getBalance(_acct3.publicKey.pubKeyHash).get == FixedNumber.fromDecimal(9))
+
       val block22 = makeBlock(block1.get, Seq.empty[Transaction])
       sleepTo(block22.header.timeStamp)
       assert(chain.tryInsertBlock(block22, true))
+
+      assert(chain.getBalance(_acct3.publicKey.pubKeyHash).get == FixedNumber.fromDecimal(9))
 
       assert(chain.head.id() == block2.id())
       assert(chain.getLatestHeader().id() == block2.id())
