@@ -103,7 +103,7 @@ object Abi {
       (JsPath \ "anonymous").readWithDefault[Boolean](false) and
         (JsPath \ "constant").readWithDefault[Boolean](false) and
         (JsPath \ "name").readNullable[String].map(_.getOrElse("")) and
-        (JsPath \ "inputs").read[Seq[Entry.Param]] and
+        (JsPath \ "inputs").readNullable[Seq[Entry.Param]].map(_.getOrElse(Seq.empty)) and
         (JsPath \ "outputs").readNullable[Seq[Entry.Param]].map(_.getOrElse(Seq.empty)) and
         (JsPath \ "type").read[String] and
         (JsPath \ "payable").readWithDefault[Boolean](false)

@@ -301,7 +301,8 @@ class ContractTxTest {
       //  a9059cbb  transfer
 
       // getBalance of _acct1
-      var txData = BinaryData("f8b2cb4f000000000000000000000000c98bae4cc033c7e7bce053ebaa926bd61c120454")  //Abi.fromJson(abiString).encode(s"getBalance(${_acct1.publicKey.pubKeyHash.address})")
+      //var txData = BinaryData("f8b2cb4f000000000000000000000000c98bae4cc033c7e7bce053ebaa926bd61c120454") 
+      var txData = Abi.fromJson(abiString).encode(s"getBalance('${_acct1.publicKey.pubKeyHash.address}')")
       var tx = new Transaction(TransactionType.Call, _acct1.publicKey.pubKeyHash,
         UInt160.fromBytes(BinaryData("7f97e6f4f660e6c09b894f34edae3626bf44039a")), "", FixedNumber.Zero,
         1, txData, FixedNumber(0), 9000000L, BinaryData.empty)
@@ -309,7 +310,7 @@ class ContractTxTest {
       assert(DataWord.of(chain.getReceipt(tx.id()).get.output).longValue == 1000)
 
       // getBalance of _acct2
-      txData = BinaryData("f8b2cb4f0000000000000000000000002ee607c3ed304353dd8a2d16636b46bd91d11152")  //Abi.fromJson(abiString).encode(s"getBalance(${_acct1.publicKey.pubKeyHash.address})")
+      txData = Abi.fromJson(abiString).encode(s"getBalance('${_acct2.publicKey.pubKeyHash.address}')")
       tx = new Transaction(TransactionType.Call, _acct1.publicKey.pubKeyHash,
         UInt160.fromBytes(BinaryData("7f97e6f4f660e6c09b894f34edae3626bf44039a")), "", FixedNumber.Zero,
         2, txData, FixedNumber(0), 9000000L, BinaryData.empty)
@@ -324,7 +325,7 @@ class ContractTxTest {
       assert(chain.addTransaction(tx))
 
       // getBalance of _acct1
-      txData = BinaryData("f8b2cb4f000000000000000000000000c98bae4cc033c7e7bce053ebaa926bd61c120454")  //Abi.fromJson(abiString).encode(s"getBalance(${_acct1.publicKey.pubKeyHash.address})")
+      txData = Abi.fromJson(abiString).encode(s"getBalance('${_acct1.publicKey.pubKeyHash.address}')")
       tx = new Transaction(TransactionType.Call, _acct1.publicKey.pubKeyHash,
         UInt160.fromBytes(BinaryData("7f97e6f4f660e6c09b894f34edae3626bf44039a")), "", FixedNumber.Zero,
         4, txData, FixedNumber(0), 9000000L, BinaryData.empty)
@@ -333,7 +334,7 @@ class ContractTxTest {
       assert(DataWord.of(chain.getReceipt(tx.id()).get.output).longValue == 499)
 
       // getBalance of _acct2
-      txData = BinaryData("f8b2cb4f0000000000000000000000002ee607c3ed304353dd8a2d16636b46bd91d11152")  //Abi.fromJson(abiString).encode(s"getBalance(${_acct1.publicKey.pubKeyHash.address})")
+      txData = Abi.fromJson(abiString).encode(s"getBalance('${_acct2.publicKey.pubKeyHash.address}')")
       tx = new Transaction(TransactionType.Call, _acct1.publicKey.pubKeyHash,
         UInt160.fromBytes(BinaryData("7f97e6f4f660e6c09b894f34edae3626bf44039a")), "", FixedNumber.Zero,
         5, txData, FixedNumber(0), 9000000L, BinaryData.empty)

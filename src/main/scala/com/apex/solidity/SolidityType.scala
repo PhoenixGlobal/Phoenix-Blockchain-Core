@@ -1,5 +1,6 @@
 package com.apex.solidity
 
+import com.apex.crypto.Ecdsa.PublicKeyHash
 import com.apex.utils.ByteUtil
 import com.fasterxml.jackson.annotation.JsonCreator
 import com.fasterxml.jackson.annotation.JsonValue
@@ -272,18 +273,12 @@ object SolidityType {
 
     override def encode(value_input: AnyRef): Array[Byte] = {
       var value = value_input
-      if (value.isInstanceOf[String] && !value
-        .asInstanceOf[String]
-        .startsWith("0x")) {
-        // address is supposed to be always in hex
-        value = "0x" + value
-      }
-      val addr: Array[Byte] = super.encode(value)
-      for (i <- 0.until(12) if addr(i) != 0) {
-        throw new RuntimeException(
-          "Invalid address (should be 20 bytes length): " + ByteUtil.toHexString(addr))
-      }
-      addr
+      val pubKeyHash = PublicKeyHash.fromAddress(value.asInstanceOf[String])
+      if (pubKeyHash.isEmpty)
+        throw new RuntimeException("invalid address format")
+      val ret: Array[Byte] = Array.ofDim[Byte](32)
+      System.arraycopy(pubKeyHash.get.data, 0, ret, 32 - 20, 20)
+      ret
     }
 
     override def decode(encoded: Array[Byte], offset: Int): AnyRef = {

@@ -90,7 +90,7 @@ class VMTest {
     assert(DataWord.of(result1.getHReturn).toUInt160.equals(author))
 
     // call transferOwnership from caller will not pass check
-    val result2 = VMTest.call(dataBase, caller, contract, result.getHReturn, abi.encode(s"transferOwnership('${caller.toString}')"))
+    val result2 = VMTest.call(dataBase, caller, contract, result.getHReturn, abi.encode(s"transferOwnership('${caller.address}')"))
     assert(!success(result2))
     // check owner
     val result3 = VMTest.call(dataBase, caller, contract, result.getHReturn, abi.encode("owner"))
@@ -98,7 +98,7 @@ class VMTest {
     assert(DataWord.of(result3.getHReturn).toUInt160.equals(author))
 
     // call transferOwnership from author
-    val result4 = VMTest.call(dataBase, author, contract, result.getHReturn, abi.encode(s"transferOwnership('${caller.toString}')"))
+    val result4 = VMTest.call(dataBase, author, contract, result.getHReturn, abi.encode(s"transferOwnership('${caller.address}')"))
     assert(success(result4))
     // check owner
     val result5 = VMTest.call(dataBase, author, contract, result.getHReturn, abi.encode("owner"))
