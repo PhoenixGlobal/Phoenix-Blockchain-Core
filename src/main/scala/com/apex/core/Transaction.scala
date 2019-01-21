@@ -78,8 +78,8 @@ class Transaction(val txType: TransactionType.Value,
 
   def serializeForSign(os: DataOutputStream) = {
     import com.apex.common.Serializable._
-    os.writeByte(txType.toByte)
     os.writeInt(version)
+    os.writeByte(txType.toByte)
     os.write(from)
     os.write(toPubKeyHash)
     os.writeString(toName)
@@ -144,8 +144,8 @@ object Transaction {
   def deserialize(is: DataInputStream): Transaction = {
     import com.apex.common.Serializable._
 
-    val txType = TransactionType(is.readByte)
     val version = is.readInt
+    val txType = TransactionType(is.readByte)
     val from = UInt160.deserialize(is)
     val toPubKeyHash = UInt160.deserialize(is)
     val toName = is.readString

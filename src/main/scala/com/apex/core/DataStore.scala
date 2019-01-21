@@ -4,6 +4,7 @@ import java.io.{ByteArrayInputStream, ByteArrayOutputStream, DataInputStream, Da
 import java.util.Map
 
 import com.apex.common.{Cache, LRUCache, Serializable}
+import com.apex.consensus.{Vote, WitnessInfo}
 import com.apex.crypto.Ecdsa.PublicKey
 import com.apex.crypto.{UInt160, UInt256}
 import com.apex.settings.DataBaseSettings
@@ -32,6 +33,18 @@ class AccountStore(db: Storage.raw, capacity: Int)
     with AccountPrefix
     with UInt160Key
     with AccountValue
+
+class WitnessInfoStore(db: Storage.raw, capacity: Int)
+  extends StoreBase[UInt160, WitnessInfo](db, capacity)
+    with WitnessInfoPrefix
+    with UInt160Key
+    with WitnessInfoValue
+
+class VoteStore(db: Storage.raw, capacity: Int)
+  extends StoreBase[UInt160, Vote](db, capacity)
+    with VotePrefix
+    with UInt160Key
+    with VoteValue
 
 class ContractStore(db: Storage.raw, capacity: Int)
   extends StoreBase[UInt160, Contract](db, capacity)
@@ -118,6 +131,8 @@ object DataType extends Enumeration {
   val ContractState = Value(0x07)
   val Receipt = Value(0x08)
   val Peer = Value(0x09)
+  val WitnessInfo = Value(0x0a)
+  val Votes = Value(0x0b)
 }
 
 object IndexType extends Enumeration {
@@ -174,6 +189,14 @@ trait TxPrefix extends DataPrefix {
 
 trait AccountPrefix extends DataPrefix {
   override val dataType: DataType.Value = DataType.Account
+}
+
+trait WitnessInfoPrefix extends DataPrefix {
+  override val dataType: DataType.Value = DataType.WitnessInfo
+}
+
+trait VotePrefix extends DataPrefix {
+  override val dataType: DataType.Value = DataType.Votes
 }
 
 trait ContractPrefix extends DataPrefix {
@@ -317,6 +340,14 @@ trait TransactionValue extends ValueConverterProvider[Transaction] {
 
 trait AccountValue extends ValueConverterProvider[Account] {
   override val valConverter: Converter[Account] = new SerializableConverter(Account.deserialize)
+}
+
+trait WitnessInfoValue extends ValueConverterProvider[WitnessInfo] {
+  override val valConverter: Converter[WitnessInfo] = new SerializableConverter(WitnessInfo.deserialize)
+}
+
+trait VoteValue extends ValueConverterProvider[Vote] {
+  override val valConverter: Converter[Vote] = new SerializableConverter(Vote.deserialize)
 }
 
 trait ContractValue extends ValueConverterProvider[Contract]{
