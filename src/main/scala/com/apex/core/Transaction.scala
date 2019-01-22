@@ -78,8 +78,8 @@ class Transaction(val txType: TransactionType.Value,
 
   def serializeForSign(os: DataOutputStream) = {
     import com.apex.common.Serializable._
-    os.writeByte(txType.toByte)
     os.writeInt(version)
+    os.writeByte(txType.toByte)
     os.write(from)
     os.write(toPubKeyHash)
     os.writeString(toName)
@@ -105,18 +105,7 @@ class Transaction(val txType: TransactionType.Value,
   }
 
   def verifySignature(): Boolean = {
-    val message = dataForSigning()
-    if (Crypto.verifySignature(message, signature)) {
-      val (pub1, pub2) = Crypto.recoverPublicKey(signature, message)
-      val from1 = pub1.pubKeyHash
-      val from2 = pub2.pubKeyHash
-      if (from1 == from || from2 == from)
-        true
-      else
-        false
-    }
-    else
-      false
+    Crypto.verifySignature(dataForSigning(), signature, from)
   }
 
 }
@@ -144,8 +133,8 @@ object Transaction {
   def deserialize(is: DataInputStream): Transaction = {
     import com.apex.common.Serializable._
 
-    val txType = TransactionType(is.readByte)
     val version = is.readInt
+    val txType = TransactionType(is.readByte)
     val from = UInt160.deserialize(is)
     val toPubKeyHash = UInt160.deserialize(is)
     val toName = is.readString

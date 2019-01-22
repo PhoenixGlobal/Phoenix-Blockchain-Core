@@ -13,3 +13,12 @@ object TransactionType extends Enumeration {
   }
 
 }
+
+object OperationType extends Enumeration{
+  val register = Value(0x00)
+  val resisterCancel = Value(0x01)
+
+  implicit class Extension(val value: OperationType.Value) {
+    def toByte: Byte = value.id.toByte
+  }
+}

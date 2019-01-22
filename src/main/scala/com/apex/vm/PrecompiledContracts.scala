@@ -28,6 +28,8 @@ package com.apex.vm
 import java.math.BigInteger
 
 import akka.util.ByteString
+import com.apex.consensus.{RegisterData, VoteData}
+import com.apex.core.{DataBase, Transaction}
 import com.apex.crypto.zksnark.{BN128Fp, BN128G1, BN128G2, PairingCheck}
 
 import scala.util.Try
@@ -43,6 +45,8 @@ object PrecompiledContracts {
   private val altBN128Add = new BN128Addition
   private val altBN128Mul = new BN128Multiplication
   private val altBN128Pairing = new BN128Pairing
+  private val registerNode = (track: DataBase, tx: Transaction) => new RegisterNode(track, tx)
+  private val vote = (track: DataBase, tx: Transaction) => new Vote(track, tx)
 
   private val ecRecoverAddr = DataWord.of("0000000000000000000000000000000000000000000000000000000000000001")
   private val sha256Addr = DataWord.of("0000000000000000000000000000000000000000000000000000000000000002")
@@ -52,8 +56,11 @@ object PrecompiledContracts {
   private val altBN128AddAddr = DataWord.of("0000000000000000000000000000000000000000000000000000000000000006")
   private val altBN128MulAddr = DataWord.of("0000000000000000000000000000000000000000000000000000000000000007")
   private val altBN128PairingAddr = DataWord.of("0000000000000000000000000000000000000000000000000000000000000008")
+  private val registerNodeAddr = DataWord.of("0000000000000000000000000000000000000000000000000000000000000009")
+  private val voteAddr = DataWord.of("0000000000000000000000000000000000000000000000000000000000000010")
 
-  def getContractForAddress(address: DataWord, settings: ContractSettings): PrecompiledContract = {
+  def getContractForAddress(address: DataWord, settings: ContractSettings, cacheTrack: DataBase = null,
+                            tx: Transaction = null): PrecompiledContract = {
     if (address == null) identity
     else if (address == ecRecoverAddr) ecRecover
     else if (address == sha256Addr) sha256
@@ -64,6 +71,8 @@ object PrecompiledContracts {
     else if (address == altBN128AddAddr) altBN128Add
     else if (address == altBN128MulAddr) altBN128Mul
     else if (address == altBN128PairingAddr) altBN128Pairing
+    else if (address == registerNodeAddr) registerNode(cacheTrack, tx)
+    else if (address == voteAddr) vote(cacheTrack, tx)
     else null
   }
 
@@ -430,5 +439,44 @@ class BN128Pairing extends PrecompiledContract {
     val p2 = BN128G2.create(a, b, c, d)
     if (p2 == null) return null
     (p1, p2)
+  }
+}
+
+class RegisterNode(track: DataBase, tx: Transaction) extends PrecompiledContract{
+  override def getGasForData(data: Array[Byte]): Long ={
+    if (data == null) {
+      60
+    } else {
+      60 + VM.getSizeInWords(data.length) * 12
+    }
+  }
+
+  override def execute(data: Array[Byte]): (Boolean, Array[Byte]) = {
+
+    if(checkNodeExist(data)) return (true, new Array[Byte](0))
+    (true, new Array[Byte](0))
+  }
+
+  private def checkNodeExist(data: Array[Byte]): Boolean = {
+    val registerTransaction = RegisterData.fromBytes(data)
+    if(track.getAccount(registerTransaction.registerAccount).isDefined)
+      return true
+    false
+  }
+
+}
+
+class Vote(track: DataBase, tx: Transaction) extends PrecompiledContract{
+  override def getGasForData(data: Array[Byte]): Long ={
+    if (data == null) {
+      60
+    } else {
+      60 + VM.getSizeInWords(data.length) * 12
+    }
+  }
+
+  override def execute(data: Array[Byte]): (Boolean, Array[Byte]) = {
+    val voteTransaction = VoteData.fromBytes(data)
+    (true, new Array[Byte](0))
   }
 }

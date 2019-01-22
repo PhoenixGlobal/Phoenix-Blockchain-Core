@@ -10,8 +10,8 @@ package com.apex.test
 
 import java.io.{ByteArrayOutputStream, DataOutputStream}
 
-import com.apex.crypto.{BinaryData, Crypto, Base58, Base58Check, Ecdsa}
-
+import com.apex.crypto.Ecdsa.PublicKey
+import com.apex.crypto.{Base58, Base58Check, BinaryData, Crypto, Ecdsa}
 import org.junit.Test
 
 @Test
@@ -110,17 +110,14 @@ class CryptoTest {
      val sig = BinaryData("304402207063ae83e7f62bbb171798131b4a0564b956930092b33b07b395615d9ec7e15c022058dfcc1e00a35e1572f366ffe34ba0fc47db1e7189759b9fb233c5b05ab388ea")
 
      // 32+1=33 bytes compressed pub key
-     val pubKey = BinaryData("0292df7b245b81aa637ab4e867c8d511008f79161a97d64f2ac709600352f7acbc")
+     val pubKey = PublicKey(BinaryData("0292df7b245b81aa637ab4e867c8d511008f79161a97d64f2ac709600352f7acbc"))
 
      val (pub1, pub2) = Ecdsa.recoverPublicKey(sig, Crypto.sha256(message))
-     val (pub11, pub22) = Crypto.recoverPublicKey(sig, message)
 
-     assert(Crypto.verifySignature(message, sig, pubKey))
+     assert(Crypto.verifySignature(message, sig, pubKey.toBin))
      assert(Crypto.verifySignature(message, sig, pub1.toBin))
      assert(Crypto.verifySignature(message, sig, pub2.toBin))
-     assert(Crypto.verifySignature(message, sig, pub11.toBin))
-     assert(Crypto.verifySignature(message, sig, pub22.toBin))
-     assert(Crypto.verifySignature(message, sig))
+     assert(Crypto.verifySignature(message, sig, pubKey.pubKeyHash))
   }
   @Test
   def testBase58 = {     

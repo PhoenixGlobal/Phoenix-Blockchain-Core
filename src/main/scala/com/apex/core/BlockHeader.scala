@@ -74,18 +74,7 @@ class BlockHeader(val index: Long,
   }
 
   def verifySig(): Boolean = {
-    val message = getSigTargetData()
-    if (Crypto.verifySignature(message, producerSig)) {
-      val (pub1, pub2) = Crypto.recoverPublicKey(producerSig, message)
-      val addr1 = pub1.pubKeyHash
-      val addr2 = pub2.pubKeyHash
-      if (addr1 == producer || addr2 == producer)
-        true
-      else
-        false
-    }
-    else
-      false
+    Crypto.verifySignature(getSigTargetData(), producerSig, producer)
   }
 }
 

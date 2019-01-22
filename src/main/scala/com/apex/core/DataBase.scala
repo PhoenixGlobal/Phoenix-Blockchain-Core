@@ -11,7 +11,7 @@
 package com.apex.core
 
 import com.apex.common.ApexLogging
-import com.apex.crypto.{FixedNumber, UInt160, UInt256}
+import com.apex.crypto.{BinaryData, FixedNumber, UInt160, UInt256}
 import com.apex.settings.DataBaseSettings
 import com.apex.storage.Storage
 
@@ -21,6 +21,8 @@ class DataBase(settings: DataBaseSettings, db: Storage.lowLevelRaw, tracking: Tr
   private val contractStore = new ContractStore(tracking, settings.cacheSize)
   private val contractStateStore = new ContractStateStore(tracking, settings.cacheSize)
   private val nameToAccountStore = new NameToAccountStore(tracking, settings.cacheSize)
+  private val witnessInfoStore = new WitnessInfoStore(tracking, settings.cacheSize)
+  private val voteStore = new VoteStore(tracking, settings.cacheSize)
 
   def this(settings: DataBaseSettings, db: Storage.lowLevelRaw) = {
     this(settings, db, Tracking.root(db))
