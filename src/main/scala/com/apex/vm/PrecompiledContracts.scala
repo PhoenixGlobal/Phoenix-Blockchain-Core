@@ -453,6 +453,7 @@ class RegisterNode(track: DataBase, tx: Transaction) extends PrecompiledContract
 
   override def execute(data: Array[Byte]): (Boolean, Array[Byte]) = {
 
+    RegisterContractExecutor.execute(data, track, tx)
     if(checkNodeExist(data)) return (true, new Array[Byte](0))
     (true, new Array[Byte](0))
   }

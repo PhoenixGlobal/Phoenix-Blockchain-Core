@@ -19,8 +19,13 @@ case class WitnessInfo( name: String = "",
                    address: String = "",
                    longitude: Int = 0, //BigDecimal,
                    latitude: Int = 0, //BigDecimal,
-                   voteCounts: FixedNumber = FixedNumber.Zero,
+                   var voteCounts: FixedNumber = FixedNumber.Zero,
                    version: Int = 0x01) extends com.apex.common.Serializable {
+
+  def updateVoteCounts(voteCounts: FixedNumber): WitnessInfo = {
+    this.voteCounts = this.voteCounts + voteCounts
+    this
+  }
 
   override def serialize(os: DataOutputStream): Unit = {
     import com.apex.common.Serializable._
