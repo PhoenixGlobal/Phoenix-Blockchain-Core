@@ -105,18 +105,7 @@ class Transaction(val txType: TransactionType.Value,
   }
 
   def verifySignature(): Boolean = {
-    val message = dataForSigning()
-    if (Crypto.verifySignature(message, signature)) {
-      val (pub1, pub2) = Crypto.recoverPublicKey(signature, message)
-      val from1 = pub1.pubKeyHash
-      val from2 = pub2.pubKeyHash
-      if (from1 == from || from2 == from)
-        true
-      else
-        false
-    }
-    else
-      false
+    Crypto.verifySignature(dataForSigning(), signature, from)
   }
 
 }
