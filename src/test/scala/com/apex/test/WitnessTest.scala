@@ -56,7 +56,7 @@ class WitnessTest {
       (x, _) => x.version.equals(a.version)
         && x.voter.data.sameElements(a.voter.data)
         && x.target.data.sameElements(a.target.data)
-        && x.counts.value == a.counts.value
+        && x.count.value == a.count.value
     )
     o.test(a)
   }
@@ -71,7 +71,7 @@ class WitnessTest {
     val c = new WitnessInfo("789", UInt160.Zero, "1 33", "9847", "4",
       173, 242, FixedNumber.One, 4)
 
-    val list1 = new WitnessList(Array(a, b, c), 2)
+    val list1 = new WitnessList(Array(a, b, c), 5, 6, 7)
 
     val bos = new ByteArrayOutputStream
     val dos = new DataOutputStream(bos)
@@ -82,7 +82,9 @@ class WitnessTest {
     val list2 = WitnessList.deserialize(is)
 
     assert(list2.witnesses.size == 3)
-    assert(list2.version == 2)
+    assert(list2.generateInBlockNum == 5)
+    assert(list2.generateInBlockTime == 6)
+    assert(list2.version == 7)
     assert(WitnessInfoCompare(list1.witnesses(0), list2.witnesses(0)))
     assert(WitnessInfoCompare(list1.witnesses(1), list2.witnesses(1)))
     assert(WitnessInfoCompare(list1.witnesses(2), list2.witnesses(2)))

@@ -11,6 +11,8 @@ package com.apex.consensus
 import java.io.{DataInputStream, DataOutputStream}
 
 class WitnessList(val witnesses: Array[WitnessInfo],
+                  val generateInBlockNum: Long,
+                  val generateInBlockTime: Long,
                   val version: Int = 0x01) extends com.apex.common.Serializable {
 
   override def serialize(os: DataOutputStream): Unit = {
@@ -18,6 +20,26 @@ class WitnessList(val witnesses: Array[WitnessInfo],
 
     os.writeInt(version)
     os.writeSeq(witnesses)
+    os.writeLong(generateInBlockNum)
+    os.writeLong(generateInBlockTime)
+  }
+
+  def sortByLocation() = {
+    witnesses.sortWith((w1, w2) => {
+      if (w1.longitude > w2.longitude)
+        true
+      else
+        false // TODO
+    })
+  }
+
+  def sortByVote() = {
+    witnesses.sortWith((w1, w2) => {
+      if (w1.voteCounts > w2.voteCounts)
+        true
+      else
+        false // TODO
+    })
   }
 }
 
@@ -28,7 +50,9 @@ object WitnessList {
 
     val version = is.readInt()
     val witnesses = is.readSeq(WitnessInfo.deserialize)
+    val generateInBlockNum = is.readLong()
+    val generateInBlockTime = is.readLong()
 
-    new WitnessList(witnesses.toArray, version)
+    new WitnessList(witnesses.toArray, generateInBlockNum, generateInBlockTime, version)
   }
 }

@@ -19,9 +19,6 @@ class Transaction(val txType: TransactionType.Value,
                   var signature: BinaryData,
                   val version: Int = 0x01) extends Identifier[UInt256] with Serializable {
 
-  //TODO: read settings
-  def fee: FixedNumber = FixedNumber.Zero
-
   def sender(): UInt160 = from
 
   def toAddress(): String = {

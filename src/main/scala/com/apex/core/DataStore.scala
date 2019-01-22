@@ -4,7 +4,7 @@ import java.io.{ByteArrayInputStream, ByteArrayOutputStream, DataInputStream, Da
 import java.util.Map
 
 import com.apex.common.{Cache, LRUCache, Serializable}
-import com.apex.consensus.{Vote, WitnessInfo}
+import com.apex.consensus.{Vote, WitnessInfo, WitnessList}
 import com.apex.crypto.Ecdsa.PublicKey
 import com.apex.crypto.{UInt160, UInt256}
 import com.apex.settings.DataBaseSettings
@@ -114,6 +114,16 @@ class SwitchStateStore(db: Storage.raw)
     with SwitchStatePrefix
     with SwitchStateValue
 
+class CurrentWitnessStore(db: Storage.raw)
+  extends StateStore[WitnessList](db)
+    with CurrentWitnessStatePrefix
+    with WitnessListValue
+
+class PendingWitnessStore(db: Storage.raw)
+  extends StateStore[WitnessList](db)
+    with PendingWitnessStatePrefix
+    with WitnessListValue
+
 object StoreType extends Enumeration {
   val Data = Value(0x00)
   val Index = Value(0x01)
@@ -147,6 +157,8 @@ object StateType extends Enumeration {
   val Producer = Value(0x01)
   val LatestConfirmed = Value(0x02)
   val SwitchState = Value(0x03)
+  val CurrentWitnessState = Value(0x04)
+  val PendingWitnessState = Value(0x05)
 }
 
 trait Prefix {
@@ -245,6 +257,14 @@ trait LatestConfirmedStatePrefix extends StatePrefix {
 
 trait SwitchStatePrefix extends StatePrefix {
   override val stateType: StateType.Value = StateType.SwitchState
+}
+
+trait CurrentWitnessStatePrefix extends StatePrefix {
+  override val stateType: StateType.Value = StateType.CurrentWitnessState
+}
+
+trait PendingWitnessStatePrefix extends StatePrefix {
+  override val stateType: StateType.Value = StateType.PendingWitnessState
 }
 
 trait Converter[A] {
@@ -380,6 +400,10 @@ trait HeadBlockValue extends ValueConverterProvider[HeadBlock] {
 
 trait SwitchStateValue extends ValueConverterProvider[SwitchState] {
   override val valConverter: Converter[SwitchState] = new SerializableConverter(SwitchState.deserialize)
+}
+
+trait WitnessListValue extends ValueConverterProvider[WitnessList] {
+  override val valConverter: Converter[WitnessList] = new SerializableConverter(WitnessList.deserialize)
 }
 
 class IntConverter extends Converter[Int] {

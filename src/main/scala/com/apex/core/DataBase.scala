@@ -11,9 +11,12 @@
 package com.apex.core
 
 import com.apex.common.ApexLogging
+import com.apex.consensus.WitnessInfo
 import com.apex.crypto.{BinaryData, FixedNumber, UInt160, UInt256}
 import com.apex.settings.DataBaseSettings
 import com.apex.storage.Storage
+
+import scala.collection.mutable.ArrayBuffer
 
 class DataBase(settings: DataBaseSettings, db: Storage.lowLevelRaw, tracking: Tracking) extends ApexLogging {
   private val accountStore = new AccountStore(tracking, settings.cacheSize)
@@ -23,6 +26,8 @@ class DataBase(settings: DataBaseSettings, db: Storage.lowLevelRaw, tracking: Tr
   private val nameToAccountStore = new NameToAccountStore(tracking, settings.cacheSize)
   private val witnessInfoStore = new WitnessInfoStore(tracking, settings.cacheSize)
   private val voteStore = new VoteStore(tracking, settings.cacheSize)
+  private val currentWitnessStore = new CurrentWitnessStore(tracking)
+  private val pendingWitnessStore = new PendingWitnessStore(tracking)
 
   def this(settings: DataBaseSettings, db: Storage.lowLevelRaw) = {
     this(settings, db, Tracking.root(db))
@@ -30,6 +35,12 @@ class DataBase(settings: DataBaseSettings, db: Storage.lowLevelRaw, tracking: Tr
 
   def this(settings: DataBaseSettings) = {
     this(settings, Storage.open(settings.dbType, settings.dir))
+  }
+
+  def getAllWitness(): ArrayBuffer[WitnessInfo] = {
+    val witnesses = ArrayBuffer.empty[WitnessInfo]
+    witnessInfoStore.foreach((_, w) => witnesses.append(w))
+    witnesses
   }
 
   def nameExists(name: String): Boolean = {

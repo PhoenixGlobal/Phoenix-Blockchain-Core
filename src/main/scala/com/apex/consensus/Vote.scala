@@ -14,7 +14,7 @@ import com.apex.crypto.{FixedNumber, UInt160}
 
 class Vote( val voter: UInt160,
             val target: UInt160,
-            val counts: FixedNumber,
+            val count: FixedNumber,
             val version: Int = 0x01) extends com.apex.common.Serializable {
 
   override def serialize(os: DataOutputStream): Unit = {
@@ -23,7 +23,7 @@ class Vote( val voter: UInt160,
     os.writeInt(version)
     os.write(voter)
     os.write(target)
-    os.write(counts)
+    os.write(count)
   }
 
 }
@@ -36,9 +36,9 @@ object Vote {
     val version = is.readInt
     val voter = UInt160.deserialize(is)
     val target = UInt160.deserialize(is)
-    val counts = FixedNumber.deserialize(is)
+    val count = FixedNumber.deserialize(is)
 
-    new Vote(voter, target, counts, version)
+    new Vote(voter, target, count, version)
   }
 
 }

@@ -365,18 +365,20 @@ class LevelDBBlockchain(chainSettings: ChainSettings,
     }
   }
 
+  private def stopProduceBlock() = {
+    pendingState.txs.foreach(tx => {
+      if (tx.txType != TransactionType.Miner)
+        unapplyTxs += (tx.id -> tx)
+    })
+    pendingState.txs.clear()
+    pendingState.isProducingBlock = false
+    dataBase.rollBack()
+  }
+
   override def tryInsertBlock(block: Block, doApply: Boolean): Boolean = {
     var inserted = false
-    if (isProducingBlock()) {
-      pendingState.txs.foreach(tx => {
-        if (tx.txType != TransactionType.Miner)
-          unapplyTxs += (tx.id -> tx)
-      })
-      pendingState.txs.clear()
-      pendingState.isProducingBlock = false
-      dataBase.rollBack()
-      // TODO: should limit time usage of insertion and then restart produce
-    }
+    if (isProducingBlock())
+      stopProduceBlock()
 
     if (forkBase.head.get.block.id.equals(block.prev())) {
       if (doApply == false) { // check first !
