@@ -12,15 +12,15 @@ import java.io.{DataInputStream, DataOutputStream}
 
 import com.apex.crypto.{FixedNumber, UInt160}
 
-class WitnessInfo(val name: String,
-                  val addr: UInt160,
-                  val url: String,
-                  val country: String,
-                  val address: String,
-                  val longitude: Int, //BigDecimal,
-                  val latitude: Int, //BigDecimal,
-                  val voteCounts: FixedNumber,
-                  val version: Int = 0x01) extends com.apex.common.Serializable {
+case class WitnessInfo( name: String = "",
+                   addr: UInt160 = UInt160.Zero,
+                   url: String = "",
+                   country: String = "",
+                   address: String = "",
+                   longitude: Int = 0, //BigDecimal,
+                   latitude: Int = 0, //BigDecimal,
+                   voteCounts: FixedNumber = FixedNumber.Zero,
+                   version: Int = 0x01) extends com.apex.common.Serializable {
 
   override def serialize(os: DataOutputStream): Unit = {
     import com.apex.common.Serializable._

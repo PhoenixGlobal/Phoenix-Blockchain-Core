@@ -11,7 +11,7 @@ import com.apex.common.Serializable
 import com.apex.core.OperationType
 import com.apex.crypto.UInt160
 
-case class RegisterData(registerAccount: UInt160, registerInfo: WitnessInfo, operationType: OperationType.Value)
+case class RegisterData(registerAccount: UInt160, var registerInfo: WitnessInfo = WitnessInfo(), operationType: OperationType.Value)
   extends Serializable{
   override def serialize(os: DataOutputStream): Unit = {
     import com.apex.common.Serializable._
