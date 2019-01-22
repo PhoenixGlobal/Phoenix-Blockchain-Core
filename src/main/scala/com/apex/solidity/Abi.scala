@@ -65,7 +65,7 @@ object Abi {
                 var name: String = null,
                 var solidityType: SolidityType = null) {
 
-      override def toString: String = format("%s%s%s", solidityType.getCanonicalName, if (indexed != null && indexed) " indexed " else " ", name)
+      override def toString: String = format("%s%s%s", solidityType.getCanonicalName, if (indexed) " indexed " else " ", name)
     }
 
     implicit val ParamReads: Reads[Param] = (
