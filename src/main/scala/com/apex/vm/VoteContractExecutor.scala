@@ -6,6 +6,11 @@ import com.apex.crypto.FixedNumber
 import com.apex.crypto.FixedNumber.One
 
 object VoteContractExecutor {
+
+  def execute(data: Array[Byte], track: DataBase): Boolean ={
+
+  }
+
   implicit class VoteContractContext(track: DataBase){
 
     def isAccountExist(data: Array[Byte], tx: Transaction): Boolean = {
@@ -38,6 +43,8 @@ object VoteContractExecutor {
       }
       true
     }
+
+//    def isVoterToTargetValid()
 
     def processReq(data: Array[Byte], track: DataBase, tx: Transaction): Boolean ={
       val voteData = VoteData.fromBytes(data)

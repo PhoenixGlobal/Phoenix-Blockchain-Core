@@ -452,17 +452,7 @@ class RegisterNode(track: DataBase, tx: Transaction) extends PrecompiledContract
   }
 
   override def execute(data: Array[Byte]): (Boolean, Array[Byte]) = {
-
     RegisterContractExecutor.execute(data, track, tx)
-    if(checkNodeExist(data)) return (true, new Array[Byte](0))
-    (true, new Array[Byte](0))
-  }
-
-  private def checkNodeExist(data: Array[Byte]): Boolean = {
-    val registerTransaction = RegisterData.fromBytes(data)
-    if(track.getAccount(registerTransaction.registerAccount).isDefined)
-      return true
-    false
   }
 
 }
@@ -477,7 +467,8 @@ class Vote(track: DataBase, tx: Transaction) extends PrecompiledContract{
   }
 
   override def execute(data: Array[Byte]): (Boolean, Array[Byte]) = {
-    val voteTransaction = VoteData.fromBytes(data)
+    val result = VoteContractExecutor.execute(data, track)
+    if(result) return (true, new Array[Byte](0))
     (true, new Array[Byte](0))
   }
 }
