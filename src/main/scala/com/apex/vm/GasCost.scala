@@ -48,12 +48,12 @@ object GasCost {
   final val GENESISGASLIMIT = 1000000
   final val MINGASLIMIT = 125000
 
-  final val BALANCE = 20
+  final val BALANCE = 400
   final val SHA3 = 30
   final val SHA3_WORD = 6
-  final val SLOAD = 50
+  final val SLOAD = 200
   final val STOP = 0
-  final val SUICIDE = 0
+  final val SUICIDE = 5000
   final val CLEAR_SSTORE = 5000
   final val SET_SSTORE = 20000
   final val RESET_SSTORE = 5000
@@ -63,12 +63,10 @@ object GasCost {
 
   final val JUMPDEST = 1
   final val CREATE_DATA_BYTE = 5
-  final val CALL = 40
+  final val CALL = 700
   final val STIPEND_CALL = 2300
   final val VT_CALL = 9000 //value transfer call
-
   final val NEW_ACCT_CALL = 25000 //new account call
-
   final val MEMORY = 3
   final val SUICIDE_REFUND = 24000
   final val QUAD_COEFF_DIV = 512
@@ -82,7 +80,7 @@ object GasCost {
   final val LOG_TOPIC_GAS = 375
   final val COPY_GAS = 3
   final val EXP_GAS = 10
-  final val EXP_BYTE_GAS = 10
+  final val EXP_BYTE_GAS = 50
   final val IDENTITY = 15
   final val IDENTITY_WORD = 3
   final val RIPEMD160 = 600
@@ -90,8 +88,8 @@ object GasCost {
   final val SHA256 = 60
   final val SHA256_WORD = 12
   final val EC_RECOVER = 3000
-  final val EXT_CODE_SIZE = 20
-  final val EXT_CODE_COPY = 20
+  final val EXT_CODE_SIZE = 700
+  final val EXT_CODE_COPY = 700
   final val EXT_CODE_HASH = 400
-  final val NEW_ACCT_SUICIDE = 0
+  final val NEW_ACCT_SUICIDE = 25000
 }
