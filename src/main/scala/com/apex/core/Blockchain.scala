@@ -258,7 +258,7 @@ class LevelDBBlockchain(chainSettings: ChainSettings,
     log.debug(s"start block at: ${pendingState.startTime}  blockTime=${blockTime}  stopProcessTxTime=${stopProcessTxTime}")
 
     val minerTx = new Transaction(TransactionType.Miner, minerCoinFrom,
-      producer.pubkey.pubKeyHash, "", minerAward,
+      producer.pubkeyHash, "", minerAward,
       forkHead.block.height + 1,
       BinaryData(Crypto.randomBytes(8)), // add random bytes to distinct different blocks with same block index during debug in some cases
       FixedNumber.Zero, 0, BinaryData.empty
@@ -266,7 +266,7 @@ class LevelDBBlockchain(chainSettings: ChainSettings,
     //isPendingBlock = true
     dataBase.startSession()
 
-    val applied = applyTransaction(minerTx, producer.pubkey.pubKeyHash, stopProcessTxTime, blockTime, forkHead.block.height + 1)
+    val applied = applyTransaction(minerTx, producer.pubkeyHash, stopProcessTxTime, blockTime, forkHead.block.height + 1)
     require(applied)
     pendingState.txs.append(minerTx)
     pendingState.isProducingBlock = true
@@ -280,14 +280,14 @@ class LevelDBBlockchain(chainSettings: ChainSettings,
       log.info(s"try again for the old timeout tx ${oldTimeoutTx.id().shortString()}")
 
       // return value can be ignore
-      applyTransaction(oldTimeoutTx, producer.pubkey.pubKeyHash, stopProcessTxTime, blockTime, forkHead.block.height + 1)
+      applyTransaction(oldTimeoutTx, producer.pubkeyHash, stopProcessTxTime, blockTime, forkHead.block.height + 1)
     }
 
     val badTxs = ArrayBuffer.empty[Transaction]
 
     unapplyTxs.foreach(p => {
       if (Instant.now.toEpochMilli < stopProcessTxTime) {
-        if (applyTransaction(p._2, producer.pubkey.pubKeyHash, stopProcessTxTime, blockTime, forkHead.block.height + 1))
+        if (applyTransaction(p._2, producer.pubkeyHash, stopProcessTxTime, blockTime, forkHead.block.height + 1))
           pendingState.txs.append(p._2)
         else
           badTxs.append(p._2)
@@ -324,7 +324,7 @@ class LevelDBBlockchain(chainSettings: ChainSettings,
         added = addTransactionToUnapplyTxs(tx)
       }
       else {
-        if (applyTransaction(tx, pendingState.producer.pubkey.pubKeyHash, pendingState.stopProcessTxTime, pendingState.blockTime, pendingState.blockIndex)) {
+        if (applyTransaction(tx, pendingState.producer.pubkeyHash, pendingState.stopProcessTxTime, pendingState.blockTime, pendingState.blockIndex)) {
           pendingState.txs.append(tx)
           added = true
         }

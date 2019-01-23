@@ -8,7 +8,7 @@ import java.util.TimeZone
 
 import com.apex.common.ApexLogging
 import com.apex.core.PeerBase
-import com.apex.crypto.BinaryData
+import com.apex.crypto.{BinaryData, UInt160}
 import com.apex.crypto.Crypto.hash256
 import com.apex.crypto.Ecdsa.{Point, PrivateKey, PublicKey}
 import com.typesafe.config.{Config, ConfigFactory}
@@ -104,7 +104,7 @@ case class ConsensusSettings(produceInterval: Int,
     os.writeInt(producerRepetitions)
     initialWitness.foreach(w => {
       os.writeBytes(w.name)
-      os.writeBytes(w.pubkey.toString)
+      os.writeBytes(w.pubkeyHash.toString)
       // do not include privkey
     })
     hash256(bs.toByteArray)
@@ -115,7 +115,7 @@ case class CoinAirdrop(addr: String,
                        coins: Double)
 
 case class Witness(name: String,
-                   pubkey: PublicKey,
+                   pubkeyHash: UInt160,
                    privkey: Option[PrivateKey])
 
 object ApexSettings extends SettingsReaders with ApexLogging {
@@ -124,6 +124,7 @@ object ApexSettings extends SettingsReaders with ApexLogging {
   //  implicit val valueReader: ValueReader[ApexSettings] =
   //    (cfg: Config, path: String) => cfg.as[ApexSettings](path)
 
+  implicit val uInt160Reader: ValueReader[UInt160] = (cfg, path) => UInt160.parse(cfg.getString(path)).get
 
   implicit val publicKeyReader: ValueReader[PublicKey] = (cfg, path) => new PublicKey(Point(cfg.getString(path)))
 

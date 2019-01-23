@@ -195,7 +195,7 @@ object ProducerUtil {
 
   def isProducerValid(timeStamp: Long, producer: UInt160, settings: ConsensusSettings): Boolean = {
     var isValid = false
-    if (getWitness(timeStamp, settings).pubkey.pubKeyHash.data sameElements producer.data) {
+    if (getWitness(timeStamp, settings).pubkeyHash.data sameElements producer.data) {
       if (isTimeStampValid(timeStamp, settings.produceInterval)) {
         isValid = true
       }

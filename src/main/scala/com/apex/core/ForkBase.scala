@@ -424,7 +424,7 @@ class ForkBase(settings: ForkBaseSettings,
     }
 
     if (_head.isEmpty) {
-      val prodHeights = witnesses.map(_.pubkey.pubKeyHash -> 0L).toMap
+      val prodHeights = witnesses.map(_.pubkeyHash -> 0L).toMap
       val item = makeItem(prodHeights, true)
       add(item)
     } else {
@@ -444,7 +444,7 @@ class ForkBase(settings: ForkBaseSettings,
   }
 
   // add element to db, may cause chain switching
-  def add(item: ForkItem): Boolean = {
+  private def add(item: ForkItem): Boolean = {
     def maybeReplaceHead: (ForkItem, ForkItem) = {
       val old = resetHead
       require(_head.isDefined)
