@@ -12,10 +12,10 @@ import java.io.{DataInputStream, DataOutputStream}
 
 import com.apex.crypto.{FixedNumber, UInt160}
 
-class Vote( val voter: UInt160,
-            val target: UInt160,
-            val count: FixedNumber,
-            val version: Int = 0x01) extends com.apex.common.Serializable {
+case class Vote(voter: UInt160,
+                 target: UInt160,
+                var count: FixedNumber,
+                 version: Int = 0x01) extends com.apex.common.Serializable {
 
   override def serialize(os: DataOutputStream): Unit = {
     import com.apex.common.Serializable._
@@ -24,6 +24,11 @@ class Vote( val voter: UInt160,
     os.write(voter)
     os.write(target)
     os.write(count)
+  }
+
+  def updateCounts(counts: FixedNumber): Vote ={
+    this.count = this.count + counts
+    this
   }
 
 }

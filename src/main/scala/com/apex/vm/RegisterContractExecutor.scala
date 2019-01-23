@@ -9,40 +9,40 @@ object RegisterContractExecutor {
   import OperationChecker._
 
   def execute(data: Array[Byte], track: DataBase, tx: Transaction): (Boolean, Array[Byte]) ={
-    val registerTransaction = RegisterData.fromBytes(data)
-    track.isValid(registerTransaction, tx)
-            .isAccountExist(registerTransaction)
-            .isAccountBalanceEnough(registerTransaction)
-            .isRegisterWitnessExist(registerTransaction)
-            .isCancelWitnessNotExist(registerTransaction)
-            .processReq(registerTransaction)
+    val registerData = RegisterData.fromBytes(data)
+    registerData.isValid(track, tx)
+            .isAccountExist(track)
+            .isAccountBalanceEnough(track)
+            .isRegisterWitnessExist(track)
+            .isCancelWitnessNotExist(track)
+            .processReq(track)
             .returnResult()
   }
 
-  implicit class RegisterContractContext(track: DataBase) {
+  implicit class RegisterContractContext(registerData: RegisterData) {
 
-    def isValid(registerTransaction: RegisterData, tx: Transaction): RegisterContractContext = {
+    def isValid(track: DataBase, tx: Transaction): RegisterContractContext = {
       errorDetected{
-        if(tx.from != registerTransaction.registerAccount){
+        if(tx.from != registerData.registerAccount){
           setResult(false)
         }
       }
       this
     }
 
-    def isAccountExist(registerTransaction: RegisterData): RegisterContractContext = {
+    def isAccountExist(track: DataBase): RegisterContractContext = {
       errorDetected{
-        if(track.getAccount(registerTransaction.registerAccount).isEmpty){
+        if(track.getAccount(registerData.registerAccount).isEmpty){
           setResult(false)
         }
       }
       this
     }
 
-    def isAccountBalanceEnough(registerTransaction: RegisterData): RegisterContractContext ={
+    def isAccountBalanceEnough(track: DataBase): RegisterContractContext ={
       errorDetected{
-        val account = track.getAccount(registerTransaction.registerAccount).get
-        if(registerTransaction.operationType == OperationType.register &&
+        val account = track.getAccount(registerData.registerAccount).get
+        if(registerData.operationType == OperationType.register &&
           (!account.balance.>(FixedNumber(One.value * 1000)))){
           setResult(false)
         }
@@ -50,36 +50,46 @@ object RegisterContractExecutor {
       this
     }
 
-    def isRegisterWitnessExist(registerTransaction: RegisterData): RegisterContractContext = {
+    def isRegisterWitnessExist(track: DataBase): RegisterContractContext = {
       errorDetected{
-        val witness = track.getWitness(registerTransaction.registerAccount)
-        if(witness.isDefined && registerTransaction.operationType == OperationType.register){
+        val witness = track.getWitness(registerData.registerAccount)
+        if(witness.isDefined && registerData.operationType == OperationType.register){
           setResult(false)
         }
       }
       this
     }
 
-    def isCancelWitnessNotExist(registerTransaction: RegisterData): RegisterContractContext = {
+    def isCancelWitnessNotExist(track: DataBase): RegisterContractContext = {
       errorDetected{
-        val witness = track.getWitness(registerTransaction.registerAccount)
-        if(witness.isEmpty && registerTransaction.operationType ==OperationType.resisterCancel){
+        val witness = track.getWitness(registerData.registerAccount)
+        if(witness.isEmpty && registerData.operationType ==OperationType.resisterCancel){
           setResult(false)
         }
       }
       this
     }
 
-    def processReq(registerTransaction: RegisterData): RegisterContractContext ={
-      if(registerTransaction.operationType == OperationType.register){
-        track.addBalance(registerTransaction.registerAccount, FixedNumber(-(One.value * 1000)))
-        track.createWitness(registerTransaction.registerAccount, registerTransaction.registerInfo)
-      }
-      else {
-        track.addBalance(registerTransaction.registerAccount, FixedNumber(One.value * 1000))
-        track.deleteWitness(registerTransaction.registerAccount)
+    def processReq(track: DataBase): RegisterContractContext ={
+      errorDetected{
+        if(registerData.operationType == OperationType.register){
+          registerWitness(track)
+        }
+        else {
+          cancelRegisterWitness(track)
+        }
       }
       this
+    }
+
+    private def cancelRegisterWitness(track: DataBase) = {
+      track.addBalance(registerData.registerAccount, FixedNumber(One.value * 1000))
+      track.deleteWitness(registerData.registerAccount)
+    }
+
+    private def registerWitness(track: DataBase) = {
+      track.addBalance(registerData.registerAccount, FixedNumber(-(One.value * 1000)))
+      track.createWitness(registerData.registerAccount, registerData.registerInfo)
     }
 
     def returnResult(): (Boolean, Array[Byte]) ={
@@ -95,7 +105,6 @@ object OperationChecker{
 
   def errorDetected(f: => Unit): Unit ={
     if(result._1) f
-    else f
   }
 
   def setResult(flag: Boolean): Unit ={

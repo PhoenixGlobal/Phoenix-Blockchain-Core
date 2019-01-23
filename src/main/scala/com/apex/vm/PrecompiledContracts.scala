@@ -46,7 +46,7 @@ object PrecompiledContracts {
   private val altBN128Mul = new BN128Multiplication
   private val altBN128Pairing = new BN128Pairing
   private val registerNode = (track: DataBase, tx: Transaction) => new RegisterNode(track, tx)
-  private val vote = (track: DataBase, tx: Transaction) => new Vote(track, tx)
+  private val vote = (track: DataBase, tx: Transaction) => new VoteContract(track, tx)
 
   private val ecRecoverAddr = DataWord.of("0000000000000000000000000000000000000000000000000000000000000001")
   private val sha256Addr = DataWord.of("0000000000000000000000000000000000000000000000000000000000000002")
@@ -457,7 +457,7 @@ class RegisterNode(track: DataBase, tx: Transaction) extends PrecompiledContract
 
 }
 
-class Vote(track: DataBase, tx: Transaction) extends PrecompiledContract{
+class VoteContract(track: DataBase, tx: Transaction) extends PrecompiledContract{
   override def getGasForData(data: Array[Byte]): Long ={
     if (data == null) {
       60
@@ -467,8 +467,6 @@ class Vote(track: DataBase, tx: Transaction) extends PrecompiledContract{
   }
 
   override def execute(data: Array[Byte]): (Boolean, Array[Byte]) = {
-    val result = VoteContractExecutor.execute(data, track)
-    if(result) return (true, new Array[Byte](0))
-    (true, new Array[Byte](0))
+    VoteContractExecutor.execute(data, track, tx)
   }
 }
