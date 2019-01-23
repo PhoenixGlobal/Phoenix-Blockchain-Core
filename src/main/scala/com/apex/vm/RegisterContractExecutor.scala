@@ -43,7 +43,7 @@ object RegisterContractExecutor {
       errorDetected{
         val account = track.getAccount(registerData.registerAccount).get
         if(registerData.operationType == OperationType.register &&
-          (!account.balance.>(FixedNumber(One.value * 1000)))){
+          (!account.balance.>(FixedNumber(One.value)))){
           setResult(false)
         }
       }
@@ -83,12 +83,12 @@ object RegisterContractExecutor {
     }
 
     private def cancelRegisterWitness(track: DataBase) = {
-      track.addBalance(registerData.registerAccount, FixedNumber(One.value * 1000))
+      track.addBalance(registerData.registerAccount, FixedNumber(One.value))
       track.deleteWitness(registerData.registerAccount)
     }
 
     private def registerWitness(track: DataBase) = {
-      track.addBalance(registerData.registerAccount, FixedNumber(-(One.value * 1000)))
+      track.addBalance(registerData.registerAccount, FixedNumber(-(One.value)))
       track.createWitness(registerData.registerAccount, registerData.registerInfo)
     }
 

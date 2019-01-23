@@ -5,6 +5,8 @@ import java.time.Instant
 import akka.actor.ActorRef
 import com.apex.common.ApexLogging
 import com.apex.consensus.{ProducerUtil, Vote, WitnessInfo, WitnessList}
+import com.apex.consensus.{ProducerUtil, WitnessInfo, WitnessList}
+import com.apex.consensus.{ProducerUtil, WitnessInfo}
 import com.apex.crypto.Ecdsa.{PrivateKey, PublicKey, PublicKeyHash}
 import com.apex.crypto.{BinaryData, Crypto, FixedNumber, MerkleTree, UInt160, UInt256}
 import com.apex.settings.{ChainSettings, ConsensusSettings, RuntimeParas, Witness}
@@ -677,6 +679,10 @@ class LevelDBBlockchain(chainSettings: ChainSettings,
 
   override def getAccount(address: UInt160): Option[Account] = {
     dataBase.getAccount(address)
+  }
+
+  def getWitness(address: UInt160): Option[WitnessInfo] = {
+    dataBase.getWitness(address)
   }
 
   def getReceipt(txid: UInt256): Option[TransactionReceipt] = {
