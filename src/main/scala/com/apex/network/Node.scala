@@ -57,7 +57,7 @@ class Node(val settings: ApexSettings)
   private val producer = ProducerRef(settings)
 
   if (settings.rpc.enabled) {
-    RpcServer.run(settings.rpc, self)
+    RpcServer.run(settings.rpc, settings.secretRpc, self)
   }
 
   override def receive: Receive = {

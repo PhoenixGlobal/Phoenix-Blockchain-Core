@@ -23,6 +23,7 @@ case class ContractSettings(dumpBlock: Long,
                             maxContractSize: Int)
 
 case class RPCSettings(enabled: Boolean, host: String, port: Int)
+case class SecretRPCSettings(enabled: Boolean, host: String, port: Int)
 
 case class NetworkSettings(nodeName: String,
                            addedMaxDelay: Option[FiniteDuration],
@@ -51,6 +52,7 @@ case class ApexSettings(network: NetworkSettings,
                         consensus: ConsensusSettings,
                         chain: ChainSettings,
                         rpc: RPCSettings,
+                        secretRpc: SecretRPCSettings,
                         plugins: PluginsSettings,
                         runtimeParas: RuntimeParas)
 

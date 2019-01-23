@@ -17,7 +17,7 @@ import akka.stream.ActorMaterializer
 import akka.util.Timeout
 import com.apex.common.ApexLogging
 import com.apex.core.{Account, Block, TransactionReceipt}
-import com.apex.settings.RPCSettings
+import com.apex.settings.{RPCSettings, SecretRPCSettings}
 import play.api.libs.json._
 import scala.collection.mutable.ArrayBuffer
 import scala.concurrent.Future
@@ -33,7 +33,7 @@ object RpcServer extends ApexLogging {
   private var bindingFuture: Future[Http.ServerBinding] = null
   private var secretBindingFuture: Future[Http.ServerBinding] = null
 
-  def run(rpcSettings: RPCSettings, nodeRef: ActorRef) = {
+  def run(rpcSettings: RPCSettings, secretRPCSettings : SecretRPCSettings, nodeRef: ActorRef) = {
     val route =
       path("getblock") {
         post {
@@ -158,7 +158,7 @@ object RpcServer extends ApexLogging {
         }
 
     bindingFuture = Http().bindAndHandle(route, rpcSettings.host, rpcSettings.port)
-    secretBindingFuture = Http().bindAndHandle(secretRoute, "127.0.0.1", 8081)
+    secretBindingFuture = Http().bindAndHandle(secretRoute, secretRPCSettings.host, secretRPCSettings.port)
 //    println(s"Server online at http://${rpcSettings.host}:${rpcSettings.port}/\n")
     //  StdIn.readLine() // let it run until user presses return
   }
