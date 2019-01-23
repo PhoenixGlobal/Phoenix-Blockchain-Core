@@ -87,7 +87,7 @@ class BlockchainTest {
     PublicKey("0246f896de22582786884d7d7ae27ef00cc8fed167bcdb8c305fbbc3dd9cca696c").pubKeyHash,
     Some(new PrivateKey(BinaryData("9456beec947b368eda4be03f6c306703d9b2eda49f661285944b4e1f07ae18f3"))))
 
-  val _consensusSettings = ConsensusSettings(_produceInterval, 500, 1, Array(_witness1, _witness2, _witness3, _witness4))
+  val _consensusSettings = ConsensusSettings(_produceInterval, 500, 1, 4, 63000, Array(_witness1, _witness2, _witness3, _witness4))
 
   val _runtimeParas = RuntimeParas(100, 9000000)
 

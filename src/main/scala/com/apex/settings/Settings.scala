@@ -97,6 +97,8 @@ case class MongodbSettings(enabled: Boolean, uri: String)
 case class ConsensusSettings(produceInterval: Int,
                              acceptableTimeError: Int,
                              producerRepetitions: Int,
+                             witnessNum: Int,
+                             electeTime: Long,
                              initialWitness: Array[Witness]) {
   def fingerprint(): BinaryData = {
     val bs = new ByteArrayOutputStream()
@@ -104,6 +106,8 @@ case class ConsensusSettings(produceInterval: Int,
     os.writeInt(produceInterval)
     os.writeInt(acceptableTimeError)
     os.writeInt(producerRepetitions)
+    os.writeInt(witnessNum)
+    os.writeLong(electeTime)
     initialWitness.foreach(w => {
       os.writeBytes(w.name)
       os.writeBytes(w.pubkeyHash.toString)

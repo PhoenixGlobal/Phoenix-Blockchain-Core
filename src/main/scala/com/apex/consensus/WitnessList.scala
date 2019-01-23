@@ -10,9 +10,13 @@ package com.apex.consensus
 
 import java.io.{DataInputStream, DataOutputStream}
 
+import com.apex.crypto.{UInt160, UInt256}
+
+import scala.collection.mutable
+import scala.collection.mutable.ArrayBuffer
+
 class WitnessList(val witnesses: Array[WitnessInfo],
-                  val generateInBlockNum: Long,
-                  val generateInBlockTime: Long,
+                  val generateInBlock: UInt256,
                   val version: Int = 0x01) extends com.apex.common.Serializable {
 
   override def serialize(os: DataOutputStream): Unit = {
@@ -20,8 +24,11 @@ class WitnessList(val witnesses: Array[WitnessInfo],
 
     os.writeInt(version)
     os.writeSeq(witnesses)
-    os.writeLong(generateInBlockNum)
-    os.writeLong(generateInBlockTime)
+    os.write(generateInBlock)
+  }
+
+  def contain(witness: UInt160): Boolean = {
+    witnesses.find(w => w.addr == witness).isDefined
   }
 
   def sortByLocation() = {
@@ -33,7 +40,15 @@ class WitnessList(val witnesses: Array[WitnessInfo],
     })
   }
 
-  def sortByVote() = {
+  def findLeastVotes(): UInt160 = {
+    WitnessList.sortByVote(witnesses).last.addr
+  }
+
+}
+
+object WitnessList {
+
+  def sortByVote(witnesses: Array[WitnessInfo]) = {
     witnesses.sortWith((w1, w2) => {
       if (w1.voteCounts > w2.voteCounts)
         true
@@ -41,18 +56,28 @@ class WitnessList(val witnesses: Array[WitnessInfo],
         false // TODO
     })
   }
-}
 
-object WitnessList {
+  def getLeastVote(witnesses: Array[WitnessInfo]): WitnessInfo = {
+    sortByVote(witnesses).last
+  }
+
+  def removeLeastVote(witnesses: Array[WitnessInfo]): mutable.Map[UInt160, WitnessInfo] = {
+    val newWitnesses = mutable.Map.empty[UInt160, WitnessInfo]
+    val sorted = sortByVote(witnesses)
+    for (i <- 0 to sorted.size - 2) {
+      val w = sorted(i)
+      newWitnesses.update(w.addr, w)
+    }
+    newWitnesses
+  }
 
   def deserialize(is: DataInputStream): WitnessList = {
     import com.apex.common.Serializable._
 
     val version = is.readInt()
     val witnesses = is.readSeq(WitnessInfo.deserialize)
-    val generateInBlockNum = is.readLong()
-    val generateInBlockTime = is.readLong()
+    val generateInBlock = is.readObj(UInt256.deserialize)
 
-    new WitnessList(witnesses.toArray, generateInBlockNum, generateInBlockTime, version)
+    new WitnessList(witnesses.toArray, generateInBlock, version)
   }
 }

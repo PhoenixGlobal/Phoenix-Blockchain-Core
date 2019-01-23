@@ -11,7 +11,7 @@
 package com.apex.core
 
 import com.apex.common.ApexLogging
-import com.apex.consensus.{Vote, WitnessInfo}
+import com.apex.consensus.{Vote, WitnessInfo, WitnessList}
 import com.apex.crypto.{BinaryData, FixedNumber, UInt160, UInt256}
 import com.apex.settings.DataBaseSettings
 import com.apex.storage.Storage
@@ -35,12 +35,6 @@ class DataBase(settings: DataBaseSettings, db: Storage.lowLevelRaw, tracking: Tr
 
   def this(settings: DataBaseSettings) = {
     this(settings, Storage.open(settings.dbType, settings.dir))
-  }
-
-  def getAllWitness(): ArrayBuffer[WitnessInfo] = {
-    val witnesses = ArrayBuffer.empty[WitnessInfo]
-    witnessInfoStore.foreach((_, w) => witnesses.append(w))
-    witnesses
   }
 
   def nameExists(name: String): Boolean = {
@@ -147,6 +141,12 @@ class DataBase(settings: DataBaseSettings, db: Storage.lowLevelRaw, tracking: Tr
     receiptStore.set(txid, receipt)
   }
 
+  def getAllWitness(): ArrayBuffer[WitnessInfo] = {
+    val witnesses = ArrayBuffer.empty[WitnessInfo]
+    witnessInfoStore.foreach((_, w) => witnesses.append(w))
+    witnesses
+  }
+
   def getWitness(address: UInt160): Option[WitnessInfo] = {
     witnessInfoStore.get(address)
   }
@@ -155,7 +155,7 @@ class DataBase(settings: DataBaseSettings, db: Storage.lowLevelRaw, tracking: Tr
     witnessInfoStore.set(address, witness)
   }
 
-  def deleteWitness(address: UInt160): Unit ={
+  def deleteWitness(address: UInt160): Unit = {
     try {
       witnessInfoStore.delete(address)
     } catch{
@@ -167,9 +167,18 @@ class DataBase(settings: DataBaseSettings, db: Storage.lowLevelRaw, tracking: Tr
     voteStore.get(address)
   }
 
-  def createVote(address: UInt160, vote: Vote): Unit ={
+  def createVote(address: UInt160, vote: Vote): Unit = {
     voteStore.set(address, vote)
   }
+
+  // current active producer
+  def getCurrentWitnessList(): WitnessList = currentWitnessStore.get().get
+  def setCurrentWitnessList(wl: WitnessList): Unit = currentWitnessStore.set(wl)
+
+  // next active producer
+  def getPendingWitnessList(): WitnessList = pendingWitnessStore.get().get
+  def setPendingWitnessList(wl: WitnessList): Unit = pendingWitnessStore.set(wl)
+
 
   def startTracking(): DataBase = {
     new DataBase(settings, db, tracking.newTracking)

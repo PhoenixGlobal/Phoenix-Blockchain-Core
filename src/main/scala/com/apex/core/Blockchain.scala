@@ -4,7 +4,7 @@ import java.time.Instant
 
 import akka.actor.ActorRef
 import com.apex.common.ApexLogging
-import com.apex.consensus.ProducerUtil
+import com.apex.consensus.{ProducerUtil, WitnessInfo, WitnessList}
 import com.apex.crypto.Ecdsa.{PrivateKey, PublicKey, PublicKeyHash}
 import com.apex.crypto.{BinaryData, Crypto, FixedNumber, MerkleTree, UInt160, UInt256}
 import com.apex.settings.{ChainSettings, ConsensusSettings, RuntimeParas, Witness}
@@ -239,6 +239,10 @@ class LevelDBBlockchain(chainSettings: ChainSettings,
     forkBase.contains(id) || blockBase.containBlock(id)
   }
 
+  def blockIsConfirmed(id: UInt256): Boolean = {
+    blockBase.containBlock(id)
+  }
+
   def getTransactionFromMempool(txid: UInt256): Option[Transaction] = {
     pendingState.txs.find(tx => tx.id().equals(txid)).orElse(unapplyTxs.get(txid))
   }
@@ -412,6 +416,53 @@ class LevelDBBlockchain(chainSettings: ChainSettings,
       })
     }
     inserted
+  }
+
+  private def checkUpdateWitnessList(curblock: Block) = {
+    val pendingWitnessList = dataBase.getPendingWitnessList()
+    if (blockIsConfirmed(pendingWitnessList.generateInBlock) &&
+      curblock.timeStamp() - getBlock(pendingWitnessList.generateInBlock).get.timeStamp() >= consensusSettings.electeTime) {
+
+      log.info("it's time to electe new producers")
+
+      val currentWitness = dataBase.getCurrentWitnessList()
+      val allWitnesses = dataBase.getAllWitness()
+      val allWitnessesMap: Map[UInt160, WitnessInfo] = allWitnesses.map(w => w.addr -> w).toMap
+      val updatedCurrentWitness = ArrayBuffer.empty[WitnessInfo]
+      currentWitness.witnesses.foreach(oldInfo => {
+        val newInfo = allWitnessesMap.get(oldInfo.addr)
+        if (newInfo.isDefined) {
+          updatedCurrentWitness.append(newInfo.get)
+        }
+        else {
+          // some producer have quit, but we still need keep it
+          log.info("not enough witness")
+          oldInfo.voteCounts = FixedNumber.Zero
+          updatedCurrentWitness.append(oldInfo)
+        }
+      })
+
+      val newElectedWitnesses = WitnessList.removeLeastVote(updatedCurrentWitness.toArray)
+      require(newElectedWitnesses.size == consensusSettings.witnessNum - 1)
+
+      val allWitnessesSorted = WitnessList.sortByVote(allWitnesses.toArray)
+
+      val allWitnessIterator = allWitnessesSorted.iterator
+      while (allWitnessIterator.hasNext && newElectedWitnesses.size < consensusSettings.witnessNum) {
+        val witness = allWitnessIterator.next()
+        if (!newElectedWitnesses.contains(witness.addr))
+          newElectedWitnesses.update(witness.addr, witness)
+      }
+      if (newElectedWitnesses.size < consensusSettings.witnessNum) {
+        log.info("still not enough witness")
+        val oldLeastVoteWitness = WitnessList.getLeastVote(updatedCurrentWitness.toArray)
+        newElectedWitnesses.update(oldLeastVoteWitness.addr, oldLeastVoteWitness)
+      }
+      require(newElectedWitnesses.size == consensusSettings.witnessNum)
+
+      dataBase.setCurrentWitnessList(pendingWitnessList)
+      dataBase.setPendingWitnessList(new WitnessList(newElectedWitnesses.toArray.map(_._2), curblock.id))
+    }
   }
 
   private def applyBlock(block: Block, verify: Boolean = true, enableSession: Boolean = true): Boolean = {

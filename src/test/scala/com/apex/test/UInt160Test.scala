@@ -54,6 +54,18 @@ class UInt160Test {
     assert(c.compare(a) > 0)
   }
 
+  @Test
+  def testCompare2 = {
+    val a = UInt160.parse("1212121212121212121212121212121212121211").get
+    val b = UInt160.parse("1212121212121212121212121212121212121212").get
+    val c = UInt160.parse("1212121212121212121212121212121212121213").get
+    val d = UInt160.parse("1212121212121212121212121212121212121211").get
+
+    assert(a == d)
+    assert(a != b)
+    assert(a != c)
+  }
+
   @Test(expected = classOf[IllegalArgumentException])
   def testCompareNull: Unit = {
     UInt160.Zero.compare(null)
