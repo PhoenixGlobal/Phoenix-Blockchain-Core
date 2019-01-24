@@ -65,6 +65,8 @@ trait Blockchain extends Iterable[Block] with ApexLogging {
 
   def getAccount(address: UInt160): Option[Account]
 
+  def getWitness(timeMs: Long): UInt160
+
   def Id: String
 
   def close()
@@ -632,7 +634,7 @@ class LevelDBBlockchain(chainSettings: ChainSettings,
       log.error(s"verifyHeader error: index error ${header.index} ${prevBlock.get.block.height()}")
       false
     }
-    else if (!ProducerUtil.isProducerValid(header.timeStamp, header.producer, consensusSettings)) {
+    else if (!isProducerValid(header.timeStamp, header.producer)) {
       log.error("verifyHeader error: producer not valid")
       false
     }
@@ -682,8 +684,18 @@ class LevelDBBlockchain(chainSettings: ChainSettings,
   }
 
   private def populate(): Unit = {
+    def initGenesisWitness() = {
+      val witnesses = ArrayBuffer.empty[WitnessInfo]
+      consensusSettings.initialWitness.foreach(w => {
+        witnesses.append(new WitnessInfo("", w.pubkeyHash))
+      })
+      val witnessList = new WitnessList(witnesses.toArray, genesisBlock.id())
+      dataBase.setCurrentWitnessList(witnessList)
+      dataBase.setPendingWitnessList(witnessList)
+    }
     log.info("chain populate")
     if (forkBase.head.isEmpty) {
+      initGenesisWitness()
       applyBlock(genesisBlock, false, false)
       blockBase.add(genesisBlock)
       forkBase.add(genesisBlock)
@@ -769,7 +781,7 @@ class LevelDBBlockchain(chainSettings: ChainSettings,
   }
 
   // "timeMs": time from 1970 in ms, should be divided evenly with no remainder by settings.produceInterval
-  def getWitness(timeMs: Long): UInt160 = {
+  override def getWitness(timeMs: Long): UInt160 = {
     val currentWitnessList = dataBase.getCurrentWitnessList()
     require(ProducerUtil.isTimeStampValid(timeMs, consensusSettings.produceInterval))
     require(timeMs > getBlock(currentWitnessList.generateInBlock).get.timeStamp())
@@ -778,6 +790,16 @@ class LevelDBBlockchain(chainSettings: ChainSettings,
     index /= consensusSettings.producerRepetitions
     currentWitnessList.sortByLocation()(index.toInt).addr
     //settings.initialWitness(index.toInt)
+  }
+
+  def isProducerValid(timeStamp: Long, producer: UInt160): Boolean = {
+    var isValid = false
+    if (getWitness(timeStamp).data sameElements producer.data) {
+      if (ProducerUtil.isTimeStampValid(timeStamp, consensusSettings.produceInterval)) {
+        isValid = true
+      }
+    }
+    isValid
   }
 }
 
