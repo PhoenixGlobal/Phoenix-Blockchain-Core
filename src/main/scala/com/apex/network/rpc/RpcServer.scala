@@ -16,9 +16,11 @@ import akka.pattern.ask
 import akka.stream.ActorMaterializer
 import akka.util.Timeout
 import com.apex.common.ApexLogging
+import com.apex.consensus.{Vote, WitnessInfo, WitnessList}
 import com.apex.core.{Account, Block, TransactionReceipt}
 import com.apex.settings.{RPCSettings, SecretRPCSettings}
 import play.api.libs.json._
+
 import scala.collection.mutable.ArrayBuffer
 import scala.concurrent.Future
 import scala.concurrent.duration._
@@ -136,7 +138,7 @@ object RpcServer extends ApexLogging {
       path("getGasLimit") {
         post {
           entity(as[String]) {_ =>
-            val f = (nodeRef ? getGasLimitCmd()).mapTo[Long].map(Json.toJson(_).toString)
+            val f = (nodeRef ? GetGasLimitCmd()).mapTo[Long].map(Json.toJson(_).toString)
             complete(f)
           }
         }
@@ -147,6 +149,44 @@ object RpcServer extends ApexLogging {
               Json.parse(data).validate[SetGasLimitCmd] match {
                 case cmd: JsSuccess[SetGasLimitCmd] => {
                   val f = (nodeRef ? cmd.get).mapTo[Boolean].map(Json.toJson(_).toString)
+                  complete(f)
+                }
+                case _: JsError => {
+                  complete(HttpEntity(ContentTypes.`application/json`, Json.parse( """ {"result": "Error"}""").toString()))
+                }
+              }
+            }
+          }
+        } ~
+        path("getWitness") {
+          post {
+            entity(as[String]) { _ =>
+              val f = (nodeRef ? GetWitnessCmd()).mapTo[ArrayBuffer[WitnessInfo]].map(Json.toJson(_).toString())
+              complete(f)
+            }
+          }
+        } ~
+        path("getVoteByAddr") {
+          post {
+            entity(as[String]) { data =>
+              Json.parse(data).validate[GetVoteByAddrCmd] match {
+                case cmd: JsSuccess[GetVoteByAddrCmd] => {
+                  val f = (nodeRef ? cmd.value).mapTo[Option[Vote]].map(_.map(Json.toJson(_).toString).getOrElse(JsNull.toString))
+                  complete(f)
+                }
+                case e: JsError => {
+                  complete(HttpEntity(ContentTypes.`application/json`, Json.parse( """{"result": "Error"}""").toString()))
+                }
+              }
+            }
+          }
+        } ~
+        path("getProduces") {
+          post {
+            entity(as[String]) { data =>
+              Json.parse(data).validate[GetProducesCmd] match {
+                case cmd: JsSuccess[GetProducesCmd] => {
+                  val f = (nodeRef ? cmd.get).mapTo[Option[WitnessList]].map(Json.toJson(_).toString())
                   complete(f)
                 }
                 case _: JsError => {

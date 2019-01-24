@@ -11,6 +11,7 @@ package com.apex.consensus
 import java.io.{DataInputStream, DataOutputStream}
 
 import com.apex.crypto.{FixedNumber, UInt160}
+import play.api.libs.json.{JsValue, Json, Writes}
 
 case class Vote(voter: UInt160,
                  target: UInt160,
@@ -46,4 +47,14 @@ object Vote {
     new Vote(voter, target, count, version)
   }
 
+  implicit val voteWrites = new Writes[Vote] {
+    override def writes(o: Vote): JsValue = {
+      Json.obj(
+        "voter" -> o.voter.toString,
+        "target" -> o.target.toString,
+        "count" -> o.count.toString,
+        "version" -> o.version
+      )
+    }
+  }
 }

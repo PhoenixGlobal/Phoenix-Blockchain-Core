@@ -66,7 +66,7 @@ object SetGasLimitCmd {
     ) map (SetGasLimitCmd.apply _)
 }
 
-case class getGasLimitCmd() extends RPCCommand
+case class GetGasLimitCmd() extends RPCCommand
 
 case class SendRawTransactionCmd(rawTx: BinaryData) extends RPCCommand
 
@@ -142,4 +142,32 @@ object GetContractByIdCmd {
   implicit val testReads: Reads[GetContractByIdCmd] = (
     (__ \ "id").read[String](Validators.uint256Validator).map(c => UInt256.parse(c).get)
     ) map (GetContractByIdCmd.apply _)
+}
+
+case class GetWitnessCmd() extends RPCCommand
+
+case class GetVoteByAddrCmd(address: UInt160) extends RPCCommand
+
+object GetVoteByAddrCmd {
+  implicit val testWrites = new Writes[GetVoteByAddrCmd] {
+    override def writes(o: GetVoteByAddrCmd): JsValue = Json.obj(
+      "address" -> o.address.toString
+    )
+  }
+  implicit val testReads: Reads[GetVoteByAddrCmd] = (
+    (__ \ "address").read[String](Validators.addressValidator).map(c => PublicKeyHash.fromAddress(c).get)
+    ) map (GetVoteByAddrCmd.apply _)
+}
+
+case class GetProducesCmd(listType: String) extends RPCCommand
+
+object GetProducesCmd {
+  implicit val testWrites = new Writes[GetProducesCmd] {
+    override def writes(o: GetProducesCmd): JsValue = Json.obj(
+      "listType" -> o.listType
+    )
+  }
+  implicit val testReads: Reads[GetProducesCmd] = (
+    (JsPath \ "listType").read[String]
+    ) map (GetProducesCmd.apply _)
 }

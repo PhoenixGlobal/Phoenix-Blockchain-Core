@@ -136,8 +136,17 @@ class Node(val settings: ApexSettings)
       case SetGasLimitCmd(gasLimit) => {
         sender() ! chain.setGasLimit(gasLimit)
       }
-      case getGasLimitCmd() => {
+      case GetGasLimitCmd() => {
         sender() ! chain.getGasLimit()
+      }
+      case GetWitnessCmd() => {
+        sender() ! chain.getAllWitness()
+      }
+      case GetVoteByAddrCmd(addr) => {
+        sender() ! chain.getVoteByAddrCmd(addr)
+      }
+      case GetProducesCmd(listType) => {
+        sender() ! chain.getProduces(listType)
       }
     }
   }

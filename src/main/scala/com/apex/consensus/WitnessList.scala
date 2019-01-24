@@ -11,6 +11,7 @@ package com.apex.consensus
 import java.io.{DataInputStream, DataOutputStream}
 
 import com.apex.crypto.{UInt160, UInt256}
+import play.api.libs.json.{JsValue, Json, Writes}
 
 import scala.collection.mutable
 import scala.collection.mutable.ArrayBuffer
@@ -80,4 +81,15 @@ object WitnessList {
 
     new WitnessList(witnesses.toArray, generateInBlock, version)
   }
+
+  implicit val witnessListWrites = new Writes[WitnessList] {
+    override def writes(o: WitnessList): JsValue = {
+      Json.obj(
+        "witnesses" -> o.witnesses,
+        "generateInBlock" -> o.generateInBlock.toString,
+        "version" -> o.version
+      )
+    }
+  }
+
 }

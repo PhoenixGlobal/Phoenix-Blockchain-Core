@@ -4,7 +4,7 @@ import java.time.Instant
 
 import akka.actor.ActorRef
 import com.apex.common.ApexLogging
-import com.apex.consensus.{ProducerUtil, WitnessInfo, WitnessList}
+import com.apex.consensus.{ProducerUtil, Vote, WitnessInfo, WitnessList}
 import com.apex.crypto.Ecdsa.{PrivateKey, PublicKey, PublicKeyHash}
 import com.apex.crypto.{BinaryData, Crypto, FixedNumber, MerkleTree, UInt160, UInt256}
 import com.apex.settings.{ChainSettings, ConsensusSettings, RuntimeParas, Witness}
@@ -778,6 +778,26 @@ class LevelDBBlockchain(chainSettings: ChainSettings,
     index /= consensusSettings.producerRepetitions
     currentWitnessList.sortByLocation()(index.toInt).addr
     //settings.initialWitness(index.toInt)
+  }
+
+  def getAllWitness(): ArrayBuffer[WitnessInfo] = {
+    dataBase.getAllWitness()
+  }
+
+  def getVoteByAddrCmd(address: UInt160): Option[Vote] = {
+    dataBase.getVote(address)
+  }
+
+  def getProduces(listType: String): WitnessList = {
+      // 判断类型值,调用不同的数据库进行查询操作
+      listType match {
+        case "active" => {
+          dataBase.getCurrentWitnessList()
+        }
+        case _ =>{
+          dataBase.getPendingWitnessList()
+        }
+      }
   }
 }
 

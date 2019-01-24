@@ -11,6 +11,7 @@ package com.apex.consensus
 import java.io.{DataInputStream, DataOutputStream}
 
 import com.apex.crypto.{FixedNumber, UInt160}
+import play.api.libs.json.{JsValue, Json, Writes}
 
 case class WitnessInfo( name: String = "",
                    addr: UInt160 = UInt160.Zero,
@@ -58,6 +59,23 @@ object WitnessInfo {
     val voteCounts = FixedNumber.deserialize(is)
 
     new WitnessInfo(name, addr, url, country, address, longitude, latitude, voteCounts, version)
+
+  }
+
+  implicit val witnessInfoWrites = new Writes[WitnessInfo] {
+    override def writes(o: WitnessInfo): JsValue = {
+      Json.obj(
+        "name" -> o.name.toString,
+        "addr" -> o.addr.toString,
+        "url" -> o.url,
+        "country" ->  o.country,
+        "address" -> o.address,
+        "longitude" -> o.longitude,
+        "latitude" -> o.latitude,
+        "voteCounts" -> o.voteCounts.toString,
+        "version" -> o.version
+      )
+    }
   }
 
 }
