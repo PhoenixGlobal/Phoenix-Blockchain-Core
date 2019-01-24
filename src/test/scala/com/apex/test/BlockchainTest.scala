@@ -160,6 +160,12 @@ class BlockchainTest {
     Block.build(header, allTxs)
   }
 
+  private def startProduceBlock(chain: LevelDBBlockchain, blockTime: Long, stopProcessTxTime: Long) = {
+
+    val witness = ProducerUtil.getWitness(blockTime, _consensusSettings)
+    chain.startProduceBlock(witness.pubkeyHash, witness.privkey.get, blockTime, stopProcessTxTime)
+  }
+
   private def createChain(path: String): LevelDBBlockchain = {
     val baseDir = s"BlockchainTest/$path"
     val chainSetting = ChainSettings(
@@ -202,7 +208,7 @@ class BlockchainTest {
       sleepTo(blockTime)
       nowTime = Instant.now.toEpochMilli
       blockTime += _produceInterval
-      chain.startProduceBlock(ProducerUtil.getWitness(blockTime, _consensusSettings), blockTime, blockTime - 100)
+      startProduceBlock(chain, blockTime, blockTime - 100)
 
       assert(chain.isProducingBlock())
 
@@ -289,7 +295,8 @@ class BlockchainTest {
       //      sleepTo(blockTime)
       //      nowTime = Instant.now.toEpochMilli
       blockTime += _produceInterval
-      chain.startProduceBlock(ProducerUtil.getWitness(blockTime, _consensusSettings), blockTime, Long.MaxValue)
+
+      startProduceBlock(chain, blockTime, Long.MaxValue)
 
       assert(chain.isProducingBlock())
 
@@ -330,7 +337,7 @@ class BlockchainTest {
       assert(chain.getHeight() == 0)
 
       var blockTime = chain.getHeadTime() + _consensusSettings.produceInterval
-      chain.startProduceBlock(ProducerUtil.getWitness(blockTime, _consensusSettings), blockTime, blockTime - 100)
+      startProduceBlock(chain, blockTime, blockTime - 100)
 
       assert(chain.isProducingBlock())
 
@@ -378,7 +385,9 @@ class BlockchainTest {
       assert(chain.getHeight() == 5)
       assert(chain.getLatestHeader().id() == block5.id())
 
-      chain.startProduceBlock(ProducerUtil.getWitness(time9, _consensusSettings), time9, time9 - 100)  // a
+      startProduceBlock(chain, time9, time9 - 100)  // a
+
+
       assert(chain.isProducingBlock())
       val block999 = chain.produceBlockFinalize()
       assert(block999.isDefined)
@@ -440,7 +449,7 @@ class BlockchainTest {
       assert(chain.getHeight() == 0)
 
       var blockTime = chain.getHeadTime() + _consensusSettings.produceInterval
-      chain.startProduceBlock(ProducerUtil.getWitness(blockTime, _consensusSettings), blockTime, blockTime - 100)
+      startProduceBlock(chain, blockTime, blockTime - 100)
 
       assert(chain.isProducingBlock())
 
@@ -534,7 +543,7 @@ class BlockchainTest {
       sleepTo(blockTime)
       blockTime += _produceInterval
 
-      chain.startProduceBlock(ProducerUtil.getWitness(blockTime, _consensusSettings), blockTime, blockTime - 200)
+      startProduceBlock(chain, blockTime, blockTime - 200)
 
       assert(chain.isProducingBlock())
 

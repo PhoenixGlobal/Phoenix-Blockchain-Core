@@ -42,7 +42,7 @@ trait Blockchain extends Iterable[Block] with ApexLogging {
   //  def produceBlock(producer: PublicKey, privateKey: PrivateKey, timeStamp: Long,
   //                   transactions: Seq[Transaction]): Option[Block]
 
-  def startProduceBlock(producer: Witness, blockTime: Long, stopProcessTxTime: Long): Unit
+  def startProduceBlock(producer: UInt160, privKey: PrivateKey, blockTime: Long, stopProcessTxTime: Long): Unit
 
   def addTransaction(tx: Transaction): Boolean
 
@@ -85,7 +85,8 @@ object Blockchain {
 }
 
 class PendingState {
-  var producer: Witness = _
+  var producer: UInt160 = _
+  var privKey: PrivateKey = _
   var blockTime: Long = _
   var startTime: Long = _
   var blockIndex: Long = _
@@ -94,8 +95,9 @@ class PendingState {
 
   val txs = ArrayBuffer.empty[Transaction]
 
-  def set(producer: Witness, blockTime: Long, stopProcessTxTime: Long, blockIndex: Long) = {
+  def set(producer: UInt160, privKey: PrivateKey, blockTime: Long, stopProcessTxTime: Long, blockIndex: Long) = {
     this.producer = producer
+    this.privKey = privKey
     this.blockTime = blockTime
     this.stopProcessTxTime = stopProcessTxTime
     this.startTime = Instant.now.toEpochMilli
@@ -255,14 +257,14 @@ class LevelDBBlockchain(chainSettings: ChainSettings,
     unapplyTxs.get(txid)
   }
 
-  override def startProduceBlock(producer: Witness, blockTime: Long, stopProcessTxTime: Long): Unit = {
+  override def startProduceBlock(producer: UInt160, privKey: PrivateKey, blockTime: Long, stopProcessTxTime: Long): Unit = {
     require(!isProducingBlock())
     val forkHead = forkBase.head.get
-    pendingState.set(producer, blockTime, stopProcessTxTime, forkHead.block.height + 1)
+    pendingState.set(producer, privKey, blockTime, stopProcessTxTime, forkHead.block.height + 1)
     log.debug(s"start block at: ${pendingState.startTime}  blockTime=${blockTime}  stopProcessTxTime=${stopProcessTxTime}")
 
     val minerTx = new Transaction(TransactionType.Miner, minerCoinFrom,
-      producer.pubkeyHash, "", minerAward,
+      producer, "", minerAward,
       forkHead.block.height + 1,
       BinaryData(Crypto.randomBytes(8)), // add random bytes to distinct different blocks with same block index during debug in some cases
       FixedNumber.Zero, 0, BinaryData.empty
@@ -270,7 +272,7 @@ class LevelDBBlockchain(chainSettings: ChainSettings,
     //isPendingBlock = true
     dataBase.startSession()
 
-    val applied = applyTransaction(minerTx, producer.pubkeyHash, stopProcessTxTime, blockTime, forkHead.block.height + 1)
+    val applied = applyTransaction(minerTx, producer, stopProcessTxTime, blockTime, forkHead.block.height + 1)
     require(applied)
     pendingState.txs.append(minerTx)
     pendingState.isProducingBlock = true
@@ -284,14 +286,14 @@ class LevelDBBlockchain(chainSettings: ChainSettings,
       log.info(s"try again for the old timeout tx ${oldTimeoutTx.id().shortString()}")
 
       // return value can be ignore
-      applyTransaction(oldTimeoutTx, producer.pubkeyHash, stopProcessTxTime, blockTime, forkHead.block.height + 1)
+      applyTransaction(oldTimeoutTx, producer, stopProcessTxTime, blockTime, forkHead.block.height + 1)
     }
 
     val badTxs = ArrayBuffer.empty[Transaction]
 
     unapplyTxs.foreach(p => {
       if (Instant.now.toEpochMilli < stopProcessTxTime) {
-        if (applyTransaction(p._2, producer.pubkeyHash, stopProcessTxTime, blockTime, forkHead.block.height + 1))
+        if (applyTransaction(p._2, producer, stopProcessTxTime, blockTime, forkHead.block.height + 1))
           pendingState.txs.append(p._2)
         else
           badTxs.append(p._2)
@@ -328,7 +330,7 @@ class LevelDBBlockchain(chainSettings: ChainSettings,
         added = addTransactionToUnapplyTxs(tx)
       }
       else {
-        if (applyTransaction(tx, pendingState.producer.pubkeyHash, pendingState.stopProcessTxTime, pendingState.blockTime, pendingState.blockIndex)) {
+        if (applyTransaction(tx, pendingState.producer, pendingState.stopProcessTxTime, pendingState.blockTime, pendingState.blockIndex)) {
           pendingState.txs.append(tx)
           added = true
         }
@@ -351,11 +353,10 @@ class LevelDBBlockchain(chainSettings: ChainSettings,
       log.debug(s"block time: ${pendingState.blockTime}, end time: $endTime, produce time: ${endTime - pendingState.startTime}")
       val forkHead = forkBase.head.get
       val merkleRoot = MerkleTree.root(pendingState.txs.map(_.id))
-      val privateKey = pendingState.producer.privkey.get
       val timeStamp = pendingState.blockTime
       val header = BlockHeader.build(
         forkHead.block.height + 1, timeStamp, merkleRoot,
-        forkHead.block.id, privateKey)
+        forkHead.block.id, pendingState.privKey)
       val block = Block.build(header, pendingState.txs.clone)
       pendingState.txs.clear()
       pendingState.isProducingBlock = false
@@ -765,6 +766,17 @@ class LevelDBBlockchain(chainSettings: ChainSettings,
   }
   def getGasLimit(): Long = {
     peerBase.getGasLimit().get.longValue()
+  }
+
+  // "timeMs": time from 1970 in ms, should be divided evenly with no remainder by settings.produceInterval
+  def getWitness(timeMs: Long): UInt160 = {
+    require(ProducerUtil.isTimeStampValid(timeMs, consensusSettings.produceInterval))
+    val slot = timeMs / consensusSettings.produceInterval
+    var index = slot % (consensusSettings.witnessNum * consensusSettings.producerRepetitions)
+    index /= consensusSettings.producerRepetitions
+    val currentWitnessList = dataBase.getCurrentWitnessList()
+    currentWitnessList.sortByLocation()(index.toInt).addr
+    //settings.initialWitness(index.toInt)
   }
 }
 

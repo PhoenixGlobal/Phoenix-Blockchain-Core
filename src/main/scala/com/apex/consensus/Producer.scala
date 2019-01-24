@@ -120,7 +120,7 @@ class Producer(apexSettings: ApexSettings)
         //println(delay)
         scheduleBegin(delay)
       } else {
-        chain.startProduceBlock(witness, next, next - apexSettings.runtimeParas.stopProcessTxTimeSlot)
+        chain.startProduceBlock(witness.pubkeyHash, witness.privkey.get, next, next - apexSettings.runtimeParas.stopProcessTxTimeSlot)
         val now = Instant.now.toEpochMilli
         val delay = calcDelay(now, next, myTurn)
         scheduleEnd(delay)
@@ -176,10 +176,7 @@ object ProducerUtil {
   }
 
   def isTimeStampValid(timeStamp: Long, produceInterval: Int): Boolean = {
-    if (timeStamp % produceInterval == 0)
-      true
-    else
-      false
+    timeStamp % produceInterval == 0
   }
 
   def isProducerValid(timeStamp: Long, producer: UInt160, settings: ConsensusSettings): Boolean = {
