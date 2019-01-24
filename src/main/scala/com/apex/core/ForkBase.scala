@@ -15,6 +15,7 @@ package com.apex.core
 import java.io.{ByteArrayInputStream, ByteArrayOutputStream, DataInputStream, DataOutputStream}
 
 import com.apex.common.ApexLogging
+import com.apex.consensus.WitnessList
 import com.apex.crypto.Ecdsa.PublicKey
 import com.apex.crypto.{UInt160, UInt256}
 import com.apex.settings.{ForkBaseSettings, Witness}
@@ -524,6 +525,10 @@ class ForkBase(settings: ForkBaseSettings,
         false
       }
     })
+  }
+
+  def setWitnessList(wl: WitnessList) = {
+
   }
 
   def close(): Unit = {

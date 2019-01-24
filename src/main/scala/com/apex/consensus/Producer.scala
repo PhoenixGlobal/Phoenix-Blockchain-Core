@@ -112,7 +112,7 @@ class Producer(apexSettings: ApexSettings)
     } else {
       val next = ProducerUtil.nextBlockTime(headTime, now, minProducingTime, settings.produceInterval)
       //println(s"head: $headTime, now: $now, next: $next, delta: ${headTime - now}")
-      val witness = ProducerUtil.getWitness(next, settings)
+      val witness = chain.getWitness(next) // ProducerUtil.getWitness(next, settings)
       val myTurn = apexSettings.miner.findPrivKey(witness).isDefined
       if (!myTurn) {
         val now = Instant.now.toEpochMilli
@@ -120,7 +120,7 @@ class Producer(apexSettings: ApexSettings)
         //println(delay)
         scheduleBegin(delay)
       } else {
-        chain.startProduceBlock(witness.pubkeyHash, apexSettings.miner.findPrivKey(witness).get,
+        chain.startProduceBlock(witness, apexSettings.miner.findPrivKey(witness).get,
                                  next, next - apexSettings.runtimeParas.stopProcessTxTimeSlot)
         val now = Instant.now.toEpochMilli
         val delay = calcDelay(now, next, myTurn)
@@ -169,26 +169,26 @@ object ProducerUtil {
   }
 
   // "timeMs": time from 1970 in ms, should be divided evenly with no remainder by settings.produceInterval
-  def getWitness(timeMs: Long, settings: ConsensusSettings): Witness = {
-    val slot = timeMs / settings.produceInterval
-    var index = slot % (settings.initialWitness.size * settings.producerRepetitions)
-    index /= settings.producerRepetitions
-    settings.initialWitness(index.toInt)
-  }
+//  def getWitness(timeMs: Long, settings: ConsensusSettings): Witness = {
+//    val slot = timeMs / settings.produceInterval
+//    var index = slot % (settings.initialWitness.size * settings.producerRepetitions)
+//    index /= settings.producerRepetitions
+//    settings.initialWitness(index.toInt)
+//  }
 
   def isTimeStampValid(timeStamp: Long, produceInterval: Int): Boolean = {
     timeStamp % produceInterval == 0
   }
 
-  def isProducerValid(timeStamp: Long, producer: UInt160, settings: ConsensusSettings): Boolean = {
-    var isValid = false
-    if (getWitness(timeStamp, settings).pubkeyHash.data sameElements producer.data) {
-      if (isTimeStampValid(timeStamp, settings.produceInterval)) {
-        isValid = true
-      }
-    }
-    isValid
-  }
+//  def isProducerValid(timeStamp: Long, producer: UInt160, settings: ConsensusSettings): Boolean = {
+//    var isValid = false
+//    if (getWitness(timeStamp, settings).pubkeyHash.data sameElements producer.data) {
+//      if (isTimeStampValid(timeStamp, settings.produceInterval)) {
+//        isValid = true
+//      }
+//    }
+//    isValid
+//  }
 }
 
 object ProducerRef {
