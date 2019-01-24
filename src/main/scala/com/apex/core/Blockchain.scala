@@ -770,11 +770,12 @@ class LevelDBBlockchain(chainSettings: ChainSettings,
 
   // "timeMs": time from 1970 in ms, should be divided evenly with no remainder by settings.produceInterval
   def getWitness(timeMs: Long): UInt160 = {
+    val currentWitnessList = dataBase.getCurrentWitnessList()
     require(ProducerUtil.isTimeStampValid(timeMs, consensusSettings.produceInterval))
+    require(timeMs > getBlock(currentWitnessList.generateInBlock).get.timeStamp())
     val slot = timeMs / consensusSettings.produceInterval
     var index = slot % (consensusSettings.witnessNum * consensusSettings.producerRepetitions)
     index /= consensusSettings.producerRepetitions
-    val currentWitnessList = dataBase.getCurrentWitnessList()
     currentWitnessList.sortByLocation()(index.toInt).addr
     //settings.initialWitness(index.toInt)
   }

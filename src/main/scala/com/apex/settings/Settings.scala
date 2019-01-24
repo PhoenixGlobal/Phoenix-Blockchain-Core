@@ -49,10 +49,11 @@ case class NetworkTimeProviderSettings(server: String, updateEvery: FiniteDurati
 
 case class ApexSettings(network: NetworkSettings,
                         ntp: NetworkTimeProviderSettings,
-                        consensus: ConsensusSettings,
                         chain: ChainSettings,
                         rpc: RPCSettings,
                         secretRpc: SecretRPCSettings,
+                        consensus: ConsensusSettings,
+                        miner: MinerSettings,
                         plugins: PluginsSettings,
                         runtimeParas: RuntimeParas)
 
@@ -94,6 +95,16 @@ case class RuntimeParas(stopProcessTxTimeSlot: Int,
 
 case class MongodbSettings(enabled: Boolean, uri: String)
 
+case class MinerSettings(privKeys: Array[PrivateKey]) {
+
+  def findPrivKey(miner: UInt160): Option[PrivateKey] = {
+    privKeys.find(p => p.publicKey.pubKeyHash == miner)
+  }
+  def findPrivKey(miner: Witness): Option[PrivateKey] = {
+    findPrivKey(miner.pubkeyHash)
+  }
+}
+
 case class ConsensusSettings(produceInterval: Int,
                              acceptableTimeError: Int,
                              producerRepetitions: Int,
@@ -124,8 +135,7 @@ case class CoinAirdrop(addr: String,
                        coins: Double)
 
 case class Witness(name: String,
-                   pubkeyHash: UInt160,
-                   privkey: Option[PrivateKey])
+                   pubkeyHash: UInt160)
 
 object ApexSettings extends SettingsReaders with ApexLogging {
   protected val configPath: String = "apex"

@@ -113,14 +113,15 @@ class Producer(apexSettings: ApexSettings)
       val next = ProducerUtil.nextBlockTime(headTime, now, minProducingTime, settings.produceInterval)
       //println(s"head: $headTime, now: $now, next: $next, delta: ${headTime - now}")
       val witness = ProducerUtil.getWitness(next, settings)
-      val myTurn = witness.privkey.isDefined
+      val myTurn = apexSettings.miner.findPrivKey(witness).isDefined
       if (!myTurn) {
         val now = Instant.now.toEpochMilli
         val delay = calcDelay(now, next, myTurn)
         //println(delay)
         scheduleBegin(delay)
       } else {
-        chain.startProduceBlock(witness.pubkeyHash, witness.privkey.get, next, next - apexSettings.runtimeParas.stopProcessTxTimeSlot)
+        chain.startProduceBlock(witness.pubkeyHash, apexSettings.miner.findPrivKey(witness).get,
+                                 next, next - apexSettings.runtimeParas.stopProcessTxTimeSlot)
         val now = Instant.now.toEpochMilli
         val delay = calcDelay(now, next, myTurn)
         scheduleEnd(delay)

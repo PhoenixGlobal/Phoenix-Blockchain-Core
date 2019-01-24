@@ -29,7 +29,7 @@ class ForkBaseTest {
   private val PriB = new PrivateKey(BinaryData("485cfb9f743d9997e316f5dca216b1c6adf12aa301c1d520e020269debbebbf0"))
   private val PubC = PublicKey("0234b9b7d2909231d143a6693082665837965438fc273fbc4c507996e41394c8c1").pubKeyHash
   private val PriC = new PrivateKey(BinaryData("5dfee6af4775e9635c67e1cea1ed617efb6d22ca85abfa97951771d47934aaa0"))
-  private val witnesses = Array(Witness("A", PubA, Some(PriA)), Witness("B", PubB, Some(PriB)))
+  private val witnesses = Array(Witness("A", PubA), Witness("B", PubB))
   private val genesis = BlockBuilder.genesisBlock
 
   @Test
@@ -120,7 +120,7 @@ class ForkBaseTest {
 
   @Test
   def testSwitch(): Unit = {
-    val forkBase = ForkBaseTest.open("forkBase_switch", witnesses :+ Witness("C", PubC, Some(PriC)))
+    val forkBase = ForkBaseTest.open("forkBase_switch", witnesses :+ Witness("C", PubC))
     val blk1a = ForkBaseTest.newBlock(PriA, genesis)
     val blk2a = ForkBaseTest.newBlock(PriA, blk1a)
     val blk3a = ForkBaseTest.newBlock(PriA, blk2a)
@@ -181,7 +181,7 @@ class ForkBaseTest {
       }
     }
 
-    val forkBase = ForkBaseTest.open("forkBase_switchFailed", witnesses :+ Witness("C", PubC, Some(PriC)), onSwitch)
+    val forkBase = ForkBaseTest.open("forkBase_switchFailed", witnesses :+ Witness("C", PubC), onSwitch)
     val blk1a = ForkBaseTest.newBlock(PriA, genesis)
     val blk2a = ForkBaseTest.newBlock(PriA, blk1a)
     val blk3a = ForkBaseTest.newBlock(PriA, blk2a)
@@ -229,7 +229,7 @@ class ForkBaseTest {
 
   @Test
   def testRemoveFork(): Unit = {
-    val forkBase = ForkBaseTest.open("forkBase_removeFork", witnesses :+ Witness("C", PubC, Some(PriC)))
+    val forkBase = ForkBaseTest.open("forkBase_removeFork", witnesses :+ Witness("C", PubC))
     val blk1a = ForkBaseTest.newBlock(PriA, genesis)
     val blk2a = ForkBaseTest.newBlock(PriA, blk1a)
     val blk3a = ForkBaseTest.newBlock(PriA, blk2a)
