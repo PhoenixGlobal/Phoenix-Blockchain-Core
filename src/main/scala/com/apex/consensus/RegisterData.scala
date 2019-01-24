@@ -10,6 +10,7 @@ import java.io.{ByteArrayInputStream, DataInputStream, DataOutputStream}
 import com.apex.common.Serializable
 import com.apex.core.OperationType
 import com.apex.crypto.UInt160
+import play.api.libs.json.{JsValue, Json, Writes}
 
 case class RegisterData(registerAccount: UInt160, var registerInfo: WitnessInfo = WitnessInfo(), operationType: OperationType.Value)
   extends Serializable{
@@ -22,7 +23,7 @@ case class RegisterData(registerAccount: UInt160, var registerInfo: WitnessInfo 
   }
 }
 
-object RegisterData{
+object RegisterData {
 
   def fromBytes(data: Array[Byte]): RegisterData = {
     val bs = new ByteArrayInputStream(data)
@@ -35,6 +36,15 @@ object RegisterData{
     val registerInfo = WitnessInfo.deserialize(is)
     val operationType = OperationType(is.readByte)
     RegisterData(registerAccount, registerInfo, operationType)
+  }
+
+  implicit val registerData = new Writes[RegisterData] {
+    override def writes(o: RegisterData): JsValue = {
+      Json.obj(
+        "registerAccount" -> o.registerAccount.address,
+        "registerAccountInWitnessInfoClass" -> o.registerInfo.addr.address,
+      )
+    }
   }
 }
 

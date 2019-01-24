@@ -134,7 +134,7 @@ class BlockChainPrepare {
     f
   }
 
-  def produceBlock()(f: => Unit){
+  def produceBlock(){
     var nowTime = Instant.now.toEpochMilli
     var blockTime = ProducerUtil.nextBlockTime(chain.getHeadTime(), nowTime, _produceInterval / 10, _produceInterval) //  chain.getHeadTime() + _consensusSettings.produceInterval
     sleepTo(blockTime)
@@ -145,7 +145,6 @@ class BlockChainPrepare {
 
     nowTime = Instant.now.toEpochMilli
     assert(nowTime < blockTime - 200)
-    f
   }
 
   def createAccount(){

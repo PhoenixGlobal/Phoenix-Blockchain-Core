@@ -2,7 +2,7 @@ package com.apex.vm
 
 import com.apex.consensus.RegisterData
 import com.apex.core.{DataBase, OperationType, Transaction}
-import com.apex.crypto.FixedNumber
+import com.apex.crypto.{BinaryData, FixedNumber}
 import com.apex.crypto.FixedNumber.One
 
 object RegisterContractExecutor {
@@ -11,7 +11,6 @@ object RegisterContractExecutor {
   def execute(data: Array[Byte], track: DataBase, tx: Transaction): (Boolean, Array[Byte]) ={
     val registerData = RegisterData.fromBytes(data)
     registerData.isValid(track, tx)
-            .isAccountExist(track)
             .isAccountBalanceEnough(track)
             .isRegisterWitnessExist(track)
             .isCancelWitnessNotExist(track)
@@ -21,19 +20,12 @@ object RegisterContractExecutor {
 
   implicit class RegisterContractContext(registerData: RegisterData) {
 
+    var result: (Boolean, Array[Byte]) = (true, new Array[Byte](0))
+
     def isValid(track: DataBase, tx: Transaction): RegisterContractContext = {
       errorDetected{
-        if(tx.from != registerData.registerAccount){
-          setResult(false)
-        }
-      }
-      this
-    }
-
-    def isAccountExist(track: DataBase): RegisterContractContext = {
-      errorDetected{
-        if(track.getAccount(registerData.registerAccount).isEmpty){
-          setResult(false)
+        if(!(tx.from == registerData.registerAccount && registerData.registerAccount == registerData.registerInfo.addr)){
+          setResult(false, ("register address must be same as transaction from address").getBytes)
         }
       }
       this
@@ -44,7 +36,7 @@ object RegisterContractExecutor {
         val account = track.getAccount(registerData.registerAccount).get
         if(registerData.operationType == OperationType.register &&
           (!account.balance.>(FixedNumber(One.value)))){
-          setResult(false)
+          setResult(false, ("register account balance is not enough to register a producer").getBytes)
         }
       }
       this
@@ -54,7 +46,7 @@ object RegisterContractExecutor {
       errorDetected{
         val witness = track.getWitness(registerData.registerAccount)
         if(witness.isDefined && registerData.operationType == OperationType.register){
-          setResult(false)
+          setResult(false, ("register witness has already exist").getBytes)
         }
       }
       this
@@ -64,7 +56,7 @@ object RegisterContractExecutor {
       errorDetected{
         val witness = track.getWitness(registerData.registerAccount)
         if(witness.isEmpty && registerData.operationType ==OperationType.resisterCancel){
-          setResult(false)
+          setResult(false, ("a witness not be registered before is not allowed to cancel").getBytes)
         }
       }
       this
@@ -93,7 +85,9 @@ object RegisterContractExecutor {
     }
 
     def returnResult(): (Boolean, Array[Byte]) ={
-      OperationChecker.returnResult()
+      result = OperationChecker.returnResult()
+      OperationChecker.setResultToInit()
+      result
     }
 
   }
@@ -107,11 +101,15 @@ object OperationChecker{
     if(result._1) f
   }
 
-  def setResult(flag: Boolean): Unit ={
-    result =  (flag, new Array[Byte](0))
+  def setResult(flag: Boolean, description: Array[Byte] = new Array[Byte](0)): Unit ={
+    result =  (flag, description)
   }
 
   def returnResult():(Boolean, Array[Byte]) ={
     result
+  }
+
+  def setResultToInit(){
+    result = (true, new Array[Byte](0))
   }
 }

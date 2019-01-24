@@ -1,6 +1,7 @@
 package com.apex.core
 
-import com.apex.crypto.{FixedNumber, UInt160, UInt256}
+import com.apex.consensus.RegisterData
+import com.apex.crypto.{BinaryData, FixedNumber, UInt160, UInt256}
 import com.apex.settings.ContractSettings
 import com.apex.vm.hook.VMHook
 import com.apex.vm._
@@ -82,7 +83,7 @@ class TransactionExecutor(val tx: Transaction,
     val txGasCost = tx.gasPrice * txGasLimit
     val totalCost = tx.amount + txGasCost
     val senderBalance = track.getBalance(tx.sender()).getOrElse(FixedNumber.Zero)
-    if (senderBalance.value <= totalCost.value) {
+    if (senderBalance.value < totalCost.value) {
       execError(s"Not enough cash: Require: ${totalCost}, Sender cash ${senderBalance}")
       return
     }
@@ -108,6 +109,9 @@ class TransactionExecutor(val tx: Transaction,
   private def call(): Unit = {
     if (!readyToExecute) return
     val targetAddress = tx.toPubKeyHash
+    println("1111111111111111111")
+    println(tx.from.address)
+    println("222222222222222222")
     precompiledContract = PrecompiledContracts.getContractForAddress(DataWord.of(targetAddress.data), vmSettings, cacheTrack, tx)
     if (precompiledContract != null) {
       val requiredGas = precompiledContract.getGasForData(tx.data)
@@ -124,7 +128,8 @@ class TransactionExecutor(val tx: Transaction,
         // FIXME: save return for vm trace
         val out = precompiledContract.execute(tx.data)
         if (!out._1) {
-          execError(s"Error executing precompiled contract ${targetAddress.address}")
+          val reason = new String(out._2)
+          execError(s"Error executing precompiled contract ${targetAddress.address}, causes: ${reason.toString}")
           //execError("Error executing precompiled contract 0x" + toHexString(targetAddress))
           m_endGas = 0
           return
