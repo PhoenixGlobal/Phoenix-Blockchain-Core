@@ -64,7 +64,6 @@ class Node(val settings: ApexSettings)
     case task: AsyncTask => processAsyncTask(task)
     case message: NetworkMessage => processNetworkMessage(message)
     case cmd: RPCCommand => processRPCCommand(cmd)
-    case prodMsg: ProducerMessage => processProducerMessage(prodMsg)
     case _: NodeStopMessage => {
       log.info("stopping node")
       //TODO close connections
@@ -93,10 +92,6 @@ class Node(val settings: ApexSettings)
       case ProduceTask(task) => task(chain)
       case _ => println(asyncTask)
     }
-  }
-
-  private def processProducerMessage(msg: ProducerMessage) = {
-    log.info(msg.toString)
   }
 
   private def processRPCCommand(cmd: RPCCommand) = {

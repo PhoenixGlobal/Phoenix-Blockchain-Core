@@ -35,13 +35,6 @@ case class TimeMissed(thisProduceTime: Long, currTime: Long) extends ProduceStat
 case class Success(time: Long) extends ProduceState
 case class Failed(e: Throwable) extends ProduceState
 
-trait ProducerMessage
-
-case class ProducerStopMessage() extends ProducerMessage
-//case class NodeIsAliveMessage(node: ActorRef) extends ProducerMessage
-//case class BlockStartProduceMessage(witness: Witness) extends ProducerMessage
-//case class BlockFinalizeProduceMessage(witness: Witness, timeStamp: Long) extends ProducerMessage
-
 class Producer(apexSettings: ApexSettings)
               (implicit ec: ExecutionContext) extends Actor with ApexLogging {
 
@@ -61,10 +54,6 @@ class Producer(apexSettings: ApexSettings)
   scheduleBegin()
 
   override def receive: Receive = {
-    case ProducerStopMessage() => {
-      log.info("stopping producer task")
-      context.stop(self)
-    }
     case a: Any => {
       log.info(s"${sender().toString}, ${a.toString}")
     }
