@@ -62,6 +62,16 @@ object RegisterContractExecutor {
       this
     }
 
+    def isCancelWitnessGenesis(track: DataBase): RegisterContractContext = {
+      errorDetected{
+        val witness = track.getWitness(registerData.registerAccount)
+        if(witness.get.isGenesisNode){
+          setResult(false, ("a genesis witness is not allowed to cancel").getBytes)
+        }
+      }
+      this
+    }
+
     def processReq(track: DataBase): RegisterContractContext ={
       errorDetected{
         if(registerData.operationType == OperationType.register){

@@ -1,6 +1,11 @@
+/*
+ * Copyright  2018 APEX Technologies.Co.Ltd. All rights reserved.
+ *
+ * @author: fang.wu@chinapex.com: 18-7-18 下午4:06@version: 1.0
+ */
 package com.apex.test
 
-import com.apex.consensus.{RegisterData, VoteData, WitnessInfo}
+import com.apex.consensus.{RegisterData, WitnessInfo}
 import com.apex.core.{OperationType, Transaction, TransactionType}
 import com.apex.crypto.{BinaryData, FixedNumber, UInt160}
 import com.apex.test.ResourcePrepare.BlockChainPrepare
@@ -135,7 +140,7 @@ class RegisterContractTest extends BlockChainPrepare{
   def makeRegisterTransaction(operationType: OperationType.Value = OperationType.register, nonce: Long = 0,
                               account: UInt160 = _acct3.publicKey.pubKeyHash, name: String = "register node1")(f: Transaction => Unit){
     val txData = RegisterData(account, WitnessInfo(name, account),operationType).toBytes
-    val registerContractAddr = new UInt160(DataWord.of(9).getLast20Bytes)
+    val registerContractAddr = new UInt160(DataWord.of("0000000000000000000000000000000000000000000000000000000000000101").getLast20Bytes)
     val tx = new Transaction(TransactionType.Call, account ,registerContractAddr, "", FixedNumber.Zero,
       nonce, txData, FixedNumber(0), 9000000L, BinaryData.empty)
     f(tx)
@@ -146,7 +151,7 @@ class RegisterContractTest extends BlockChainPrepare{
                                           (f: Transaction => Unit){
     println(txFromAccount.toString)
     val txData = RegisterData(registerAccount, WitnessInfo("register node1", registerWitnessAddr),operationType).toBytes
-    val registerContractAddr = new UInt160(DataWord.of(9).getLast20Bytes)
+    val registerContractAddr = new UInt160(DataWord.of("0000000000000000000000000000000000000000000000000000000000000101").getLast20Bytes)
     val tx = new Transaction(TransactionType.Call, txFromAccount ,registerContractAddr, "", FixedNumber.Zero,
       nonce, txData, FixedNumber(0), 9000000L, BinaryData.empty)
     f(tx)

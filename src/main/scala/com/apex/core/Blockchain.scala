@@ -697,7 +697,7 @@ class LevelDBBlockchain(chainSettings: ChainSettings,
     def initGenesisWitness() = {
       val witnesses = ArrayBuffer.empty[WitnessInfo]
       consensusSettings.initialWitness.foreach(w => {
-        witnesses.append(new WitnessInfo("", w.pubkeyHash))
+        witnesses.append(new WitnessInfo("", w.pubkeyHash, isGenesisNode = true))
       })
       val witnessList = new WitnessList(witnesses.toArray, genesisBlock.id())
       dataBase.setCurrentWitnessList(witnessList)

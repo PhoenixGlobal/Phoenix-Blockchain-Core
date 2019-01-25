@@ -13,15 +13,16 @@ import java.io.{DataInputStream, DataOutputStream}
 import com.apex.crypto.{FixedNumber, UInt160}
 import play.api.libs.json.{JsValue, Json, Writes}
 
-case class WitnessInfo( name: String = "",
-                   addr: UInt160 = UInt160.Zero,
-                   url: String = "",
-                   country: String = "",
-                   address: String = "",
-                   longitude: Int = 0, //BigDecimal,
-                   latitude: Int = 0, //BigDecimal,
-                   var voteCounts: FixedNumber = FixedNumber.Zero,
-                   version: Int = 0x01) extends com.apex.common.Serializable {
+case class WitnessInfo(name: String = "",
+                       addr: UInt160 = UInt160.Zero,
+                       url: String = "",
+                       country: String = "",
+                       address: String = "",
+                       longitude: Int = 0, //BigDecimal,
+                       latitude: Int = 0, //BigDecimal,
+                       var voteCounts: FixedNumber = FixedNumber.Zero,
+                       isGenesisNode: Boolean = false,
+                       version: Int = 0x01) extends com.apex.common.Serializable {
 
   def updateVoteCounts(voteCounts: FixedNumber): WitnessInfo = {
     this.voteCounts = this.voteCounts + voteCounts
@@ -40,6 +41,7 @@ case class WitnessInfo( name: String = "",
     os.writeInt(longitude)
     os.writeInt(latitude)
     os.write(voteCounts)
+    os.writeBoolean(isGenesisNode)
   }
 }
 
@@ -57,8 +59,9 @@ object WitnessInfo {
     val longitude = is.readInt()
     val latitude = is.readInt()
     val voteCounts = FixedNumber.deserialize(is)
+    val isGenesisNode = is.readBoolean()
 
-    new WitnessInfo(name, addr, url, country, address, longitude, latitude, voteCounts, version)
+    new WitnessInfo(name, addr, url, country, address, longitude, latitude, voteCounts, isGenesisNode, version)
 
   }
 
@@ -73,6 +76,7 @@ object WitnessInfo {
         "longitude" -> o.longitude,
         "latitude" -> o.latitude,
         "voteCounts" -> o.voteCounts.toString,
+        "isGenesisNode" -> o.isGenesisNode.toString,
         "version" -> o.version
       )
     }

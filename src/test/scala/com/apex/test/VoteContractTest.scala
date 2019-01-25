@@ -1,3 +1,8 @@
+/*
+ * Copyright  2018 APEX Technologies.Co.Ltd. All rights reserved.
+ *
+ * @author: fang.wu@chinapex.com: 18-7-18 下午4:06@version: 1.0
+ */
 package com.apex.test
 
 import com.apex.consensus.VoteData
@@ -166,7 +171,7 @@ class VoteContractTest extends RegisterContractTest {
                                   counter: FixedNumber = FixedNumber.One, candidate: UInt160 = _acct3.publicKey.pubKeyHash,
                                   voter: UInt160 = _acct1.publicKey.pubKeyHash)(f: Transaction => Unit){
     val txData = VoteData(candidate, counter,operationType).toBytes
-    val registerContractAddr = new UInt160(DataWord.of("0000000000000000000000000000000000000000000000000000000000000010").getLast20Bytes)
+    val registerContractAddr = new UInt160(DataWord.of("0000000000000000000000000000000000000000000000000000000000000102").getLast20Bytes)
     val tx = new Transaction(TransactionType.Call, voter ,registerContractAddr, "", FixedNumber.Zero,
       nonce, txData, FixedNumber(0), 9000000L, BinaryData.empty)
     f(tx)
@@ -183,38 +188,6 @@ class VoteContractTest extends RegisterContractTest {
     assert(chain.getVote(_acct1.publicKey.pubKeyHash).get.count == FixedNumber.One)
   }
 
-//
-//  private def checkTx(): Unit ={
-//    assert(!chain.addTransaction(makeTx(_acct1, _acct3.publicKey.pubKeyHash, FixedNumber.fromDecimal(123), 1)))
-//    assert(chain.addTransaction(makeTx(_acct1, _acct3.publicKey.pubKeyHash, FixedNumber.fromDecimal(1), 0)))
-//    assert(!chain.addTransaction(makeTx(_acct1, _acct3.publicKey.pubKeyHash, FixedNumber.fromDecimal(2), 0)))
-//    assert(chain.addTransaction(makeTx(_acct1, _acct3.publicKey.pubKeyHash, FixedNumber.fromDecimal(2), 1)))
-//    //assert(chain.addTransaction(makeTx(_acct1, _acct3.publicKey.pubKeyHash, FixedNumber.fromDecimal(2), 1)))
-//  }
-//
-//  private def checkAccount(): Unit ={
-//    assert(chain.getAccount(_acct3.publicKey.pubKeyHash).isDefined)
-//    assert(chain.getBalance(_acct3.publicKey.pubKeyHash).get == FixedNumber.fromDecimal(3))
-//  }
-//
-//  private def makeRegisterTransaction(operationType: OperationType.Value = OperationType.register, nonce: Long = 0)(f: Transaction => Unit){
-//    val txData = RegisterData(_acct3.publicKey.pubKeyHash, WitnessInfo("register node1", _acct3.publicKey.pubKeyHash),operationType).toBytes
-//    val registerContractAddr = new UInt160(DataWord.of(9).getLast20Bytes)
-//    val tx = new Transaction(TransactionType.Call, _acct3.publicKey.pubKeyHash ,registerContractAddr, "", FixedNumber.Zero,
-//      nonce, txData, FixedNumber(0), 9000000L, BinaryData.empty)
-//    f(tx)
-//  }
-//
-//  private def makeWrongRegisterTransaction(txFromAccount: UInt160, registerAccount: UInt160, registerWitnessAddr: UInt160,
-//                                           operationType: OperationType.Value = OperationType.register, nonce: Long =0)
-//                                          (f: Transaction => Unit){
-//    println(txFromAccount.toString)
-//    val txData = RegisterData(registerAccount, WitnessInfo("register node1", registerWitnessAddr),operationType).toBytes
-//    val registerContractAddr = new UInt160(DataWord.of(9).getLast20Bytes)
-//    val tx = new Transaction(TransactionType.Call, txFromAccount ,registerContractAddr, "", FixedNumber.Zero,
-//      nonce, txData, FixedNumber(0), 9000000L, BinaryData.empty)
-//    f(tx)
-//  }
 
   override def When = this
   override def Then = this
