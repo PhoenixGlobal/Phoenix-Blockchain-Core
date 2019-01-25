@@ -139,14 +139,11 @@ class Node(val settings: ApexSettings)
       case GetGasLimitCmd() => {
         sender() ! chain.getGasLimit()
       }
-      case GetWitnessCmd() => {
-        sender() ! chain.getAllWitness()
-      }
-      case GetVoteByAddrCmd(addr) => {
-        sender() ! chain.getVoteByAddrCmd(addr)
-      }
       case GetProducersCmd(listType) => {
-        sender() ! chain.getProduces(listType)
+        sender() ! chain.getProducers(listType)
+      }
+      case GetProducerCmd(addr) => {
+        sender() ! chain.getProducer(addr)
       }
     }
   }

@@ -133,30 +133,7 @@ object RpcServer extends ApexLogging {
             }
           }
         } ~
-        path("getWitness") {
-          post {
-            entity(as[String]) { _ =>
-              val f = (nodeRef ? GetWitnessCmd()).mapTo[ArrayBuffer[WitnessInfo]].map(Json.toJson(_).toString())
-              complete(f)
-            }
-          }
-        } ~
-        path("getVoteByAddr") {
-          post {
-            entity(as[String]) { data =>
-              Json.parse(data).validate[GetVoteByAddrCmd] match {
-                case cmd: JsSuccess[GetVoteByAddrCmd] => {
-                  val f = (nodeRef ? cmd.value).mapTo[Option[Vote]].map(_.map(Json.toJson(_).toString).getOrElse(JsNull.toString))
-                  complete(f)
-                }
-                case e: JsError => {
-                  complete(HttpEntity(ContentTypes.`application/json`, Json.parse( """{"result": "Error"}""").toString()))
-                }
-              }
-            }
-          }
-        } ~
-        path("getProduces") {
+        path("getProducers") {
           post {
             entity(as[String]) { data =>
               Json.parse(data).validate[GetProducersCmd] match {
@@ -166,6 +143,23 @@ object RpcServer extends ApexLogging {
                 }
                 case _: JsError => {
                   complete(HttpEntity(ContentTypes.`application/json`, Json.parse( """ {"result": "Error"}""").toString()))
+                }
+              }
+            }
+          }
+        } ~
+        path("getProducer") {
+          post {
+            entity(as[String]) { data =>
+              Json.parse(data).validate[GetProducerCmd] match {
+                case cmd: JsSuccess[GetProducerCmd] => {
+                  val f = (nodeRef ? cmd.value)
+                    .mapTo[Option[WitnessInfo]]
+                    .map(_.map(Json.toJson(_).toString).getOrElse(JsNull.toString))
+                  complete(f)
+                }
+                case e: JsError => {
+                  complete(HttpEntity(ContentTypes.`application/json`, Json.parse( """{"result": "Error"}""").toString()))
                 }
               }
             }

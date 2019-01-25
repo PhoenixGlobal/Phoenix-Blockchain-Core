@@ -144,19 +144,17 @@ object GetContractByIdCmd {
     ) map (GetContractByIdCmd.apply _)
 }
 
-case class GetWitnessCmd() extends RPCCommand
+case class GetProducerCmd(address:UInt160) extends RPCCommand
 
-case class GetVoteByAddrCmd(address: UInt160) extends RPCCommand
-
-object GetVoteByAddrCmd {
-  implicit val testWrites = new Writes[GetVoteByAddrCmd] {
-    override def writes(o: GetVoteByAddrCmd): JsValue = Json.obj(
+object GetProducerCmd {
+  implicit val testWrites = new Writes[GetProducerCmd] {
+    override def writes(o: GetProducerCmd): JsValue = Json.obj(
       "address" -> o.address.toString
     )
   }
-  implicit val testReads: Reads[GetVoteByAddrCmd] = (
+  implicit val testReads: Reads[GetProducerCmd] = (
     (__ \ "address").read[String](Validators.addressValidator).map(c => PublicKeyHash.fromAddress(c).get)
-    ) map (GetVoteByAddrCmd.apply _)
+    ) map (GetProducerCmd.apply _)
 }
 
 case class GetProducersCmd(listType: String) extends RPCCommand

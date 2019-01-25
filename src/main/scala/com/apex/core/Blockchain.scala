@@ -815,21 +815,20 @@ class LevelDBBlockchain(chainSettings: ChainSettings,
     isValid
   }
 
-  def getAllWitness(): ArrayBuffer[WitnessInfo] = {
-    dataBase.getAllWitness()
+  def getProducer(address: UInt160): Option[WitnessInfo] = {
+    dataBase.getWitness(address)
   }
 
-  def getVoteByAddrCmd(address: UInt160): Option[Vote] = {
-    dataBase.getVote(address)
-  }
-
-  def getProduces(listType: String): WitnessList = {
+  def getProducers(listType: String): WitnessList = {
     // 判断类型值,调用不同的数据库进行查询操作
     listType match {
-      case "active" => {
+      case "all" =>{
+        val witnessInfo = dataBase.getAllWitness()
+        return new WitnessList(witnessInfo.toArray,UInt256.Zero)
+      }case "active" => {
         dataBase.getCurrentWitnessList()
       }
-      case _ =>{
+      case "pending" =>{
         dataBase.getPendingWitnessList()
       }
     }
