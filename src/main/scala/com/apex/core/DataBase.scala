@@ -151,8 +151,8 @@ class DataBase(settings: DataBaseSettings, db: Storage.lowLevelRaw, tracking: Tr
     witnessInfoStore.get(address)
   }
 
-  def createWitness(address: UInt160, witness: WitnessInfo) = {
-    witnessInfoStore.set(address, witness)
+  def createWitness(witness: WitnessInfo) = {
+    witnessInfoStore.set(witness.addr, witness)
   }
 
   def deleteWitness(address: UInt160): Unit = {

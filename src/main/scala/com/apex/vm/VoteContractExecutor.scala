@@ -90,7 +90,7 @@ object VoteContractExecutor {
     private def voteWitness(track: DataBase, tx: Transaction, witness: WitnessInfo): Unit ={
       track.addBalance(tx.from, -voteData.voterCount)
       witness.updateVoteCounts(voteData.voterCount)
-      track.createWitness(witness.addr, witness)
+      track.createWitness(witness)
       track.getVote(tx.from).fold(track.createVote(tx.from, Vote(tx.from, voteData.candidate, voteData.voterCount)))(
         vote =>{
           vote.updateCounts(voteData.voterCount)
@@ -101,7 +101,7 @@ object VoteContractExecutor {
     private def cancelCounterFromWitness(track: DataBase, tx: Transaction, witness: WitnessInfo): Unit ={
       track.addBalance(tx.from, voteData.voterCount)
       witness.updateVoteCounts(-voteData.voterCount)
-      track.createWitness(witness.addr, witness)
+      track.createWitness(witness)
       track.getVote(tx.from).fold()(
         vote =>{
           vote.updateCounts(-voteData.voterCount)

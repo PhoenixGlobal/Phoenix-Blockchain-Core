@@ -65,7 +65,7 @@ object RegisterContractExecutor {
     def isCancelWitnessGenesis(track: DataBase): RegisterContractContext = {
       errorDetected{
         val witness = track.getWitness(registerData.registerAccount)
-        if(witness.get.isGenesisNode){
+        if(witness.get.isGenesisWitness){
           setResult(false, ("a genesis witness is not allowed to cancel").getBytes)
         }
       }
@@ -91,7 +91,7 @@ object RegisterContractExecutor {
 
     private def registerWitness(track: DataBase) = {
       track.addBalance(registerData.registerAccount, FixedNumber(-(One.value)))
-      track.createWitness(registerData.registerAccount, registerData.registerInfo)
+      track.createWitness(registerData.registerInfo)
     }
 
     def returnResult(): (Boolean, Array[Byte]) ={

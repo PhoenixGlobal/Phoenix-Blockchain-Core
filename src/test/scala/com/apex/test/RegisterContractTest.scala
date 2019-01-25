@@ -139,7 +139,7 @@ class RegisterContractTest extends BlockChainPrepare{
 
   def makeRegisterTransaction(operationType: OperationType.Value = OperationType.register, nonce: Long = 0,
                               account: UInt160 = _acct3.publicKey.pubKeyHash, name: String = "register node1")(f: Transaction => Unit){
-    val txData = RegisterData(account, WitnessInfo(name, account),operationType).toBytes
+    val txData = RegisterData(account, WitnessInfo(account, false, name),operationType).toBytes
     val registerContractAddr = new UInt160(DataWord.of("0000000000000000000000000000000000000000000000000000000000000101").getLast20Bytes)
     val tx = new Transaction(TransactionType.Call, account ,registerContractAddr, "", FixedNumber.Zero,
       nonce, txData, FixedNumber(0), 9000000L, BinaryData.empty)
@@ -150,7 +150,7 @@ class RegisterContractTest extends BlockChainPrepare{
                                            operationType: OperationType.Value = OperationType.register, nonce: Long =0)
                                           (f: Transaction => Unit){
     println(txFromAccount.toString)
-    val txData = RegisterData(registerAccount, WitnessInfo("register node1", registerWitnessAddr),operationType).toBytes
+    val txData = RegisterData(registerAccount, WitnessInfo(registerWitnessAddr, false, "register node1"),operationType).toBytes
     val registerContractAddr = new UInt160(DataWord.of("0000000000000000000000000000000000000000000000000000000000000101").getLast20Bytes)
     val tx = new Transaction(TransactionType.Call, txFromAccount ,registerContractAddr, "", FixedNumber.Zero,
       nonce, txData, FixedNumber(0), 9000000L, BinaryData.empty)

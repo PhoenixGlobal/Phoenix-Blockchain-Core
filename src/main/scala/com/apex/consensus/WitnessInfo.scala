@@ -13,15 +13,15 @@ import java.io.{DataInputStream, DataOutputStream}
 import com.apex.crypto.{FixedNumber, UInt160}
 import play.api.libs.json.{JsValue, Json, Writes}
 
-case class WitnessInfo(name: String = "",
-                       addr: UInt160 = UInt160.Zero,
+case class WitnessInfo(addr: UInt160,
+                       isGenesisWitness: Boolean = false,
+                       name: String = "",
                        url: String = "",
                        country: String = "",
                        address: String = "",
-                       longitude: Int = 0, //BigDecimal,
-                       latitude: Int = 0, //BigDecimal,
+                       longitude: Int = 0,
+                       latitude: Int = 0,
                        var voteCounts: FixedNumber = FixedNumber.Zero,
-                       isGenesisNode: Boolean = false,
                        version: Int = 0x01) extends com.apex.common.Serializable {
 
   def updateVoteCounts(voteCounts: FixedNumber): WitnessInfo = {
@@ -33,15 +33,16 @@ case class WitnessInfo(name: String = "",
     import com.apex.common.Serializable._
 
     os.writeInt(version)
-    os.writeString(name)
     os.write(addr)
+    os.writeBoolean(isGenesisWitness)
+    os.writeString(name)
     os.writeString(url)
     os.writeString(country)
     os.writeString(address)
     os.writeInt(longitude)
     os.writeInt(latitude)
     os.write(voteCounts)
-    os.writeBoolean(isGenesisNode)
+
   }
 }
 
@@ -51,32 +52,33 @@ object WitnessInfo {
     import com.apex.common.Serializable._
 
     val version = is.readInt()
-    val name = is.readString()
     val addr = UInt160.deserialize(is)
+    val isGenesisWitness = is.readBoolean()
+    val name = is.readString()
     val url = is.readString()
     val country = is.readString()
     val address = is.readString()
     val longitude = is.readInt()
     val latitude = is.readInt()
     val voteCounts = FixedNumber.deserialize(is)
-    val isGenesisNode = is.readBoolean()
 
-    new WitnessInfo(name, addr, url, country, address, longitude, latitude, voteCounts, isGenesisNode, version)
+    new WitnessInfo(addr, isGenesisWitness, name, url, country, address, longitude, latitude, voteCounts, version)
 
   }
 
   implicit val witnessInfoWrites = new Writes[WitnessInfo] {
     override def writes(o: WitnessInfo): JsValue = {
       Json.obj(
-        "name" -> o.name.toString,
+
         "addr" -> o.addr.toString,
+        "isGenesisWitness" -> o.isGenesisWitness.toString,
+        "name" -> o.name.toString,
         "url" -> o.url,
         "country" ->  o.country,
         "address" -> o.address,
         "longitude" -> o.longitude,
         "latitude" -> o.latitude,
         "voteCounts" -> o.voteCounts.toString,
-        "isGenesisNode" -> o.isGenesisNode.toString,
         "version" -> o.version
       )
     }

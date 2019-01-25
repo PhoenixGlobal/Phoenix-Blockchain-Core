@@ -28,24 +28,22 @@ class Solc private[compiler]() {    //val config: SystemProperties
     val tmpDir = new File(System.getProperty("java.io.tmpdir"), "solc")
     tmpDir.mkdirs
     val is = getClass.getResourceAsStream("/native/" + getOS + "/solc/file.list")
+
+    val scanner = new Scanner(is)
     try {
-      val scanner = new Scanner(is)
-      try
-          while ( {
-            scanner.hasNext
-          }) {
-            val s = scanner.next
-            val targetFile = new File(tmpDir, s)
-            val fis = getClass.getResourceAsStream("/native/" + getOS + "/solc/" + s)
-            Files.copy(fis, targetFile.toPath, StandardCopyOption.REPLACE_EXISTING)
-            if (solc == null) { // first file in the list denotes executable
-              solc = targetFile
-              solc.setExecutable(true)
-            }
-            targetFile.deleteOnExit()
-          }
-      finally if (scanner != null) scanner.close()
+      while (scanner.hasNext) {
+        val s = scanner.next
+        val targetFile = new File(tmpDir, s)
+        val fis = getClass.getResourceAsStream("/native/" + getOS + "/solc/" + s)
+        Files.copy(fis, targetFile.toPath, StandardCopyOption.REPLACE_EXISTING)
+        if (solc == null) { // first file in the list denotes executable
+          solc = targetFile
+          solc.setExecutable(true)
+        }
+        targetFile.deleteOnExit()
+      }
     }
+    finally if (scanner != null) scanner.close()
   }
 
   private def getOS = {

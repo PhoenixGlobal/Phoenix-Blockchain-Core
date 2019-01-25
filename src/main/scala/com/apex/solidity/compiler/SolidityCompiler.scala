@@ -94,8 +94,7 @@ object SolidityCompiler {
     try
       process.waitFor
     catch {
-      case e: InterruptedException =>
-        throw new RuntimeException(e)
+      case e: InterruptedException => throw new RuntimeException(e)
     }
     if (process.exitValue == 0)
       return output.getContent
@@ -126,36 +125,35 @@ object SolidityCompiler {
     def getContent: String = getContent(true)
 
     def getContent(waitForComplete: Boolean): String = {
-      if (waitForComplete) while ( {
-        stream != null
-      }) try
-        wait()
-      catch {
-        case e: InterruptedException =>
-          throw new RuntimeException(e)
-      }
+      if (waitForComplete)
+        while (stream != null)
+          try
+            wait()
+          catch {
+            case e: InterruptedException => throw new RuntimeException(e)
+          }
       content.toString
     }
 
     override def run(): Unit = {
-      try {
-        val reader = new BufferedReader(new InputStreamReader(stream))
-        try {
-          var line: String = reader.readLine
-          while (line != null) {
-            content.append(line).append("\n")
-            line = reader.readLine
-          }
-        } catch {
-          case ioe: IOException =>
-            ioe.printStackTrace()
-        } finally {
-          stream = null    //  synchronized (this)
-          notifyAll()
 
-          if (reader != null)
-            reader.close()
+      val reader = new BufferedReader(new InputStreamReader(stream))
+      try {
+        var line: String = reader.readLine
+        while (line != null) {
+          content.append(line).append("\n")
+          line = reader.readLine
         }
+      }
+      catch {
+        case ioe: IOException => ioe.printStackTrace()
+      }
+      finally {
+        stream = null    //  synchronized (this)
+        notifyAll()
+
+        if (reader != null)
+          reader.close()
       }
     }
   }
@@ -190,15 +188,16 @@ class SolidityCompiler {
     try
       process.waitFor
     catch {
-      case e: InterruptedException =>
-        throw new RuntimeException(e)
+      case e: InterruptedException => throw new RuntimeException(e)
     }
     val success = process.exitValue == 0
     new Result(error.getContent, output.getContent, success)
   }
 
   @throws[IOException]
-  private def prepareCommandOptions(optimize: Boolean, combinedJson: Boolean, options: Seq[CompilerOption]) = {
+  private def prepareCommandOptions(optimize: Boolean,
+                                    combinedJson: Boolean,
+                                    options: Seq[CompilerOption]) = {
     val commandParts = new util.ArrayList[String]
     commandParts.add(solc.getExecutable.getCanonicalPath)
     if (optimize)
@@ -226,7 +225,8 @@ class SolidityCompiler {
     import scala.collection.JavaConversions._
     for (option <- options.filter(p => p.isInstanceOf[CustomOption])) {
       commandParts.add("--" + option.getName)
-      if (option.getValue != null) commandParts.add(option.getValue)
+      if (option.getValue != null)
+        commandParts.add(option.getValue)
     }
     commandParts
   }
@@ -236,17 +236,20 @@ class SolidityCompiler {
   //  }
 
   @throws[IOException]
-  def compileSrc(source: Array[Byte], optimize: Boolean, combinedJson: Boolean, options: Seq[CompilerOption]): Result = {
+  def compileSrc(source: Array[Byte],
+                 optimize: Boolean,
+                 combinedJson: Boolean,
+                 options: Seq[CompilerOption]): Result = {
     val commandParts = prepareCommandOptions(optimize, combinedJson, options)
     val processBuilder = new ProcessBuilder(commandParts).directory(solc.getExecutable.getParentFile)
     processBuilder.environment.put("LD_LIBRARY_PATH", solc.getExecutable.getParentFile.getCanonicalPath)
     val process = processBuilder.start
-    try {
-      val stream = new BufferedOutputStream(process.getOutputStream)
-      try
-        stream.write(source)
-      finally if (stream != null) stream.close()
-    }
+
+    val stream = new BufferedOutputStream(process.getOutputStream)
+    try
+      stream.write(source)
+    finally if (stream != null) stream.close()
+
     val error = new ParallelReader(process.getErrorStream)
     val output = new ParallelReader(process.getInputStream)
     error.start()
@@ -254,8 +257,7 @@ class SolidityCompiler {
     try
       process.waitFor
     catch {
-      case e: InterruptedException =>
-        throw new RuntimeException(e)
+      case e: InterruptedException => throw new RuntimeException(e)
     }
     val success = process.exitValue == 0
     new Result(error.getContent, output.getContent, success)

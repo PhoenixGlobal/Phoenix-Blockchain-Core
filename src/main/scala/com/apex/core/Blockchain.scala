@@ -458,11 +458,11 @@ class LevelDBBlockchain(chainSettings: ChainSettings,
         if (!newElectedWitnesses.contains(witness.addr))
           newElectedWitnesses.update(witness.addr, witness)
       }
-      if (newElectedWitnesses.size < consensusSettings.witnessNum) {
-        log.info("still not enough witness")
-        val oldLeastVoteWitness = WitnessList.getLeastVote(updatedCurrentWitness.toArray)
-        newElectedWitnesses.update(oldLeastVoteWitness.addr, oldLeastVoteWitness)
-      }
+      //      if (newElectedWitnesses.size < consensusSettings.witnessNum) {
+      //        log.info("still not enough witness")
+      //        val oldLeastVoteWitness = WitnessList.getLeastVote(updatedCurrentWitness.toArray)
+      //        newElectedWitnesses.update(oldLeastVoteWitness.addr, oldLeastVoteWitness)
+      //      }
       require(newElectedWitnesses.size == consensusSettings.witnessNum)
 
       dataBase.setCurrentWitnessList(pendingWitnessList)
@@ -697,9 +697,13 @@ class LevelDBBlockchain(chainSettings: ChainSettings,
     def initGenesisWitness() = {
       val witnesses = ArrayBuffer.empty[WitnessInfo]
       consensusSettings.initialWitness.foreach(w => {
-        witnesses.append(new WitnessInfo("", w.pubkeyHash, isGenesisNode = true))
+        val initWitness = new WitnessInfo(w.pubkeyHash, true)
+        witnesses.append(initWitness)
+        dataBase.createWitness(initWitness)
       })
+      //require(dataBase.getAllWitness().size == consensusSettings.witnessNum)
       val witnessList = new WitnessList(witnesses.toArray, genesisBlock.id())
+      require(witnessList.witnesses.size == consensusSettings.witnessNum)
       dataBase.setCurrentWitnessList(witnessList)
       dataBase.setPendingWitnessList(witnessList)
     }
