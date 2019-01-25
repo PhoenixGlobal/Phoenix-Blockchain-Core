@@ -10,9 +10,11 @@ package com.apex.test
 
 import java.io.{ByteArrayInputStream, ByteArrayOutputStream, DataInputStream, DataOutputStream}
 
-import com.apex.consensus.{Vote, WitnessInfo, WitnessList}
+import com.apex.consensus.{Vote, WitnessInfo, WitnessList, WitnessMap}
 import com.apex.crypto.{FixedNumber, UInt160, UInt256}
 import org.junit.Test
+
+import scala.collection.mutable
 
 @Test
 class WitnessTest {
@@ -111,5 +113,60 @@ class WitnessTest {
     assert(WitnessInfoCompare(list1.witnesses(1), list2.witnesses(1)))
     assert(WitnessInfoCompare(list1.witnesses(2), list2.witnesses(2)))
     assert(WitnessInfoCompare(list1.witnesses(3), list2.witnesses(3)))
+  }
+  @Test
+  def testSerialize_WitnessMap = {
+    val a = new WitnessInfo(UInt160.parse("1212121212121212121212121212121212121211").get, false,
+      "123", "1 2", "3", "000",
+      171, 240, FixedNumber(2), 2)
+
+    val b = new WitnessInfo(UInt160.parse("1212121212121212121212121212121212121212").get, false,
+      "456", "8374", "311", "666",
+      172, 241, FixedNumber(1),  3)
+
+    val c = new WitnessInfo(UInt160.parse("1212121212121212121212121212121212121213").get, false,
+      "789", "1 33", "9847", "4",
+      173, 242, FixedNumber(4),  4)
+
+    val d = new WitnessInfo(UInt160.parse("1212121212121212121212121212121212121214").get, false,
+      "789", "1 33", "9847", "4",
+      173, 242, FixedNumber(3),  4)
+
+    val ddd = new WitnessInfo(UInt160.parse("1212121212121212121212121212121212121214").get, false,
+      "789", "1 3ddd3", "9847", "4",
+      173, 242, FixedNumber(999),  456)
+
+    val map1 = new WitnessMap(mutable.Map.empty, 67)
+    map1.set(a)
+    map1.set(b)
+    map1.set(c)
+    map1.set(d)
+    map1.set(ddd)
+
+    assert(map1.witnesses.size == 4)
+    assert(map1.get(UInt160.Zero).isEmpty)
+    assert(map1.get(UInt160.parse("1212121212121212121212121212121212121212").get).isDefined)
+    assert(map1.get(UInt160.parse("1212121212121212121212121212121212121219").get).isEmpty)
+    assert(map1.get(ddd.addr).get.version == 456)
+
+
+    val bos = new ByteArrayOutputStream
+    val dos = new DataOutputStream(bos)
+    map1.serialize(dos)
+    val ba = bos.toByteArray
+    val bis = new ByteArrayInputStream(ba)
+    val is = new DataInputStream(bis)
+    val map2 = WitnessMap.deserialize(is)
+
+    assert(map2.witnesses.size == 4)
+    assert(map2.version == 67)
+
+    assert(WitnessInfoCompare(map1.get(a.addr).get, map2.get(a.addr).get))
+    assert(WitnessInfoCompare(map1.get(b.addr).get, map2.get(b.addr).get))
+    assert(WitnessInfoCompare(map1.get(c.addr).get, map2.get(c.addr).get))
+    assert(WitnessInfoCompare(map1.get(ddd.addr).get, map2.get(ddd.addr).get))
+
+    val wefwe = map2.getAll()
+    assert(map2.getAll().size == 4)
   }
 }
