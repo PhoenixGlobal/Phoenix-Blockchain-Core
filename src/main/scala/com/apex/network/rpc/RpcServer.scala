@@ -132,31 +132,6 @@ object RpcServer extends ApexLogging {
               complete(f)
             }
           }
-        }
-
-    val secretRoute =
-      path("getGasLimit") {
-        post {
-          entity(as[String]) {_ =>
-            val f = (nodeRef ? GetGasLimitCmd()).mapTo[Long].map(Json.toJson(_).toString)
-            complete(f)
-          }
-        }
-      } ~
-        path("setGasLimit") {
-          post {
-            entity(as[String]) { data =>
-              Json.parse(data).validate[SetGasLimitCmd] match {
-                case cmd: JsSuccess[SetGasLimitCmd] => {
-                  val f = (nodeRef ? cmd.get).mapTo[Boolean].map(Json.toJson(_).toString)
-                  complete(f)
-                }
-                case _: JsError => {
-                  complete(HttpEntity(ContentTypes.`application/json`, Json.parse( """ {"result": "Error"}""").toString()))
-                }
-              }
-            }
-          }
         } ~
         path("getWitness") {
           post {
@@ -184,9 +159,34 @@ object RpcServer extends ApexLogging {
         path("getProduces") {
           post {
             entity(as[String]) { data =>
-              Json.parse(data).validate[GetProducesCmd] match {
-                case cmd: JsSuccess[GetProducesCmd] => {
+              Json.parse(data).validate[GetProducersCmd] match {
+                case cmd: JsSuccess[GetProducersCmd] => {
                   val f = (nodeRef ? cmd.get).mapTo[Option[WitnessList]].map(Json.toJson(_).toString())
+                  complete(f)
+                }
+                case _: JsError => {
+                  complete(HttpEntity(ContentTypes.`application/json`, Json.parse( """ {"result": "Error"}""").toString()))
+                }
+              }
+            }
+          }
+        }
+
+    val secretRoute =
+      path("getGasLimit") {
+        post {
+          entity(as[String]) {_ =>
+            val f = (nodeRef ? GetGasLimitCmd()).mapTo[Long].map(Json.toJson(_).toString)
+            complete(f)
+          }
+        }
+      } ~
+        path("setGasLimit") {
+          post {
+            entity(as[String]) { data =>
+              Json.parse(data).validate[SetGasLimitCmd] match {
+                case cmd: JsSuccess[SetGasLimitCmd] => {
+                  val f = (nodeRef ? cmd.get).mapTo[Boolean].map(Json.toJson(_).toString)
                   complete(f)
                 }
                 case _: JsError => {
@@ -199,7 +199,7 @@ object RpcServer extends ApexLogging {
 
     bindingFuture = Http().bindAndHandle(route, rpcSettings.host, rpcSettings.port)
     secretBindingFuture = Http().bindAndHandle(secretRoute, secretRPCSettings.host, secretRPCSettings.port)
-//    println(s"Server online at http://${rpcSettings.host}:${rpcSettings.port}/\n")
+    //    println(s"Server online at http://${rpcSettings.host}:${rpcSettings.port}/\n")
     //  StdIn.readLine() // let it run until user presses return
   }
 

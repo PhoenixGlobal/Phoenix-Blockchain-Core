@@ -159,15 +159,15 @@ object GetVoteByAddrCmd {
     ) map (GetVoteByAddrCmd.apply _)
 }
 
-case class GetProducesCmd(listType: String) extends RPCCommand
+case class GetProducersCmd(listType: String) extends RPCCommand
 
-object GetProducesCmd {
-  implicit val testWrites = new Writes[GetProducesCmd] {
-    override def writes(o: GetProducesCmd): JsValue = Json.obj(
+object GetProducersCmd {
+  implicit val testWrites = new Writes[GetProducersCmd] {
+    override def writes(o: GetProducersCmd): JsValue = Json.obj(
       "listType" -> o.listType
     )
   }
-  implicit val testReads: Reads[GetProducesCmd] = (
+  implicit val testReads: Reads[GetProducersCmd] = (
     (JsPath \ "listType").read[String]
-    ) map (GetProducesCmd.apply _)
+    ) map (GetProducersCmd.apply _)
 }

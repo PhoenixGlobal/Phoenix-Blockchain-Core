@@ -145,7 +145,7 @@ class Node(val settings: ApexSettings)
       case GetVoteByAddrCmd(addr) => {
         sender() ! chain.getVoteByAddrCmd(addr)
       }
-      case GetProducesCmd(listType) => {
+      case GetProducersCmd(listType) => {
         sender() ! chain.getProduces(listType)
       }
     }
