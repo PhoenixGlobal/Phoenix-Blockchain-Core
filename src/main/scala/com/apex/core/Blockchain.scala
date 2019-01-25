@@ -685,6 +685,10 @@ class LevelDBBlockchain(chainSettings: ChainSettings,
     dataBase.getWitness(address)
   }
 
+  def getVote(address: UInt160): Option[Vote] = {
+    dataBase.getVote(address)
+  }
+
   def getReceipt(txid: UInt256): Option[TransactionReceipt] = {
     dataBase.getReceipt(txid)
   }

@@ -67,10 +67,10 @@ class BlockChainPrepare {
                         txs: Seq[Transaction],
                         award: Double = _minerAward): Block = {
     val blockTime = preBlock.header.timeStamp + _consensusSettings.produceInterval
-    val miner = ProducerUtil.getWitness(blockTime, _consensusSettings)
+    val miner = chain.getWitness(blockTime)
 
     val minerTx = new Transaction(TransactionType.Miner, minerCoinFrom,
-      miner.pubkeyHash, "", FixedNumber.fromDecimal(award),
+      miner, "", FixedNumber.fromDecimal(award),
       preBlock.height + 1,
       BinaryData(Crypto.randomBytes(8)), // add random bytes to distinct different blocks with same block index during debug in some cases
       FixedNumber.Zero, 0, BinaryData.empty)
@@ -87,14 +87,14 @@ class BlockChainPrepare {
     Block.build(header, allTxs)
   }
 
-  private def makeBlockByTime(preBlock: Block,
+  private def makeBlockByTime(chain: LevelDBBlockchain, preBlock: Block,
                               //txs: Seq[Transaction],
                               blockTime: Long): Block = {
     //val blockTime = preBlock.header.timeStamp + _consensusSettings.produceInterval
-    val miner = ProducerUtil.getWitness(blockTime, _consensusSettings)
+    val miner = chain.getWitness(blockTime)
 
     val minerTx = new Transaction(TransactionType.Miner, minerCoinFrom,
-      miner.pubkeyHash, "", FixedNumber.fromDecimal(_minerAward),
+      miner, "", FixedNumber.fromDecimal(_minerAward),
       preBlock.height + 1,
       BinaryData(Crypto.randomBytes(8)), // add random bytes to distinct different blocks with same block index during debug in some cases
       FixedNumber.Zero, 0, BinaryData.empty)
@@ -113,8 +113,8 @@ class BlockChainPrepare {
 
   private def startProduceBlock(chain: LevelDBBlockchain, blockTime: Long, stopProcessTxTime: Long) = {
 
-    val witness = ProducerUtil.getWitness(blockTime, _consensusSettings)
-    chain.startProduceBlock(witness.pubkeyHash, _miners.findPrivKey(witness).get, blockTime, stopProcessTxTime)
+    val witness = chain.getWitness(blockTime)
+    chain.startProduceBlock(witness, _miners.findPrivKey(witness).get, blockTime, stopProcessTxTime)
   }
 
   def createChain(baseDir: String)(f : => Unit){
@@ -140,7 +140,7 @@ class BlockChainPrepare {
     sleepTo(blockTime)
     nowTime = Instant.now.toEpochMilli
     blockTime += _produceInterval
-    startProduceBlock(chain, blockTime, blockTime - 100)
+    startProduceBlock(chain, blockTime, Long.MaxValue)
     assert(chain.isProducingBlock())
 
     nowTime = Instant.now.toEpochMilli

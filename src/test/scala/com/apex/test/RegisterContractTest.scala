@@ -1,6 +1,6 @@
 package com.apex.test
 
-import com.apex.consensus.{RegisterData, WitnessInfo}
+import com.apex.consensus.{RegisterData, VoteData, WitnessInfo}
 import com.apex.core.{OperationType, Transaction, TransactionType}
 import com.apex.crypto.{BinaryData, FixedNumber, UInt160}
 import com.apex.test.ResourcePrepare.BlockChainPrepare
@@ -71,7 +71,7 @@ class RegisterContractTest extends BlockChainPrepare{
       Then.checkTx()
       And.checkAccount()
       When.makeRegisterTransaction()(checkRegisterSuccess)
-      When.makeRegisterTransaction(){
+      When.makeRegisterTransaction(nonce = 1){
         tx => {
           assert(!chain.addTransaction(tx))
           val witness = chain.getWitness(_acct3.publicKey.pubKeyHash)
@@ -132,15 +132,16 @@ class RegisterContractTest extends BlockChainPrepare{
     }
   }
 
-  private def makeRegisterTransaction(operationType: OperationType.Value = OperationType.register, nonce: Long = 0)(f: Transaction => Unit){
-    val txData = RegisterData(_acct3.publicKey.pubKeyHash, WitnessInfo("register node1", _acct3.publicKey.pubKeyHash),operationType).toBytes
+  def makeRegisterTransaction(operationType: OperationType.Value = OperationType.register, nonce: Long = 0,
+                              account: UInt160 = _acct3.publicKey.pubKeyHash, name: String = "register node1")(f: Transaction => Unit){
+    val txData = RegisterData(account, WitnessInfo(name, account),operationType).toBytes
     val registerContractAddr = new UInt160(DataWord.of(9).getLast20Bytes)
-    val tx = new Transaction(TransactionType.Call, _acct3.publicKey.pubKeyHash ,registerContractAddr, "", FixedNumber.Zero,
+    val tx = new Transaction(TransactionType.Call, account ,registerContractAddr, "", FixedNumber.Zero,
       nonce, txData, FixedNumber(0), 9000000L, BinaryData.empty)
     f(tx)
   }
 
-  private def makeWrongRegisterTransaction(txFromAccount: UInt160, registerAccount: UInt160, registerWitnessAddr: UInt160,
+  def makeWrongRegisterTransaction(txFromAccount: UInt160, registerAccount: UInt160, registerWitnessAddr: UInt160,
                                            operationType: OperationType.Value = OperationType.register, nonce: Long =0)
                                           (f: Transaction => Unit){
     println(txFromAccount.toString)
@@ -151,7 +152,9 @@ class RegisterContractTest extends BlockChainPrepare{
     f(tx)
   }
 
-  private def checkRegisterSuccess(tx: Transaction): Unit ={
+
+
+  def checkRegisterSuccess(tx: Transaction): Unit ={
     assert(chain.addTransaction(tx))
     val witness = chain.getWitness(_acct3.publicKey.pubKeyHash)
     assert(witness.isDefined)
@@ -159,21 +162,22 @@ class RegisterContractTest extends BlockChainPrepare{
     assert(chain.getBalance(_acct3.publicKey.pubKeyHash).get == FixedNumber.fromDecimal(2))
   }
 
-  private def checkRegisterFailed(tx: Transaction): Unit ={
+  def checkRegisterFailed(tx: Transaction): Unit ={
     assert(!chain.addTransaction(tx))
     val witness = chain.getWitness(_acct3.publicKey.pubKeyHash)
     assert(witness.isEmpty)
   }
 
-  private def checkTx(): Unit ={
+  def checkTx(): Unit ={
     assert(!chain.addTransaction(makeTx(_acct1, _acct3.publicKey.pubKeyHash, FixedNumber.fromDecimal(123), 1)))
     assert(chain.addTransaction(makeTx(_acct1, _acct3.publicKey.pubKeyHash, FixedNumber.fromDecimal(1), 0)))
     assert(!chain.addTransaction(makeTx(_acct1, _acct3.publicKey.pubKeyHash, FixedNumber.fromDecimal(2), 0)))
     assert(chain.addTransaction(makeTx(_acct1, _acct3.publicKey.pubKeyHash, FixedNumber.fromDecimal(2), 1)))
+    assert(chain.addTransaction(makeTx(_acct2, _acct4.publicKey.pubKeyHash, FixedNumber.fromDecimal(2), 0)))
     //assert(chain.addTransaction(makeTx(_acct1, _acct3.publicKey.pubKeyHash, FixedNumber.fromDecimal(2), 1)))
   }
 
-  private def checkAccount(): Unit ={
+  def checkAccount(): Unit ={
     assert(chain.getAccount(_acct3.publicKey.pubKeyHash).isDefined)
     assert(chain.getBalance(_acct3.publicKey.pubKeyHash).get == FixedNumber.fromDecimal(3))
   }
