@@ -11,11 +11,12 @@
 package com.apex.core
 
 import com.apex.common.ApexLogging
-import com.apex.consensus.{Vote, WitnessInfo, WitnessList}
+import com.apex.consensus.{Vote, WitnessInfo, WitnessList, WitnessMap}
 import com.apex.crypto.{BinaryData, FixedNumber, UInt160, UInt256}
 import com.apex.settings.DataBaseSettings
 import com.apex.storage.Storage
 
+import scala.collection.mutable
 import scala.collection.mutable.ArrayBuffer
 
 class DataBase(settings: DataBaseSettings, db: Storage.lowLevelRaw, tracking: Tracking) extends ApexLogging {
@@ -24,8 +25,8 @@ class DataBase(settings: DataBaseSettings, db: Storage.lowLevelRaw, tracking: Tr
   private val contractStore = new ContractStore(tracking, settings.cacheSize)
   private val contractStateStore = new ContractStateStore(tracking, settings.cacheSize)
   private val nameToAccountStore = new NameToAccountStore(tracking, settings.cacheSize)
-  private val witnessInfoStore = new WitnessInfoStore(tracking, settings.cacheSize)
   private val voteStore = new VoteStore(tracking, settings.cacheSize)
+  private val witnessInfoStore = new WitnessInfoStore(tracking)
   private val currentWitnessStore = new CurrentWitnessStore(tracking)
   private val pendingWitnessStore = new PendingWitnessStore(tracking)
 
@@ -142,25 +143,23 @@ class DataBase(settings: DataBaseSettings, db: Storage.lowLevelRaw, tracking: Tr
   }
 
   def getAllWitness(): ArrayBuffer[WitnessInfo] = {
-    val witnesses = ArrayBuffer.empty[WitnessInfo]
-    witnessInfoStore.foreach((_, w) => witnesses.append(w))
-    witnesses
+    witnessInfoStore.get().get.getAll()
   }
 
   def getWitness(address: UInt160): Option[WitnessInfo] = {
-    witnessInfoStore.get(address)
+    witnessInfoStore.get().get.get(address)
   }
 
   def createWitness(witness: WitnessInfo) = {
-    witnessInfoStore.set(witness.addr, witness)
+    val all = witnessInfoStore.get().getOrElse(new WitnessMap(mutable.Map.empty))
+    all.set(witness)
+    witnessInfoStore.set(all)
   }
 
   def deleteWitness(address: UInt160): Unit = {
-    try {
-      witnessInfoStore.delete(address)
-    } catch{
-      case e: Exception => log.error("error during delete witness")
-    }
+    val all = witnessInfoStore.get().getOrElse(new WitnessMap(mutable.Map.empty))
+    all.delete(address)
+    witnessInfoStore.set(all)
   }
 
   def getVote(address: UInt160): Option[Vote] = {

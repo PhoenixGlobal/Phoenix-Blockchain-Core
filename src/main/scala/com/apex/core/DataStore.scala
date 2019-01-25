@@ -4,7 +4,7 @@ import java.io.{ByteArrayInputStream, ByteArrayOutputStream, DataInputStream, Da
 import java.util.Map
 
 import com.apex.common.{Cache, LRUCache, Serializable}
-import com.apex.consensus.{Vote, WitnessInfo, WitnessList}
+import com.apex.consensus.{Vote, WitnessInfo, WitnessList, WitnessMap}
 import com.apex.crypto.Ecdsa.PublicKey
 import com.apex.crypto.{UInt160, UInt256}
 import com.apex.settings.DataBaseSettings
@@ -33,12 +33,6 @@ class AccountStore(db: Storage.raw, capacity: Int)
     with AccountPrefix
     with UInt160Key
     with AccountValue
-
-class WitnessInfoStore(db: Storage.raw, capacity: Int)
-  extends StoreBase[UInt160, WitnessInfo](db, capacity)
-    with WitnessInfoPrefix
-    with UInt160Key
-    with WitnessInfoValue
 
 class VoteStore(db: Storage.raw, capacity: Int)
   extends StoreBase[UInt160, Vote](db, capacity)
@@ -124,6 +118,11 @@ class PendingWitnessStore(db: Storage.raw)
     with PendingWitnessStatePrefix
     with WitnessListValue
 
+class WitnessInfoStore(db: Storage.raw)
+  extends StateStore[WitnessMap](db)
+    with AllWitnessMapStatePrefix
+    with WitnessMapValue
+
 object StoreType extends Enumeration {
   val Data = Value(0x00)
   val Index = Value(0x01)
@@ -141,8 +140,7 @@ object DataType extends Enumeration {
   val ContractState = Value(0x07)
   val Receipt = Value(0x08)
   val Peer = Value(0x09)
-  val WitnessInfo = Value(0x0a)
-  val Votes = Value(0x0b)
+  val Votes = Value(0x0a)
 }
 
 object IndexType extends Enumeration {
@@ -159,6 +157,7 @@ object StateType extends Enumeration {
   val SwitchState = Value(0x03)
   val CurrentWitnessState = Value(0x04)
   val PendingWitnessState = Value(0x05)
+  val AllWitnessMapState = Value(0x06)
 }
 
 trait Prefix {
@@ -201,10 +200,6 @@ trait TxPrefix extends DataPrefix {
 
 trait AccountPrefix extends DataPrefix {
   override val dataType: DataType.Value = DataType.Account
-}
-
-trait WitnessInfoPrefix extends DataPrefix {
-  override val dataType: DataType.Value = DataType.WitnessInfo
 }
 
 trait VotePrefix extends DataPrefix {
@@ -265,6 +260,10 @@ trait CurrentWitnessStatePrefix extends StatePrefix {
 
 trait PendingWitnessStatePrefix extends StatePrefix {
   override val stateType: StateType.Value = StateType.PendingWitnessState
+}
+
+trait AllWitnessMapStatePrefix extends StatePrefix {
+  override val stateType: StateType.Value = StateType.AllWitnessMapState
 }
 
 trait Converter[A] {
@@ -362,10 +361,6 @@ trait AccountValue extends ValueConverterProvider[Account] {
   override val valConverter: Converter[Account] = new SerializableConverter(Account.deserialize)
 }
 
-trait WitnessInfoValue extends ValueConverterProvider[WitnessInfo] {
-  override val valConverter: Converter[WitnessInfo] = new SerializableConverter(WitnessInfo.deserialize)
-}
-
 trait VoteValue extends ValueConverterProvider[Vote] {
   override val valConverter: Converter[Vote] = new SerializableConverter(Vote.deserialize)
 }
@@ -404,6 +399,10 @@ trait SwitchStateValue extends ValueConverterProvider[SwitchState] {
 
 trait WitnessListValue extends ValueConverterProvider[WitnessList] {
   override val valConverter: Converter[WitnessList] = new SerializableConverter(WitnessList.deserialize)
+}
+
+trait WitnessMapValue extends ValueConverterProvider[WitnessMap] {
+  override val valConverter: Converter[WitnessMap] = new SerializableConverter(WitnessMap.deserialize)
 }
 
 class IntConverter extends Converter[Int] {

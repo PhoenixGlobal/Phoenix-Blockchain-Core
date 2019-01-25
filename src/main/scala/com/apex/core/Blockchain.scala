@@ -701,7 +701,7 @@ class LevelDBBlockchain(chainSettings: ChainSettings,
         witnesses.append(initWitness)
         dataBase.createWitness(initWitness)
       })
-      //require(dataBase.getAllWitness().size == consensusSettings.witnessNum)
+      require(dataBase.getAllWitness().size == consensusSettings.witnessNum)
       val witnessList = new WitnessList(witnesses.toArray, genesisBlock.id())
       require(witnessList.witnesses.size == consensusSettings.witnessNum)
       dataBase.setCurrentWitnessList(witnessList)
