@@ -21,12 +21,12 @@ case class WitnessInfo(addr: UInt160,
                        address: String = "",
                        longitude: Int = 0,
                        latitude: Int = 0,
-                       var voteCounts: FixedNumber = FixedNumber.Zero,
+                       voteCounts: FixedNumber = FixedNumber.Zero,
                        version: Int = 0x01) extends com.apex.common.Serializable {
 
   def updateVoteCounts(voteCounts: FixedNumber): WitnessInfo = {
-    this.voteCounts = this.voteCounts + voteCounts
-    this
+    val witness = this.copy(voteCounts = this.voteCounts + voteCounts)
+    witness
   }
 
   override def serialize(os: DataOutputStream): Unit = {

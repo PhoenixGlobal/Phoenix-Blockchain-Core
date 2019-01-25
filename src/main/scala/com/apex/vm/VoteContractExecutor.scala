@@ -23,17 +23,19 @@ object VoteContractExecutor {
   implicit class VoteContractContext(voteData:VoteData){
     var result: (Boolean, Array[Byte]) = (true, new Array[Byte](0))
 
+    //check account balance is enough to vote a witness
     def isAccountBalanceEnough( track: DataBase, tx: Transaction): VoteContractContext ={
       errorDetected{
         val account = track.getAccount(tx.from).get
         if(voteData.operationType == OperationType.register &&
-          (!account.balance.> (voteData.voterCount))){
+          (account.balance.value < voteData.voterCount.value)){
           setResult(false, ("account balance is not enough").getBytes)
         }
       }
       this
     }
 
+    //check voter target exists in witness db or not
     def isVoteWitnessExist(track: DataBase): VoteContractContext = {
       errorDetected{
         val witness = track.getWitness(voteData.candidate)
@@ -44,6 +46,7 @@ object VoteContractExecutor {
       this
     }
 
+    //when a voter cancel vote to a witness,check it exist in vote db or not
     def isVoterExist(track: DataBase, tx: Transaction): VoteContractContext = {
       errorDetected{
         if(voteData.operationType == OperationType.resisterCancel && track.getVote(tx.from).isEmpty){
@@ -53,6 +56,7 @@ object VoteContractExecutor {
       this
     }
 
+    //when a voter vote to a witness a, it cannot vote witness b later
     def voterWitnessChanged(track: DataBase, tx: Transaction): VoteContractContext = {
       errorDetected{
         track.getVote(tx.from).fold()(vote => {
@@ -64,10 +68,11 @@ object VoteContractExecutor {
       this
     }
 
+    //when a voter cancel a witness, it request counter cannot be larger than its counter in vote db
     def voterCancelWitnessCounterInvalid(track: DataBase, tx: Transaction): VoteContractContext = {
       errorDetected{
         val vote = track.getVote(tx.from).getOrElse(new Vote(tx.from, voteData.candidate, FixedNumber.Zero))
-        if(voteData.operationType == OperationType.resisterCancel && voteData.voterCount.>(vote.count)) {
+        if(voteData.operationType == OperationType.resisterCancel && voteData.voterCount.value > vote.count.value) {
           setResult(false, ("voter cancel a witness but request counter bigger than counter in db").getBytes)
         }
       }
@@ -89,23 +94,23 @@ object VoteContractExecutor {
 
     private def voteWitness(track: DataBase, tx: Transaction, witness: WitnessInfo): Unit ={
       track.addBalance(tx.from, -voteData.voterCount)
-      witness.updateVoteCounts(voteData.voterCount)
-      track.createWitness(witness)
+      val newWitness = witness.copy(voteCounts = witness.voteCounts + voteData.voterCount)
+      track.createWitness(newWitness)
       track.getVote(tx.from).fold(track.createVote(tx.from, Vote(tx.from, voteData.candidate, voteData.voterCount)))(
         vote =>{
-          vote.updateCounts(voteData.voterCount)
-          track.createVote(vote.voter, vote)
+          val newVote = vote.updateCounts(voteData.voterCount)
+          track.createVote(vote.voter, newVote)
       })
     }
 
     private def cancelCounterFromWitness(track: DataBase, tx: Transaction, witness: WitnessInfo): Unit ={
       track.addBalance(tx.from, voteData.voterCount)
-      witness.updateVoteCounts(-voteData.voterCount)
-      track.createWitness(witness)
+      val newWitness = witness.copy(voteCounts = witness.voteCounts - voteData.voterCount)
+      track.createWitness(newWitness)
       track.getVote(tx.from).fold()(
         vote =>{
-          vote.updateCounts(-voteData.voterCount)
-          track.createVote(vote.voter, vote)
+          val newVote = vote.updateCounts(-voteData.voterCount)
+          track.createVote(vote.voter, newVote)
         })
     }
 
@@ -117,24 +122,3 @@ object VoteContractExecutor {
 
   }
 }
-
-//object VoteOperationChecker{
-//
-//  var result: (Boolean, Array[Byte]) = (true, new Array[Byte](0))
-//
-//  def errorDetected(f: => Unit): Unit ={
-//    if(result._1) f
-//  }
-//
-//  def setResult(flag: Boolean, description: Array[Byte] = new Array[Byte](0)): Unit ={
-//    result  =  (flag, description)
-//  }
-//
-//  def returnResult():(Boolean, Array[Byte]) ={
-//    result
-//  }
-//
-//  def setResultToInit(){
-//    result = (true, new Array[Byte](0))
-//  }
-//}

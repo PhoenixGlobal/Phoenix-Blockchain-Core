@@ -442,8 +442,7 @@ class LevelDBBlockchain(chainSettings: ChainSettings,
         else {
           // some producer have quit, but we still need keep it
           log.info("not enough witness")
-          oldInfo.voteCounts = FixedNumber.Zero
-          updatedCurrentWitness.append(oldInfo)
+          updatedCurrentWitness.append(oldInfo.copy(voteCounts = FixedNumber.Zero))
         }
       })
 

@@ -14,6 +14,7 @@ object RegisterContractExecutor {
             .isAccountBalanceEnough(track)
             .isRegisterWitnessExist(track)
             .isCancelWitnessNotExist(track)
+            .isCancelWitnessGenesis(track)
             .processReq(track)
             .returnResult()
   }
@@ -22,6 +23,7 @@ object RegisterContractExecutor {
 
     var result: (Boolean, Array[Byte]) = (true, new Array[Byte](0))
 
+    //check the register account address is equal to transaction sender
     def isValid(track: DataBase, tx: Transaction): RegisterContractContext = {
       errorDetected{
         if(!(tx.from == registerData.registerAccount && registerData.registerAccount == registerData.registerInfo.addr)){
@@ -31,17 +33,19 @@ object RegisterContractExecutor {
       this
     }
 
+    //check the account balance is enough to register a witness
     def isAccountBalanceEnough(track: DataBase): RegisterContractContext ={
       errorDetected{
         val account = track.getAccount(registerData.registerAccount).get
         if(registerData.operationType == OperationType.register &&
-          (!account.balance.>(FixedNumber(One.value)))){
+          (account.balance.value < FixedNumber(One.value).value)){
           setResult(false, ("register account balance is not enough to register a producer").getBytes)
         }
       }
       this
     }
 
+    //if a witness exists in witness db, it cannot be registered later.
     def isRegisterWitnessExist(track: DataBase): RegisterContractContext = {
       errorDetected{
         val witness = track.getWitness(registerData.registerAccount)
@@ -52,6 +56,7 @@ object RegisterContractExecutor {
       this
     }
 
+    //if a witness does not exist in witness db, it cannot be cancel register.
     def isCancelWitnessNotExist(track: DataBase): RegisterContractContext = {
       errorDetected{
         val witness = track.getWitness(registerData.registerAccount)
@@ -62,11 +67,14 @@ object RegisterContractExecutor {
       this
     }
 
+    //if witness is in init configuration 21 witness lists, it cannot be cancelled.
     def isCancelWitnessGenesis(track: DataBase): RegisterContractContext = {
       errorDetected{
         val witness = track.getWitness(registerData.registerAccount)
-        if(witness.get.isGenesisWitness){
-          setResult(false, ("a genesis witness is not allowed to cancel").getBytes)
+        if(witness.isDefined){
+          if(witness.get.isGenesisWitness){
+            setResult(false, ("a genesis witness is not allowed to cancel").getBytes)
+          }
         }
       }
       this

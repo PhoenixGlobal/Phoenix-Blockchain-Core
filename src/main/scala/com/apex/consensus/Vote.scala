@@ -15,7 +15,7 @@ import play.api.libs.json.{JsValue, Json, Writes}
 
 case class Vote(voter: UInt160,
                  target: UInt160,
-                var count: FixedNumber,
+                 count: FixedNumber,
                  version: Int = 0x01) extends com.apex.common.Serializable {
 
   override def serialize(os: DataOutputStream): Unit = {
@@ -28,8 +28,7 @@ case class Vote(voter: UInt160,
   }
 
   def updateCounts(counts: FixedNumber): Vote ={
-    this.count = this.count + counts
-    this
+    this.copy(count = this.count + counts)
   }
 
 }

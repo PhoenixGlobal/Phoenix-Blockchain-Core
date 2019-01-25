@@ -13,7 +13,7 @@ import com.apex.crypto.UInt160
 import play.api.libs.json.{JsValue, Json, Writes}
 
 case class RegisterData(registerAccount: UInt160,
-                        var registerInfo: WitnessInfo = WitnessInfo(UInt160.Zero),
+                        registerInfo: WitnessInfo = WitnessInfo(UInt160.Zero),
                         operationType: OperationType.Value)
   extends Serializable{
   override def serialize(os: DataOutputStream): Unit = {
