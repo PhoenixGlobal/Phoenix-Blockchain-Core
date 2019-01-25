@@ -32,15 +32,6 @@ class WitnessList(val witnesses: Array[WitnessInfo],
     witnesses.find(w => w.addr == witness).isDefined
   }
 
-  def sortByLocation() = {
-    witnesses.sortWith((w1, w2) => {
-      if (w1.longitude > w2.longitude)
-        true
-      else
-        false // TODO
-    })
-  }
-
   def findLeastVotes(): UInt160 = {
     WitnessList.sortByVote(witnesses).last.addr
   }
@@ -51,10 +42,23 @@ object WitnessList {
 
   def sortByVote(witnesses: Array[WitnessInfo]) = {
     witnesses.sortWith((w1, w2) => {
-      if (w1.voteCounts > w2.voteCounts)
-        true
+      if (w1.voteCounts.value == w2.voteCounts.value)
+        w1.addr > w2.addr
       else
-        false // TODO
+        w1.voteCounts.value > w2.voteCounts.value
+    })
+  }
+
+  def sortByLocation(witnesses: Array[WitnessInfo]) = {
+    witnesses.sortWith((w1, w2) => {
+      if (w1.longitude == w2.longitude) {
+        if (w1.latitude == w2.latitude)
+          w1.addr > w2.addr
+        else
+          w1.latitude > w2.latitude
+      }
+      else
+        w1.longitude > w2.longitude
     })
   }
 

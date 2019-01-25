@@ -802,7 +802,7 @@ class LevelDBBlockchain(chainSettings: ChainSettings,
     val slot = timeMs / consensusSettings.produceInterval
     var index = slot % (consensusSettings.witnessNum * consensusSettings.producerRepetitions)
     index /= consensusSettings.producerRepetitions
-    currentWitnessList.sortByLocation()(index.toInt).addr
+    WitnessList.sortByLocation(currentWitnessList.witnesses)(index.toInt).addr
     //settings.initialWitness(index.toInt)
   }
 
