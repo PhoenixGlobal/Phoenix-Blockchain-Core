@@ -538,25 +538,7 @@ object ProducerStatus {
   }
 }
 
-abstract class StateStore[V <: Serializable](db: Storage.raw) {
-  protected var cached: Option[V] = None
 
-  def prefixBytes(): Array[Byte]
-
-  val valConverter: Converter[V]
-
-  def get(): Option[V] = {
-    db.get(prefixBytes).map(valConverter.fromBytes)
-  }
-
-  def set(value: V, batch: Batch = null): Boolean = {
-    db.set(prefixBytes, valConverter.toBytes(value), batch)
-  }
-
-  def delete(batch: Batch = null): Unit = {
-    db.delete(prefixBytes, batch)
-  }
-}
 
 //
 //class TrackKey[K](val key: K) {
@@ -686,6 +668,26 @@ class TrackingRoot(db: Storage.lowLevelRaw) extends Tracking(db) {
 object Tracking {
   def root(db: Storage.lowLevelRaw) = {
     new TrackingRoot(db)
+  }
+}
+
+abstract class StateStore[V ](db: Storage.raw) {
+  protected var cached: Option[V] = None
+
+  def prefixBytes(): Array[Byte]
+
+  val valConverter: Converter[V]
+
+  def get(): Option[V] = {
+    db.get(prefixBytes).map(valConverter.fromBytes)
+  }
+
+  def set(value: V, batch: Batch = null): Boolean = {
+    db.set(prefixBytes, valConverter.toBytes(value), batch)
+  }
+
+  def delete(batch: Batch = null): Unit = {
+    db.delete(prefixBytes, batch)
   }
 }
 
