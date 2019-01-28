@@ -156,6 +156,10 @@ class LevelDBBlockchain(chainSettings: ChainSettings,
 
   private val pendingState = new PendingState
 
+  private var mCurWitnessList: Option[WitnessList] = None
+  private var mPrevWitnessList: Option[WitnessList] = None
+  private var mPendingWitnessList: Option[WitnessList] = None
+
   populate()
 
   private def buildGenesisBlock(): Block = {
@@ -425,23 +429,23 @@ class LevelDBBlockchain(chainSettings: ChainSettings,
   }
 
   private def getWitnessList(block: Block): WitnessList = {
-    val pendingWitness = dataBase.getPendingWitnessList()
-    if (block.timeStamp() > getBlock(pendingWitness.generateInBlock).get.timeStamp())
-      dataBase.getCurrentWitnessList()
+    if (block.timeStamp() > getBlock(mPendingWitnessList.get.generateInBlock).get.timeStamp())
+      mCurWitnessList.get
     else
-      dataBase.getPreviousWitnessList()
+      mPrevWitnessList.get
   }
 
   private def checkUpdateWitnessList(curblock: Block) = {
-    val pendingWitnessList = dataBase.getPendingWitnessList()
+    val pendingWitnessList = mPendingWitnessList.get
     if (blockIsConfirmed(pendingWitnessList.generateInBlock) &&
       curblock.timeStamp() - getBlock(pendingWitnessList.generateInBlock).get.timeStamp() >= consensusSettings.electeTime) {
 
       log.info("it's time to electe new producers")
-
-      val currentWitness = dataBase.getCurrentWitnessList()
+      val currentWitness = mCurWitnessList.get
       val allWitnesses = dataBase.getAllWitness()
+      currentWitness.logInfo("setPreviousWitnessList")
       dataBase.setPreviousWitnessList(currentWitness)
+      mPrevWitnessList = dataBase.getPreviousWitnessList()
       val allWitnessesMap: Map[UInt160, WitnessInfo] = allWitnesses.map(w => w.addr -> w).toMap
       val updatedCurrentWitness = ArrayBuffer.empty[WitnessInfo]
       currentWitness.witnesses.foreach(oldInfo => {
@@ -469,8 +473,12 @@ class LevelDBBlockchain(chainSettings: ChainSettings,
       }
       require(newElectedWitnesses.size == consensusSettings.witnessNum)
 
+      pendingWitnessList.logInfo("setCurrentWitnessList")
       dataBase.setCurrentWitnessList(pendingWitnessList)
       dataBase.setPendingWitnessList(new WitnessList(newElectedWitnesses.toArray.map(_._2), curblock.id))
+
+      mCurWitnessList = dataBase.getCurrentWitnessList()
+      mPendingWitnessList = dataBase.getPendingWitnessList()
     }
   }
 
@@ -711,15 +719,23 @@ class LevelDBBlockchain(chainSettings: ChainSettings,
       dataBase.setPreviousWitnessList(witnessList)
       dataBase.setCurrentWitnessList(witnessList)
       dataBase.setPendingWitnessList(witnessList)
+
+      mPrevWitnessList = dataBase.getPreviousWitnessList()
+      mCurWitnessList = dataBase.getCurrentWitnessList()
+      mPendingWitnessList = dataBase.getPendingWitnessList()
     }
     log.info("chain populate")
     if (forkBase.head.isEmpty) {
       initGenesisWitness()
       applyBlock(genesisBlock, false, false)
       blockBase.add(genesisBlock)
-      forkBase.add(genesisBlock, dataBase.getCurrentWitnessList())
+      forkBase.add(genesisBlock, dataBase.getCurrentWitnessList().get)
       notification.broadcast(BlockAddedToHeadNotify(genesisBlock))
     }
+
+    mPrevWitnessList = dataBase.getPreviousWitnessList()
+    mCurWitnessList = dataBase.getCurrentWitnessList()
+    mPendingWitnessList = dataBase.getPendingWitnessList()
 
     require(forkBase.head.isDefined)
 
@@ -801,13 +817,12 @@ class LevelDBBlockchain(chainSettings: ChainSettings,
 
   // "timeMs": time from 1970 in ms, should be divided evenly with no remainder by settings.produceInterval
   override def getWitness(timeMs: Long): UInt160 = {
-    val currentWitnessList = dataBase.getCurrentWitnessList()
     require(ProducerUtil.isTimeStampValid(timeMs, consensusSettings.produceInterval))
-    require(timeMs > getBlock(currentWitnessList.generateInBlock).get.timeStamp())
+    require(timeMs > getBlock(mCurWitnessList.get.generateInBlock).get.timeStamp())
     val slot = timeMs / consensusSettings.produceInterval
     var index = slot % (consensusSettings.witnessNum * consensusSettings.producerRepetitions)
     index /= consensusSettings.producerRepetitions
-    WitnessList.sortByLocation(currentWitnessList.witnesses)(index.toInt).addr
+    WitnessList.sortByLocation(mCurWitnessList.get.witnesses)(index.toInt).addr
     //settings.initialWitness(index.toInt)
   }
 
@@ -828,15 +843,17 @@ class LevelDBBlockchain(chainSettings: ChainSettings,
   def getProducers(listType: String): WitnessList = {
     // 判断类型值,调用不同的数据库进行查询操作
     listType match {
-      case "all" =>{
+      case "all" => {
         val witnessInfo = dataBase.getAllWitness()
-        return new WitnessList(witnessInfo.toArray,UInt256.Zero)
-      }case "active" => {
-        dataBase.getCurrentWitnessList()
+        return new WitnessList(witnessInfo.toArray, UInt256.Zero)
       }
-      case "pending" =>{
-        dataBase.getPendingWitnessList()
-      }case _ => null
+      case "active" => {
+        dataBase.getCurrentWitnessList().get
+      }
+      case "pending" => {
+        dataBase.getPendingWitnessList().get
+      }
+      case _ => null
     }
   }
 }

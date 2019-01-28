@@ -10,6 +10,7 @@ package com.apex.consensus
 
 import java.io.{DataInputStream, DataOutputStream}
 
+import com.apex.common.ApexLogging
 import com.apex.crypto.{UInt160, UInt256}
 import play.api.libs.json.{JsValue, Json, Writes}
 
@@ -18,7 +19,7 @@ import scala.collection.mutable.ArrayBuffer
 
 class WitnessList(val witnesses: Array[WitnessInfo],
                   val generateInBlock: UInt256,
-                  val version: Int = 0x01) extends com.apex.common.Serializable {
+                  val version: Int = 0x01) extends com.apex.common.Serializable with ApexLogging {
 
   private val addrList = witnesses.map(_.addr).toSet
 
@@ -32,6 +33,12 @@ class WitnessList(val witnesses: Array[WitnessInfo],
 
   def contains(witness: UInt160): Boolean = {
     addrList.contains(witness)
+  }
+
+  def logInfo(name: String) = {
+    log.info(s"$name:")
+    witnesses.foreach(w =>
+      log.info(s"  ${w.addr.address.substring(0, 7)} ${w.longitude} ${w.latitude} ${w.voteCounts}"))
   }
 
   //  def findLeastVotes(): UInt160 = {

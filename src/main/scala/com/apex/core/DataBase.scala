@@ -174,15 +174,15 @@ class DataBase(settings: DataBaseSettings, db: Storage.lowLevelRaw, tracking: Tr
   }
 
   // Previous active producer
-  def getPreviousWitnessList(): WitnessList = previousWitnessStore.get().get
+  def getPreviousWitnessList(): Option[WitnessList] = previousWitnessStore.get()
   def setPreviousWitnessList(wl: WitnessList): Unit = previousWitnessStore.set(wl)
 
   // current active producer
-  def getCurrentWitnessList(): WitnessList = currentWitnessStore.get().get
+  def getCurrentWitnessList(): Option[WitnessList] = currentWitnessStore.get()
   def setCurrentWitnessList(wl: WitnessList): Unit = currentWitnessStore.set(wl)
 
   // next active producer
-  def getPendingWitnessList(): WitnessList = pendingWitnessStore.get().get
+  def getPendingWitnessList(): Option[WitnessList] = pendingWitnessStore.get()
   def setPendingWitnessList(wl: WitnessList): Unit = pendingWitnessStore.set(wl)
 
 
