@@ -13,22 +13,25 @@ import java.io.{DataInputStream, DataOutputStream}
 import com.apex.crypto.{FixedNumber, UInt160}
 import play.api.libs.json.{JsValue, Json, Writes}
 
+import scala.collection.mutable
+
 case class Vote(voter: UInt160,
-                 target: UInt160,
-                 count: FixedNumber,
-                 version: Int = 0x01) extends com.apex.common.Serializable {
+                targetMap: mutable.Map[UInt160, FixedNumber] = scala.collection.mutable.Map[UInt160, FixedNumber](),
+                version: Int = 0x01) extends com.apex.common.Serializable {
 
   override def serialize(os: DataOutputStream): Unit = {
     import com.apex.common.Serializable._
 
     os.writeInt(version)
     os.write(voter)
-    os.write(target)
-    os.write(count)
+    os.writeMap(targetMap.toMap)
   }
 
-  def updateCounts(counts: FixedNumber): Vote ={
-    this.copy(count = this.count + counts)
+  def updateTargetCounter(addr: UInt160, counter: FixedNumber): Vote ={
+    if(targetMap.get(addr).isEmpty && counter.value < 0) return this
+    val oldCounter = targetMap.getOrElse(addr, FixedNumber.Zero)
+    if(oldCounter + counter > 0) targetMap.update(addr, oldCounter + counter)
+    this
   }
 
 }
@@ -40,18 +43,16 @@ object Vote {
 
     val version = is.readInt
     val voter = UInt160.deserialize(is)
-    val target = UInt160.deserialize(is)
-    val count = FixedNumber.deserialize(is)
+    val target = is.readMap(UInt160.deserialize, FixedNumber.deserialize)
 
-    new Vote(voter, target, count, version)
+    new Vote(voter, mutable.Map(target.toSeq: _*), version)
   }
 
   implicit val voteWrites = new Writes[Vote] {
     override def writes(o: Vote): JsValue = {
       Json.obj(
         "voter" -> o.voter.toString,
-        "target" -> o.target.toString,
-        "count" -> o.count.toString,
+        "target" -> o.targetMap.map(t => t._1.address + t._2.value.toString()),
         "version" -> o.version
       )
     }

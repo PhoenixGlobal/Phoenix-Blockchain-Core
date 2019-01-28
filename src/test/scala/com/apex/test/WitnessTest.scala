@@ -52,15 +52,16 @@ class WitnessTest {
   }
   @Test
   def testSerialize_Vote = {
-    val a = new Vote(UInt160.Zero, UInt160.parse("1212121212121212121212121212121212121212").get,
-      FixedNumber.One, 2)
+
+    val a = new Vote(UInt160.Zero, scala.collection.mutable.Map[UInt160, FixedNumber](
+      UInt160.parse("1212121212121212121212121212121212121212").get -> FixedNumber.One),2)
 
     val o = new SerializerHelper[Vote](
       Vote.deserialize,
       (x, _) => x.version.equals(a.version)
         && x.voter.data.sameElements(a.voter.data)
-        && x.target.data.sameElements(a.target.data)
-        && x.count.value == a.count.value
+        && x.targetMap.keys.sameElements(a.targetMap.keys)
+        && x.targetMap.values.sameElements(a.targetMap.values)
     )
     o.test(a)
   }

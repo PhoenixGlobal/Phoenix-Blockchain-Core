@@ -8,7 +8,8 @@ package com.apex.test
 import com.apex.consensus.VoteData
 import com.apex.core.{OperationType, Transaction, TransactionType}
 import com.apex.crypto.{BinaryData, FixedNumber, UInt160}
-import com.apex.vm.DataWord
+import com.apex.vm.{DataWord, PrecompiledContracts}
+import org.bouncycastle.math.ec.FixedPointUtil
 import org.junit.{AfterClass, Test}
 
 import scala.reflect.io.Directory
@@ -27,6 +28,25 @@ class VoteContractTest extends RegisterContractTest {
       And.checkAccount()
       When.makeRegisterTransaction()(checkRegisterSuccess)
       When.makeVoteTransaction(nonce = 2)(checkVoteSuccess)
+    }
+    finally {
+      chain.close()
+    }
+  }
+
+  //vote is not allowed when the vote account balance is not enough
+  @Test
+  def testVoteRequestValid():Unit = {
+    try {
+      val baseDir = "VoteContractTest/testVoteRequestValid"
+      Given.createChain(baseDir){}
+      When.produceBlock()
+      Then.checkTx()
+      And.checkAccount()
+      When.makeRegisterTransaction()(checkRegisterSuccess)
+      When.makeVoteTransaction(nonce = 2, counter =FixedNumber.Zero)(tx => {
+        assert(!chain.addTransaction(tx))
+      })
     }
     finally {
       chain.close()
@@ -71,6 +91,26 @@ class VoteContractTest extends RegisterContractTest {
     }
   }
 
+  //vote is not allowed when the vote target is not in witness list
+  @Test
+  def testCancelWitnessExistInVoterTargetMap():Unit = {
+    try {
+      val baseDir = "VoteContractTest/testCancelWitnessExistInVoterTargetMap"
+      Given.createChain(baseDir){}
+      When.produceBlock()
+      Then.checkTx()
+      And.checkAccount()
+      When.makeRegisterTransaction()(checkRegisterSuccess)
+      When.makeVoteTransaction(nonce = 2)(checkVoteSuccess)
+      When.makeVoteTransaction(operationType = OperationType.resisterCancel, nonce = 3, candidate = _acct4.publicKey.pubKeyHash)(tx => {
+        assert(!chain.addTransaction(tx))
+      })
+    }
+    finally {
+      chain.close()
+    }
+  }
+
   //voter is not allowed to cancel a vote when the voter is not in voter list
   @Test
   def testVoterNotExistInVotes():Unit = {
@@ -91,11 +131,37 @@ class VoteContractTest extends RegisterContractTest {
     }
   }
 
-  //vote is not allowed when a voter change a target from node a to node b
+
+
+  //cancel vote a target to witness but request counter bigger than its counter in db is not allowed
   @Test
-  def testVoteTargetChanged():Unit = {
+  def testVoterCancelWitnessLargerThanItsCounter():Unit = {
     try {
-      val baseDir = "VoteContractTest/testVoteTargetChanged"
+      val baseDir = "VoteContractTest/testVoterCancelWitnessLargerThanItsCounter"
+      Given.createChain(baseDir){}
+      When.produceBlock()
+      Then.checkTx()
+      And.checkAccount()
+      When.makeRegisterTransaction()(checkRegisterSuccess)
+      When.makeVoteTransaction(nonce = 2, counter = FixedNumber.Ten)(tx => {
+        assert(chain.addTransaction(tx))
+        assert(chain.getVote(_acct1.publicKey.pubKeyHash).get.targetMap(_acct3.publicKey.pubKeyHash) == FixedNumber.Ten)
+        assert(chain.getBalance(_acct1.publicKey.pubKeyHash).get == FixedNumber.fromDecimal(110.12))
+      })
+      When.makeVoteTransaction(OperationType.resisterCancel,nonce = 3, counter = FixedNumber(FixedNumber.One.value * 20))(tx => {
+        assert(!chain.addTransaction(tx))
+      })
+    }
+    finally {
+      chain.close()
+    }
+  }
+
+  //vote two target respectively success
+  @Test
+  def testVoteTwoTargetSuccess():Unit = {
+    try {
+      val baseDir = "VoteContractTest/testVoteTwoTargetSuccess"
       Given.createChain(baseDir){}
       When.produceBlock()
       Then.checkTx()
@@ -110,31 +176,11 @@ class VoteContractTest extends RegisterContractTest {
         assert(chain.getBalance(_acct4.publicKey.pubKeyHash).get == FixedNumber.fromDecimal(1))
       })
       When.makeVoteTransaction(nonce = 3, candidate = _acct4.publicKey.pubKeyHash)(tx => {
-        assert(!chain.addTransaction(tx))
-      })
-    }
-    finally {
-      chain.close()
-    }
-  }
-
-  //cancel vote a target to witness but request counter bigger than its counter in db is not allowed
-  @Test
-  def testVoterCancelWitnessLargerThanItsCounter():Unit = {
-    try {
-      val baseDir = "VoteContractTest/testVoterCancelWitnessLargerThanItsCounter"
-      Given.createChain(baseDir){}
-      When.produceBlock()
-      Then.checkTx()
-      And.checkAccount()
-      When.makeRegisterTransaction()(checkRegisterSuccess)
-      When.makeVoteTransaction(nonce = 2, counter = FixedNumber.Ten)(tx => {
         assert(chain.addTransaction(tx))
-        assert(chain.getVote(_acct1.publicKey.pubKeyHash).get.count == FixedNumber.Ten)
-        assert(chain.getBalance(_acct1.publicKey.pubKeyHash).get == FixedNumber.fromDecimal(110.12))
-      })
-      When.makeVoteTransaction(OperationType.resisterCancel,nonce = 3, counter = FixedNumber(FixedNumber.One.value * 20))(tx => {
-        assert(!chain.addTransaction(tx))
+        assert(chain.getVote(_acct1.publicKey.pubKeyHash).get
+          .targetMap.sameElements(scala.collection.mutable.Map(_acct3.publicKey.pubKeyHash -> FixedNumber.One,
+          _acct4.publicKey.pubKeyHash -> FixedNumber.One)))
+        assert(chain.getBalance(new UInt160(PrecompiledContracts.voteAddr.getLast20Bytes)).get == FixedNumber(FixedNumber.One.value * 2))
       })
     }
     finally {
@@ -154,12 +200,14 @@ class VoteContractTest extends RegisterContractTest {
       When.makeRegisterTransaction()(checkRegisterSuccess)
       When.makeVoteTransaction(nonce = 2, counter = FixedNumber.Ten)(tx => {
         assert(chain.addTransaction(tx))
-        assert(chain.getVote(_acct1.publicKey.pubKeyHash).get.count == FixedNumber.Ten)
+        assert(chain.getVote(_acct1.publicKey.pubKeyHash).get.targetMap(_acct3.publicKey.pubKeyHash) == FixedNumber.Ten)
         assert(chain.getBalance(_acct1.publicKey.pubKeyHash).get == FixedNumber.fromDecimal(110.12))
+        assert(chain.getBalance(new UInt160(PrecompiledContracts.voteAddr.getLast20Bytes)).get == FixedNumber.Ten)
       })
       When.makeVoteTransaction(OperationType.resisterCancel,nonce = 3, counter = FixedNumber.One)(tx => {
         assert(chain.addTransaction(tx))
-        assert(chain.getVote(_acct1.publicKey.pubKeyHash).get.count == FixedNumber(FixedNumber.One.value * 9))
+        assert(chain.getVote(_acct1.publicKey.pubKeyHash).get.targetMap(_acct3.publicKey.pubKeyHash) == FixedNumber(FixedNumber.One.value * 9))
+        assert(chain.getBalance(new UInt160(PrecompiledContracts.voteAddr.getLast20Bytes)).get == FixedNumber(FixedNumber.One.value * 9))
       })
     }
     finally {
@@ -185,7 +233,8 @@ class VoteContractTest extends RegisterContractTest {
     assert(chain.getBalance(_acct3.publicKey.pubKeyHash).get == FixedNumber.fromDecimal(2))
     val account = chain.getBalance(_acct1.publicKey.pubKeyHash).get
     assert(account == FixedNumber.fromDecimal(119.12))
-    assert(chain.getVote(_acct1.publicKey.pubKeyHash).get.count == FixedNumber.One)
+    assert(chain.getVote(_acct1.publicKey.pubKeyHash).get.targetMap.get(_acct3.publicKey.pubKeyHash).get == FixedNumber.One)
+    assert(chain.getBalance(new UInt160(PrecompiledContracts.voteAddr.getLast20Bytes)).get == FixedNumber.One)
   }
 
 

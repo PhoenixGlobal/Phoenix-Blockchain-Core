@@ -9,7 +9,7 @@ import com.apex.consensus.{RegisterData, WitnessInfo}
 import com.apex.core.{OperationType, Transaction, TransactionType}
 import com.apex.crypto.{BinaryData, FixedNumber, UInt160}
 import com.apex.test.ResourcePrepare.BlockChainPrepare
-import com.apex.vm.DataWord
+import com.apex.vm.{DataWord, PrecompiledContracts}
 import org.junit.{AfterClass, Test}
 
 import scala.reflect.io.Directory
@@ -106,6 +106,7 @@ class RegisterContractTest extends BlockChainPrepare{
           val witness = chain.getWitness(_acct3.publicKey.pubKeyHash)
           assert(witness.isEmpty)
           assert(chain.getBalance(_acct3.publicKey.pubKeyHash).get == FixedNumber.fromDecimal(3))
+          assert(chain.getBalance(new UInt160(PrecompiledContracts.registerNodeAddr.getLast20Bytes)).get == FixedNumber.Zero)
         }
       }
     }
@@ -165,6 +166,7 @@ class RegisterContractTest extends BlockChainPrepare{
     assert(witness.isDefined)
     assert(witness.get.name == "register node1")
     assert(chain.getBalance(_acct3.publicKey.pubKeyHash).get == FixedNumber.fromDecimal(2))
+    assert(chain.getBalance(new UInt160(PrecompiledContracts.registerNodeAddr.getLast20Bytes)).get == FixedNumber.One)
   }
 
   def checkRegisterFailed(tx: Transaction): Unit ={

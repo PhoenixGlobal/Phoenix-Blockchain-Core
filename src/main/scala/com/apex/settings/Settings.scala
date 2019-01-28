@@ -8,7 +8,7 @@ import java.util.TimeZone
 
 import com.apex.common.ApexLogging
 import com.apex.core.PeerBase
-import com.apex.crypto.{BinaryData, UInt160}
+import com.apex.crypto.{BinaryData, FixedNumber, UInt160}
 import com.apex.crypto.Crypto.hash256
 import com.apex.crypto.Ecdsa.{Point, PrivateKey, PublicKey}
 import com.typesafe.config.{Config, ConfigFactory}
@@ -20,7 +20,8 @@ import scala.concurrent.duration._
 
 case class ContractSettings(dumpBlock: Long,
                             vmTrace: Boolean,
-                            maxContractSize: Int)
+                            maxContractSize: Int,
+                            registerSpend: FixedNumber = FixedNumber.One)
 
 case class RPCSettings(enabled: Boolean, host: String, port: Int)
 case class SecretRPCSettings(enabled: Boolean, host: String, port: Int)

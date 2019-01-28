@@ -2,20 +2,20 @@ package com.apex.vm
 
 import com.apex.consensus.RegisterData
 import com.apex.core.{DataBase, OperationType, Transaction}
-import com.apex.crypto.{BinaryData, FixedNumber}
+import com.apex.crypto.{BinaryData, FixedNumber, UInt160}
 import com.apex.crypto.FixedNumber.One
 
 object RegisterContractExecutor {
   import OperationChecker._
 
-  def execute(data: Array[Byte], track: DataBase, tx: Transaction): (Boolean, Array[Byte]) ={
+  def execute(data: Array[Byte], track: DataBase, tx: Transaction, registerSpend: FixedNumber): (Boolean, Array[Byte]) ={
     val registerData = RegisterData.fromBytes(data)
     registerData.isValid(track, tx)
-            .isAccountBalanceEnough(track)
+            .isAccountBalanceEnough(track, registerSpend)
             .isRegisterWitnessExist(track)
             .isCancelWitnessNotExist(track)
             .isCancelWitnessGenesis(track)
-            .processReq(track)
+            .processReq(track, registerSpend)
             .returnResult()
   }
 
@@ -34,11 +34,11 @@ object RegisterContractExecutor {
     }
 
     //check the account balance is enough to register a witness
-    def isAccountBalanceEnough(track: DataBase): RegisterContractContext ={
+    def isAccountBalanceEnough(track: DataBase, registerSpend: FixedNumber): RegisterContractContext ={
       errorDetected{
         val account = track.getAccount(registerData.registerAccount).get
         if(registerData.operationType == OperationType.register &&
-          (account.balance.value < FixedNumber(One.value).value)){
+          (account.balance.value < registerSpend.value)){
           setResult(false, ("register account balance is not enough to register a producer").getBytes)
         }
       }
@@ -80,25 +80,27 @@ object RegisterContractExecutor {
       this
     }
 
-    def processReq(track: DataBase): RegisterContractContext ={
+    def processReq(track: DataBase, registerSpend: FixedNumber): RegisterContractContext ={
       errorDetected{
         if(registerData.operationType == OperationType.register){
-          registerWitness(track)
+          registerWitness(track, registerSpend)
         }
         else {
-          cancelRegisterWitness(track)
+          cancelRegisterWitness(track, registerSpend)
         }
       }
       this
     }
 
-    private def cancelRegisterWitness(track: DataBase) = {
-      track.addBalance(registerData.registerAccount, FixedNumber(One.value))
+    private def cancelRegisterWitness(track: DataBase, registerSpend: FixedNumber) = {
+      track.addBalance(registerData.registerAccount, registerSpend.value)
+      track.addBalance(new UInt160(PrecompiledContracts.registerNodeAddr.getLast20Bytes), -registerSpend.value)
       track.deleteWitness(registerData.registerAccount)
     }
 
-    private def registerWitness(track: DataBase) = {
-      track.addBalance(registerData.registerAccount, FixedNumber(-(One.value)))
+    private def registerWitness(track: DataBase, registerSpend: FixedNumber) = {
+      track.addBalance(registerData.registerAccount, -registerSpend.value)
+      track.addBalance(new UInt160(PrecompiledContracts.registerNodeAddr.getLast20Bytes), registerSpend.value)
       track.createWitness(registerData.registerInfo)
     }
 
