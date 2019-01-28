@@ -108,6 +108,11 @@ class SwitchStateStore(db: Storage.raw)
     with SwitchStatePrefix
     with SwitchStateValue
 
+class PreviousWitnessStore(db: Storage.raw)
+  extends StateStore[WitnessList](db)
+    with PreviousWitnessStatePrefix
+    with WitnessListValue
+
 class CurrentWitnessStore(db: Storage.raw)
   extends StateStore[WitnessList](db)
     with CurrentWitnessStatePrefix
@@ -155,9 +160,10 @@ object StateType extends Enumeration {
   val Producer = Value(0x01)
   val LatestConfirmed = Value(0x02)
   val SwitchState = Value(0x03)
-  val CurrentWitnessState = Value(0x04)
-  val PendingWitnessState = Value(0x05)
-  val AllWitnessMapState = Value(0x06)
+  val PreviousWitnessState = Value(0x04)
+  val CurrentWitnessState = Value(0x05)
+  val PendingWitnessState = Value(0x06)
+  val AllWitnessMapState = Value(0x07)
 }
 
 trait Prefix {
@@ -252,6 +258,10 @@ trait LatestConfirmedStatePrefix extends StatePrefix {
 
 trait SwitchStatePrefix extends StatePrefix {
   override val stateType: StateType.Value = StateType.SwitchState
+}
+
+trait PreviousWitnessStatePrefix extends StatePrefix {
+  override val stateType: StateType.Value = StateType.PreviousWitnessState
 }
 
 trait CurrentWitnessStatePrefix extends StatePrefix {

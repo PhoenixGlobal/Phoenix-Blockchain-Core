@@ -20,6 +20,8 @@ class WitnessList(val witnesses: Array[WitnessInfo],
                   val generateInBlock: UInt256,
                   val version: Int = 0x01) extends com.apex.common.Serializable {
 
+  private val addrList = witnesses.map(_.addr).toSet
+
   override def serialize(os: DataOutputStream): Unit = {
     import com.apex.common.Serializable._
 
@@ -28,13 +30,13 @@ class WitnessList(val witnesses: Array[WitnessInfo],
     os.write(generateInBlock)
   }
 
-  def contain(witness: UInt160): Boolean = {
-    witnesses.find(w => w.addr == witness).isDefined
+  def contains(witness: UInt160): Boolean = {
+    addrList.contains(witness)
   }
 
-  def findLeastVotes(): UInt160 = {
-    WitnessList.sortByVote(witnesses).last.addr
-  }
+  //  def findLeastVotes(): UInt160 = {
+  //    WitnessList.sortByVote(witnesses).last.addr
+  //  }
 
 }
 

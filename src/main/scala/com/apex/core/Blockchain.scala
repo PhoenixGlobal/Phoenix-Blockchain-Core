@@ -130,7 +130,7 @@ class LevelDBBlockchain(chainSettings: ChainSettings,
 
   private val forkBase = new ForkBase(
     chainSettings.forkBase,
-    consensusSettings.initialWitness,
+    //consensusSettings.initialWitness,
     onConfirmed,
     onSwitch)
 
@@ -391,23 +391,24 @@ class LevelDBBlockchain(chainSettings: ChainSettings,
 
     if (forkBase.head.get.block.id.equals(block.prev())) {
       if (doApply == false) { // check first !
-        require(forkBase.add(block))
+        require(forkBase.add(block, getWitnessList(block)))
         inserted = true
       }
       else if (applyBlock(block)) {
-        require(forkBase.add(block))
+        require(forkBase.add(block, getWitnessList(block)))
         inserted = true
       }
       else
         log.info(s"block ${block.height} ${block.shortId} apply error")
       if (inserted) {
+        checkUpdateWitnessList(block)
         dataBase.commit()
         notification.broadcast(BlockAddedToHeadNotify(block))
       }
     }
     else {
       log.info(s"try add received block to minor fork chain. block ${block.height} ${block.shortId}")
-      if (forkBase.add(block))
+      if (forkBase.add(block, getWitnessList(block)))
         inserted = true
       else
         log.debug("fail add to minor fork chain")
@@ -423,6 +424,14 @@ class LevelDBBlockchain(chainSettings: ChainSettings,
     inserted
   }
 
+  private def getWitnessList(block: Block): WitnessList = {
+    val pendingWitness = dataBase.getPendingWitnessList()
+    if (block.timeStamp() > getBlock(pendingWitness.generateInBlock).get.timeStamp())
+      dataBase.getCurrentWitnessList()
+    else
+      dataBase.getPreviousWitnessList()
+  }
+
   private def checkUpdateWitnessList(curblock: Block) = {
     val pendingWitnessList = dataBase.getPendingWitnessList()
     if (blockIsConfirmed(pendingWitnessList.generateInBlock) &&
@@ -432,6 +441,7 @@ class LevelDBBlockchain(chainSettings: ChainSettings,
 
       val currentWitness = dataBase.getCurrentWitnessList()
       val allWitnesses = dataBase.getAllWitness()
+      dataBase.setPreviousWitnessList(currentWitness)
       val allWitnessesMap: Map[UInt160, WitnessInfo] = allWitnesses.map(w => w.addr -> w).toMap
       val updatedCurrentWitness = ArrayBuffer.empty[WitnessInfo]
       currentWitness.witnesses.foreach(oldInfo => {
@@ -442,7 +452,7 @@ class LevelDBBlockchain(chainSettings: ChainSettings,
         else {
           // some producer have quit, but we still need keep it
           log.info("not enough witness")
-          updatedCurrentWitness.append(oldInfo.copy(voteCounts = FixedNumber.Zero))
+          updatedCurrentWitness.append(oldInfo.setVoteCounts(FixedNumber.Zero))
         }
       })
 
@@ -457,11 +467,6 @@ class LevelDBBlockchain(chainSettings: ChainSettings,
         if (!newElectedWitnesses.contains(witness.addr))
           newElectedWitnesses.update(witness.addr, witness)
       }
-      //      if (newElectedWitnesses.size < consensusSettings.witnessNum) {
-      //        log.info("still not enough witness")
-      //        val oldLeastVoteWitness = WitnessList.getLeastVote(updatedCurrentWitness.toArray)
-      //        newElectedWitnesses.update(oldLeastVoteWitness.addr, oldLeastVoteWitness)
-      //      }
       require(newElectedWitnesses.size == consensusSettings.witnessNum)
 
       dataBase.setCurrentWitnessList(pendingWitnessList)
@@ -703,6 +708,7 @@ class LevelDBBlockchain(chainSettings: ChainSettings,
       require(dataBase.getAllWitness().size == consensusSettings.witnessNum)
       val witnessList = new WitnessList(witnesses.toArray, genesisBlock.id())
       require(witnessList.witnesses.size == consensusSettings.witnessNum)
+      dataBase.setPreviousWitnessList(witnessList)
       dataBase.setCurrentWitnessList(witnessList)
       dataBase.setPendingWitnessList(witnessList)
     }
@@ -711,7 +717,7 @@ class LevelDBBlockchain(chainSettings: ChainSettings,
       initGenesisWitness()
       applyBlock(genesisBlock, false, false)
       blockBase.add(genesisBlock)
-      forkBase.add(genesisBlock)
+      forkBase.add(genesisBlock, dataBase.getCurrentWitnessList())
       notification.broadcast(BlockAddedToHeadNotify(genesisBlock))
     }
 

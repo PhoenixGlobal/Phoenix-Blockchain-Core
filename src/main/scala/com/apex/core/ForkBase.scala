@@ -343,7 +343,7 @@ case class SwitchResult(succeed: Boolean, failedItem: ForkItem = null)
 
 // storing all unconfirmed blocks, every block is unique and can form a tree
 class ForkBase(settings: ForkBaseSettings,
-               witnesses: Array[Witness],
+               //witnesses: Array[Witness],
                onConfirmed: Block => Unit,
                onSwitch: (Seq[ForkItem], Seq[ForkItem], SwitchState) => SwitchResult) extends ApexLogging {
   private val db = Storage.open(settings.dbType, settings.dir)
@@ -412,20 +412,28 @@ class ForkBase(settings: ForkBaseSettings,
   }
 
   // add a block
-  def add(block: Block): Boolean = {
+  def add(block: Block, curWitnessList: WitnessList): Boolean = {
     def makeItem(heights: IMap[UInt160, Long], master: Boolean) = {
       val lph = Map.empty[UInt160, Long]
-      heights.foreach(lph +=)
-      // update height of block produced by this producer
-      val producer = block.header.producer
-      if (lph.contains(producer)) {
-        lph.put(producer, block.height)
+      for (p <- heights if curWitnessList.contains(p._1)) {
+        lph.put(p._1, p._2)
       }
+      val producer = block.header.producer
+      //if (lph.contains(producer)) {
+      if (block.height() > 0)
+        lph.put(producer, block.height)
+      //}
+      curWitnessList.witnesses.foreach(w => {
+        if (!lph.contains(w.addr)) {
+          lph.put(w.addr, 0)
+        }
+      })
+      require(lph.size == curWitnessList.witnesses.size)
       ForkItem(block, lph, master)
     }
 
     if (_head.isEmpty) {
-      val prodHeights = witnesses.map(_.pubkeyHash -> 0L).toMap
+      val prodHeights = curWitnessList.witnesses.map(_.addr -> 0L).toMap
       val item = makeItem(prodHeights, true)
       add(item)
     } else {

@@ -24,8 +24,13 @@ case class WitnessInfo(addr: UInt160,
                        voteCounts: FixedNumber = FixedNumber.Zero,
                        version: Int = 0x01) extends com.apex.common.Serializable {
 
-  def updateVoteCounts(voteCounts: FixedNumber): WitnessInfo = {
-    val witness = this.copy(voteCounts = this.voteCounts + voteCounts)
+  def updateVoteCounts(votes: FixedNumber): WitnessInfo = {
+    val witness = this.copy(voteCounts = this.voteCounts + votes)
+    witness
+  }
+
+  def setVoteCounts(votes: FixedNumber): WitnessInfo = {
+    val witness = this.copy(voteCounts = votes)
     witness
   }
 

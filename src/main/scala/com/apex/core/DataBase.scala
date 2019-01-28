@@ -25,8 +25,11 @@ class DataBase(settings: DataBaseSettings, db: Storage.lowLevelRaw, tracking: Tr
   private val contractStore = new ContractStore(tracking, settings.cacheSize)
   private val contractStateStore = new ContractStateStore(tracking, settings.cacheSize)
   private val nameToAccountStore = new NameToAccountStore(tracking, settings.cacheSize)
+
   private val voteStore = new VoteStore(tracking, settings.cacheSize)
   private val witnessInfoStore = new WitnessInfoStore(tracking)
+
+  private val previousWitnessStore = new PreviousWitnessStore(tracking)
   private val currentWitnessStore = new CurrentWitnessStore(tracking)
   private val pendingWitnessStore = new PendingWitnessStore(tracking)
 
@@ -169,6 +172,10 @@ class DataBase(settings: DataBaseSettings, db: Storage.lowLevelRaw, tracking: Tr
   def createVote(address: UInt160, vote: Vote): Unit = {
     voteStore.set(address, vote)
   }
+
+  // Previous active producer
+  def getPreviousWitnessList(): WitnessList = previousWitnessStore.get().get
+  def setPreviousWitnessList(wl: WitnessList): Unit = previousWitnessStore.set(wl)
 
   // current active producer
   def getCurrentWitnessList(): WitnessList = currentWitnessStore.get().get

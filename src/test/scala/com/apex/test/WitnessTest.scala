@@ -84,11 +84,11 @@ class WitnessTest {
 
     val list1 = new WitnessList(Array(a, b, c, d), UInt256.Zero, 7)
 
-    assert(!list1.contain(UInt160.Zero))
-    assert(list1.contain(UInt160.parse("1212121212121212121212121212121212121212").get))
-    assert(!list1.contain(UInt160.parse("1212121212121212121212121212121212121219").get))
+    assert(!list1.contains(UInt160.Zero))
+    assert(list1.contains(UInt160.parse("1212121212121212121212121212121212121212").get))
+    assert(!list1.contains(UInt160.parse("1212121212121212121212121212121212121219").get))
 
-    assert(list1.findLeastVotes() == UInt160.parse("1212121212121212121212121212121212121212").get)
+    //assert(list1.findLeastVotes() == UInt160.parse("1212121212121212121212121212121212121212").get)
 
     val leaseVoteRemoved = WitnessList.removeLeastVote(list1.witnesses)
 
