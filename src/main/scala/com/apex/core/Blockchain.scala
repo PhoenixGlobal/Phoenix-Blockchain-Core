@@ -830,7 +830,7 @@ class LevelDBBlockchain(chainSettings: ChainSettings,
       }
       case "pending" =>{
         dataBase.getPendingWitnessList()
-      }
+      }case _ => null
     }
   }
 }

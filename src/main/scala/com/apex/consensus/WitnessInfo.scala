@@ -70,7 +70,7 @@ object WitnessInfo {
     override def writes(o: WitnessInfo): JsValue = {
       Json.obj(
 
-        "addr" -> o.addr.toString,
+        "addr" -> o.addr.address,
         "isGenesisWitness" -> o.isGenesisWitness.toString,
         "name" -> o.name.toString,
         "url" -> o.url,
