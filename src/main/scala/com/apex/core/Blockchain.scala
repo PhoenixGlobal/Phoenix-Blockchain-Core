@@ -407,9 +407,9 @@ class LevelDBBlockchain(chainSettings: ChainSettings,
       else
         log.info(s"block ${block.height} ${block.shortId} apply error")
       if (inserted) {
+        notification.broadcast(BlockAddedToHeadNotify(block))
         checkUpdateWitnessList(block)
         dataBase.commit()
-        notification.broadcast(BlockAddedToHeadNotify(block))
       }
     }
     else {
@@ -440,6 +440,7 @@ class LevelDBBlockchain(chainSettings: ChainSettings,
   private def checkUpdateWitnessList(curblock: Block) = {
     val pendingWitnessList = mPendingWitnessList.get
     if (blockIsConfirmed(pendingWitnessList.generateInBlock) &&
+      isLastBlockOfProducer(curblock.timeStamp()) &&
       curblock.timeStamp() - getBlock(pendingWitnessList.generateInBlock).get.timeStamp() >= consensusSettings.electeTime) {
 
       log.info("it's time to electe new producers")
@@ -452,14 +453,10 @@ class LevelDBBlockchain(chainSettings: ChainSettings,
       val updatedCurrentWitness = ArrayBuffer.empty[WitnessInfo]
       currentWitness.witnesses.foreach(oldInfo => {
         val newInfo = allWitnessesMap.get(oldInfo.addr)
-        if (newInfo.isDefined) {
+        if (newInfo.isDefined)
           updatedCurrentWitness.append(newInfo.get)
-        }
-        else {
-          // some producer have quit, but we still need keep it
-          log.info("not enough witness")
+        else  // some producer have quit, but we still need keep it
           updatedCurrentWitness.append(oldInfo.setVoteCounts(FixedNumber.Zero))
-        }
       })
 
       val newElectedWitnesses = WitnessList.removeLeastVote(updatedCurrentWitness.toArray)
@@ -830,7 +827,13 @@ class LevelDBBlockchain(chainSettings: ChainSettings,
     var index = slot % (consensusSettings.witnessNum * consensusSettings.producerRepetitions)
     index /= consensusSettings.producerRepetitions
     WitnessList.sortByLocation(mCurWitnessList.get.witnesses)(index.toInt).addr
-    //settings.initialWitness(index.toInt)
+  }
+
+  def isLastBlockOfProducer(timeMs: Long): Boolean = {
+    require(ProducerUtil.isTimeStampValid(timeMs, consensusSettings.produceInterval))
+    val slot = timeMs / consensusSettings.produceInterval
+    var index = slot % (consensusSettings.witnessNum * consensusSettings.producerRepetitions)
+    (index + 1) % consensusSettings.producerRepetitions == 0
   }
 
   def isProducerValid(timeStamp: Long, producer: UInt160): Boolean = {

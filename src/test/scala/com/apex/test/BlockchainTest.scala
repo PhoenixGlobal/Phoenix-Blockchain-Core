@@ -6,7 +6,7 @@ import com.apex.consensus.ProducerUtil
 import com.apex.core._
 import com.apex.crypto.{BinaryData, Crypto, Ecdsa, FixedNumber, MerkleTree, UInt160, UInt256}
 import com.apex.crypto.Ecdsa.{PrivateKey, PublicKey}
-import com.apex.settings.{RuntimeParas, _}
+import com.apex.settings.{ConsensusSettings, RuntimeParas, _}
 import com.apex.solidity.Abi
 import com.apex.vm.DataWord
 import org.junit.{AfterClass, Test}
@@ -96,7 +96,8 @@ class BlockchainTest {
     new PrivateKey(BinaryData("db71fe7c0ac4ca3e8cef95bf55cf535eaa8fe0c80d18e0cb19af8d7071b8a184")),
     new PrivateKey(BinaryData("9456beec947b368eda4be03f6c306703d9b2eda49f661285944b4e1f07ae18f3"))     ))
 
-  val _consensusSettings = ConsensusSettings(_produceInterval, 500, 1, 4, 63000, Array(_witness1, _witness2, _witness3, _witness4))
+  val _consensusSettings  = ConsensusSettings(_produceInterval, 500, 1, 4, 63000, Array(_witness1, _witness2, _witness3, _witness4))
+  val _consensusSettings2 = ConsensusSettings(_produceInterval, 500, 3, 4, 63000, Array(_witness1, _witness2, _witness3, _witness4))
 
   val _runtimeParas = RuntimeParas(100, 9000000)
 
@@ -177,7 +178,8 @@ class BlockchainTest {
     chain.startProduceBlock(witness, _miners.findPrivKey(witness).get, blockTime, stopProcessTxTime)
   }
 
-  private def createChain(path: String): LevelDBBlockchain = {
+  private def createChain(path: String,
+                          consensusSettings: ConsensusSettings = _consensusSettings): LevelDBBlockchain = {
     val baseDir = s"BlockchainTest/$path"
     val chainSetting = ChainSettings(
       BlockBaseSettings(s"$baseDir/block", false, 0, DBType.LevelDB),
@@ -192,13 +194,34 @@ class BlockchainTest {
       )
     )
 
-    Blockchain.populate(chainSetting, _consensusSettings, _runtimeParas, Notification())
+    Blockchain.populate(chainSetting, consensusSettings, _runtimeParas, Notification())
   }
 
   private def sleepTo(time: Long) = {
     val nowTime = Instant.now.toEpochMilli
     if (time > nowTime)
       Thread.sleep(time - nowTime)
+  }
+
+  @Test
+  def testIsLastBlockOfProducer(): Unit = {
+    def doTestIsLastBlockOfProducer(chain: LevelDBBlockchain): Unit = {
+      var nowTime = Instant.now.toEpochMilli
+      var blockTime = ProducerUtil.nextBlockTime(chain.getHeadTime(), nowTime, _produceInterval / 10, _produceInterval)
+      for (i <- 0 to 50) {
+        blockTime += _produceInterval
+        if (chain.getWitness(blockTime).equals(chain.getWitness(blockTime + _produceInterval))) {
+          //println("dd")
+          assert(!chain.isLastBlockOfProducer(blockTime))
+        }
+        else {
+          //println("dddddd")
+          assert(chain.isLastBlockOfProducer(blockTime))
+        }
+      }
+    }
+    doTestIsLastBlockOfProducer(createChain("testIsLastBlockOfProducer", _consensusSettings))
+    doTestIsLastBlockOfProducer(createChain("testIsLastBlockOfProducer2", _consensusSettings2))
   }
 
   @Test

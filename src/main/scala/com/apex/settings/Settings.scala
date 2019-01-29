@@ -114,6 +114,7 @@ case class ConsensusSettings(produceInterval: Int,
                              initialWitness: Array[Witness]) {
 
   require(initialWitness.size == witnessNum)
+  require(electeTime >= witnessNum * producerRepetitions * produceInterval)
 
   def fingerprint(): BinaryData = {
     val bs = new ByteArrayOutputStream()
