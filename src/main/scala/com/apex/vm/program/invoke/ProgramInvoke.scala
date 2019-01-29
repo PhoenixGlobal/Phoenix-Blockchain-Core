@@ -25,7 +25,7 @@
 
 package com.apex.vm.program.invoke
 
-import com.apex.core.{BlockBase, DataBase}
+import com.apex.core.{BlockBase, Blockchain, DataBase}
 import com.apex.vm.DataWord
 
 trait ProgramInvoke {
@@ -75,4 +75,6 @@ trait ProgramInvoke {
   def getBlockStore: BlockBase
 
   def isStaticCall: Boolean
+
+  def getChain: Blockchain
 }

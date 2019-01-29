@@ -26,7 +26,8 @@ class TransactionExecutor(val tx: Transaction,
                           val track: DataBase,
                           val stopTime: Long,
                           val timeStamp: Long,
-                          val blockIndex: Long) {
+                          val blockIndex: Long,
+                          val chain: Blockchain) {
   //this.m_endGas = toBI(tx.getGasLimit)
   //this.vmHook = if (isNull(vmHook)) VMHook.EMPTY else vmHook
   //withCommonConfig(CommonConfig.getDefault)
@@ -157,18 +158,20 @@ class TransactionExecutor(val tx: Transaction,
       DataWord.of(if (tx.isContractCreation()) tx.getContractAddress().get.data else tx.toPubKeyHash.data),
       DataWord.of(tx.sender().data),
       DataWord.of(tx.sender().data),
-      DataWord.ZERO,
+      DataWord.ZERO,            // balance
       DataWord.of(tx.gasPrice.value),
       DataWord.of(tx.gasLimit),
-      DataWord.ZERO,
-      data, // msgData
-      DataWord.ZERO,
-      DataWord.of(coinbase),
-      DataWord.of(timeStamp),
-      DataWord.of(blockIndex),
-      cacheTrack,
-      track,
-      null)
+      DataWord.ZERO,            // callValue
+      data,                     // msgData
+      DataWord.ZERO,            // lastHash
+      DataWord.of(coinbase),    // coinbase
+      DataWord.of(timeStamp),   // timestamp
+      DataWord.of(blockIndex),  // number
+      cacheTrack,               // dataBase
+      track,                    // origDataBase
+      null,    
+      chain                     // chain
+    )
   }
 
   private def create(): Unit = {

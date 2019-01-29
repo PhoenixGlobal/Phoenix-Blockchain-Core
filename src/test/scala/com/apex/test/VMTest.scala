@@ -266,7 +266,8 @@ object VMTest {
     (contract, result)
   }
 
-  def call(dataBase: DataBase, caller: UInt160, contract: UInt160, code: Array[Byte], signature: Array[Byte], value: Int = 0, gasLimit: Long = Int.MaxValue) = {
+  def call(dataBase: DataBase, caller: UInt160, contract: UInt160, code: Array[Byte],
+           signature: Array[Byte], value: Int = 0, gasLimit: Long = Int.MaxValue) = {
     val tracking = dataBase.startTracking()
     if (value > 0) {
       tracking.transfer(caller, contract, value)
@@ -283,7 +284,8 @@ object VMTest {
     result
   }
 
-  def createInvoker(tracking: DataBase, origin: DataBase, caller: UInt160, contract: UInt160, data: Array[Byte], value: Int, gasLimit: Long): ProgramInvoke = {
+  def createInvoker(tracking: DataBase, origin: DataBase, caller: UInt160, contract: UInt160,
+                    data: Array[Byte], value: Int, gasLimit: Long): ProgramInvoke = {
     new ProgramInvokeImpl(
       DataWord.of(contract),
       DataWord.of(caller),
@@ -299,6 +301,7 @@ object VMTest {
       DataWord.ZERO,
       tracking,
       origin,
+      null,
       null)
   }
 

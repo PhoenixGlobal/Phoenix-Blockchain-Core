@@ -460,7 +460,8 @@ class Blockchain(chainSettings: ChainSettings,
 
     var applied = false
 
-    val executor = new TransactionExecutor(tx, blockProducer, dataBase, stopTime, timeStamp, blockIndex)
+    val executor = new TransactionExecutor(tx, blockProducer, dataBase, stopTime,
+                                           timeStamp, blockIndex, this)
 
     executor.init()
     executor.execute()

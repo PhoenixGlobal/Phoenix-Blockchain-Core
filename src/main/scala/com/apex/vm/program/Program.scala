@@ -224,13 +224,11 @@ class Program(settings: ContractSettings,
 
   def getOwnerAddress: DataWord = invoke.getOwnerAddress
 
-  def getBlockHash(index: Int): DataWord = {
-    //    if (index < getNumber.longValue && index >= Math.max(256, this.getNumber.intValue) - 256) {
-    //      DataWord.of(invoke.getBlockStore.getBlockHashByNumber(index, getPrevHash.getData))
-    //    } else {
-    //      DataWord.ZERO
-    //    }
-    throw new NotImplementedError
+  def getBlockHash(index: Long): DataWord = {
+    if (index < getNumber.longValue)
+      DataWord.of(invoke.getChain.getBlock(index).get.id())
+    else
+      DataWord.ZERO
   }
 
   def getBalance(address: DataWord): DataWord = {
@@ -355,7 +353,7 @@ class Program(settings: ContractSettings,
       DataWord.of(newAddress), getOriginAddress, getOwnerAddress,
       DataWord.of(newBalance), getGas, getGasPrice, value, null,
       getPrevHash, getCoinbase, getTimestamp, getNumber,
-      track, invoke.getOrigDataBase, invoke.getBlockStore,
+      track, invoke.getOrigDataBase, invoke.getBlockStore, invoke.getChain,
       getCallDeep + 1, false, byTestingSuite)
 
     if (contractAlreadyExists) {
@@ -636,7 +634,7 @@ class Program(settings: ContractSettings,
             DataWord.of(contextAddress), getOriginAddress, callerAddress,
             DataWord.of(contextBalance), msg.gas, getGasPrice, callValue,
             data, getPrevHash, getCoinbase, getTimestamp, getNumber,
-            track, invoke.getOrigDataBase, invoke.getBlockStore,
+            track, invoke.getOrigDataBase, invoke.getBlockStore, invoke.getChain,
             getCallDeep + 1, op.callIsStatic || isStaticCall, byTestingSuite)
           val program = new Program(settings, programCode, programInvoke, stopTime)
           val result = VM.play(settings, vmHook, program)

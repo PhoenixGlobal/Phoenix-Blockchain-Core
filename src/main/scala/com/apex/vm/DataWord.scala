@@ -28,7 +28,7 @@ package com.apex.vm
 import java.util
 import java.util.Arrays
 
-import com.apex.crypto.UInt160
+import com.apex.crypto.{UInt160, UInt256}
 import org.spongycastle.util.encoders.{Hex, HexEncoder}
 
 class DataWord(val data: Array[Byte]) {
@@ -393,6 +393,10 @@ object DataWord {
   }
 
   def of(data: UInt160): DataWord = {
+    of(data.data)
+  }
+
+  def of(data: UInt256): DataWord = {
     of(data.data)
   }
 

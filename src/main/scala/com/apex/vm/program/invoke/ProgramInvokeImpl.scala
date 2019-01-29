@@ -10,7 +10,7 @@
 
 package com.apex.vm.program.invoke
 
-import com.apex.core.{BlockBase, DataBase}
+import com.apex.core.{BlockBase, DataBase, Blockchain}
 import com.apex.vm.DataWord
 
 class ProgramInvokeImpl(address: DataWord,
@@ -28,6 +28,7 @@ class ProgramInvokeImpl(address: DataWord,
                         dataBase: DataBase,
                         origDataBase: DataBase,
                         blockStore: BlockBase,
+                        chain: Blockchain,
                         callDeep: Int = 0,
                         staticCall: Boolean = false,
                         testingSuite: Boolean = false,
@@ -147,4 +148,6 @@ class ProgramInvokeImpl(address: DataWord,
   override def getOrigDataBase: DataBase = origDataBase
 
   override def getBlockStore: BlockBase = blockStore
+
+  override def getChain: Blockchain = chain
 }
