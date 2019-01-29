@@ -65,6 +65,8 @@ trait Blockchain extends Iterable[Block] with ApexLogging {
 
   def getBalance(address: UInt160): Option[FixedNumber]
 
+  def getBalance(privKey: PrivateKey): Option[FixedNumber]
+
   def getAccount(address: UInt160): Option[Account]
 
   def getWitness(timeMs: Long): UInt160
@@ -689,6 +691,10 @@ class LevelDBBlockchain(chainSettings: ChainSettings,
     dataBase.getBalance(address)
   }
 
+  override def getBalance(privKey: PrivateKey): Option[FixedNumber] = {
+    getBalance(privKey.publicKey.pubKeyHash)
+  }
+
   override def getAccount(address: UInt160): Option[Account] = {
     dataBase.getAccount(address)
   }
@@ -787,6 +793,7 @@ class LevelDBBlockchain(chainSettings: ChainSettings,
 
     var appliedCount = 0
     for (item <- to if applyBlock(item.block)) {
+      dataBase.commit()
       appliedCount += 1
     }
 
@@ -853,7 +860,7 @@ class LevelDBBlockchain(chainSettings: ChainSettings,
       case "pending" => {
         dataBase.getPendingWitnessList().get
       }
-      case "previous" =>{
+      case "previous" => {
         dataBase.getPreviousWitnessList().get
       }
       case _ => null

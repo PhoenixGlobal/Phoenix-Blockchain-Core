@@ -535,10 +535,6 @@ class ForkBase(settings: ForkBaseSettings,
     })
   }
 
-  def setWitnessList(wl: WitnessList) = {
-
-  }
-
   def close(): Unit = {
     db.close()
   }

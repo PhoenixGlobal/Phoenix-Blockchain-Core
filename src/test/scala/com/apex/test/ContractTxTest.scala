@@ -107,18 +107,6 @@ class ContractTxTest {
 
   private val minerCoinFrom = UInt160.Zero
 
-  private def makeTx(from: PrivateKey,
-                     to: UInt160,
-                     amount: FixedNumber,
-                     nonce: Long,
-                     txType: TransactionType.Value = TransactionType.Transfer) = {
-
-    val tx = new Transaction(txType, from.publicKey.pubKeyHash, to, "",
-      amount, nonce, BinaryData.empty, FixedNumber.Zero, 0, BinaryData.empty)
-    tx.sign(from)
-    tx
-  }
-
   private def createChain(path: String): LevelDBBlockchain = {
     val baseDir = s"ContractTxTest/$path"
     val chainSetting = ChainSettings(
@@ -145,8 +133,7 @@ class ContractTxTest {
 
       assert(chain.getHeight() == 0)
 
-      val balance1 = chain.getBalance(_acct1.publicKey.pubKeyHash)
-      assert(balance1.get == FixedNumber.fromDecimal(123.12))
+      assert(chain.getBalance(_acct1).get == FixedNumber.fromDecimal(123.12))
 
       var nowTime = Instant.now.toEpochMilli
       var blockTime = ProducerUtil.nextBlockTime(chain.getHeadTime(), nowTime, _produceInterval / 10, _produceInterval) //  chain.getHeadTime() + _consensusSettings.produceInterval
@@ -211,7 +198,7 @@ class ContractTxTest {
 
       assert(DataWord.of(receipt.output).longValue == 123)
 
-      assert(chain.getBalance(_acct1.publicKey.pubKeyHash).get == FixedNumber.fromDecimal(123.12))
+      assert(chain.getBalance(_acct1).get == FixedNumber.fromDecimal(123.12))
       assert(chain.getBalance(producer).get == FixedNumber.fromDecimal(12.3))
 
       getTx = new Transaction(TransactionType.Call, _acct1.publicKey.pubKeyHash,
@@ -221,7 +208,7 @@ class ContractTxTest {
       receipt = chain.getReceipt(getTx.id()).get
       assert(receipt.error.contains("Not enough gas"))
       // Fee = 0.000021539
-      assert(chain.getBalance(_acct1.publicKey.pubKeyHash).get == FixedNumber.fromDecimal(123.119978461))
+      assert(chain.getBalance(_acct1).get == FixedNumber.fromDecimal(123.119978461))
       assert(chain.getBalance(producer).get == FixedNumber.fromDecimal(12.300021539))
 
     }
@@ -237,8 +224,7 @@ class ContractTxTest {
 
       assert(chain.getHeight() == 0)
 
-      val balance1 = chain.getBalance(_acct1.publicKey.pubKeyHash)
-      assert(balance1.get == FixedNumber.fromDecimal(123.12))
+      assert(chain.getBalance(_acct1).get == FixedNumber.fromDecimal(123.12))
 
       var nowTime = Instant.now.toEpochMilli
       var blockTime = ProducerUtil.nextBlockTime(chain.getHeadTime(), nowTime, _produceInterval / 10, _produceInterval) //  chain.getHeadTime() + _consensusSettings.produceInterval
