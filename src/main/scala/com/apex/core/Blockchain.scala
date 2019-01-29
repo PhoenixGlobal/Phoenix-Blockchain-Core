@@ -16,78 +16,14 @@ import scala.collection.mutable.{ArrayBuffer, Set}
 
 case class ChainInfo(id: String)
 
-trait Blockchain extends Iterable[Block] with ApexLogging {
-  def getChainInfo(): ChainInfo
-
-  def getLatestHeader(): BlockHeader
-
-  def getHeight(): Long
-
-  def getHeadTime(): Long
-
-  def headTimeSinceGenesis(): Long
-
-  def getHeader(id: UInt256): Option[BlockHeader]
-
-  def getHeader(index: Long): Option[BlockHeader]
-
-  def getNextBlockId(id: UInt256): Option[UInt256]
-
-  def getBlock(height: Long): Option[Block]
-
-  def getBlock(id: UInt256): Option[Block]
-
-  //def getBlockInForkBase(id: UInt256): Option[Block]
-
-  def containsBlock(id: UInt256): Boolean
-
-  //  def produceBlock(producer: PublicKey, privateKey: PrivateKey, timeStamp: Long,
-  //                   transactions: Seq[Transaction]): Option[Block]
-
-  def startProduceBlock(producer: UInt160, privKey: PrivateKey, blockTime: Long, stopProcessTxTime: Long): Unit
-
-  def addTransaction(tx: Transaction): Boolean
-
-  def produceBlockFinalize(): Option[Block]
-
-  def isProducingBlock(): Boolean
-
-  def tryInsertBlock(block: Block, doApply: Boolean): Boolean
-
-  //
-  //  def getTransaction(id: UInt256): Option[Transaction]
-  //
-  //  def containsTransaction(id: UInt256): Boolean
-
-  //def verifyBlock(block: Block): Boolean
-
-  //def verifyTransaction(tx: Transaction): Boolean
-
-  def getBalance(address: UInt160): Option[FixedNumber]
-
-  def getBalance(privKey: PrivateKey): Option[FixedNumber]
-
-  def getAccount(address: UInt160): Option[Account]
-
-  def getWitness(timeMs: Long): UInt160
-
-  def Id: String
-
-  def close()
-}
-
 object Blockchain {
-  //private var chain: LevelDBBlockchain = null
 
-  //  final val Current: Blockchain = new LevelDBBlockchain()
-  def populate(chainSettings: ChainSettings,
-               consensusSettings: ConsensusSettings,
-               runtimeParas: RuntimeParas,
-               notification: Notification): LevelDBBlockchain = {
-    new LevelDBBlockchain(chainSettings, consensusSettings, runtimeParas, notification)
-  }
-
-  //def getLevelDBBlockchain: LevelDBBlockchain = chain
+  //  def populate(chainSettings: ChainSettings,
+  //               consensusSettings: ConsensusSettings,
+  //               runtimeParas: RuntimeParas,
+  //               notification: Notification): Blockchain = {
+  //    new Blockchain(chainSettings, consensusSettings, runtimeParas, notification)
+  //  }
 }
 
 class PendingState {
@@ -111,12 +47,12 @@ class PendingState {
   }
 }
 
-class LevelDBBlockchain(chainSettings: ChainSettings,
-                        consensusSettings: ConsensusSettings,
-                        runtimeParas: RuntimeParas,
-                        notification: Notification) extends Blockchain {
+class Blockchain(chainSettings: ChainSettings,
+                 consensusSettings: ConsensusSettings,
+                 runtimeParas: RuntimeParas,
+                 notification: Notification) extends Iterable[Block] with ApexLogging {
 
-  log.info("LevelDBBlockchain starting")
+  log.info("Blockchain starting")
 
   private val genesisProducerPrivKey = new PrivateKey(BinaryData(chainSettings.genesis.privateKey))
 
@@ -180,11 +116,11 @@ class LevelDBBlockchain(chainSettings: ChainSettings,
     Block.build(genesisBlockHeader, genesisTxs)
   }
 
-  override def Id: String = genesisBlock.id.toString
+  def Id: String = genesisBlock.id.toString
 
   override def iterator: Iterator[Block] = new BlockchainIterator(this)
 
-  override def close() = {
+  def close() = {
     log.info("blockchain closing")
     blockBase.close()
     dataBase.close()
@@ -193,19 +129,19 @@ class LevelDBBlockchain(chainSettings: ChainSettings,
     log.info("blockchain closed")
   }
 
-  override def getChainInfo(): ChainInfo = {
+  def getChainInfo(): ChainInfo = {
     ChainInfo(genesisBlock.id.toString)
   }
 
-  override def getHeight(): Long = {
+  def getHeight(): Long = {
     forkBase.head.map(_.block.height).getOrElse(genesisBlock.height)
   }
 
-  override def getHeadTime(): Long = {
+  def getHeadTime(): Long = {
     forkBase.head.map(_.block.timeStamp).getOrElse(0)
   }
 
-  override def getLatestHeader(): BlockHeader = {
+  def getLatestHeader(): BlockHeader = {
     forkBase.head.map(_.block.header).getOrElse(genesisBlock.header)
   }
 
@@ -213,19 +149,19 @@ class LevelDBBlockchain(chainSettings: ChainSettings,
     blockBase.head()
   }
 
-  override def headTimeSinceGenesis(): Long = {
+  def headTimeSinceGenesis(): Long = {
     getLatestHeader.timeStamp - genesisBlock.header.timeStamp
   }
 
-  override def getHeader(id: UInt256): Option[BlockHeader] = {
+  def getHeader(id: UInt256): Option[BlockHeader] = {
     forkBase.get(id).map(_.block.header).orElse(blockBase.getBlock(id).map(_.header))
   }
 
-  override def getHeader(height: Long): Option[BlockHeader] = {
+  def getHeader(height: Long): Option[BlockHeader] = {
     forkBase.get(height).map(_.block.header).orElse(blockBase.getBlock(height).map(_.header))
   }
 
-  override def getNextBlockId(id: UInt256): Option[UInt256] = {
+  def getNextBlockId(id: UInt256): Option[UInt256] = {
     var target: Option[UInt256] = None
     val block = getBlock(id)
     if (block.isDefined) {
@@ -239,15 +175,15 @@ class LevelDBBlockchain(chainSettings: ChainSettings,
     target
   }
 
-  override def getBlock(id: UInt256): Option[Block] = {
+  def getBlock(id: UInt256): Option[Block] = {
     forkBase.get(id).map(_.block).orElse(blockBase.getBlock(id))
   }
 
-  override def getBlock(height: Long): Option[Block] = {
+  def getBlock(height: Long): Option[Block] = {
     forkBase.get(height).map(_.block).orElse(blockBase.getBlock(height))
   }
 
-  override def containsBlock(id: UInt256): Boolean = {
+  def containsBlock(id: UInt256): Boolean = {
     forkBase.contains(id) || blockBase.containBlock(id)
   }
 
@@ -267,7 +203,7 @@ class LevelDBBlockchain(chainSettings: ChainSettings,
     unapplyTxs.get(txid)
   }
 
-  override def startProduceBlock(producer: UInt160, privKey: PrivateKey, blockTime: Long, stopProcessTxTime: Long): Unit = {
+  def startProduceBlock(producer: UInt160, privKey: PrivateKey, blockTime: Long, stopProcessTxTime: Long): Unit = {
     require(!isProducingBlock())
     val forkHead = forkBase.head.get
     pendingState.set(producer, privKey, blockTime, stopProcessTxTime, forkHead.block.height + 1)
@@ -319,7 +255,7 @@ class LevelDBBlockchain(chainSettings: ChainSettings,
     //    }
   }
 
-  override def isProducingBlock(): Boolean = {
+  def isProducingBlock(): Boolean = {
     pendingState.isProducingBlock
   }
 
@@ -330,7 +266,7 @@ class LevelDBBlockchain(chainSettings: ChainSettings,
     true // always true
   }
 
-  override def addTransaction(tx: Transaction): Boolean = {
+  def addTransaction(tx: Transaction): Boolean = {
     var added = false
     if (tx.gasLimit > runtimeParas.txAcceptGasLimit) {
       added = false
@@ -354,7 +290,7 @@ class LevelDBBlockchain(chainSettings: ChainSettings,
     added
   }
 
-  override def produceBlockFinalize(): Option[Block] = {
+  def produceBlockFinalize(): Option[Block] = {
     val endTime = Instant.now.toEpochMilli
     if (!isProducingBlock()) {
       log.info("block canceled")
@@ -390,7 +326,7 @@ class LevelDBBlockchain(chainSettings: ChainSettings,
     dataBase.rollBack()
   }
 
-  override def tryInsertBlock(block: Block, doApply: Boolean): Boolean = {
+  def tryInsertBlock(block: Block, doApply: Boolean): Boolean = {
     var inserted = false
     if (isProducingBlock())
       stopProduceBlock()
@@ -435,6 +371,7 @@ class LevelDBBlockchain(chainSettings: ChainSettings,
       mCurWitnessList.get
     else
       mPrevWitnessList.get
+    // TODO: mPendingWitnessList
   }
 
   private def checkUpdateWitnessList(curblock: Block) = {
@@ -684,15 +621,15 @@ class LevelDBBlockchain(chainSettings: ChainSettings,
     isValid
   }
 
-  override def getBalance(address: UInt160): Option[FixedNumber] = {
+  def getBalance(address: UInt160): Option[FixedNumber] = {
     dataBase.getBalance(address)
   }
 
-  override def getBalance(privKey: PrivateKey): Option[FixedNumber] = {
+  def getBalance(privKey: PrivateKey): Option[FixedNumber] = {
     getBalance(privKey.publicKey.pubKeyHash)
   }
 
-  override def getAccount(address: UInt160): Option[Account] = {
+  def getAccount(address: UInt160): Option[Account] = {
     dataBase.getAccount(address)
   }
 
@@ -820,7 +757,7 @@ class LevelDBBlockchain(chainSettings: ChainSettings,
   }
 
   // "timeMs": time from 1970 in ms, should be divided evenly with no remainder by settings.produceInterval
-  override def getWitness(timeMs: Long): UInt160 = {
+  def getWitness(timeMs: Long): UInt160 = {
     require(ProducerUtil.isTimeStampValid(timeMs, consensusSettings.produceInterval))
     require(timeMs > getBlock(mCurWitnessList.get.generateInBlock).get.timeStamp())
     val slot = timeMs / consensusSettings.produceInterval

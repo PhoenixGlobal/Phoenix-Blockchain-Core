@@ -11,7 +11,7 @@ import com.apex.settings._
 import scala.collection.mutable.ArrayBuffer
 
 class BlockChainPrepare {
-  var  chain: LevelDBBlockchain = _
+  var  chain: Blockchain = _
   val _produceInterval = 500
 
   val _minerAward: Double = 12.3
@@ -87,7 +87,7 @@ class BlockChainPrepare {
     Block.build(header, allTxs)
   }
 
-  private def makeBlockByTime(chain: LevelDBBlockchain, preBlock: Block,
+  private def makeBlockByTime(chain: Blockchain, preBlock: Block,
                               //txs: Seq[Transaction],
                               blockTime: Long): Block = {
     //val blockTime = preBlock.header.timeStamp + _consensusSettings.produceInterval
@@ -111,7 +111,7 @@ class BlockChainPrepare {
     Block.build(header, allTxs)
   }
 
-  private def startProduceBlock(chain: LevelDBBlockchain, blockTime: Long, stopProcessTxTime: Long) = {
+  private def startProduceBlock(chain: Blockchain, blockTime: Long, stopProcessTxTime: Long) = {
 
     val witness = chain.getWitness(blockTime)
     chain.startProduceBlock(witness, _miners.findPrivKey(witness).get, blockTime, stopProcessTxTime)
@@ -130,7 +130,7 @@ class BlockChainPrepare {
           CoinAirdrop(_acct2.publicKey.address, 234.2))
       )
     )
-    chain = Blockchain.populate(chainSetting, _consensusSettings, _runtimeParas, Notification())
+    chain = new Blockchain(chainSetting, _consensusSettings, _runtimeParas, Notification())
     f
   }
 

@@ -123,7 +123,7 @@ class BlockchainTest {
     tx
   }
 
-  private def makeBlock(chain: LevelDBBlockchain,
+  private def makeBlock(chain: Blockchain,
                         preBlock: Block,
                         txs: Seq[Transaction],
                         award: Double = _minerAward): Block = {
@@ -148,7 +148,7 @@ class BlockchainTest {
     Block.build(header, allTxs)
   }
 
-  private def makeBlockByTime(chain: LevelDBBlockchain, preBlock: Block,
+  private def makeBlockByTime(chain: Blockchain, preBlock: Block,
                         //txs: Seq[Transaction],
                          blockTime: Long): Block = {
     //val blockTime = preBlock.header.timeStamp + _consensusSettings.produceInterval
@@ -172,14 +172,14 @@ class BlockchainTest {
     Block.build(header, allTxs)
   }
 
-  private def startProduceBlock(chain: LevelDBBlockchain, blockTime: Long, stopProcessTxTime: Long) = {
+  private def startProduceBlock(chain: Blockchain, blockTime: Long, stopProcessTxTime: Long) = {
 
     val witness = chain.getWitness(blockTime)
     chain.startProduceBlock(witness, _miners.findPrivKey(witness).get, blockTime, stopProcessTxTime)
   }
 
   private def createChain(path: String,
-                          consensusSettings: ConsensusSettings = _consensusSettings): LevelDBBlockchain = {
+                          consensusSettings: ConsensusSettings = _consensusSettings): Blockchain = {
     val baseDir = s"BlockchainTest/$path"
     val chainSetting = ChainSettings(
       BlockBaseSettings(s"$baseDir/block", false, 0, DBType.LevelDB),
@@ -194,7 +194,7 @@ class BlockchainTest {
       )
     )
 
-    Blockchain.populate(chainSetting, consensusSettings, _runtimeParas, Notification())
+    new Blockchain(chainSetting, consensusSettings, _runtimeParas, Notification())
   }
 
   private def sleepTo(time: Long) = {
@@ -205,7 +205,7 @@ class BlockchainTest {
 
   @Test
   def testIsLastBlockOfProducer(): Unit = {
-    def doTestIsLastBlockOfProducer(chain: LevelDBBlockchain): Unit = {
+    def doTestIsLastBlockOfProducer(chain: Blockchain): Unit = {
       var nowTime = Instant.now.toEpochMilli
       var blockTime = ProducerUtil.nextBlockTime(chain.getHeadTime(), nowTime, _produceInterval / 10, _produceInterval)
       for (i <- 0 to 50) {

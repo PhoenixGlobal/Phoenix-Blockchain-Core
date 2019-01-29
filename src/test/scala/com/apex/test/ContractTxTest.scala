@@ -107,7 +107,7 @@ class ContractTxTest {
 
   private val minerCoinFrom = UInt160.Zero
 
-  private def createChain(path: String): LevelDBBlockchain = {
+  private def createChain(path: String): Blockchain = {
     val baseDir = s"ContractTxTest/$path"
     val chainSetting = ChainSettings(
       BlockBaseSettings(s"$baseDir/block", false, 0, DBType.LevelDB),
@@ -123,7 +123,7 @@ class ContractTxTest {
       )
     )
 
-    Blockchain.populate(chainSetting, _consensusSettings, _runtimeParas, Notification())
+    new Blockchain(chainSetting, _consensusSettings, _runtimeParas, Notification())
   }
 
   @Test
