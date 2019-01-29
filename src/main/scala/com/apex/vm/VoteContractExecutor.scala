@@ -129,7 +129,7 @@ object VoteContractExecutor {
         val newWitness = witness.get.copy(voteCounts = witness.get.voteCounts - voteData.voterCount)
         track.createWitness(newWitness)
       }
-      track.getVote(tx.from).fold()(
+      track.getVote(tx.from).fold({})(
         vote =>{
           val newVote = vote.updateTargetCounter(voteData.candidate, -voteData.voterCount)
           track.createVote(vote.voter, newVote)
