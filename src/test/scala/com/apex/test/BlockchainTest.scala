@@ -579,10 +579,6 @@ class BlockchainTest {
 
       sleepTo(blockTime)
       val block1 = chain.produceBlockFinalize()
-      assert(block1.isDefined)
-      assert(!chain.isProducingBlock())
-      assert(chain.getHeight() == 1)
-      assert(chain.getHeadTime() == blockTime)
       assert(chain.head.id() == block1.get.id())
       assert(chain.getBalance(_acct1).get == FixedNumber.fromDecimal(113.12))
       assert(chain.getBalance(_acct2).get == FixedNumber.fromDecimal(244.2))
@@ -635,6 +631,227 @@ class BlockchainTest {
       assert(chain.getLatestHeader().id() == block4A.id())
       assert(chain.getBalance(_acct1).get == FixedNumber.fromDecimal(72.12))
       assert(chain.getBalance(_acct2).get == FixedNumber.fromDecimal(285.2))
+
+    }
+    finally {
+      chain.close()
+    }
+  }
+
+  @Test
+  def testChainFork4(): Unit = {
+    val chain = createChain("testChainFork4")
+    try {
+      assert(chain.getHeight() == 0)
+      assert(chain.getBalance(_acct1).get == FixedNumber.fromDecimal(123.12))
+      assert(chain.getBalance(_acct2).get == FixedNumber.fromDecimal(234.2))
+
+      var nowTime = Instant.now.toEpochMilli
+      var blockTime = ProducerUtil.nextBlockTime(chain.getHeadTime(), nowTime, _produceInterval / 10, _produceInterval) //  chain.getHeadTime() + _consensusSettings.produceInterval
+      sleepTo(blockTime)
+      nowTime = Instant.now.toEpochMilli
+      blockTime += _produceInterval
+      startProduceBlock(chain, blockTime, Long.MaxValue)
+
+      assert(chain.isProducingBlock())
+      assert(chain.addTransaction(makeTx(_acct1, _acct2, FixedNumber.fromDecimal(10), 0)))
+
+      sleepTo(blockTime)
+      val block1 = chain.produceBlockFinalize()
+      assert(chain.head.id() == block1.get.id())
+      assert(chain.getBalance(_acct1).get == FixedNumber.fromDecimal(113.12))
+      assert(chain.getBalance(_acct2).get == FixedNumber.fromDecimal(244.2))
+
+      /*
+      *
+      *    0 ---> 1 ---> 2A
+      *           |
+      *           └----> 2B ---> 3B
+      *           |
+      *           └----> 2C ---> 3C  ---> 4C
+      * */
+
+      val block2A = makeBlock(chain, block1.get, Seq(makeTx(_acct1, _acct2, FixedNumber.fromDecimal(11), 1)))
+      assert(tryInsertBlock(chain, block2A))
+
+      assert(chain.head.id() == block2A.id())
+      assert(chain.getLatestHeader().id() == block2A.id())
+      assert(chain.getBalance(_acct1).get == FixedNumber.fromDecimal(102.12))
+      assert(chain.getBalance(_acct2).get == FixedNumber.fromDecimal(255.2))
+
+      val block2B = makeBlock(chain, block1.get, Seq(makeTx(_acct1, _acct2, FixedNumber.fromDecimal(12), 1)))
+      assert(tryInsertBlock(chain, block2B))
+
+      assert(chain.head.id() == block2A.id())
+      assert(chain.getLatestHeader().id() == block2A.id())
+      assert(chain.getBalance(_acct1).get == FixedNumber.fromDecimal(102.12))
+      assert(chain.getBalance(_acct2).get == FixedNumber.fromDecimal(255.2))
+
+      val block3B = makeBlock(chain, block2B, Seq(makeTx(_acct1, _acct2, FixedNumber.fromDecimal(13), 2)))
+      assert(tryInsertBlock(chain, block3B))
+
+      assert(chain.head.id() == block3B.id())
+      assert(chain.getLatestHeader().id() == block3B.id())
+      assert(chain.getBalance(_acct1).get == FixedNumber.fromDecimal(88.12))
+      assert(chain.getBalance(_acct2).get == FixedNumber.fromDecimal(269.2))
+
+      val block2C = makeBlock(chain, block1.get, Seq(makeTx(_acct1, _acct2, FixedNumber.fromDecimal(14), 1)))
+      assert(tryInsertBlock(chain, block2C))
+
+      val block3C = makeBlock(chain, block2C, Seq(makeTx(_acct1, _acct2, FixedNumber.fromDecimal(15), 2)))
+      assert(tryInsertBlock(chain, block3C))
+
+      assert(chain.head.id() == block3B.id())
+      assert(chain.getLatestHeader().id() == block3B.id())
+      assert(chain.getBalance(_acct1).get == FixedNumber.fromDecimal(88.12))
+      assert(chain.getBalance(_acct2).get == FixedNumber.fromDecimal(269.2))
+
+      val block4C = makeBlock(chain, block3C, Seq(makeTx(_acct1, _acct2, FixedNumber.fromDecimal(16), 3)))
+      assert(tryInsertBlock(chain, block4C))
+
+      assert(chain.head.id() == block4C.id())
+      assert(chain.getLatestHeader().id() == block4C.id())
+      assert(chain.getBalance(_acct1).get == FixedNumber.fromDecimal(68.12))
+      assert(chain.getBalance(_acct2).get == FixedNumber.fromDecimal(289.2))
+    }
+    finally {
+      chain.close()
+    }
+  }
+
+  @Test
+  def testChainFork5(): Unit = {
+    val chain = createChain("testChainFork5")
+    try {
+      assert(chain.getHeight() == 0)
+      assert(chain.getBalance(_acct1).get == FixedNumber.fromDecimal(123.12))
+      assert(chain.getBalance(_acct2).get == FixedNumber.fromDecimal(234.2))
+
+      var nowTime = Instant.now.toEpochMilli
+      var blockTime = ProducerUtil.nextBlockTime(chain.getHeadTime(), nowTime, _produceInterval / 10, _produceInterval) //  chain.getHeadTime() + _consensusSettings.produceInterval
+      sleepTo(blockTime)
+      nowTime = Instant.now.toEpochMilli
+      blockTime += _produceInterval
+      startProduceBlock(chain, blockTime, Long.MaxValue)
+
+      assert(chain.isProducingBlock())
+      assert(chain.addTransaction(makeTx(_acct1, _acct2, FixedNumber.fromDecimal(10), 0)))
+
+      sleepTo(blockTime)
+      val block1 = chain.produceBlockFinalize()
+      assert(chain.head.id() == block1.get.id())
+      assert(chain.getBalance(_acct1).get == FixedNumber.fromDecimal(113.12))
+      assert(chain.getBalance(_acct2).get == FixedNumber.fromDecimal(244.2))
+
+      /*
+      *
+      *    0 ---> 1 ---> 2A
+      *           |
+      *           └----> 2B ---> 3B    <----  3B  invalid
+      *
+      * */
+
+      val block2A = makeBlock(chain, block1.get, Seq(makeTx(_acct1, _acct2, FixedNumber.fromDecimal(11), 1)))
+      assert(tryInsertBlock(chain, block2A))
+
+      assert(chain.head.id() == block2A.id())
+      assert(chain.getLatestHeader().id() == block2A.id())
+      assert(chain.getBalance(_acct1).get == FixedNumber.fromDecimal(102.12))
+      assert(chain.getBalance(_acct2).get == FixedNumber.fromDecimal(255.2))
+
+      val block2B = makeBlock(chain, block1.get, Seq(makeTx(_acct1, _acct2, FixedNumber.fromDecimal(12), 1)))
+      assert(tryInsertBlock(chain, block2B))
+
+      assert(chain.head.id() == block2A.id())
+      assert(chain.getLatestHeader().id() == block2A.id())
+      assert(chain.getBalance(_acct1).get == FixedNumber.fromDecimal(102.12))
+      assert(chain.getBalance(_acct2).get == FixedNumber.fromDecimal(255.2))
+
+      val block3B = makeBlock(chain, block2B, Seq(makeTx(_acct1, _acct2, FixedNumber.fromDecimal(9999), 2)))
+      assert(tryInsertBlock(chain, block3B))
+
+      assert(chain.head.id() == block2A.id())
+      assert(chain.getLatestHeader().id() == block2A.id())
+      assert(chain.getBalance(_acct1).get == FixedNumber.fromDecimal(102.12))
+      assert(chain.getBalance(_acct2).get == FixedNumber.fromDecimal(255.2))
+
+      val block3 = makeBlock(chain, block2A, Seq(makeTx(_acct1, _acct2, FixedNumber.fromDecimal(2), 2)))
+      assert(tryInsertBlock(chain, block3))
+
+      assert(chain.head.id() == block3.id())
+      assert(chain.getLatestHeader().id() == block3.id())
+      assert(chain.getBalance(_acct1).get == FixedNumber.fromDecimal(100.12))
+      assert(chain.getBalance(_acct2).get == FixedNumber.fromDecimal(257.2))
+
+    }
+    finally {
+      chain.close()
+    }
+  }
+
+  @Test
+  def testChainFork6(): Unit = {
+    val chain = createChain("testChainFork6")
+    try {
+      assert(chain.getHeight() == 0)
+      assert(chain.getBalance(_acct1).get == FixedNumber.fromDecimal(123.12))
+      assert(chain.getBalance(_acct2).get == FixedNumber.fromDecimal(234.2))
+
+      var nowTime = Instant.now.toEpochMilli
+      var blockTime = ProducerUtil.nextBlockTime(chain.getHeadTime(), nowTime, _produceInterval / 10, _produceInterval) //  chain.getHeadTime() + _consensusSettings.produceInterval
+      sleepTo(blockTime)
+      nowTime = Instant.now.toEpochMilli
+      blockTime += _produceInterval
+      startProduceBlock(chain, blockTime, Long.MaxValue)
+
+      assert(chain.isProducingBlock())
+      assert(chain.addTransaction(makeTx(_acct1, _acct2, FixedNumber.fromDecimal(10), 0)))
+
+      sleepTo(blockTime)
+      val block1 = chain.produceBlockFinalize()
+      assert(chain.head.id() == block1.get.id())
+      assert(chain.getBalance(_acct1).get == FixedNumber.fromDecimal(113.12))
+      assert(chain.getBalance(_acct2).get == FixedNumber.fromDecimal(244.2))
+
+      /*
+      *
+      *    0 ---> 1 ---> 2A
+      *           |
+      *           └----> 2B ---> 3B    <----  2B  invalid
+      *
+      * */
+
+      val block2A = makeBlock(chain, block1.get, Seq(makeTx(_acct1, _acct2, FixedNumber.fromDecimal(11), 1)))
+      assert(tryInsertBlock(chain, block2A))
+
+      assert(chain.head.id() == block2A.id())
+      assert(chain.getLatestHeader().id() == block2A.id())
+      assert(chain.getBalance(_acct1).get == FixedNumber.fromDecimal(102.12))
+      assert(chain.getBalance(_acct2).get == FixedNumber.fromDecimal(255.2))
+
+      val block2B = makeBlock(chain, block1.get, Seq(makeTx(_acct1, _acct2, FixedNumber.fromDecimal(99999), 1)))
+      assert(tryInsertBlock(chain, block2B))
+
+      assert(chain.head.id() == block2A.id())
+      assert(chain.getLatestHeader().id() == block2A.id())
+      assert(chain.getBalance(_acct1).get == FixedNumber.fromDecimal(102.12))
+      assert(chain.getBalance(_acct2).get == FixedNumber.fromDecimal(255.2))
+
+      val block3B = makeBlock(chain, block2B, Seq(makeTx(_acct1, _acct2, FixedNumber.fromDecimal(9), 2)))
+      assert(tryInsertBlock(chain, block3B))
+
+      assert(chain.head.id() == block2A.id())
+      assert(chain.getLatestHeader().id() == block2A.id())
+      assert(chain.getBalance(_acct1).get == FixedNumber.fromDecimal(102.12))
+      assert(chain.getBalance(_acct2).get == FixedNumber.fromDecimal(255.2))
+
+      val block3 = makeBlock(chain, block2A, Seq(makeTx(_acct1, _acct2, FixedNumber.fromDecimal(2), 2)))
+      assert(tryInsertBlock(chain, block3))
+
+      assert(chain.head.id() == block3.id())
+      assert(chain.getLatestHeader().id() == block3.id())
+      assert(chain.getBalance(_acct1).get == FixedNumber.fromDecimal(100.12))
+      assert(chain.getBalance(_acct2).get == FixedNumber.fromDecimal(257.2))
 
     }
     finally {
