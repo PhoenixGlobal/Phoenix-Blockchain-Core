@@ -411,7 +411,7 @@ class Blockchain(chainSettings: ChainSettings,
 
       pendingWitnessList.logInfo("setCurrentWitnessList")
       dataBase.setCurrentWitnessList(pendingWitnessList)
-      dataBase.setPendingWitnessList(new WitnessList(newElectedWitnesses.toArray.map(_._2), curblock.id))
+      dataBase.setPendingWitnessList(WitnessList.create(newElectedWitnesses.toArray.map(_._2), curblock.id))
 
       mCurWitnessList = dataBase.getCurrentWitnessList()
       mPendingWitnessList = dataBase.getPendingWitnessList()
@@ -654,7 +654,7 @@ class Blockchain(chainSettings: ChainSettings,
         dataBase.createWitness(initWitness)
       })
       require(dataBase.getAllWitness().size == consensusSettings.witnessNum)
-      val witnessList = new WitnessList(witnesses.toArray, genesisBlock.id())
+      val witnessList = WitnessList.create(witnesses.toArray, genesisBlock.id())
       require(witnessList.witnesses.size == consensusSettings.witnessNum)
       dataBase.setPreviousWitnessList(witnessList)
       dataBase.setCurrentWitnessList(witnessList)
@@ -763,7 +763,7 @@ class Blockchain(chainSettings: ChainSettings,
     val slot = timeMs / consensusSettings.produceInterval
     var index = slot % (consensusSettings.witnessNum * consensusSettings.producerRepetitions)
     index /= consensusSettings.producerRepetitions
-    WitnessList.sortByLocation(mCurWitnessList.get.witnesses)(index.toInt).addr
+    mCurWitnessList.get.witnesses(index.toInt).addr
   }
 
   def isLastBlockOfProducer(timeMs: Long): Boolean = {
@@ -792,7 +792,7 @@ class Blockchain(chainSettings: ChainSettings,
     listType match {
       case "all" => {
         val witnessInfo = dataBase.getAllWitness()
-        return new WitnessList(witnessInfo.toArray, UInt256.Zero)
+        return WitnessList.create(witnessInfo.toArray, UInt256.Zero)
       }
       case "active" => {
         dataBase.getCurrentWitnessList().get

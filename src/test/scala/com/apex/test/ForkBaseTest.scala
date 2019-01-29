@@ -31,8 +31,8 @@ class ForkBaseTest {
   private val PubC = PublicKey("0234b9b7d2909231d143a6693082665837965438fc273fbc4c507996e41394c8c1").pubKeyHash
   private val PriC = new PrivateKey(BinaryData("5dfee6af4775e9635c67e1cea1ed617efb6d22ca85abfa97951771d47934aaa0"))
   //private val witnesses = Array(Witness("A", PubA), Witness("B", PubB))
-  private val witnessesAB = new WitnessList(Array(WitnessInfo(PubA), WitnessInfo(PubB)), UInt256.Zero)
-  private val witnessesABC = new WitnessList(Array(WitnessInfo(PubA), WitnessInfo(PubB), WitnessInfo(PubC)), UInt256.Zero)
+  private val witnessesAB = WitnessList.create(Array(WitnessInfo(PubA), WitnessInfo(PubB)), UInt256.Zero)
+  private val witnessesABC = WitnessList.create(Array(WitnessInfo(PubA), WitnessInfo(PubB), WitnessInfo(PubC)), UInt256.Zero)
   private val genesis = BlockBuilder.genesisBlock
 
   @Test

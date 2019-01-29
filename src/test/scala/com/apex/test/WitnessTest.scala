@@ -85,7 +85,7 @@ class WitnessTest {
       "789", "1 33", "9847", "4",
       173, 242, FixedNumber(3),  4)
 
-    val list1 = new WitnessList(Array(a, b, c, d), UInt256.Zero, 7)
+    val list1 = WitnessList.create(Array(a, b, c, d), UInt256.Zero, 7)
 
     assert(!list1.contains(UInt160.Zero))
     assert(list1.contains(UInt160.parse("1212121212121212121212121212121212121212").get))

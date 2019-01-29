@@ -15,9 +15,8 @@ import com.apex.crypto.{UInt160, UInt256}
 import play.api.libs.json.{JsValue, Json, Writes}
 
 import scala.collection.mutable
-import scala.collection.mutable.ArrayBuffer
 
-class WitnessList(val witnesses: Array[WitnessInfo],
+class WitnessList(val witnesses: Array[WitnessInfo],  // sorted by Location
                   val generateInBlock: UInt256,
                   val version: Int = 0x01) extends com.apex.common.Serializable with ApexLogging {
 
@@ -40,17 +39,19 @@ class WitnessList(val witnesses: Array[WitnessInfo],
     witnesses.foreach(w =>
       log.info(s"  ${w.addr.address.substring(0, 7)} ${w.longitude} ${w.latitude} ${w.voteCounts}"))
   }
-
-  //  def findLeastVotes(): UInt160 = {
-  //    WitnessList.sortByVote(witnesses).last.addr
-  //  }
-
 }
 
 object WitnessList {
 
-  def sortByVote(witnesses: Array[WitnessInfo]) = {
+  def create(witnesses: Array[WitnessInfo],
+             generateInBlock: UInt256,
+             version: Int = 0x01): WitnessList = {
+    new WitnessList(sortByLocation(witnesses), generateInBlock, version)
+  }
+
+  def sortByVote(witnesses: Array[WitnessInfo]): Array[WitnessInfo] = {
     witnesses.sortWith((w1, w2) => {
+      require(!w1.addr.equals(w2.addr))
       if (w1.voteCounts.value == w2.voteCounts.value)
         w1.addr > w2.addr
       else
@@ -58,8 +59,9 @@ object WitnessList {
     })
   }
 
-  def sortByLocation(witnesses: Array[WitnessInfo]) = {
+  def sortByLocation(witnesses: Array[WitnessInfo]): Array[WitnessInfo] = {
     witnesses.sortWith((w1, w2) => {
+      require(!w1.addr.equals(w2.addr))
       if (w1.longitude == w2.longitude) {
         if (w1.latitude == w2.latitude)
           w1.addr > w2.addr
