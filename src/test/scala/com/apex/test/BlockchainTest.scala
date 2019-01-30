@@ -745,9 +745,13 @@ class BlockchainTest {
 
       /*
       *
+      *                    /----> 3A ---> 4A
+      *                   |
       *    0 ---> 1 ---> 2A
       *           |
       *           └----> 2B ---> 3B    <----  3B  invalid
+      *                   |
+      *                   └----> 3C
       *
       * */
 
@@ -775,14 +779,32 @@ class BlockchainTest {
       assert(chain.getBalance(_acct1).get == FixedNumber.fromDecimal(102.12))
       assert(chain.getBalance(_acct2).get == FixedNumber.fromDecimal(255.2))
 
-      val block3 = makeBlock(chain, block2A, Seq(makeTx(_acct1, _acct2, FixedNumber.fromDecimal(2), 2)))
-      assert(tryInsertBlock(chain, block3))
+      val block4B = makeBlock(chain, block3B, Seq.empty)
+      assert(!tryInsertBlock(chain, block4B))
 
-      assert(chain.head.id() == block3.id())
-      assert(chain.getLatestHeader().id() == block3.id())
-      assert(chain.getBalance(_acct1).get == FixedNumber.fromDecimal(100.12))
-      assert(chain.getBalance(_acct2).get == FixedNumber.fromDecimal(257.2))
+      val block3C = makeBlock(chain, block2B, Seq(makeTx(_acct1, _acct2, FixedNumber.fromDecimal(13), 2)))
+      assert(tryInsertBlock(chain, block3C))
 
+      assert(chain.head.id() == block3C.id())
+      assert(chain.getLatestHeader().id() == block3C.id())
+      assert(chain.getBalance(_acct1).get == FixedNumber.fromDecimal(88.12))
+      assert(chain.getBalance(_acct2).get == FixedNumber.fromDecimal(269.2))
+
+      val block3A = makeBlock(chain, block2A, Seq(makeTx(_acct1, _acct2, FixedNumber.fromDecimal(14), 2)))
+      assert(tryInsertBlock(chain, block3A))
+
+      assert(chain.head.id() == block3C.id())
+      assert(chain.getLatestHeader().id() == block3C.id())
+      assert(chain.getBalance(_acct1).get == FixedNumber.fromDecimal(88.12))
+      assert(chain.getBalance(_acct2).get == FixedNumber.fromDecimal(269.2))
+
+      val block4A = makeBlock(chain, block3A, Seq(makeTx(_acct1, _acct2, FixedNumber.fromDecimal(15), 3)))
+      assert(tryInsertBlock(chain, block4A))
+
+      assert(chain.head.id() == block4A.id())
+      assert(chain.getLatestHeader().id() == block4A.id())
+      assert(chain.getBalance(_acct1).get == FixedNumber.fromDecimal(73.12))
+      assert(chain.getBalance(_acct2).get == FixedNumber.fromDecimal(284.2))
     }
     finally {
       chain.close()
@@ -845,11 +867,11 @@ class BlockchainTest {
       assert(chain.getBalance(_acct1).get == FixedNumber.fromDecimal(102.12))
       assert(chain.getBalance(_acct2).get == FixedNumber.fromDecimal(255.2))
 
-      val block3 = makeBlock(chain, block2A, Seq(makeTx(_acct1, _acct2, FixedNumber.fromDecimal(2), 2)))
-      assert(tryInsertBlock(chain, block3))
+      val block3A = makeBlock(chain, block2A, Seq(makeTx(_acct1, _acct2, FixedNumber.fromDecimal(2), 2)))
+      assert(tryInsertBlock(chain, block3A))
 
-      assert(chain.head.id() == block3.id())
-      assert(chain.getLatestHeader().id() == block3.id())
+      assert(chain.head.id() == block3A.id())
+      assert(chain.getLatestHeader().id() == block3A.id())
       assert(chain.getBalance(_acct1).get == FixedNumber.fromDecimal(100.12))
       assert(chain.getBalance(_acct2).get == FixedNumber.fromDecimal(257.2))
 

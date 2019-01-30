@@ -727,9 +727,15 @@ class Blockchain(chainSettings: ChainSettings,
     }
 
     var appliedCount = 0
-    for (item <- to if applyBlock(item.block)) {
-      dataBase.commit()
-      appliedCount += 1
+    var continueApply = true
+    for (item <- to if continueApply) {
+      if (applyBlock(item.block)) {
+        checkUpdateWitnessList(item.block)
+        dataBase.commit()
+        appliedCount += 1
+      }
+      else
+        continueApply = false
     }
 
     if (appliedCount < to.size) {
