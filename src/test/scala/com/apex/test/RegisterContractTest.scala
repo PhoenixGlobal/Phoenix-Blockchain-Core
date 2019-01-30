@@ -138,8 +138,10 @@ class RegisterContractTest extends BlockChainPrepare{
     }
   }
 
-  def makeRegisterTransaction(operationType: OperationType.Value = OperationType.register, nonce: Long = 0,
-                              account: UInt160 = _acct3.publicKey.pubKeyHash, name: String = "register node1")(f: Transaction => Unit){
+  def makeRegisterTransaction(operationType: OperationType.Value = OperationType.register,
+                              nonce: Long = 0,
+                              account: UInt160 = _acct3.publicKey.pubKeyHash,
+                              name: String = "register node1") (f: Transaction => Unit){
     val txData = RegisterData(account, WitnessInfo(account, false, name),operationType).toBytes
     val registerContractAddr = new UInt160(DataWord.of("0000000000000000000000000000000000000000000000000000000000000101").getLast20Bytes)
     val tx = new Transaction(TransactionType.Call, account ,registerContractAddr, "", FixedNumber.Zero,
@@ -147,9 +149,11 @@ class RegisterContractTest extends BlockChainPrepare{
     f(tx)
   }
 
-  def makeWrongRegisterTransaction(txFromAccount: UInt160, registerAccount: UInt160, registerWitnessAddr: UInt160,
-                                           operationType: OperationType.Value = OperationType.register, nonce: Long =0)
-                                          (f: Transaction => Unit){
+  def makeWrongRegisterTransaction(txFromAccount: UInt160,
+                                   registerAccount: UInt160,
+                                   registerWitnessAddr: UInt160,
+                                   operationType: OperationType.Value = OperationType.register,
+                                   nonce: Long =0) (f: Transaction => Unit){
     println(txFromAccount.toString)
     val txData = RegisterData(registerAccount, WitnessInfo(registerWitnessAddr, false, "register node1"),operationType).toBytes
     val registerContractAddr = new UInt160(DataWord.of("0000000000000000000000000000000000000000000000000000000000000101").getLast20Bytes)

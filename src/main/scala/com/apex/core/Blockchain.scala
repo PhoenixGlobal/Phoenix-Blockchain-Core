@@ -326,7 +326,7 @@ class Blockchain(chainSettings: ChainSettings,
     dataBase.rollBack()
   }
 
-  def tryInsertBlock(block: Block, doApply: Boolean): Boolean = {
+  def tryInsertBlock(block: Block, doApply: Boolean = true): Boolean = {
     var inserted = false
     if (isProducingBlock())
       stopProduceBlock()
@@ -350,10 +350,10 @@ class Blockchain(chainSettings: ChainSettings,
     }
     else {
       log.info(s"try add received block to minor fork chain. block ${block.height} ${block.shortId}")
-      if (forkBase.add(block, getWitnessList(block)))
+      if (forkBase.add(block, getWitnessList(block)) && forkBase.contains(block.id))
         inserted = true
       else
-        log.debug("fail add to minor fork chain")
+        log.debug(s"fail add block ${block.height} ${block.shortId} to minor fork chain")
     }
     if (inserted) {
       block.transactions.foreach(tx => {
@@ -411,7 +411,9 @@ class Blockchain(chainSettings: ChainSettings,
 
       pendingWitnessList.logInfo("setCurrentWitnessList")
       dataBase.setCurrentWitnessList(pendingWitnessList)
-      dataBase.setPendingWitnessList(WitnessList.create(newElectedWitnesses.toArray.map(_._2), curblock.id))
+      val newPending = WitnessList.create(newElectedWitnesses.toArray.map(_._2), curblock.id)
+      newPending.logInfo("setPendingWitnessList")
+      dataBase.setPendingWitnessList(newPending)
 
       mCurWitnessList = dataBase.getCurrentWitnessList()
       mPendingWitnessList = dataBase.getPendingWitnessList()
