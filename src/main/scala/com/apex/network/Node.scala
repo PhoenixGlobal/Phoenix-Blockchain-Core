@@ -15,11 +15,13 @@ import com.apex.common.ApexLogging
 import com.apex.consensus._
 import com.apex.core._
 import com.apex.crypto.UInt256
+import com.apex.network.peer.PeerHandlerManager.ReceivableMessages.ReceivedPeers
 import com.apex.network.peer.PeerHandlerManagerRef
 import com.apex.network.rpc._
 import com.apex.plugins.mongodb.MongodbPluginRef
 import com.apex.settings.ApexSettings
 import com.apex.utils.NetworkTimeProvider
+
 import scala.collection.mutable.ArrayBuffer
 import scala.concurrent.ExecutionContext
 
@@ -166,7 +168,15 @@ class Node(val settings: ApexSettings)
       case GetDataMessage(inv) => {
         processGetDataMessage(message.asInstanceOf[GetDataMessage])
       }
+      case PeerInfoMessage(peerInfoPayload) => {
+        processPeerInfoMessage(message.asInstanceOf[PeerInfoMessage])
+      }
     }
+  }
+
+  private def processPeerInfoMessage(msg: PeerInfoMessage) = {
+    val knowPeers: PeerInfoPayload = msg.peers;
+    peerHandlerManager ! ReceivedPeers(knowPeers)
   }
 
   private def processVersionMessage(msg: VersionMessage) = {

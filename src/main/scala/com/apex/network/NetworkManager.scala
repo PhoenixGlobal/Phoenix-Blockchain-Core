@@ -11,7 +11,7 @@ import akka.io.{IO, Tcp}
 import akka.util.Timeout
 import com.apex.common.ApexLogging
 import com.apex.core.ChainInfo
-import com.apex.network.peer.PeerHandlerManager.ReceivableMessages.{PeerHandler, RandomPeerToConnect}
+import com.apex.network.peer.PeerHandlerManager.ReceivableMessages.{GetConnectedPeers, PeerHandler, RandomPeerToConnect}
 import com.apex.settings.NetworkSettings
 import com.apex.utils.NetworkTimeProvider
 
@@ -88,8 +88,8 @@ class NetworkManager(settings: NetworkSettings,
     case Connected(remote, local) =>
       val direction: ConnectionType = if (outgoing.contains(remote)) Outgoing else Incoming
       val logMsg = direction match {
-        case Incoming => s"传入的远程连接 $remote 绑定到本地 $local"
-        case Outgoing => s"输入的远程连接 $remote 绑定到本地 $local"
+        case Incoming => s"incoming:远程连接 $remote 绑定到本地 $local"
+        case Outgoing => s"outgoing:远程连接 $remote 绑定到本地 $local"
       }
       log.info(logMsg)
       val connection = sender()

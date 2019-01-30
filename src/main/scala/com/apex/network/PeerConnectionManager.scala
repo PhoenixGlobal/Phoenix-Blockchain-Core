@@ -30,7 +30,9 @@ case class ConnectedPeer(socketAddress: InetSocketAddress,
 
   import shapeless.syntax.typeable._
 
-  def publicPeer: Boolean = handshake.declaredAddress.contains(socketAddress)
+  def publicPeer: Boolean = {
+    handshake.declaredAddress.isDefined
+  }
 
   override def hashCode(): Int = socketAddress.hashCode()
 
@@ -76,9 +78,8 @@ class PeerConnectionManager(settings: NetworkSettings,
 
   private def constructHandshakeMsg: Handshake = {
     val headerNum = 0 // not used
-
     Handshake(settings.agentName, Version(settings.appVersion), settings.nodeName,
-      ownSocketAddress, chainInfo.id, headerNum.toString,
+      settings.declaredAddress, chainInfo.id, headerNum.toString,
       System.currentTimeMillis())
   }
 
@@ -235,6 +236,7 @@ class PeerConnectionManager(settings: NetworkSettings,
     case Received(data) =>
       log.debug(s"PeerConnectionManager recv Message ${data.size} bytes")
       chunksBuffer ++= data
+
       def processChunksBuffer(): Unit = {
         if (chunksBuffer.length > 5) {
           val payloadLen = chunksBuffer.iterator.getInt
@@ -254,6 +256,7 @@ class PeerConnectionManager(settings: NetworkSettings,
             log.debug(s"not enough data, payloadLen=$payloadLen  chunksBuffer.length=${chunksBuffer.length}")
         }
       }
+
       processChunksBuffer()
       connection ! ResumeReading
   }

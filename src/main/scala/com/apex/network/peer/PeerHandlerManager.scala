@@ -3,21 +3,25 @@ package com.apex.network.peer
 import java.net.InetSocketAddress
 
 import akka.actor.{Actor, ActorContext, ActorRef, Props}
+import akka.util.Timeout
 import com.apex.common.ApexLogging
 import com.apex.core.NewBlockProducedNotify
-
 import com.apex.settings.NetworkSettings
 import com.apex.utils.NetworkTimeProvider
 import com.apex.network._
 
 import scala.collection.mutable
+import scala.concurrent.ExecutionContext
 import scala.util.Random
+import scala.concurrent.duration.DurationInt
 
-class PeerHandlerManager(settings: NetworkSettings, timeProvider: NetworkTimeProvider) extends Actor with ApexLogging {
+class PeerHandlerManager(settings: NetworkSettings, timeProvider: NetworkTimeProvider)(implicit ec: ExecutionContext) extends Actor with ApexLogging {
 
   import PeerHandlerManager.ReceivableMessages._
   import com.apex.network.ConnectedPeer
   import com.apex.network.PeerConnectionManager.ReceivableMessages.{CloseConnection, StartInteraction}
+
+  private implicit val timeout: Timeout = Timeout(5 seconds)
 
   //握手成功
   private val connectedPeers = mutable.Map[InetSocketAddress, ConnectedPeer]()
@@ -32,6 +36,22 @@ class PeerHandlerManager(settings: NetworkSettings, timeProvider: NetworkTimePro
       if (!isSelf(address, None)) {
         val defaultPeerInfo = PeerInfo(timeProvider.time(), Some(settings.nodeName), None)
         peerDatabase.addOrUpdateKnownPeer(address, defaultPeerInfo)
+      }
+    }
+  }
+
+  override def preStart: Unit = {
+    //30s后，每隔30s与其它peer交换一次peerDatabase
+    context.system.scheduler.schedule(30.seconds, 30.seconds) {
+      var knowPeerSer = Seq[InetSocketAddressSer]()
+      peerDatabase.knownPeers().keys.foreach(address => {
+        knowPeerSer = knowPeerSer :+ new InetSocketAddressSer(address.getHostName, address.getPort)
+      })
+
+      if (knowPeerSer.size > 0) {
+        connectedPeers.values.foreach(connectedPeer => {
+          connectedPeer.connectionRef ! PeerInfoMessage(new PeerInfoPayload(knowPeerSer)).pack()
+        })
       }
     }
   }
@@ -77,8 +97,7 @@ class PeerHandlerManager(settings: NetworkSettings, timeProvider: NetworkTimePro
         val isIncoming = direction == Incoming
         val isAlreadyConnecting = connectingPeers.contains(remote)
         if (isAlreadyConnecting && !isIncoming) {
-          log.info(s"忽略重复连接")
-          // peerHandlerRef ! CloseConnection
+          peerHandlerRef ! CloseConnection
         } else {
           if (!isIncoming) {
             log.info(s"远程链接 $remote")
@@ -124,16 +143,11 @@ class PeerHandlerManager(settings: NetworkSettings, timeProvider: NetworkTimePro
           log.info("send CloseConnection")
           peer.connectionRef ! CloseConnection
         } else {
-          //          if (peer.publicPeer) {
-          //            log.info("add or update peer:" + peer.socketAddress)
-          //            self ! AddOrUpdatePeer(peer.socketAddress, Some(peer.handshake.nodeName), Some(peer.direction))
-          //          }
-          //         else {
-          //            log.info("remove " + peer.socketAddress + "from peerDatabase")
-          //            peerDatabase.remove(peer.socketAddress)
-          //          }
+          if (peer.publicPeer) {
+            log.info("add or update peer:" + peer.handshake.declaredAddress.get)
+            self ! AddOrUpdatePeer(peer.handshake.declaredAddress.get, Some(peer.handshake.nodeName), Some(peer.direction))
+          }
 
-          self ! AddOrUpdatePeer(peer.socketAddress, Some(peer.handshake.nodeName), Some(peer.direction))
           connectedPeers += peer.socketAddress -> peer
           log.info("更新本节点连接的节点=" + connectedPeers)
           // Once connected, try get the peer's latest block to sync
@@ -182,8 +196,9 @@ class PeerHandlerManager(settings: NetworkSettings, timeProvider: NetworkTimePro
   //从peerDatabase中，随机选 出一个peer,且不在connectedPeers
   private def randomPeerExcluded(): Option[InetSocketAddress] = {
     val candidates = peerDatabase.knownPeers().keys.filterNot { p =>
-      connectedPeers.keys.exists(e =>
-        p.getHostName.equals(e.getHostName) && p.getPort == e.getPort
+      connectedPeers.keys.exists(e => {
+        p.getHostName.equals(e.getHostName) /*&& p.getPort == e.getPort */
+      }
       )
     }.toSeq
 
@@ -199,6 +214,17 @@ class PeerHandlerManager(settings: NetworkSettings, timeProvider: NetworkTimePro
     case AddToBlacklist(peer) =>
       log.info(s"黑名单  $peer")
       peerDatabase.blacklistPeer(peer, timeProvider.time())
+    case ReceivedPeers(peers) => {
+      peers.knownPeers.foreach(knPeer => {
+        val address = new InetSocketAddress(knPeer.address, knPeer.port)
+        log.info("收到peer:" + knPeer.toString)
+        if (!isSelf(address, None)) {
+          val defaultPeerInfo = PeerInfo(timeProvider.time(), Some(settings.nodeName), None)
+          peerDatabase.addOrUpdateKnownPeer(address, defaultPeerInfo)
+        }
+      })
+
+    }
   }: Receive) orElse peerListOperations orElse apiInterface orElse randomPeer orElse peerCycle
 }
 
@@ -232,17 +258,20 @@ object PeerHandlerManager {
 
     case class RandomPeerToConnect()
 
+    case class ReceivedPeers(peerInfoPayload: PeerInfoPayload)
+
   }
 
 }
 
 object PeerHandlerManagerRef {
-  def props(settings: NetworkSettings, timeProvider: NetworkTimeProvider): Props =
+  def props(settings: NetworkSettings, timeProvider: NetworkTimeProvider)(implicit ec: ExecutionContext): Props =
     Props(new PeerHandlerManager(settings, timeProvider))
 
   def apply(settings: NetworkSettings, timeProvider: NetworkTimeProvider)
-           (implicit system: ActorContext): ActorRef = system.actorOf(props(settings, timeProvider))
+           (implicit system: ActorContext, ec: ExecutionContext
+           ): ActorRef = system.actorOf(props(settings, timeProvider))
 
   def apply(name: String, settings: NetworkSettings, timeProvider: NetworkTimeProvider)
-           (implicit system: ActorContext): ActorRef = system.actorOf(props(settings, timeProvider), name)
+           (implicit system: ActorContext, ec: ExecutionContext): ActorRef = system.actorOf(props(settings, timeProvider), name)
 }
