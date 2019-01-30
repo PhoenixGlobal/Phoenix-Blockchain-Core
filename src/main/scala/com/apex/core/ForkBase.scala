@@ -57,6 +57,18 @@ class MultiMap[K, V] extends mutable.Iterable[(K, V)] {
     container.remove(k)
   }
 
+  def remove(k: K, v: V): Unit = {
+    if (container.contains(k)) {
+      val values = container.get(k).get
+      val newValues = ListBuffer.empty[V]
+      values.foreach(f => if (f != v) newValues.append(f))
+      if (newValues.size > 0)
+        container.put(k, newValues)
+      else
+        container.remove(k)
+    }
+  }
+
   // get first key/value pair
   override def head: (K, V) = iterator.next()
 
@@ -130,6 +142,18 @@ class SortedMultiMap1[K, V](implicit ord: Ordering[K]) extends Iterable[(K, V)] 
     container.remove(k)
   }
 
+  def remove(k: K, v: V): Unit = {
+    if (container.contains(k)) {
+      val values = container.get(k).get
+      val newValues = ListBuffer.empty[V]
+      values.foreach(f => if (f != v) newValues.append(f))
+      if (newValues.size > 0)
+        container.put(k, newValues)
+      else
+        container.remove(k)
+    }
+  }
+
   // first key/value pair
   override def head: (K, V) = iterator.next()
 
@@ -201,6 +225,16 @@ class SortedMultiMap2[K1, K2, V](implicit ord1: Ordering[K1], ord2: Ordering[K2]
         container.remove(k1)
       }
       v
+    })
+  }
+
+  def remove(k1: K1, k2: K2, v: V): Unit = {
+    container.get(k1).flatMap(c => {
+      c.remove(k2, v)
+      if (c.isEmpty) {
+        container.remove(k1)
+      }
+      None
     })
   }
 
@@ -631,9 +665,9 @@ class ForkBase(settings: ForkBaseSettings,
   private def deleteIndex(item: ForkItem): Unit = {
     val blk = item.block
     indexById.remove(blk.id)
-    indexByPrev.remove(blk.prev)
-    indexByHeight.remove(blk.height, item.master)
-    indexByConfirmedHeight.remove(item.confirmedHeight, blk.height)
+    indexByPrev.remove(blk.prev, blk.id)
+    indexByHeight.remove(blk.height, item.master, blk.id)
+    indexByConfirmedHeight.remove(item.confirmedHeight, blk.height, blk.id)
   }
 
   private def updateIndex(newItem: ForkItem): Unit = {
