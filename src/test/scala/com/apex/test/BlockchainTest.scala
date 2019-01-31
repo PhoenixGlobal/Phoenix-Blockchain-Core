@@ -234,12 +234,11 @@ class BlockchainTest {
       assert(chain.getBalance(_acct1).get == FixedNumber.fromDecimal(123.12))
       assert(chain.getBalance(_acct2).get == FixedNumber.fromDecimal(234.2))
 
-      var nowTime = Instant.now.toEpochMilli
+      var nowTime = Instant.now.toEpochMilli - 90000
       var blockTime = ProducerUtil.nextBlockTime(chain.getHeadTime(), nowTime, _produceInterval / 10, _produceInterval) //  chain.getHeadTime() + _consensusSettings.produceInterval
       sleepTo(blockTime)
-      nowTime = Instant.now.toEpochMilli
       blockTime += _produceInterval
-      startProduceBlock(chain, blockTime, blockTime - 100)
+      startProduceBlock(chain, blockTime, Long.MaxValue)
 
       assert(chain.isProducingBlock())
 
@@ -567,10 +566,9 @@ class BlockchainTest {
       assert(chain.getBalance(_acct1).get == FixedNumber.fromDecimal(123.12))
       assert(chain.getBalance(_acct2).get == FixedNumber.fromDecimal(234.2))
 
-      var nowTime = Instant.now.toEpochMilli
+      var nowTime = Instant.now.toEpochMilli - 90000
       var blockTime = ProducerUtil.nextBlockTime(chain.getHeadTime(), nowTime, _produceInterval / 10, _produceInterval) //  chain.getHeadTime() + _consensusSettings.produceInterval
       sleepTo(blockTime)
-      nowTime = Instant.now.toEpochMilli
       blockTime += _produceInterval
       startProduceBlock(chain, blockTime, Long.MaxValue)
 
@@ -646,10 +644,9 @@ class BlockchainTest {
       assert(chain.getBalance(_acct1).get == FixedNumber.fromDecimal(123.12))
       assert(chain.getBalance(_acct2).get == FixedNumber.fromDecimal(234.2))
 
-      var nowTime = Instant.now.toEpochMilli
+      var nowTime = Instant.now.toEpochMilli - 90000
       var blockTime = ProducerUtil.nextBlockTime(chain.getHeadTime(), nowTime, _produceInterval / 10, _produceInterval) //  chain.getHeadTime() + _consensusSettings.produceInterval
       sleepTo(blockTime)
-      nowTime = Instant.now.toEpochMilli
       blockTime += _produceInterval
       startProduceBlock(chain, blockTime, Long.MaxValue)
 
@@ -727,10 +724,9 @@ class BlockchainTest {
       assert(chain.getBalance(_acct1).get == FixedNumber.fromDecimal(123.12))
       assert(chain.getBalance(_acct2).get == FixedNumber.fromDecimal(234.2))
 
-      var nowTime = Instant.now.toEpochMilli
+      var nowTime = Instant.now.toEpochMilli - 90000
       var blockTime = ProducerUtil.nextBlockTime(chain.getHeadTime(), nowTime, _produceInterval / 10, _produceInterval) //  chain.getHeadTime() + _consensusSettings.produceInterval
       sleepTo(blockTime)
-      nowTime = Instant.now.toEpochMilli
       blockTime += _produceInterval
       startProduceBlock(chain, blockTime, Long.MaxValue)
 
@@ -822,10 +818,9 @@ class BlockchainTest {
       assert(chain.getBalance(_acct1).get == FixedNumber.fromDecimal(123.12))
       assert(chain.getBalance(_acct2).get == FixedNumber.fromDecimal(234.2))
 
-      var nowTime = Instant.now.toEpochMilli
+      var nowTime = Instant.now.toEpochMilli - 90000
       var blockTime = ProducerUtil.nextBlockTime(chain.getHeadTime(), nowTime, _produceInterval / 10, _produceInterval) //  chain.getHeadTime() + _consensusSettings.produceInterval
       sleepTo(blockTime)
-      nowTime = Instant.now.toEpochMilli
       blockTime += _produceInterval
       startProduceBlock(chain, blockTime, Long.MaxValue)
 

@@ -135,7 +135,7 @@ class ContractTxTest {
 
       assert(chain.getBalance(_acct1).get == FixedNumber.fromDecimal(123.12))
 
-      var nowTime = Instant.now.toEpochMilli
+      var nowTime = Instant.now.toEpochMilli - 90000
       var blockTime = ProducerUtil.nextBlockTime(chain.getHeadTime(), nowTime, _produceInterval / 10, _produceInterval) //  chain.getHeadTime() + _consensusSettings.produceInterval
       blockTime += _produceInterval
       val producer = chain.getWitness(blockTime)
@@ -226,7 +226,7 @@ class ContractTxTest {
 
       assert(chain.getBalance(_acct1).get == FixedNumber.fromDecimal(123.12))
 
-      var nowTime = Instant.now.toEpochMilli
+      var nowTime = Instant.now.toEpochMilli - 90000
       var blockTime = ProducerUtil.nextBlockTime(chain.getHeadTime(), nowTime, _produceInterval / 10, _produceInterval) //  chain.getHeadTime() + _consensusSettings.produceInterval
       blockTime += _produceInterval
       val producer = chain.getWitness(blockTime)
