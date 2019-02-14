@@ -31,6 +31,8 @@ class PeerHandlerManager(settings: NetworkSettings, timeProvider: NetworkTimePro
 
   private lazy val peerDatabase = new PeerDatabaseImpl(Some(settings.peersDB + "/peers.dat"))
 
+  private var peerUpdated = false
+
   if (peerDatabase.isEmpty()) {
     settings.knownPeers.foreach { address =>
       if (!isSelf(address, None)) {
@@ -43,15 +45,18 @@ class PeerHandlerManager(settings: NetworkSettings, timeProvider: NetworkTimePro
   override def preStart: Unit = {
     //30s后，每隔30s与其它peer交换一次peerDatabase
     context.system.scheduler.schedule(30.seconds, 30.seconds) {
-      var knowPeerSer = Seq[InetSocketAddressSer]()
-      peerDatabase.knownPeers().keys.foreach(address => {
-        knowPeerSer = knowPeerSer :+ new InetSocketAddressSer(address.getHostName, address.getPort)
-      })
-
-      if (knowPeerSer.size > 0) {
-        connectedPeers.values.foreach(connectedPeer => {
-          connectedPeer.connectionRef ! PeerInfoMessage(new PeerInfoPayload(knowPeerSer)).pack()
+      if (peerUpdated) {  //仅当peerDatabase 有更新的时才广播
+        var knowPeerSer = Seq[InetSocketAddressSer]()
+        peerDatabase.knownPeers().keys.foreach(address => {
+          knowPeerSer = knowPeerSer :+ new InetSocketAddressSer(address.getHostName, address.getPort)
         })
+
+        if (knowPeerSer.size > 0) {
+          connectedPeers.values.foreach(connectedPeer => {
+            connectedPeer.connectionRef ! PeerInfoMessage(new PeerInfoPayload(knowPeerSer)).pack()
+            peerUpdated =false
+          })
+        }
       }
     }
   }
@@ -149,6 +154,7 @@ class PeerHandlerManager(settings: NetworkSettings, timeProvider: NetworkTimePro
           }
 
           connectedPeers += peer.socketAddress -> peer
+          peerUpdated = true
           log.info("更新本节点连接的节点=" + connectedPeers)
           // Once connected, try get the peer's latest block to sync
           Thread.sleep(50) // to avoid peer mess with the "handshakeDone"
@@ -179,7 +185,7 @@ class PeerHandlerManager(settings: NetworkSettings, timeProvider: NetworkTimePro
 
 
   /**
-    * 返回一个随机节点
+    * 返回一个随机节点RandomPeerToConnect
     *
     * @return
     */
