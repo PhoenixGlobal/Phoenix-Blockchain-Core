@@ -66,6 +66,7 @@ class PeerHandlerManager(settings: NetworkSettings, timeProvider: NetworkTimePro
       if (!isSelf(address, None)) {
         val peerInfo = PeerInfo(timeProvider.time(), peerNameOpt, connTypeOpt)
         peerDatabase.addOrUpdateKnownPeer(address, peerInfo)
+        peerUpdated = true
       }
   }
 
