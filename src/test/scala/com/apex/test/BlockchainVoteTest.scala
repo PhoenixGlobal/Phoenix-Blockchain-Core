@@ -204,12 +204,15 @@ class BlockchainVoteTest {
   //      Thread.sleep(time - nowTime)
   //  }
 
-  private def createRegisterTransaction(operationType: OperationType.Value = OperationType.register,
+  private def createRegisterTransaction(//operationType: OperationType.Value = OperationType.register,
                               nonce: Long = 0,
                               from: PrivateKey,
-                              name: String = "register node1"): Transaction = {
-    val txData = RegisterData(from.publicKey.pubKeyHash,
-                    WitnessInfo(from.publicKey.pubKeyHash, false, name), operationType).toBytes
+                              name: String = "register node1",
+                              isGenesisWitness: Boolean = false): Transaction = {
+    val txData = RegisterData(
+                    from.publicKey.pubKeyHash,
+                    WitnessInfo(from.publicKey.pubKeyHash, isGenesisWitness, name),
+                    OperationType.register).toBytes
     val registerContractAddr = new UInt160(DataWord.of("0000000000000000000000000000000000000000000000000000000000000101").getLast20Bytes)
     val tx = new Transaction(TransactionType.Call, from.publicKey.pubKeyHash, registerContractAddr, "",
       FixedNumber.Zero, nonce, txData, FixedNumber(0), 9000000L, BinaryData.empty)
@@ -251,8 +254,11 @@ class BlockchainVoteTest {
       assert(chain.getProducers("all").witnesses.size == 4)
       assert(!chain.getProducers("all").contains(_acct1.publicKey.pubKeyHash))
 
+      // Not allowed to register as genesis witness
+      val block2error = makeBlock(chain, block1, Seq(createRegisterTransaction(0, _acct1, "123", true)))
+      assert(!chain.tryInsertBlock(block2error))
 
-      val block2 = makeBlock(chain, block1, Seq(createRegisterTransaction(OperationType.register, 0, _acct1)))
+      val block2 = makeBlock(chain, block1, Seq(createRegisterTransaction(0, _acct1)))
       assert(chain.tryInsertBlock(block2))
 
       assert(chain.getProducers("all").witnesses.size == 5)
