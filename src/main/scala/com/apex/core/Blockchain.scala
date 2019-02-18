@@ -648,6 +648,12 @@ class Blockchain(chainSettings: ChainSettings,
     dataBase.getReceipt(txid)
   }
 
+  private def updateWitnessLists() = {
+    mPrevWitnessList = dataBase.getPreviousWitnessList()
+    mCurWitnessList = dataBase.getCurrentWitnessList()
+    mPendingWitnessList = dataBase.getPendingWitnessList()
+  }
+
   private def populate(): Unit = {
     def initGenesisWitness() = {
       val witnesses = ArrayBuffer.empty[WitnessInfo]
@@ -663,9 +669,7 @@ class Blockchain(chainSettings: ChainSettings,
       dataBase.setCurrentWitnessList(witnessList)
       dataBase.setPendingWitnessList(witnessList)
 
-      mPrevWitnessList = dataBase.getPreviousWitnessList()
-      mCurWitnessList = dataBase.getCurrentWitnessList()
-      mPendingWitnessList = dataBase.getPendingWitnessList()
+      updateWitnessLists()
     }
     log.info("chain populate")
     if (forkBase.head.isEmpty) {
@@ -676,9 +680,7 @@ class Blockchain(chainSettings: ChainSettings,
       notification.broadcast(BlockAddedToHeadNotify(genesisBlock))
     }
 
-    mPrevWitnessList = dataBase.getPreviousWitnessList()
-    mCurWitnessList = dataBase.getCurrentWitnessList()
-    mPendingWitnessList = dataBase.getPendingWitnessList()
+    updateWitnessLists()
 
     require(forkBase.head.isDefined)
 
@@ -726,6 +728,7 @@ class Blockchain(chainSettings: ChainSettings,
     require(dataBase.revision == from.last.height + 1)
     while (dataBase.revision > switchState.height + 1) {
       dataBase.rollBack()
+      updateWitnessLists()
     }
 
     var appliedCount = 0
@@ -743,6 +746,7 @@ class Blockchain(chainSettings: ChainSettings,
     if (appliedCount < to.size) {
       while (dataBase.revision > switchState.height + 1) {
         dataBase.rollBack()
+        updateWitnessLists()
       }
       from.foreach(item => applyBlock(item.block))
       SwitchResult(false, to(appliedCount))
