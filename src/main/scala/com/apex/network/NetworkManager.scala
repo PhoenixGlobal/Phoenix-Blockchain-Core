@@ -42,6 +42,8 @@ class NetworkManager(settings: NetworkSettings,
 
   private val localAddress = settings.bindAddress
 
+  private val declaredAddress = settings.declaredAddress
+
   //发送给peers的地址
   private val externalSocketAddress: Option[InetSocketAddress] = None
 
@@ -68,13 +70,17 @@ class NetworkManager(settings: NetworkSettings,
   //首次启动连接远程节点
   def peerLogic: Receive = {
     case ConnectTo(remote) =>
-      log.info(s"Connecting to: $remote")
-      outgoing += remote
-      tcpManager ! Connect(remote,
-        localAddress = externalSocketAddress,
-        options = KeepAlive(true) :: Nil,
-        timeout = connTimeout,
-        pullMode = true)
+      if (declaredAddress.isDefined && declaredAddress.get == remote) {
+        log.info(s"不能自己连接到自己:$remote")
+      } else {
+        log.info(s"Connecting to: $remote")
+        outgoing += remote
+        tcpManager ! Connect(remote,
+          localAddress = externalSocketAddress,
+          options = KeepAlive(true) :: Nil,
+          timeout = connTimeout,
+          pullMode = true)
+      }
     case DisconnectFrom(peer) =>
       log.info(s"Disconnected from ${peer.socketAddress}")
       peer.connectionRef ! CloseConnection
