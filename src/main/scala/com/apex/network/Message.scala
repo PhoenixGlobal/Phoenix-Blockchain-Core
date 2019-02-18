@@ -27,6 +27,7 @@ object MessageType extends Enumeration {
   val Inventory = Value(5)
   val Getdata = Value(6)
   val Transactions = Value(7)
+  val PeerInfos = Value(8)
 }
 
 trait PackMessage {
@@ -79,6 +80,12 @@ case class GetDataMessage(inv: InventoryPayload) extends NetworkMessage(MessageT
   }
 }
 
+case class PeerInfoMessage(peers: PeerInfoPayload) extends NetworkMessage(MessageType.PeerInfos) {
+  override def pack(): MessagePack = {
+    MessagePack(messageType, peers.toBytes)
+  }
+}
+
 object InventoryType extends Enumeration {
   val Block = Value(0x00)
   val Tx = Value(0x01)
@@ -86,10 +93,11 @@ object InventoryType extends Enumeration {
   implicit class Extension(val value: InventoryType.Value) {
     def toByte: Byte = value.id.toByte
   }
+
 }
 
 class InventoryPayload(val invType: InventoryType.Value,
-                val hashs: Seq[UInt256]) extends com.apex.common.Serializable {
+                       val hashs: Seq[UInt256]) extends com.apex.common.Serializable {
   def serialize(os: DataOutputStream) = {
     import com.apex.common.Serializable._
     os.writeByte(invType.toByte)
@@ -125,6 +133,7 @@ object BlocksPayload {
     val blocks = is.readSeq(Block.deserialize)
     new BlocksPayload(blocks)
   }
+
   def fromBytes(data: Array[Byte]): BlocksPayload = {
     val bs = new ByteArrayInputStream(data)
     val is = new DataInputStream(bs)
@@ -145,6 +154,7 @@ object TransactionsPayload {
     val txs = is.readSeq(Transaction.deserialize)
     new TransactionsPayload(txs)
   }
+
   def fromBytes(data: Array[Byte]): TransactionsPayload = {
     val bs = new ByteArrayInputStream(data)
     val is = new DataInputStream(bs)
@@ -170,7 +180,30 @@ object GetBlocksPayload {
     val hashStop = is.readObj(UInt256.deserialize)
     new GetBlocksPayload(hashStart, hashStop)
   }
+
   def fromBytes(data: Array[Byte]): GetBlocksPayload = {
+    val bs = new ByteArrayInputStream(data)
+    val is = new DataInputStream(bs)
+    deserialize(is)
+  }
+}
+
+
+class PeerInfoPayload(val knownPeers: Seq[InetSocketAddressSer]) extends com.apex.common.Serializable {
+  override def serialize(os: DataOutputStream) = {
+    import com.apex.common.Serializable._
+    os.writeSeq(knownPeers)
+  }
+}
+
+object PeerInfoPayload {
+  def deserialize(is: DataInputStream): PeerInfoPayload = {
+    import com.apex.common.Serializable._
+    val peers = is.readSeq(InetSocketAddressSer.deserialize)
+    new PeerInfoPayload(peers)
+  }
+
+  def fromBytes(data: Array[Byte]): PeerInfoPayload = {
     val bs = new ByteArrayInputStream(data)
     val is = new DataInputStream(bs)
     deserialize(is)
@@ -203,6 +236,9 @@ object MessagePack {
         }
         case MessageType.Transactions => {
           Some(TransactionsMessage(TransactionsPayload.fromBytes(data)))
+        }
+        case MessageType.PeerInfos => {
+          Some(PeerInfoMessage(PeerInfoPayload.fromBytes(data)))
         }
       }
     }

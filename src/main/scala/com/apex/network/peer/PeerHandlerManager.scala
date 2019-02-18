@@ -2,21 +2,26 @@ package com.apex.network.peer
 
 import java.net.InetSocketAddress
 
-import akka.actor.{Actor, ActorContext, ActorRef, ActorSystem, Props}
+import akka.actor.{Actor, ActorContext, ActorRef, Props}
+import akka.util.Timeout
 import com.apex.common.ApexLogging
 import com.apex.core.NewBlockProducedNotify
-import com.apex.crypto.UInt256
-import com.apex.settings.{ApexSettings, NetworkSettings}
+import com.apex.settings.NetworkSettings
 import com.apex.utils.NetworkTimeProvider
 import com.apex.network._
 
 import scala.collection.mutable
+import scala.concurrent.ExecutionContext
+import scala.util.Random
+import scala.concurrent.duration.DurationInt
 
-class PeerHandlerManager(settings: NetworkSettings, timeProvider: NetworkTimeProvider) extends Actor with ApexLogging {
+class PeerHandlerManager(settings: NetworkSettings, timeProvider: NetworkTimeProvider)(implicit ec: ExecutionContext) extends Actor with ApexLogging {
 
   import PeerHandlerManager.ReceivableMessages._
   import com.apex.network.ConnectedPeer
   import com.apex.network.PeerConnectionManager.ReceivableMessages.{CloseConnection, StartInteraction}
+
+  private implicit val timeout: Timeout = Timeout(5 seconds)
 
   //握手成功
   private val connectedPeers = mutable.Map[InetSocketAddress, ConnectedPeer]()
@@ -26,11 +31,32 @@ class PeerHandlerManager(settings: NetworkSettings, timeProvider: NetworkTimePro
 
   private lazy val peerDatabase = new PeerDatabaseImpl(Some(settings.peersDB + "/peers.dat"))
 
+  private var peerUpdated = false
+
   if (peerDatabase.isEmpty()) {
     settings.knownPeers.foreach { address =>
       if (!isSelf(address, None)) {
-        val defaultPeerInfo = PeerInfo(timeProvider.time(), None)
+        val defaultPeerInfo = PeerInfo(timeProvider.time(), Some(settings.nodeName), None)
         peerDatabase.addOrUpdateKnownPeer(address, defaultPeerInfo)
+      }
+    }
+  }
+
+  override def preStart: Unit = {
+    //30s后，每隔30s与其它peer交换一次peerDatabase
+    context.system.scheduler.schedule(30.seconds, 30.seconds) {
+      if (peerUpdated) {  //仅当peerDatabase 有更新的时才广播
+        var knowPeerSer = Seq[InetSocketAddressSer]()
+        peerDatabase.knownPeers().keys.foreach(address => {
+          knowPeerSer = knowPeerSer :+ new InetSocketAddressSer(address.getHostName, address.getPort)
+        })
+
+        if (knowPeerSer.size > 0) {
+          connectedPeers.values.foreach(connectedPeer => {
+            connectedPeer.connectionRef ! PeerInfoMessage(new PeerInfoPayload(knowPeerSer)).pack()
+            peerUpdated =false
+          })
+        }
       }
     }
   }
@@ -40,6 +66,7 @@ class PeerHandlerManager(settings: NetworkSettings, timeProvider: NetworkTimePro
       if (!isSelf(address, None)) {
         val peerInfo = PeerInfo(timeProvider.time(), peerNameOpt, connTypeOpt)
         peerDatabase.addOrUpdateKnownPeer(address, peerInfo)
+        peerUpdated = true
       }
   }
 
@@ -76,7 +103,6 @@ class PeerHandlerManager(settings: NetworkSettings, timeProvider: NetworkTimePro
         val isIncoming = direction == Incoming
         val isAlreadyConnecting = connectingPeers.contains(remote)
         if (isAlreadyConnecting && !isIncoming) {
-          log.info(s"尝试连接两次 $remote, 将删除重复连接")
           peerHandlerRef ! CloseConnection
         } else {
           if (!isIncoming) {
@@ -124,14 +150,15 @@ class PeerHandlerManager(settings: NetworkSettings, timeProvider: NetworkTimePro
           peer.connectionRef ! CloseConnection
         } else {
           if (peer.publicPeer) {
-            self ! AddOrUpdatePeer(peer.socketAddress, Some(peer.handshake.nodeName), Some(peer.direction))
-          } else {
-            peerDatabase.remove(peer.socketAddress)
+            log.info("add or update peer:" + peer.handshake.declaredAddress.get)
+            self ! AddOrUpdatePeer(peer.handshake.declaredAddress.get, Some(peer.handshake.nodeName), Some(peer.direction))
           }
+
           connectedPeers += peer.socketAddress -> peer
+          peerUpdated = true
           log.info("更新本节点连接的节点=" + connectedPeers)
           // Once connected, try get the peer's latest block to sync
-          Thread.sleep(50)    // to avoid peer mess with the "handshakeDone"
+          Thread.sleep(50) // to avoid peer mess with the "handshakeDone"
           peer.connectionRef ! VersionMessage(0).pack
         }
       }
@@ -157,11 +184,55 @@ class PeerHandlerManager(settings: NetworkSettings, timeProvider: NetworkTimePro
       connectingPeers -= remote
   }
 
+
+  /**
+    * 返回一个随机节点RandomPeerToConnect
+    *
+    * @return
+    */
+  private def randomPeer: Receive = {
+    case RandomPeerToConnect() => {
+      // log.info("now, select a peer to connected if can found.")
+      if (connectedPeers.size <= settings.maxConnections)
+        sender() ! randomPeerExcluded()
+
+    }
+  }
+
+
+  //从peerDatabase中，随机选 出一个peer,且不在connectedPeers
+  private def randomPeerExcluded(): Option[InetSocketAddress] = {
+    val candidates = peerDatabase.knownPeers().keys.filterNot { p =>
+      connectedPeers.keys.exists(e => {
+        p.getHostName.equals(e.getHostName) /*&& p.getPort == e.getPort */
+      }
+      )
+    }.toSeq
+
+    randomSelectedPeer(candidates)
+  }
+
+  private def randomSelectedPeer(peers: Seq[InetSocketAddress]): Option[InetSocketAddress] = {
+    if (peers.nonEmpty) Some(peers(Random.nextInt(peers.size)))
+    else None
+  }
+
   override def receive: Receive = ({
     case AddToBlacklist(peer) =>
       log.info(s"黑名单  $peer")
       peerDatabase.blacklistPeer(peer, timeProvider.time())
-  }: Receive) orElse peerListOperations orElse apiInterface orElse peerCycle
+    case ReceivedPeers(peers) => {
+      peers.knownPeers.foreach(knPeer => {
+        val address = new InetSocketAddress(knPeer.address, knPeer.port)
+        log.info("收到peer:" + knPeer.toString)
+        if (!isSelf(address, None)) {
+          val defaultPeerInfo = PeerInfo(timeProvider.time(), Some(settings.nodeName), None)
+          peerDatabase.addOrUpdateKnownPeer(address, defaultPeerInfo)
+        }
+      })
+
+    }
+  }: Receive) orElse peerListOperations orElse apiInterface orElse randomPeer orElse peerCycle
 }
 
 object PeerHandlerManager {
@@ -192,17 +263,22 @@ object PeerHandlerManager {
 
     case class BroadCastPeers(data: Array[Byte], peers: Seq[ConnectedPeer])
 
+    case class RandomPeerToConnect()
+
+    case class ReceivedPeers(peerInfoPayload: PeerInfoPayload)
+
   }
 
 }
 
 object PeerHandlerManagerRef {
-  def props(settings: NetworkSettings, timeProvider: NetworkTimeProvider): Props =
+  def props(settings: NetworkSettings, timeProvider: NetworkTimeProvider)(implicit ec: ExecutionContext): Props =
     Props(new PeerHandlerManager(settings, timeProvider))
 
   def apply(settings: NetworkSettings, timeProvider: NetworkTimeProvider)
-           (implicit system: ActorContext): ActorRef = system.actorOf(props(settings, timeProvider))
+           (implicit system: ActorContext, ec: ExecutionContext
+           ): ActorRef = system.actorOf(props(settings, timeProvider))
 
   def apply(name: String, settings: NetworkSettings, timeProvider: NetworkTimeProvider)
-           (implicit system: ActorContext): ActorRef = system.actorOf(props(settings, timeProvider), name)
+           (implicit system: ActorContext, ec: ExecutionContext): ActorRef = system.actorOf(props(settings, timeProvider), name)
 }

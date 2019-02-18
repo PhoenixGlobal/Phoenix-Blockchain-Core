@@ -2,19 +2,21 @@ package com.apex.network
 
 import java.net.InetSocketAddress
 
+import akka.actor.Status.{Failure, Success}
 import akka.actor.{Actor, ActorContext, ActorRef, ActorSystem, Props, actorRef2Scala}
 import akka.io.Tcp.SO.KeepAlive
+import akka.pattern.ask
 import akka.io.Tcp._
 import akka.io.{IO, Tcp}
 import akka.util.Timeout
 import com.apex.common.ApexLogging
 import com.apex.core.ChainInfo
-import com.apex.network.peer.PeerHandlerManager.ReceivableMessages.PeerHandler
+import com.apex.network.peer.PeerHandlerManager.ReceivableMessages.{GetConnectedPeers, PeerHandler, RandomPeerToConnect}
 import com.apex.settings.NetworkSettings
 import com.apex.utils.NetworkTimeProvider
 
 import scala.collection.mutable
-import scala.concurrent.ExecutionContext
+import scala.concurrent.{ExecutionContext, Future}
 import scala.concurrent.duration.DurationInt
 
 
@@ -34,7 +36,7 @@ class NetworkManager(settings: NetworkSettings,
 
   private implicit val system: ActorSystem = context.system
 
-  private val timeout: Timeout = Timeout(settings.controllerTimeout.getOrElse(5 seconds))
+  private implicit val timeout: Timeout = Timeout(settings.controllerTimeout.getOrElse(5 seconds))
 
   private val node: ActorRef = context.parent
 
@@ -53,12 +55,7 @@ class NetworkManager(settings: NetworkSettings,
   private def bindingLogic: Receive = {
     case Bound(_) =>
       log.info("成功绑定到端口 " + settings.bindAddress.getPort)
-      val knownPeers = settings.knownPeers
-      if (knownPeers.size > 0) {
-        for (knownPeer <- knownPeers) {
-          self ! ConnectTo(new InetSocketAddress(knownPeer.getAddress, knownPeer.getPort))
-        }
-      }
+      scheduleConnectToPeer();
     case CommandFailed(_: Bind) =>
       log.error("端口 " + settings.bindAddress.getPort + " already in use!")
       context stop self
@@ -91,8 +88,8 @@ class NetworkManager(settings: NetworkSettings,
     case Connected(remote, local) =>
       val direction: ConnectionType = if (outgoing.contains(remote)) Outgoing else Incoming
       val logMsg = direction match {
-        case Incoming => s"传入的远程连接 $remote 绑定到本地 $local"
-        case Outgoing => s"输入的远程连接 $remote 绑定到本地 $local"
+        case Incoming => s"incoming:远程连接 $remote 绑定到本地 $local"
+        case Outgoing => s"outgoing:远程连接 $remote 绑定到本地 $local"
       }
       log.info(logMsg)
       val connection = sender()
@@ -127,6 +124,22 @@ class NetworkManager(settings: NetworkSettings,
 
     case nonsense: Any =>
       log.warn(s"NetworkController: 未知的错误  $nonsense")
+  }
+
+  /**
+    * Schedule a periodic connection to a random known peer
+    */
+  private def scheduleConnectToPeer(): Unit = {
+    context.system.scheduler.schedule(5.seconds, 5.seconds) {
+      val randomPeerF = peerHandlerManager ? RandomPeerToConnect()
+      randomPeerF.mapTo[Option[InetSocketAddress]].foreach { peerInfoOpt =>
+        peerInfoOpt.foreach(peerInfo => {
+          log.info("found peerInfo:" + peerInfo.getAddress + ":" + peerInfo.getPort)
+          self ! ConnectTo(peerInfo)
+        }
+        )
+      }
+    }
   }
 }
 
