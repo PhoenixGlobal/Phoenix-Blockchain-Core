@@ -45,16 +45,16 @@ class PeerHandlerManager(settings: NetworkSettings, timeProvider: NetworkTimePro
   override def preStart: Unit = {
     //30s后，每隔30s与其它peer交换一次peerDatabase
     context.system.scheduler.schedule(30.seconds, 30.seconds) {
-      if (peerUpdated) {  //仅当peerDatabase 有更新的时才广播
+      if (peerUpdated) { //仅当peerDatabase 有更新的时才广播
         var knowPeerSer = Seq[InetSocketAddressSer]()
-        peerDatabase.knownPeers().keys.foreach(address => {
+        peerDatabase.selectPeersByRandom(settings.peerSyncNumber).foreach(address => {
           knowPeerSer = knowPeerSer :+ new InetSocketAddressSer(address.getHostName, address.getPort)
         })
 
         if (knowPeerSer.size > 0) {
           connectedPeers.values.foreach(connectedPeer => {
             connectedPeer.connectionRef ! PeerInfoMessage(new PeerInfoPayload(knowPeerSer)).pack()
-            peerUpdated =false
+            peerUpdated = false
           })
         }
       }
@@ -217,20 +217,22 @@ class PeerHandlerManager(settings: NetworkSettings, timeProvider: NetworkTimePro
     else None
   }
 
+
   override def receive: Receive = ({
     case AddToBlacklist(peer) =>
       log.info(s"黑名单  $peer")
       peerDatabase.blacklistPeer(peer, timeProvider.time())
     case ReceivedPeers(peers) => {
-      peers.knownPeers.foreach(knPeer => {
-        val address = new InetSocketAddress(knPeer.address, knPeer.port)
-        log.info("收到peer:" + knPeer.toString)
-        if (!isSelf(address, None)) {
-          val defaultPeerInfo = PeerInfo(timeProvider.time(), Some(settings.nodeName), None)
-          peerDatabase.addOrUpdateKnownPeer(address, defaultPeerInfo)
-        }
-      })
-
+      if (peerDatabase.peerSize() < settings.peerDatabaseMax) {
+        peers.knownPeers.foreach(knPeer => {
+          val address = new InetSocketAddress(knPeer.address, knPeer.port)
+          log.info("收到peer:" + knPeer.toString)
+          if (!isSelf(address, None)) {
+            val defaultPeerInfo = PeerInfo(timeProvider.time(), Some(settings.nodeName), None)
+            peerDatabase.addOrUpdateKnownPeer(address, defaultPeerInfo)
+          }
+        })
+      }
     }
   }: Receive) orElse peerListOperations orElse apiInterface orElse randomPeer orElse peerCycle
 }

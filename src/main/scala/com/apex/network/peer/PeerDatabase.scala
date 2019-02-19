@@ -21,5 +21,9 @@ trait PeerDatabase {
   def isBlacklisted(address: InetSocketAddress): Boolean
 
   def remove(address: InetSocketAddress): Boolean
+
+  def selectPeersByRandom(number: Long): Seq[InetSocketAddress]
+
+  def peerSize():Int
 }
 

@@ -43,7 +43,9 @@ case class NetworkSettings(nodeName: String,
                            agentName: String,
                            maxPacketSize: Int,
                            controllerTimeout: Option[FiniteDuration],
-                           peerMaxTimeGap: Int)
+                           peerMaxTimeGap: Int,
+                           peerSyncNumber: Int,
+                           peerDatabaseMax: Int)
 
 case class NetworkTimeProviderSettings(server: String, updateEvery: FiniteDuration, timeout: FiniteDuration)
 
