@@ -106,6 +106,7 @@ object RegisterContractExecutor {
     private def cancelRegisterWitness(track: DataBase, registerSpend: FixedNumber) = {
       track.addBalance(registerData.registerAccount, registerSpend.value)
       track.addBalance(new UInt160(PrecompiledContracts.registerNodeAddr.getLast20Bytes), -registerSpend.value)
+      //RegisterFeeScheduleActor(track, registerData, registerSpend)
       track.deleteWitness(registerData.registerAccount)
     }
 

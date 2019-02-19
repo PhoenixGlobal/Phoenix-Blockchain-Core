@@ -110,7 +110,7 @@ class TransactionExecutor(val tx: Transaction,
   private def call(): Unit = {
     if (!readyToExecute) return
     val targetAddress = tx.toPubKeyHash
-    precompiledContract = PrecompiledContracts.getContractForAddress(DataWord.of(targetAddress.data), vmSettings, cacheTrack, tx)
+    precompiledContract = PrecompiledContracts.getContractForAddress(DataWord.of(targetAddress.data), vmSettings, track, tx)
     if (precompiledContract != null) {
       val requiredGas = precompiledContract.getGasForData(tx.data)
       val spendingGas = BigInt(requiredGas) + basicTxCost
