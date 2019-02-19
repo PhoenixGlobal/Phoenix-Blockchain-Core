@@ -269,7 +269,13 @@ class BlockchainTest {
       assert(chain.getBalance(_acct3).get == FixedNumber.fromDecimal(20))
       assert(chain.getBalance(_acct1).get == FixedNumber.fromDecimal(0.1))
 
-      val block2 = makeBlock(chain, block1.get, Seq(makeTx(_acct3, _acct4, FixedNumber.fromDecimal(11), 1)))
+      val tx1 = makeTx(_acct3, _acct4, FixedNumber.fromDecimal(11), 1)
+
+      val block2 = makeBlock(chain, block1.get, Seq(tx1))
+
+      // test getTransaction()
+      assert(block2.getTransaction(tx1.id).get.id == tx1.id)
+
       println("call tryInsertBlock block2")
       assert(chain.tryInsertBlock(block2, true))
       println("block2 inserted")

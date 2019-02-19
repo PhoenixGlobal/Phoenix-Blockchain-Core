@@ -545,8 +545,8 @@ class Blockchain(chainSettings: ChainSettings,
       false
     else if (!verifyTxTypeAndSignature(block.transactions))
       false
-    else if (!verifyRegisterNames(block.transactions))
-      false
+    //    else if (!verifyRegisterNames(block.transactions))
+    //      false
     else
       true
   }
@@ -601,28 +601,28 @@ class Blockchain(chainSettings: ChainSettings,
     }
   }
 
-  private def verifyRegisterNames(transactions: Seq[Transaction]): Boolean = {
-    var isValid = true
-    val newNames = Set.empty[String]
-    val registers = Set.empty[UInt160]
-    transactions.foreach(tx => {
-      if (tx.txType == TransactionType.RegisterName) {
-        val name = new String(tx.data, "UTF-8")
-        if (name.length != 10) // TODO: read "10" from config file
-          isValid = false
-        if (newNames.contains(name))
-          isValid = false
-        if (registers.contains(tx.from))
-          isValid = false
-        newNames.add(name)
-        registers.add(tx.from)
-      }
-    })
-
-    isValid = !newNames.exists(dataBase.nameExists)
-    isValid = !registers.exists(dataBase.accountExists)
-    isValid
-  }
+  //  private def verifyRegisterNames(transactions: Seq[Transaction]): Boolean = {
+  //    var isValid = true
+  //    val newNames = Set.empty[String]
+  //    val registers = Set.empty[UInt160]
+  //    transactions.foreach(tx => {
+  //      if (tx.txType == TransactionType.RegisterName) {
+  //        val name = new String(tx.data, "UTF-8")
+  //        if (name.length != 10) // TODO: read "10" from config file
+  //          isValid = false
+  //        if (newNames.contains(name))
+  //          isValid = false
+  //        if (registers.contains(tx.from))
+  //          isValid = false
+  //        newNames.add(name)
+  //        registers.add(tx.from)
+  //      }
+  //    })
+  //
+  //    isValid = !newNames.exists(dataBase.nameExists)
+  //    isValid = !registers.exists(dataBase.accountExists)
+  //    isValid
+  //  }
 
   def getBalance(address: UInt160): Option[FixedNumber] = {
     dataBase.getBalance(address)

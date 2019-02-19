@@ -11,8 +11,10 @@ package com.apex.test
 import java.io.{ByteArrayOutputStream, DataOutputStream}
 
 import com.apex.core.Account
-import com.apex.crypto.{FixedNumber, UInt160}
+import com.apex.crypto.{Ecdsa, FixedNumber, UInt160}
+import org.bouncycastle.util.encoders.Hex
 import org.junit.Test
+import play.api.libs.json.Json
 
 import scala.util.Random
 
@@ -23,6 +25,10 @@ class AccountTest {
     val codeHash = new Array[Byte](Random.nextInt(33))
     Random.nextBytes(codeHash)
     val a = new Account(UInt160.Zero, false, "iiruf", FixedNumber(567), 123, codeHash)
+
+    assert(a.address == Ecdsa.PublicKeyHash.toAddress(UInt160.Zero.data))
+    assert(!a.isEmpty)
+
     val o = new SerializerHelper[Account](
       Account.deserialize,
       (x, _) => x.pubKeyHash == a.pubKeyHash
@@ -33,5 +39,11 @@ class AccountTest {
         && x.codeHash.sameElements(a.codeHash)
         && x.version == a.version)
     o.test(a)
+
+    //val eefet = Json.toJson(a).toString
+    //val efwef = s"""{"address":"${a.address}","active":false,"name":"${a.name}","balance":"${a.balance.toString}","nextNonce":${a.nextNonce},"codeHash":"${Hex.toHexString(a.codeHash)}","version":${a.version}}"""
+
+    assert(Json.toJson(a).toString.equals(
+      s"""{"address":"${a.address}","active":false,"name":"${a.name}","balance":"${a.balance.toString}","nextNonce":${a.nextNonce},"codeHash":"${Hex.toHexString(a.codeHash)}","version":${a.version}}"""))
   }
 }

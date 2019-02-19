@@ -40,13 +40,6 @@ class Block(val header: BlockHeader,
     txMp.get(id)
   }
 
-  def getTransaction(index: Int): Option[Transaction] = {
-    if (index < 0 || index >= transactions.length)
-      null
-    else
-      Some(transactions(index))
-  }
-
   override def serialize(os: DataOutputStream): Unit = {
     import com.apex.common.Serializable._
     os.write(header)

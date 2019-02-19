@@ -323,6 +323,14 @@ class BlockchainVoteTest {
 
       println("block12 inserted")
 
+      //test getBlock()
+      assert(chain.getBlock(0).get.height() == 0)
+      assert(chain.getBlock(1).get.id == block1.id)
+      assert(chain.getBlock(2).get.id == block2.id)
+      assert(chain.getBlock(3).get.id == block3.id)
+      assert(chain.getBlock(11).get.id == block11.id)
+      assert(chain.getBlock(11).get.id != block12.id)
+
     }
     finally {
       chain.close()

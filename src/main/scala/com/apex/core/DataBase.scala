@@ -41,9 +41,9 @@ class DataBase(settings: DataBaseSettings, db: Storage.lowLevelRaw, tracking: Tr
     this(settings, Storage.open(settings.dbType, settings.dir))
   }
 
-  def nameExists(name: String): Boolean = {
-    nameToAccountStore.contains(name)
-  }
+  //  def nameExists(name: String): Boolean = {
+  //    nameToAccountStore.contains(name)
+  //  }
 
   def accountExists(address: UInt160): Boolean = {
     accountStore.contains(address)
