@@ -330,6 +330,20 @@ class BlockchainVoteTest {
       assert(chain.getBlock(3).get.id == block3.id)
       assert(chain.getBlock(11).get.id == block11.id)
       assert(chain.getBlock(11).get.id != block12.id)
+      assert(chain.getBlock(13) == None)
+
+      // getHeader()
+      assert(chain.getHeader(1).get.id == block1.id)
+      assert(chain.getHeader(11).get.id == block11.id)
+      assert(chain.getHeader(13) == None)
+      assert(chain.getHeader(block1.id).get.id == block1.id)
+      assert(chain.getHeader(block11.id).get.id == block11.id)
+
+      // getNextBlockId()
+      assert(chain.getNextBlockId(block1.id).get == block2.id)
+      assert(chain.getNextBlockId(block2.id).get == block3.id)
+      assert(chain.getNextBlockId(block11.id).get == block12.id)
+      assert(chain.getNextBlockId(block12.id) == None)
 
     }
     finally {

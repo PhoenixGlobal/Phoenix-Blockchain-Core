@@ -37,7 +37,7 @@ object UInt160 {
     } else {
       val s = if (str.startsWith("0x")) str.substring(2) else str
       if (s.length != 40) {
-        None;
+        None
       } else {
         Some(UInt160.fromBytes(Hex.decode(s)))
       }

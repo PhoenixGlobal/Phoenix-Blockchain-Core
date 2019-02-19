@@ -160,7 +160,7 @@ object Ecdsa {
 
     def toBin(compressed: Boolean): BinaryData = value.getEncoded(compressed)
 
-    protected def writeReplace: Object = PointProxy(toBin(true))
+    //protected def writeReplace: Object = PointProxy(toBin(true))
 
     override def toString = toBin(true).toString
 
@@ -172,9 +172,9 @@ object Ecdsa {
 
   }
 
-  case class PointProxy(bin: BinaryData) {
-    def readResolve: Object = Point(bin)
-  }
+  //  case class PointProxy(bin: BinaryData) {
+  //    def readResolve: Object = Point(bin)
+  //  }
 
   object Point {
     def apply(data: BinaryData): Point = Point(curve.getCurve.decodePoint(data))
@@ -280,15 +280,15 @@ object Ecdsa {
 
   def encodeSignature(t: (BigInteger, BigInteger)): BinaryData = encodeSignature(t._1, t._2)
 
-  def normalizeSignature(r: BigInteger, s: BigInteger): (BigInteger, BigInteger) = {
-    val s1 = if (s.compareTo(halfCurveOrder) > 0) curve.getN().subtract(s) else s
-    (r, s1)
-  }
+  //  def normalizeSignature(r: BigInteger, s: BigInteger): (BigInteger, BigInteger) = {
+  //    val s1 = if (s.compareTo(halfCurveOrder) > 0) curve.getN().subtract(s) else s
+  //    (r, s1)
+  //  }
 
-  def normalizeSignature(sig: BinaryData): BinaryData = {
-    val (r, s) = decodeSignature(sig)
-    encodeSignature(normalizeSignature(r, s))
-  }
+  //  def normalizeSignature(sig: BinaryData): BinaryData = {
+  //    val (r, s) = decodeSignature(sig)
+  //    encodeSignature(normalizeSignature(r, s))
+  //  }
 
   // we use only the 33 bytes compressed pub key, don not use uncompressed key
   def isPubKeyValid(key: Seq[Byte]): Boolean = key.length match {
@@ -360,7 +360,7 @@ object Ecdsa {
     signer.verifySignature(data.toArray, r, s)
   }
 
-  def publicKeyFromPrivateKey(privateKey: BinaryData) = PrivateKey(privateKey).publicKey
+  //def publicKeyFromPrivateKey(privateKey: BinaryData) = PrivateKey(privateKey).publicKey
 
   def sign(data: BinaryData, privateKey: PrivateKey): (BigInteger, BigInteger) = {
     val signer = new ECDSASigner(new HMacDSAKCalculator(new SHA256Digest))
