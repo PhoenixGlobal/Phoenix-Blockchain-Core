@@ -24,6 +24,7 @@ case class ContractSettings(dumpBlock: Long,
                             registerSpend: FixedNumber = FixedNumber.One)
 
 case class RPCSettings(enabled: Boolean, host: String, port: Int)
+
 case class SecretRPCSettings(enabled: Boolean, host: String, port: Int)
 
 case class NetworkSettings(nodeName: String,
@@ -89,9 +90,9 @@ case class ChainSettings(blockBase: BlockBaseSettings,
 case class PluginsSettings(mongodb: MongodbSettings)
 
 case class RuntimeParas(stopProcessTxTimeSlot: Int,
-                        var txAcceptGasLimit: Long){
+                        var txAcceptGasLimit: Long) {
 
-  def setAcceptGasLimit(gasLimit: Long): Unit ={
+  def setAcceptGasLimit(gasLimit: Long): Unit = {
     txAcceptGasLimit = gasLimit
   }
 }
@@ -103,6 +104,7 @@ case class MinerSettings(privKeys: Array[PrivateKey]) {
   def findPrivKey(miner: UInt160): Option[PrivateKey] = {
     privKeys.find(p => p.publicKey.pubKeyHash == miner)
   }
+
   def findPrivKey(miner: Witness): Option[PrivateKey] = {
     findPrivKey(miner.pubkeyHash)
   }
@@ -168,6 +170,10 @@ object ApexSettings extends SettingsReaders with ApexLogging {
   def read(configFilePath: String): ApexSettings = {
     val conf = readConfigFromPath(Some(configFilePath), configPath)
     conf.as[ApexSettings](configPath)
+  }
+
+  def readConfig(configFilePath: String): Config = {
+    readConfigFromPath(Some(configFilePath), configPath)
   }
 
   def readConfigFromPath(userConfigPath: Option[String], configPath: String): Config = {
