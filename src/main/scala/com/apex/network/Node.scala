@@ -9,6 +9,7 @@
 package com.apex.network
 
 import java.io.{ByteArrayInputStream, DataInputStream}
+
 import akka.actor.{Actor, ActorRef, ActorSystem, Props}
 import com.apex.common.ApexLogging
 import com.apex.consensus._
@@ -20,6 +21,9 @@ import com.apex.network.rpc._
 import com.apex.plugins.mongodb.MongodbPluginRef
 import com.apex.settings.ApexSettings
 import com.apex.utils.NetworkTimeProvider
+import akka.dispatch.PriorityGenerator
+import akka.dispatch.UnboundedStablePriorityMailbox
+import com.typesafe.config.Config
 
 import scala.collection.mutable.ArrayBuffer
 import scala.concurrent.ExecutionContext
@@ -31,6 +35,27 @@ trait AsyncTask
 case class NodeStopMessage() extends NodeMessage
 
 case class ProduceTask(task: Blockchain => Unit) extends AsyncTask
+
+object Node {
+  class PrioMailbox(settings: ActorSystem.Settings, config: Config)
+    extends UnboundedStablePriorityMailbox(
+      // Create a new PriorityGenerator, lower prio means more important
+      PriorityGenerator {
+        // 'highpriority messages should be treated first if possible
+        case task: AsyncTask => 0
+
+        case message: NetworkMessage if message.messageType == MessageType.Block => 1
+
+        // 'lowpriority messages should be treated last if possible
+        //case 'lowpriority ⇒ 2
+
+        // PoisonPill when no other left
+        //case PoisonPill    ⇒ 3
+
+        // We default to 1, which is in between high and low
+        case otherwise => 2
+      })
+}
 
 class Node(val settings: ApexSettings)
           (implicit ec: ExecutionContext)
@@ -348,12 +373,12 @@ class Node(val settings: ApexSettings)
 
 object NodeRef {
 
-  def props(settings: ApexSettings)(implicit system: ActorSystem, ec: ExecutionContext): Props = Props(new Node(settings))
+  def props(settings: ApexSettings)(implicit system: ActorSystem, ec: ExecutionContext): Props = Props(new Node(settings)).withMailbox("akka.actor.node-prio-mailbox")
 
   def apply(settings: ApexSettings)
-           (implicit system: ActorSystem, ec: ExecutionContext): ActorRef = system.actorOf(props(settings))
+           (implicit system: ActorSystem, ec: ExecutionContext): ActorRef = system.actorOf(props(settings).withMailbox("akka.actor.node-prio-mailbox"))
 
   def apply(settings: ApexSettings, name: String)
-           (implicit system: ActorSystem, ec: ExecutionContext): ActorRef = system.actorOf(props(settings), name)
+           (implicit system: ActorSystem, ec: ExecutionContext): ActorRef = system.actorOf(props(settings).withMailbox("akka.actor.node-prio-mailbox"), name)
 
 }

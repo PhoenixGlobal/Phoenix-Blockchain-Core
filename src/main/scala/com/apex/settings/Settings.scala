@@ -167,9 +167,9 @@ object ApexSettings extends SettingsReaders with ApexLogging {
     DBType(conf.toInt)
   }
 
-  def read(configFilePath: String): ApexSettings = {
+  def read(configFilePath: String): (ApexSettings, Config) = {
     val conf = readConfigFromPath(Some(configFilePath), configPath)
-    conf.as[ApexSettings](configPath)
+    (conf.as[ApexSettings](configPath), conf)
   }
 
   def readConfig(configFilePath: String): Config = {
