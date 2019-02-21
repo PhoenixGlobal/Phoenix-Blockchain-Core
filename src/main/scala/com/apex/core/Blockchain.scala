@@ -674,6 +674,10 @@ class Blockchain(chainSettings: ChainSettings,
     dataBase.getWitness(address)
   }
 
+  def getScheduleTx(): ArrayBuffer[Transaction] = {
+    dataBase.getAllScheduleTx()
+  }
+
   def getVote(address: UInt160): Option[Vote] = {
     dataBase.getVote(address)
   }

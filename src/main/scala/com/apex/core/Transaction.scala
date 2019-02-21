@@ -86,6 +86,7 @@ class Transaction(val txType: TransactionType.Value,
     os.writeByteArray(data)
     os.write(gasPrice)
     os.writeByteArray(gasLimit.toByteArray)
+    os.writeLong(executeTime)
 
     // skip signature
 
@@ -123,7 +124,8 @@ object Transaction {
             "gasPrice" -> o.gasPrice.toString,
             "gasLimit" -> o.gasLimit.longValue(),
             "signature" -> o.signature.toString,
-            "version" -> o.version
+            "version" -> o.version,
+            "executeTime" -> o.executeTime.toString
           )
     }
   }
@@ -141,8 +143,9 @@ object Transaction {
     val data = is.readByteArray
     val gasPrice = FixedNumber.deserialize(is)
     val gasLimit = BigInt(is.readByteArray)
+    val executeTime = is.readLong()
     val signature = is.readByteArray
 
-    new Transaction(txType, from, toPubKeyHash, toName, amount, nonce, data, gasPrice, gasLimit, signature, version)
+    new Transaction(txType, from, toPubKeyHash, toName, amount, nonce, data, gasPrice, gasLimit, signature, version, executeTime)
   }
 }

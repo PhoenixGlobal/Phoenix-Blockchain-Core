@@ -103,7 +103,6 @@ object VoteContractExecutor {
         }
         else {
           cancelCounterFromWitness(track, tx, witness, timeStamp)
-
         }
       }
       this

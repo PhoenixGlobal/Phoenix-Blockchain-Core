@@ -57,7 +57,8 @@ class TransactionTest {
         && x.gasLimit == tx.gasLimit
         && x.signature.sameElements(tx.signature)
         && x.version == tx.version
-        && x.verifySignature() == true   )
+        && x.verifySignature() == true
+    &&x.executeTime == tx.executeTime)
     o.test(tx)
   }
   
