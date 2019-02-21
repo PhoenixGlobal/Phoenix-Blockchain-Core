@@ -36,7 +36,7 @@ class PeerHandlerManager(settings: NetworkSettings, timeProvider: NetworkTimePro
   if (peerDatabase.isEmpty()) {
     settings.knownPeers.foreach { address =>
       if (!isSelf(address, None)) {
-        val defaultPeerInfo = PeerInfo(timeProvider.time(), Some(settings.nodeName), None)
+        val defaultPeerInfo = PeerInfo(address.getHostName, address.getPort, timeProvider.time(), Some(settings.nodeName), None)
         peerDatabase.addOrUpdateKnownPeer(address, defaultPeerInfo)
       }
     }
@@ -47,8 +47,8 @@ class PeerHandlerManager(settings: NetworkSettings, timeProvider: NetworkTimePro
     context.system.scheduler.schedule(30.seconds, 30.seconds) {
       if (peerUpdated) { //仅当peerDatabase 有更新的时才广播
         var knowPeerSer = Seq[InetSocketAddressSer]()
-        peerDatabase.selectPeersByRandom(settings.peerSyncNumber).foreach(address => {
-          knowPeerSer = knowPeerSer :+ new InetSocketAddressSer(address.getHostName, address.getPort)
+        peerDatabase.selectPeersByRandom(settings.peerSyncNumber).foreach(peerInfo => {
+          knowPeerSer = knowPeerSer :+ new InetSocketAddressSer(peerInfo.address, peerInfo.port)
         })
 
         if (knowPeerSer.size > 0) {
@@ -62,9 +62,8 @@ class PeerHandlerManager(settings: NetworkSettings, timeProvider: NetworkTimePro
   }
 
   private def peerListOperations: Receive = {
-    case AddOrUpdatePeer(address, peerNameOpt, connTypeOpt) =>
+    case AddOrUpdatePeer(address, peerInfo) =>
       if (!isSelf(address, None)) {
-        val peerInfo = PeerInfo(timeProvider.time(), peerNameOpt, connTypeOpt)
         peerDatabase.addOrUpdateKnownPeer(address, peerInfo)
         peerUpdated = true
       }
@@ -151,7 +150,9 @@ class PeerHandlerManager(settings: NetworkSettings, timeProvider: NetworkTimePro
         } else {
           if (peer.publicPeer) {
             log.info("add or update peer:" + peer.handshake.declaredAddress.get)
-            self ! AddOrUpdatePeer(peer.handshake.declaredAddress.get, Some(peer.handshake.nodeName), Some(peer.direction))
+            val declaredAddress = peer.handshake.declaredAddress.get
+            val peerInfo = PeerInfo(declaredAddress.getHostName, declaredAddress.getPort, timeProvider.time(), Some(peer.handshake.nodeName), Some(peer.direction))
+            self ! AddOrUpdatePeer(peer.socketAddress, peerInfo)
           }
 
           connectedPeers += peer.socketAddress -> peer
@@ -224,7 +225,7 @@ class PeerHandlerManager(settings: NetworkSettings, timeProvider: NetworkTimePro
       peerDatabase.blacklistPeer(peer, timeProvider.time())
       val connectedPeer = connectedPeers.get(peer);
       if (connectedPeer.isDefined) {
-            connectedPeer.get.connectionRef ! CloseConnection //close connection if it is in black name list
+        connectedPeer.get.connectionRef ! CloseConnection //close connection if it is in black name list
       }
     case ReceivedPeers(peers) => {
       if (peerDatabase.peerSize() < settings.peerDatabaseMax) {
@@ -232,7 +233,7 @@ class PeerHandlerManager(settings: NetworkSettings, timeProvider: NetworkTimePro
           val address = new InetSocketAddress(knPeer.address, knPeer.port)
           log.info("收到peer:" + knPeer.toString)
           if (!isSelf(address, None)) {
-            val defaultPeerInfo = PeerInfo(timeProvider.time(), Some(settings.nodeName), None)
+            val defaultPeerInfo = PeerInfo(knPeer.address, knPeer.port, timeProvider.time(), Some(settings.nodeName), None)
             peerDatabase.addOrUpdateKnownPeer(address, defaultPeerInfo)
           }
         })
@@ -249,7 +250,7 @@ object PeerHandlerManager {
 
     case class AddToBlacklist(remote: InetSocketAddress)
 
-    case class AddOrUpdatePeer(address: InetSocketAddress, peerName: Option[String], direction: Option[ConnectionType])
+    case class AddOrUpdatePeer(address: InetSocketAddress, peerInfo: PeerInfo)
 
     case object GetConnectedPeers
 

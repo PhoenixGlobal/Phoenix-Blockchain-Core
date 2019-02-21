@@ -4,11 +4,11 @@ import java.net.InetSocketAddress
 import com.apex.network.ConnectionType
 import com.apex.utils.NetworkTime
 
-case class PeerInfo(lastSeen: Long, nodeName: Option[String] = None, connectionType: Option[ConnectionType] = None)
+case class PeerInfo(address: String, port: Int, lastSeen: Long, nodeName: Option[String] = None, connectionType: Option[ConnectionType] = None)
 
 trait PeerDatabase {
 
-  def isEmpty():Boolean
+  def isEmpty(): Boolean
 
   def addOrUpdateKnownPeer(peer: InetSocketAddress, peerInfo: PeerInfo): Unit
 
@@ -22,8 +22,8 @@ trait PeerDatabase {
 
   def remove(address: InetSocketAddress): Boolean
 
-  def selectPeersByRandom(number: Long): Seq[InetSocketAddress]
+  def selectPeersByRandom(number: Long): Seq[PeerInfo]
 
-  def peerSize():Int
+  def peerSize(): Int
 }
 

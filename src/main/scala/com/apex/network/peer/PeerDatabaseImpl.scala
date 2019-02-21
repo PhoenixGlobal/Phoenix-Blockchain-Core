@@ -17,12 +17,7 @@ class PeerDatabaseImpl(filename: Option[String]) extends PeerDatabase {
   private val blacklist = mutable.Map[String, NetworkTime.Time]()
 
   override def addOrUpdateKnownPeer(address: InetSocketAddress, peerInfo: PeerInfo): Unit = {
-    val updatedPeerInfo = whitelistPersistence.get(address).fold(peerInfo) { dbPeerInfo =>
-      val nodeNameOpt = peerInfo.nodeName orElse dbPeerInfo.nodeName
-      val connTypeOpt = peerInfo.connectionType orElse dbPeerInfo.connectionType
-      PeerInfo(peerInfo.lastSeen, nodeNameOpt, connTypeOpt)
-    }
-    whitelistPersistence.put(address, updatedPeerInfo)
+    whitelistPersistence.put(address, peerInfo)
   }
 
   override def blacklistPeer(address: InetSocketAddress, time: NetworkTime.Time): Unit = {
@@ -45,13 +40,13 @@ class PeerDatabaseImpl(filename: Option[String]) extends PeerDatabase {
   override def remove(address: InetSocketAddress): Boolean = whitelistPersistence.remove(address).nonEmpty
 
   //从whitelist里随机选出number个peer
-  override def selectPeersByRandom(number: Long): Seq[InetSocketAddress] = {
+  override def selectPeersByRandom(number: Long): Seq[PeerInfo] = {
 
-    val allSeq = whitelistPersistence.keys.toSeq
+    val allSeq = whitelistPersistence.values.toSeq
     if (allSeq.size < number)
       return allSeq
 
-    var ret = Seq[InetSocketAddress]()
+    var ret = Seq[PeerInfo]()
     val size: Int = whitelistPersistence.size
     var rand: Int = Random.nextInt(size)
 
