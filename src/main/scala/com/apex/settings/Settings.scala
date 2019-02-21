@@ -70,6 +70,8 @@ object DBType extends Enumeration {
 
 case class PeerBaseSettings(dir: String, cacheEnabled: Boolean, cacheSize: Int, dbType: DBType.Value)
 
+case class ScheduleBaseSettings(dir: String, cacheEnabled: Boolean, cacheSize: Int, dbType: DBType.Value)
+
 case class BlockBaseSettings(dir: String, cacheEnabled: Boolean, cacheSize: Int, dbType: DBType.Value)
 
 case class DataBaseSettings(dir: String, cacheEnabled: Boolean, cacheSize: Int, dbType: DBType.Value)

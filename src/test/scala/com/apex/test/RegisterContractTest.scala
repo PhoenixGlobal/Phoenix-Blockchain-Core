@@ -108,14 +108,14 @@ class RegisterContractTest extends BlockChainPrepare{
           assert(chain.addTransaction(tx))
           val witness = chain.getWitness(_acct3.publicKey.pubKeyHash)
           assert(witness.isEmpty)
-          assert(chain.getBalance(_acct3.publicKey.pubKeyHash).get == FixedNumber.fromDecimal(2))
-          assert(chain.getBalance(new UInt160(PrecompiledContracts.registerNodeAddr.getLast20Bytes)).get == FixedNumber.One)
-          println("3333333333333333333333:" + new SimpleDateFormat("yyyy-MM-dd HH:mm:ss").format(new Date))
-          Thread.sleep(8000)
-
-          println("444444444444444444444:" + new SimpleDateFormat("yyyy-MM-dd HH:mm:ss").format(new Date))
-          println(chain.getAccount(_acct3.publicKey.pubKeyHash).map(_.balance))
-          println(chain.getBalance(new UInt160(PrecompiledContracts.registerNodeAddr.getLast20Bytes)).get)
+//          assert(chain.getBalance(_acct3.publicKey.pubKeyHash).get == FixedNumber.fromDecimal(3))
+//          assert(chain.getBalance(new UInt160(PrecompiledContracts.registerNodeAddr.getLast20Bytes)).get == FixedNumber.One)
+//          println("3333333333333333333333:" + new SimpleDateFormat("yyyy-MM-dd HH:mm:ss").format(new Date))
+//          Thread.sleep(8000)
+//
+//          println("444444444444444444444:" + new SimpleDateFormat("yyyy-MM-dd HH:mm:ss").format(new Date))
+//          println(chain.getAccount(_acct3.publicKey.pubKeyHash).map(_.balance))
+//          println(chain.getBalance(new UInt160(PrecompiledContracts.registerNodeAddr.getLast20Bytes)).get)
           assert(chain.getBalance(_acct3.publicKey.pubKeyHash).get == FixedNumber.fromDecimal(3))
           assert(chain.getBalance(new UInt160(PrecompiledContracts.registerNodeAddr.getLast20Bytes)).get == FixedNumber.Zero)
         }

@@ -17,7 +17,8 @@ class Transaction(val txType: TransactionType.Value,
                   val gasPrice: FixedNumber,
                   val gasLimit: BigInt,
                   var signature: BinaryData,
-                  val version: Int = 0x01) extends Identifier[UInt256] with Serializable {
+                  val version: Int = 0x01,
+                  val executeTime: Long = 0) extends Identifier[UInt256] with Serializable {
 
   def sender(): UInt160 = from
 

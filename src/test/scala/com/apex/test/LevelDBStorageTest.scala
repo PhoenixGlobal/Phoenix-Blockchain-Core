@@ -8,7 +8,11 @@
 
 package com.apex.test
 
+import java.util.Map.Entry
+
 import org.junit.{AfterClass, Test}
+
+import scala.collection.mutable.ArrayBuffer
 
 @Test
 class LevelDBStorageTest {
@@ -112,6 +116,31 @@ class LevelDBStorageTest {
       })
       assert(i == 5)
     }
+  }
+
+  @Test
+  def testScanPrefix() = {
+    val storage = DbManager.open(testClass, "testScanPrefix")
+    val seqArr = Array(
+      collection.mutable.Seq.empty[(String, String)],
+      collection.mutable.Seq.empty[(String, String)]
+    )
+    val prefixes = Seq("key_a_", "key_b_")
+    for (i <- 1 to 10) {
+      val key = s"${prefixes(i % 2)}$i"
+      val keyBytes = key.getBytes
+      val value = s"value$i"
+      seqArr(i % 2) = seqArr(i % 2) :+ (key, value)
+      if (storage.get(keyBytes).isEmpty) {
+        assert(storage.set(keyBytes, value.getBytes))
+      }
+    }
+
+    val records = storage.scan(prefixes(0).getBytes)
+    val recordsvalue = records.map(_.getValue)
+    assert(records.size == 5)
+    assert(records(0).getKey.sameElements("key_a_10".getBytes))
+    assert(records(0).getValue.sameElements("value10".getBytes))
   }
 
   @Test

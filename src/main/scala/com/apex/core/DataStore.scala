@@ -8,7 +8,9 @@ import com.apex.consensus.{Vote, WitnessInfo, WitnessList, WitnessMap}
 import com.apex.crypto.Ecdsa.PublicKey
 import com.apex.crypto.{UInt160, UInt256}
 import com.apex.settings.DataBaseSettings
-import com.apex.storage.{Batch, ByteArray, Storage}
+import com.apex.storage.{Batch, ByteArray, LevelDbStorage, Storage}
+
+import scala.collection.mutable.ArrayBuffer
 
 class BlockStore(db: Storage.raw, capacity: Int)
   extends StoreBase[UInt256, Block](db, capacity)
@@ -608,6 +610,10 @@ class Tracking(backend: Storage.raw) extends Storage.raw {
     true
   }
 
+  override def scan(prefix: Array[Byte]): ArrayBuffer[Map.Entry[Array[Byte], Array[Byte]]] = {
+    backend.scan(prefix)
+  }
+
   override def delete(k: Array[Byte], batch: Batch = null): Boolean = {
     val key = ByteArray(k)
     buffer.get(key) match {
@@ -639,12 +645,14 @@ class Tracking(backend: Storage.raw) extends Storage.raw {
   override def newSession(): Unit = ???
 
   override def revision(): Long = ???
+
 }
 
 class TrackingRoot(db: Storage.lowLevelRaw) extends Tracking(db) {
   override def newSession(): Unit = {
     db.newSession()
   }
+
 
   override def revision(): Long = {
     db.revision()
@@ -715,6 +723,10 @@ abstract class StoreBase[K, V](val db: Storage.raw, cacheCapacity: Int) {
     getFromBackStore(key)
   }
 
+  def getLists(prefix: Array[Byte]) = {
+    getListFromBackStore(prefix)
+  }
+
   def set(key: K, value: V, batch: Batch = null) = {
     setBackStore(key, value, batch)
   }
@@ -742,6 +754,10 @@ abstract class StoreBase[K, V](val db: Storage.raw, cacheCapacity: Int) {
 
   protected def getFromBackStore(key: K): Option[V] = {
     db.get(genKey(key)).map(valConverter.fromBytes)
+  }
+
+  protected def getListFromBackStore(prefix: Array[Byte]): ArrayBuffer[V] = {
+    db.scan(prefix).map(records => valConverter.fromBytes(records.getValue))
   }
 
   protected def setBackStore(key: K, value: V, batch: Batch): Boolean = {

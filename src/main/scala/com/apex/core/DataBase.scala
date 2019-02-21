@@ -10,11 +10,14 @@
 
 package com.apex.core
 
+import java.time.Instant
+
 import com.apex.common.ApexLogging
 import com.apex.consensus.{Vote, WitnessInfo, WitnessList, WitnessMap}
 import com.apex.crypto.{BinaryData, FixedNumber, UInt160, UInt256}
 import com.apex.settings.DataBaseSettings
 import com.apex.storage.Storage
+import com.apex.vm.{DataWord, PrecompiledContracts}
 
 import scala.collection.mutable
 import scala.collection.mutable.ArrayBuffer
@@ -25,6 +28,7 @@ class DataBase(settings: DataBaseSettings, db: Storage.lowLevelRaw, tracking: Tr
   private val contractStore = new ContractStore(tracking, settings.cacheSize)
   private val contractStateStore = new ContractStateStore(tracking, settings.cacheSize)
   private val nameToAccountStore = new NameToAccountStore(tracking, settings.cacheSize)
+  private val scheduleTxStore = new TransactionStore(tracking, settings.cacheSize)
 
   private val voteStore = new VoteStore(tracking, settings.cacheSize)
   private val witnessInfoStore = new WitnessInfoStore(tracking)
@@ -44,6 +48,26 @@ class DataBase(settings: DataBaseSettings, db: Storage.lowLevelRaw, tracking: Tr
   //  def nameExists(name: String): Boolean = {
   //    nameToAccountStore.contains(name)
   //  }
+
+  def getAllScheduleTx() = {
+    scheduleTxStore.getLists(Array(StoreType.Data.id.toByte, DataType.Transaction.id.toByte))
+  }
+
+  def addScheduleTxToDb(id: UInt256, tx: Transaction): Unit ={
+    setScheduleTx(id, tx)
+  }
+
+  def setScheduleTx(id: UInt256, tx: Transaction) = {
+    scheduleTxStore.set(id, tx)
+  }
+
+  def getScheduleTx(id: UInt256) : Option[Transaction] = {
+    scheduleTxStore.get(id)
+  }
+
+  def deleteScheduleTx(id: UInt256): Unit ={
+    scheduleTxStore.delete(id)
+  }
 
   def accountExists(address: UInt160): Boolean = {
     accountStore.contains(address)
