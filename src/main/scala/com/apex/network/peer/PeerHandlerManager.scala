@@ -220,8 +220,12 @@ class PeerHandlerManager(settings: NetworkSettings, timeProvider: NetworkTimePro
 
   override def receive: Receive = ({
     case AddToBlacklist(peer) =>
-      log.info(s"黑名单  $peer")
+      log.info(s"add into black-name-list: $peer")
       peerDatabase.blacklistPeer(peer, timeProvider.time())
+      val connectedPeer = connectedPeers.get(peer);
+      if (connectedPeer.isDefined) {
+            connectedPeer.get.connectionRef ! CloseConnection //close connection if it is in black name list
+      }
     case ReceivedPeers(peers) => {
       if (peerDatabase.peerSize() < settings.peerDatabaseMax) {
         peers.knownPeers.foreach(knPeer => {
