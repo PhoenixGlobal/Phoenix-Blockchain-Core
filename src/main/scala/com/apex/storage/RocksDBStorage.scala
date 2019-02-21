@@ -11,9 +11,12 @@
 package com.apex.storage
 
 import java.util.Map
+import java.util.Map.Entry
 
 import com.apex.common.ApexLogging
 import org.rocksdb._
+
+import scala.collection.mutable.ArrayBuffer
 
 class RocksDBStorage(db: RocksDB) extends LowLevelStorage[Array[Byte], Array[Byte]] with ApexLogging {
   override def get(key: Array[Byte]): Option[Array[Byte]] = {
@@ -35,6 +38,8 @@ class RocksDBStorage(db: RocksDB) extends LowLevelStorage[Array[Byte], Array[Byt
   override def last(): Option[Map.Entry[Array[Byte], Array[Byte]]] = ???
 
   override def scan(func: (Array[Byte], Array[Byte]) => Unit): Unit = ???
+
+  override def scan(prefix: Array[Byte]):ArrayBuffer[Entry[Array[Byte], Array[Byte]]] = ???
 
   override def find(prefix: Array[Byte], func: (Array[Byte], Array[Byte]) => Unit): Unit = ???
 

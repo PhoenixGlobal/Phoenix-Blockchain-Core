@@ -33,7 +33,7 @@ import com.apex.core.{DataBase, Transaction}
 import com.apex.crypto.zksnark.{BN128Fp, BN128G1, BN128G2, PairingCheck}
 
 import scala.util.Try
-import com.apex.crypto.{Crypto, ECDSASignature, FixedNumber}
+import com.apex.crypto.{Crypto, ECDSASignature, FixedNumber, UInt160}
 import com.apex.settings.ContractSettings
 
 object PrecompiledContracts {
@@ -45,9 +45,9 @@ object PrecompiledContracts {
   private val altBN128Add = new BN128Addition
   private val altBN128Mul = new BN128Multiplication
   private val altBN128Pairing = new BN128Pairing
-  private val registerNode = (track: DataBase, tx: Transaction, registerSpend: FixedNumber) =>
-    new RegisterNode(track, tx, registerSpend)
-  private val vote = (track: DataBase, tx: Transaction) => new VoteContract(track, tx)
+  private val registerNode = (track: DataBase, tx: Transaction, registerSpend: FixedNumber, timeStamp: Long) =>
+    new RegisterNode(track, tx, registerSpend, timeStamp)
+  private val vote = (track: DataBase, tx: Transaction, timeStamp: Long) => new VoteContract(track, tx, timeStamp)
 
   private val ecRecoverAddr = DataWord.of("0000000000000000000000000000000000000000000000000000000000000001")
   private val sha256Addr = DataWord.of("0000000000000000000000000000000000000000000000000000000000000002")
@@ -60,8 +60,12 @@ object PrecompiledContracts {
   val registerNodeAddr = DataWord.of("0000000000000000000000000000000000000000000000000000000000000101")
   val voteAddr = DataWord.of("0000000000000000000000000000000000000000000000000000000000000102")
 
+  def isVoteOrRegisterAddr(address: UInt160): Boolean ={
+    registerNodeAddr.getLast20Bytes.sameElements(address.data) || voteAddr.getLast20Bytes.sameElements(address.data)
+  }
+
   def getContractForAddress(address: DataWord, settings: ContractSettings, cacheTrack: DataBase = null,
-                            tx: Transaction = null): PrecompiledContract = {
+                            tx: Transaction = null, timeStamp: Long = 0): PrecompiledContract = {
     if (address == null) identity
     else if (address == ecRecoverAddr) ecRecover
     else if (address == sha256Addr) sha256
@@ -72,8 +76,8 @@ object PrecompiledContracts {
     else if (address == altBN128AddAddr) altBN128Add
     else if (address == altBN128MulAddr) altBN128Mul
     else if (address == altBN128PairingAddr) altBN128Pairing
-    else if (address == registerNodeAddr) registerNode(cacheTrack, tx, settings.registerSpend)
-    else if (address == voteAddr) vote(cacheTrack, tx)
+    else if (address == registerNodeAddr) registerNode(cacheTrack, tx, settings.registerSpend, timeStamp)
+    else if (address == voteAddr) vote(cacheTrack, tx, timeStamp)
     else null
   }
 
@@ -443,7 +447,7 @@ class BN128Pairing extends PrecompiledContract {
   }
 }
 
-class RegisterNode(track: DataBase, tx: Transaction, registerSpend: FixedNumber) extends PrecompiledContract{
+class RegisterNode(track: DataBase, tx: Transaction, registerSpend: FixedNumber,timeStamp: Long) extends PrecompiledContract{
   override def getGasForData(data: Array[Byte]): Long ={
     if (data == null) {
       60
@@ -453,12 +457,12 @@ class RegisterNode(track: DataBase, tx: Transaction, registerSpend: FixedNumber)
   }
 
   override def execute(data: Array[Byte]): (Boolean, Array[Byte]) = {
-    RegisterContractExecutor.execute(data, track, tx, registerSpend)
+    RegisterContractExecutor.execute(data, track, tx, registerSpend, timeStamp)
   }
 
 }
 
-class VoteContract(track: DataBase, tx: Transaction) extends PrecompiledContract{
+class VoteContract(track: DataBase, tx: Transaction, timeStamp: Long) extends PrecompiledContract{
   override def getGasForData(data: Array[Byte]): Long ={
     if (data == null) {
       60
@@ -468,6 +472,6 @@ class VoteContract(track: DataBase, tx: Transaction) extends PrecompiledContract
   }
 
   override def execute(data: Array[Byte]): (Boolean, Array[Byte]) = {
-    VoteContractExecutor.execute(data, track, tx)
+    VoteContractExecutor.execute(data, track, tx, timeStamp)
   }
 }

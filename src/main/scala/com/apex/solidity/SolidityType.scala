@@ -193,12 +193,7 @@ object SolidityType {
 
   class BytesType protected (name: String) extends SolidityType(name) {
 
-    def this() =
-      this(???) /* TODO: Scala does not allow multiple super constructor calls
-     * Change this code to call a constructor of the current class instead.
-     * For your convenience, here is the invalid super constructor call:
-     * }super("bytes")
-     */
+    def this() = this("bytes")
 
     override def encode(value: AnyRef): Array[Byte] = {
       var bb: Array[Byte] = null

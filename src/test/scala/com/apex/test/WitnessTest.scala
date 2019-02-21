@@ -10,7 +10,8 @@ package com.apex.test
 
 import java.io.{ByteArrayInputStream, ByteArrayOutputStream, DataInputStream, DataOutputStream}
 
-import com.apex.consensus.{Vote, WitnessInfo, WitnessList, WitnessMap}
+import com.apex.consensus._
+import com.apex.core.Block.deserialize
 import com.apex.crypto.{FixedNumber, UInt160, UInt256}
 import org.junit.Test
 
@@ -276,5 +277,20 @@ class WitnessTest {
     assert(sorted(7).name == "w2")  //
     assert(sorted(8).name == "w1")  //
   }
+
+//  @Test
+//  def testRegisterInfo = {
+//    val a = new RegisterInfo("abc")
+//
+//    val bs = new ByteArrayOutputStream()
+//    val os = new DataOutputStream(bs)
+//    a.serialize(os)
+//
+//    val bis = new ByteArrayInputStream(bs.toByteArray)
+//    val is = new DataInputStream(bis)
+//    val newA = RegisterInfo.deserialize(is)
+//
+//    assert(newA.location == "abc")
+//  }
 
 }

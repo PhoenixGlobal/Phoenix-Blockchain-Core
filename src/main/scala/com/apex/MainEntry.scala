@@ -16,6 +16,7 @@ import com.apex.common.ApexLogging
 import com.apex.network.NodeRef
 import com.apex.network.rpc.RpcServer
 import com.apex.settings.ApexSettings
+import com.typesafe.config.{Config, ConfigFactory}
 import net.sourceforge.argparse4j.ArgumentParsers
 import net.sourceforge.argparse4j.inf.{ArgumentParser, ArgumentParserException, Namespace}
 
@@ -25,11 +26,11 @@ object MainEntry extends ApexLogging {
 
   def main(args: Array[String]): Unit = {
     val ns = parseArgs(args)
-    val settings = getApexSettings(ns)
+    val (settings, config) = getApexSettings(ns)
     println(settings.chain.genesis.timeStamp.toEpochMilli)
     println(java.time.Instant.now.toEpochMilli)
 
-    implicit val system = ActorSystem("APEX-NETWORK")
+    implicit val system = ActorSystem("APEX-NETWORK", config)
     implicit val executionContext: ExecutionContext = system.dispatcher
 
     val node = NodeRef(settings)
@@ -61,18 +62,19 @@ object MainEntry extends ApexLogging {
     ns
   }
 
-  private def getApexSettings(ns: Namespace): ApexSettings = {
+  private def getApexSettings(ns: Namespace): (ApexSettings, Config) = {
     //val digest: MessageDigest = null
     val files = ns.getList[String]("configFile")
     if (files.size() > 0) {
       val conf = files.toArray().head.toString
       getConfig(conf)
     }
-    else getConfig()
+    else
+      getConfig()
 
   }
 
-  private def getConfig(file: String = "settings.conf"): ApexSettings = {
+  private def getConfig(file: String = "settings.conf"): (ApexSettings, Config) = {
     if (file.isEmpty) {
       val defaultConf = "src/main/resources/settings.conf"
       ApexSettings.read(defaultConf)

@@ -6,7 +6,7 @@ import java.util.Map.Entry
 
 import com.apex.settings.DBType
 
-import scala.collection.mutable.ListBuffer
+import scala.collection.mutable.{ArrayBuffer, ListBuffer}
 
 object Storage {
   type raw = Storage[Array[Byte], Array[Byte]]
@@ -49,6 +49,8 @@ trait Storage[Key, Value] {
 
   // return latest revision
   def revision(): Long
+
+  def scan(prefix: Array[Byte]): ArrayBuffer[Entry[Array[Byte], Array[Byte]]]
 }
 
 trait LowLevelStorage[Key, Value] extends Storage[Key, Value] {
@@ -60,6 +62,8 @@ trait LowLevelStorage[Key, Value] extends Storage[Key, Value] {
 
   // apply func to all key/value pairs
   def scan(func: (Key, Value) => Unit): Unit
+
+  def scan(prefix: Array[Byte]): ArrayBuffer[Entry[Array[Byte], Array[Byte]]]
 
   // apply func to all key/value pairs which key is start with prefix
   def find(prefix: Array[Byte], func: (Key, Value) => Unit): Unit

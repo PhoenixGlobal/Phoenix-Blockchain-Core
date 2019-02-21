@@ -10,6 +10,7 @@ import com.apex.consensus.{ProducerUtil, WitnessInfo}
 import com.apex.crypto.Ecdsa.{PrivateKey, PublicKey, PublicKeyHash}
 import com.apex.crypto.{BinaryData, Crypto, FixedNumber, MerkleTree, UInt160, UInt256}
 import com.apex.settings.{ChainSettings, ConsensusSettings, RuntimeParas, Witness}
+import com.apex.vm.PrecompiledContracts
 
 import scala.collection.{immutable, mutable}
 import scala.collection.mutable.{ArrayBuffer, Set}
@@ -63,6 +64,8 @@ class Blockchain(chainSettings: ChainSettings,
   log.info("creating DataBase")
 
   private val dataBase = new DataBase(chainSettings.dataBase)
+
+  //private val scheduleTxBase = dataBase.getAllScheduleTx()
 
   log.info("creating ForkBase")
 
@@ -223,6 +226,13 @@ class Blockchain(chainSettings: ChainSettings,
     pendingState.txs.append(minerTx)
     pendingState.isProducingBlock = true
 
+    val scheduleTxs = dataBase.getAllScheduleTx()
+    if(scheduleTxs.nonEmpty){
+      scheduleTxs.foreach(scheduleTx => {
+        applyTransaction(scheduleTx, producer, stopProcessTxTime, blockTime, forkHead.block.height + 1)
+      })
+    }
+
     if (timeoutTx.isDefined) {
       val oldTimeoutTx = timeoutTx.get
 
@@ -271,19 +281,25 @@ class Blockchain(chainSettings: ChainSettings,
     if (tx.gasLimit > runtimeParas.txAcceptGasLimit) {
       added = false
     }
-    else if (isProducingBlock()) {
-      if (Instant.now.toEpochMilli > pendingState.stopProcessTxTime) {
-        added = addTransactionToUnapplyTxs(tx)
+    else{
+      //just for a normal schedule transaction not for a vote or register contract transaction
+      if(tx.txType == TransactionType.Schedule){
+        dataBase.addScheduleTxToDb(tx.id, tx)
       }
-      else {
-        if (applyTransaction(tx, pendingState.producer, pendingState.stopProcessTxTime, pendingState.blockTime, pendingState.blockIndex)) {
-          pendingState.txs.append(tx)
-          added = true
+      if (isProducingBlock()) {
+        if (Instant.now.toEpochMilli > pendingState.stopProcessTxTime) {
+          added = addTransactionToUnapplyTxs(tx)
+        }
+        else {
+          if (applyTransaction(tx, pendingState.producer, pendingState.stopProcessTxTime, pendingState.blockTime, pendingState.blockIndex)) {
+            pendingState.txs.append(tx)
+            added = true
+          }
         }
       }
-    }
-    else {
-      added = addTransactionToUnapplyTxs(tx)
+      else {
+        added = addTransactionToUnapplyTxs(tx)
+      }
     }
     if (added)
       notification.broadcast(AddTransactionNotify(tx))
@@ -453,8 +469,26 @@ class Blockchain(chainSettings: ChainSettings,
       //case TransactionType.RegisterName =>
       case TransactionType.Deploy => txValid = applyContractTransaction(tx, blockProducer, stopTime, timeStamp, blockIndex)
       case TransactionType.Call => txValid = applyContractTransaction(tx, blockProducer, stopTime, timeStamp, blockIndex)
+      case TransactionType.Schedule => txValid = applyScheduleTransaction(tx, blockProducer,timeStamp)
     }
     txValid
+  }
+
+  private def applyScheduleTransaction(tx: Transaction, blockProducer: UInt160,timeStamp: Long): Boolean ={
+    var applied = false
+    if(timeStamp >= tx.executeTime){
+      //if transaction is a normal schedule transaction, go to applySendTransaction directly.
+      if(!PrecompiledContracts.isVoteOrRegisterAddr(tx.from)){
+        applied = applySendTransaction(tx, blockProducer)
+        if(applied) dataBase.deleteScheduleTx(tx.id())
+      }
+      else{
+        dataBase.transfer(tx.from, tx.toPubKeyHash, tx.amount)
+        dataBase.deleteScheduleTx(new UInt256(tx.data))
+        applied = true
+      }
+    }
+    applied
   }
 
   private def applyContractTransaction(tx: Transaction, blockProducer: UInt160,
@@ -638,6 +672,10 @@ class Blockchain(chainSettings: ChainSettings,
 
   def getWitness(address: UInt160): Option[WitnessInfo] = {
     dataBase.getWitness(address)
+  }
+
+  def getScheduleTx(): ArrayBuffer[Transaction] = {
+    dataBase.getAllScheduleTx()
   }
 
   def getVote(address: UInt160): Option[Vote] = {

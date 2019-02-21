@@ -24,6 +24,7 @@ case class ContractSettings(dumpBlock: Long,
                             registerSpend: FixedNumber = FixedNumber.One)
 
 case class RPCSettings(enabled: Boolean, host: String, port: Int)
+
 case class SecretRPCSettings(enabled: Boolean, host: String, port: Int)
 
 case class NetworkSettings(nodeName: String,
@@ -69,6 +70,8 @@ object DBType extends Enumeration {
 
 case class PeerBaseSettings(dir: String, cacheEnabled: Boolean, cacheSize: Int, dbType: DBType.Value)
 
+case class ScheduleBaseSettings(dir: String, cacheEnabled: Boolean, cacheSize: Int, dbType: DBType.Value)
+
 case class BlockBaseSettings(dir: String, cacheEnabled: Boolean, cacheSize: Int, dbType: DBType.Value)
 
 case class DataBaseSettings(dir: String, cacheEnabled: Boolean, cacheSize: Int, dbType: DBType.Value)
@@ -89,9 +92,9 @@ case class ChainSettings(blockBase: BlockBaseSettings,
 case class PluginsSettings(mongodb: MongodbSettings)
 
 case class RuntimeParas(stopProcessTxTimeSlot: Int,
-                        var txAcceptGasLimit: Long){
+                        var txAcceptGasLimit: Long) {
 
-  def setAcceptGasLimit(gasLimit: Long): Unit ={
+  def setAcceptGasLimit(gasLimit: Long): Unit = {
     txAcceptGasLimit = gasLimit
   }
 }
@@ -103,6 +106,7 @@ case class MinerSettings(privKeys: Array[PrivateKey]) {
   def findPrivKey(miner: UInt160): Option[PrivateKey] = {
     privKeys.find(p => p.publicKey.pubKeyHash == miner)
   }
+
   def findPrivKey(miner: Witness): Option[PrivateKey] = {
     findPrivKey(miner.pubkeyHash)
   }
@@ -165,10 +169,14 @@ object ApexSettings extends SettingsReaders with ApexLogging {
     DBType(conf.toInt)
   }
 
-  def read(configFilePath: String): ApexSettings = {
+  def read(configFilePath: String): (ApexSettings, Config) = {
     val conf = readConfigFromPath(Some(configFilePath), configPath)
-    conf.as[ApexSettings](configPath)
+    (conf.as[ApexSettings](configPath), conf)
   }
+
+  //  def readConfig(configFilePath: String): Config = {
+  //    readConfigFromPath(Some(configFilePath), configPath)
+  //  }
 
   def readConfigFromPath(userConfigPath: Option[String], configPath: String): Config = {
 

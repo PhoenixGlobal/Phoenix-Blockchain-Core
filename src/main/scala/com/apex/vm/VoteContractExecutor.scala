@@ -1,14 +1,14 @@
 package com.apex.vm
 
 import com.apex.consensus.{Vote, VoteData, WitnessInfo}
-import com.apex.core.{DataBase, OperationType, Transaction}
+import com.apex.core.{DataBase, OperationType, Transaction, TransactionType}
 import com.apex.crypto.{FixedNumber, UInt160}
 
 object VoteContractExecutor {
 
   import OperationChecker._
 
-  def execute(data: Array[Byte], track: DataBase, tx: Transaction): (Boolean, Array[Byte]) ={
+  def execute(data: Array[Byte], track: DataBase, tx: Transaction, timeStamp: Long): (Boolean, Array[Byte]) ={
     val voteData = VoteData.fromBytes(data)
     voteData.isVoterRequestValid()
       .isAccountBalanceEnough(track, tx)
@@ -16,7 +16,7 @@ object VoteContractExecutor {
       .isCancelWitnessExistInVoterTargetMap(track, tx)
       .isVoterExist(track, tx)
       .voterCancelWitnessCounterInvalid(track, tx)
-      .processReq(track, tx)
+      .processReq(track, tx, timeStamp)
       .returnResult()
   }
 
@@ -95,15 +95,14 @@ object VoteContractExecutor {
       this
     }
 
-    def processReq(track: DataBase, tx: Transaction): VoteContractContext ={
+    def processReq(track: DataBase, tx: Transaction, timeStamp: Long): VoteContractContext ={
       errorDetected{
         val witness = track.getWitness(voteData.candidate)
         if(voteData.operationType == OperationType.register && witness.isDefined){
           voteWitness(track, tx, witness.get)
         }
         else {
-          cancelCounterFromWitness(track, tx, witness)
-
+          cancelCounterFromWitness(track, tx, witness, timeStamp)
         }
       }
       this
@@ -122,9 +121,15 @@ object VoteContractExecutor {
       })
     }
 
-    private def cancelCounterFromWitness(track: DataBase, tx: Transaction, witness: Option[WitnessInfo]): Unit ={
-      track.addBalance(tx.from, voteData.voterCount)
-      track.addBalance(new UInt160(PrecompiledContracts.voteAddr.getLast20Bytes), -voteData.voterCount)
+    private def cancelCounterFromWitness(track: DataBase, tx: Transaction, witness: Option[WitnessInfo],timeStamp: Long): Unit ={
+//      track.addBalance(tx.from, voteData.voterCount)
+//      track.addBalance(new UInt160(PrecompiledContracts.voteAddr.getLast20Bytes), -voteData.voterCount)
+      val time = timeStamp + 24 * 60 * 60 * 1000
+      //note: this scheduleTx from and to address are opposite to tx; amount is the register spend; the scheduleTx index
+      // in leveldb is the id of tx, not the scheduleTx, the tx hash exists in the data filed of scheduleTx
+      val scheduleTx = new Transaction(TransactionType.Schedule, tx.toPubKeyHash, tx.from, tx.toName, voteData.voterCount, tx.nonce, tx.id.data,
+        tx.gasPrice, tx.gasLimit, tx.signature, tx.version, time)
+      track.addScheduleTxToDb(tx.id, scheduleTx)
       if(witness.isDefined){
         val newWitness = witness.get.copy(voteCounts = witness.get.voteCounts - voteData.voterCount)
         track.createWitness(newWitness)

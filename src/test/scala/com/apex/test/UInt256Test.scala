@@ -8,7 +8,7 @@
 
 package com.apex.test
 
-import com.apex.crypto.UInt256
+import com.apex.crypto.{BinaryData, UInt256}
 import org.junit.Test
 
 import scala.util.Random
@@ -53,6 +53,18 @@ class UInt256Test {
     assert(a.compare(b) == 0)
     assert(a.compare(c) < 0)
     assert(c.compare(a) > 0)
+
+    val d = UInt256.fromBytes(BinaryData("04e52a9bab596291d0afef27bfa40de6993ebd7c3837f2e4634f5bd60d22d841"))
+    assert(UInt256.parse("") == None)
+
+    assert(UInt256.parse("04e52a9bab596291d0afef27bfa40de6993ebd7c3837f2e4634f5bd60d22d841").get == d)
+    assert(UInt256.parse("0x04e52a9bab596291d0afef27bfa40de6993ebd7c3837f2e4634f5bd60d22d841").get == d)
+
+    assert(UInt256.parse("04e52a9bab596291d0afef27bfa40de6993ebd7c3837f2e4634f5bd60d22d8411") == None)
+    assert(UInt256.parse("04e52a9bab596291d0afef27bfa40de6993ebd7c3837f2e4634f5bd60d22d84112") == None)
+    assert(UInt256.parse("04e52a9bab596291d0afef27bfa40de6993ebd7c3837f2e4634f5bd60d22d84") == None)
+    assert(UInt256.parse("04e52a9bab596291d0afef27bfa40de6993ebd7c3837f2e4634f5bd60d22d8") == None)
+
   }
 
   @Test(expected = classOf[IllegalArgumentException])

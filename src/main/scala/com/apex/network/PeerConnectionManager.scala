@@ -126,7 +126,7 @@ class PeerConnectionManager(settings: NetworkSettings,
         HandshakeSerializer.parseBytes(data.toArray) match {
           case Success(handshake) => handleHandshake(handshake)
           case Failure(t) =>
-            log.info(s"解析握手时的错误", t)
+            log.error(s"Error parsing Handshake, closing connection. ", t)
             self ! CloseConnection
         }
       }
@@ -257,8 +257,15 @@ class PeerConnectionManager(settings: NetworkSettings,
         }
       }
 
-      processChunksBuffer()
-      connection ! ResumeReading
+      if (chunksBuffer.size > 100000000) {
+        log.error(s"ERROR: network chunksBuffer too big, ${chunksBuffer.size}, closing connection")
+        //TODO: add to blacklist
+        self ! CloseConnection
+      }
+      else {
+        processChunksBuffer()
+        connection ! ResumeReading
+      }
   }
 
   private def reportStrangeInput: Receive = {

@@ -64,6 +64,11 @@ class UInt160Test {
     assert(a == d)
     assert(a != b)
     assert(a != c)
+
+    assert(UInt160.parse("") == None)
+    assert(UInt160.parse("1212121212121212121212121212121212121211") != None)
+    assert(UInt160.parse("12121212121212121212121212121212121212112") == None)
+    assert(UInt160.parse("121212121212121212121212121212121212121") == None)
   }
 
   @Test(expected = classOf[IllegalArgumentException])

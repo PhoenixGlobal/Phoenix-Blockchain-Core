@@ -9,7 +9,7 @@ import com.apex.core.{DataType, StoreType}
 import org.fusesource.leveldbjni.JniDBFactory._
 import org.iq80.leveldb._
 
-import scala.collection.mutable.{ListBuffer, Map}
+import scala.collection.mutable.{ArrayBuffer, ListBuffer, Map}
 import scala.util.Try
 
 // KV Store implementation, use LevelDB as low level store
@@ -85,6 +85,22 @@ class LevelDbStorage(private val db: DB) extends LowLevelStorage[Array[Byte], Ar
       })
   }
 
+  def scan(prefix: Array[Byte]): ArrayBuffer[Entry[Array[Byte], Array[Byte]]] = {
+    var i = 0
+    val records = ArrayBuffer.empty[Entry[Array[Byte], Array[Byte]]]
+    val iterator = db.iterator
+    iterator.seek(prefix)
+    while (iterator.hasNext) {
+      val entry = iterator.peekNext()
+      if (entry.getKey.length >= prefix.length
+        && prefix.sameElements(entry.getKey.take(prefix.length))){
+        records.append(entry)
+      }
+      iterator.next
+    }
+    records
+  }
+
   // apply func to all key/value pairs which key is start with prefix
   override def find(prefix: Array[Byte], func: (Array[Byte], Array[Byte]) => Unit): Unit = {
     seekThenApply(
@@ -99,6 +115,8 @@ class LevelDbStorage(private val db: DB) extends LowLevelStorage[Array[Byte], Ar
         }
       })
   }
+
+
 
   // start a new session
   override def newSession(): Unit = {
