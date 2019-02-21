@@ -172,9 +172,9 @@ object ApexSettings extends SettingsReaders with ApexLogging {
     (conf.as[ApexSettings](configPath), conf)
   }
 
-  def readConfig(configFilePath: String): Config = {
-    readConfigFromPath(Some(configFilePath), configPath)
-  }
+  //  def readConfig(configFilePath: String): Config = {
+  //    readConfigFromPath(Some(configFilePath), configPath)
+  //  }
 
   def readConfigFromPath(userConfigPath: Option[String], configPath: String): Config = {
 
