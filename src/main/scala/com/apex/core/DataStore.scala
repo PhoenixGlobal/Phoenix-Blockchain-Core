@@ -610,8 +610,13 @@ class Tracking(backend: Storage.raw) extends Storage.raw {
     true
   }
 
-  override def scan(prefix: Array[Byte]): ArrayBuffer[Map.Entry[Array[Byte], Array[Byte]]] = {
-    backend.scan(prefix)
+  override def scan(prefix: Array[Byte]): ArrayBuffer[Array[Byte]] = {
+    val lists = ArrayBuffer.empty[ Array[Byte]]
+    buffer.foreach(element => {
+      if(element._1.bytes.slice(0,2).sameElements(prefix)) lists.append(element._2.value)
+    })
+    lists.appendAll(backend.scan(prefix))
+    lists
   }
 
   override def delete(k: Array[Byte], batch: Batch = null): Boolean = {
@@ -630,7 +635,16 @@ class Tracking(backend: Storage.raw) extends Storage.raw {
       if (trackValue.deleted) {
         backend.delete(key.bytes, null)
       } else {
-        backend.set(key.bytes, trackValue.value, null)
+        if(key.bytes.size == 34){
+          println("11111111111111111111111")
+          println(key.bytes)
+          backend.set(key.bytes, trackValue.value, null)
+          println(backend.getClass.toString)
+          backend.scan(Array(0,1))
+          val list = backend.get(key.bytes)
+          println(list.size)
+        }
+        else backend.set(key.bytes, trackValue.value, null)
       }
     }
     buffer.clear()
@@ -724,6 +738,8 @@ abstract class StoreBase[K, V](val db: Storage.raw, cacheCapacity: Int) {
   }
 
   def getLists(prefix: Array[Byte]) = {
+    //val lowLevelDB = db.asInstanceOf[Storage.raw]
+    //lowLevelDB.scan(prefix).map(records => valConverter.fromBytes(records.getValue))
     getListFromBackStore(prefix)
   }
 
@@ -757,7 +773,7 @@ abstract class StoreBase[K, V](val db: Storage.raw, cacheCapacity: Int) {
   }
 
   protected def getListFromBackStore(prefix: Array[Byte]): ArrayBuffer[V] = {
-    db.scan(prefix).map(records => valConverter.fromBytes(records.getValue))
+    db.scan(prefix).map(records => valConverter.fromBytes(records))
   }
 
   protected def setBackStore(key: K, value: V, batch: Batch): Boolean = {

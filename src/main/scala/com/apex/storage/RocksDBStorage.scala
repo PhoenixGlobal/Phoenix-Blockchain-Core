@@ -39,7 +39,7 @@ class RocksDBStorage(db: RocksDB) extends LowLevelStorage[Array[Byte], Array[Byt
 
   override def scan(func: (Array[Byte], Array[Byte]) => Unit): Unit = ???
 
-  override def scan(prefix: Array[Byte]):ArrayBuffer[Entry[Array[Byte], Array[Byte]]] = ???
+  override def scan(prefix: Array[Byte]):ArrayBuffer[Array[Byte]] = ???
 
   override def find(prefix: Array[Byte], func: (Array[Byte], Array[Byte]) => Unit): Unit = ???
 

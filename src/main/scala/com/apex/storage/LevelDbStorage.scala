@@ -85,16 +85,15 @@ class LevelDbStorage(private val db: DB) extends LowLevelStorage[Array[Byte], Ar
       })
   }
 
-  def scan(prefix: Array[Byte]): ArrayBuffer[Entry[Array[Byte], Array[Byte]]] = {
-    var i = 0
-    val records = ArrayBuffer.empty[Entry[Array[Byte], Array[Byte]]]
+  def scan(prefix: Array[Byte]): ArrayBuffer[Array[Byte]] = {
+    val records = ArrayBuffer.empty[Array[Byte]]
     val iterator = db.iterator
     iterator.seek(prefix)
     while (iterator.hasNext) {
       val entry = iterator.peekNext()
       if (entry.getKey.length >= prefix.length
         && prefix.sameElements(entry.getKey.take(prefix.length))){
-        records.append(entry)
+        records.append(entry.getValue)
       }
       iterator.next
     }

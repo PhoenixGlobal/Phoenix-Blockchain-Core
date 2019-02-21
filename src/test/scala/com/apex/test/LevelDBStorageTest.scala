@@ -13,6 +13,7 @@ import java.util.Map.Entry
 import org.junit.{AfterClass, Test}
 
 import scala.collection.mutable.ArrayBuffer
+import scala.reflect.io.Directory
 
 @Test
 class LevelDBStorageTest {
@@ -120,6 +121,7 @@ class LevelDBStorageTest {
 
   @Test
   def testScanPrefix() = {
+    DbManager.clearUp("LevelDBStorageTest")
     val storage = DbManager.open(testClass, "testScanPrefix")
     val seqArr = Array(
       collection.mutable.Seq.empty[(String, String)],
@@ -137,10 +139,10 @@ class LevelDBStorageTest {
     }
 
     val records = storage.scan(prefixes(0).getBytes)
-    val recordsvalue = records.map(_.getValue)
     assert(records.size == 5)
-    assert(records(0).getKey.sameElements("key_a_10".getBytes))
-    assert(records(0).getValue.sameElements("value10".getBytes))
+    val a = records(0)
+    val b = "key_a_10".getBytes
+    assert(records(0).sameElements("value10".getBytes))
   }
 
   @Test
@@ -273,6 +275,7 @@ class LevelDBStorageTest {
 object LevelDBStorageTest {
   @AfterClass
   def cleanUp: Unit = {
+    Directory("LevelDBStorageTest").deleteRecursively()
     DbManager.clearUp("LevelDBStorageTest")
   }
 }

@@ -108,7 +108,6 @@ class RegisterContractTest extends BlockChainPrepare{
           assert(chain.addTransaction(tx))
           val witness = chain.getWitness(_acct3.publicKey.pubKeyHash)
           assert(witness.isEmpty)
-          val scheduleTx = chain.getScheduleTx()
           assert(chain.getScheduleTx().size == 1)
 //          assert(chain.getBalance(_acct3.publicKey.pubKeyHash).get == FixedNumber.fromDecimal(3))
 //          assert(chain.getBalance(new UInt160(PrecompiledContracts.registerNodeAddr.getLast20Bytes)).get == FixedNumber.Zero)
