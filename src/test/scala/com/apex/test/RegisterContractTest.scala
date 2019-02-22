@@ -6,9 +6,10 @@
 package com.apex.test
 
 import java.text.SimpleDateFormat
+import java.time.Instant
 import java.util.Date
 
-import com.apex.consensus.{RegisterData, WitnessInfo}
+import com.apex.consensus.{ProducerUtil, RegisterData, WitnessInfo}
 import com.apex.core.{OperationType, Transaction, TransactionType}
 import com.apex.crypto.{BinaryData, FixedNumber, UInt160}
 import com.apex.test.ResourcePrepare.BlockChainPrepare
@@ -99,7 +100,18 @@ class RegisterContractTest extends BlockChainPrepare{
     try {
       val baseDir = "RegisterContractTest/testCancelWitnessSuccess"
       Given.createChain(baseDir){}
-      When.produceBlock()
+      //When.produceBlock()
+      var nowTime = Instant.now.toEpochMilli - 10000
+      var blockTime = ProducerUtil.nextBlockTime(chain.getHeadTime(), nowTime, _produceInterval / 10, _produceInterval) //  chain.getHeadTime() + _consensusSettings.produceInterval
+      sleepTo(blockTime)
+      //nowTime = Instant.now.toEpochMilli
+      blockTime += _produceInterval
+      startProduceBlock(chain, blockTime, Long.MaxValue)
+      assert(chain.isProducingBlock())
+
+      //nowTime = Instant.now.toEpochMilli
+      assert(nowTime < blockTime - 200)
+      sleepTo(blockTime)
       Then.checkTx()
       And.checkAccount()
       When.makeRegisterTransaction()(checkRegisterSuccess)
@@ -109,10 +121,66 @@ class RegisterContractTest extends BlockChainPrepare{
           val witness = chain.getWitness(_acct3.publicKey.pubKeyHash)
           assert(witness.isEmpty)
           assert(chain.getScheduleTx().size == 1)
-//          assert(chain.getBalance(_acct3.publicKey.pubKeyHash).get == FixedNumber.fromDecimal(3))
-//          assert(chain.getBalance(new UInt160(PrecompiledContracts.registerNodeAddr.getLast20Bytes)).get == FixedNumber.Zero)
+          assert(chain.getBalance(_acct3.publicKey.pubKeyHash).get == FixedNumber.fromDecimal(2))
+          assert(chain.getBalance(new UInt160(PrecompiledContracts.registerNodeAddr.getLast20Bytes)).get == FixedNumber.One)
         }
       }
+      val block1 = chain.produceBlockFinalize()
+      assert(block1.isDefined)
+      assert(block1.get.transactions.size == 6)
+
+      assert(!chain.isProducingBlock())
+      assert(chain.getHeight() == 1)
+      assert(chain.getHeadTime() == blockTime)
+      assert(chain.head.id() == block1.get.id())
+
+//      val tx1 = makeTx(_acct3, _acct4, FixedNumber.fromDecimal(1), 2)
+//
+//      val block2 = makeBlock(chain, block1.get, Seq(tx1))
+//
+//      // test getTransaction()
+//      assert(block2.getTransaction(tx1.id).get.id == tx1.id)
+//
+//      println("call tryInsertBlock block2")
+//      assert(chain.tryInsertBlock(block2, true))
+//      println("block2 inserted")
+//
+//      assert(chain.getBalance(_acct4).get == FixedNumber.fromDecimal(3))
+//
+//      assert(chain.getBalance(_acct3).get == FixedNumber.fromDecimal(1))
+
+      blockTime += _produceInterval
+      startProduceBlock(chain, blockTime, Long.MaxValue)
+      assert(chain.isProducingBlock())
+
+      sleepTo(blockTime)
+
+      val block2 = chain.produceBlockFinalize()
+      assert(block2.isDefined)
+      assert(block2.get.transactions.size == 1)
+
+      assert(!chain.isProducingBlock())
+      assert(chain.getHeight() == 2)
+      assert(chain.getHeadTime() == blockTime)
+      assert(chain.head.id() == block2.get.id())
+
+      blockTime += _produceInterval
+      startProduceBlock(chain, blockTime, Long.MaxValue)
+      assert(chain.isProducingBlock())
+
+      sleepTo(blockTime)
+
+      val block3 = chain.produceBlockFinalize()
+      assert(block3.isDefined)
+      assert(block3.get.transactions.size == 2)
+
+      assert(!chain.isProducingBlock())
+      assert(chain.getHeight() == 3)
+      assert(chain.getHeadTime() == blockTime)
+      assert(chain.head.id() == block3.get.id())
+
+      assert(chain.getBalance(_acct3.publicKey.pubKeyHash).get == FixedNumber.fromDecimal(3))
+      assert(chain.getBalance(new UInt160(PrecompiledContracts.registerNodeAddr.getLast20Bytes)).get == FixedNumber.Zero)
     }
     finally {
       chain.close()
@@ -184,11 +252,11 @@ class RegisterContractTest extends BlockChainPrepare{
   }
 
   def checkTx(): Unit ={
-    assert(!chain.addTransaction(makeTx(_acct1, _acct3.publicKey.pubKeyHash, FixedNumber.fromDecimal(123), 1)))
-    assert(chain.addTransaction(makeTx(_acct1, _acct3.publicKey.pubKeyHash, FixedNumber.fromDecimal(1), 0)))
-    assert(!chain.addTransaction(makeTx(_acct1, _acct3.publicKey.pubKeyHash, FixedNumber.fromDecimal(2), 0)))
-    assert(chain.addTransaction(makeTx(_acct1, _acct3.publicKey.pubKeyHash, FixedNumber.fromDecimal(2), 1)))
-    assert(chain.addTransaction(makeTx(_acct2, _acct4.publicKey.pubKeyHash, FixedNumber.fromDecimal(2), 0)))
+    assert(!chain.addTransaction(makeTx(_acct1, _acct3, FixedNumber.fromDecimal(123), 1)))
+    assert(chain.addTransaction(makeTx(_acct1, _acct3, FixedNumber.fromDecimal(1), 0)))
+    assert(!chain.addTransaction(makeTx(_acct1, _acct3, FixedNumber.fromDecimal(2), 0)))
+    assert(chain.addTransaction(makeTx(_acct1, _acct3, FixedNumber.fromDecimal(2), 1)))
+    assert(chain.addTransaction(makeTx(_acct2, _acct4, FixedNumber.fromDecimal(2), 0)))
     //assert(chain.addTransaction(makeTx(_acct1, _acct3.publicKey.pubKeyHash, FixedNumber.fromDecimal(2), 1)))
   }
 

@@ -108,7 +108,7 @@ object RegisterContractExecutor {
     private def cancelRegisterWitness(track: DataBase, registerSpend: FixedNumber, tx: Transaction, timeStamp: Long) = {
 //      track.addBalance(registerData.registerAccount, registerSpend.value)
 //      track.addBalance(new UInt160(PrecompiledContracts.registerNodeAddr.getLast20Bytes), -registerSpend.value)
-      val time = timeStamp + 24 * 60 * 60 * 1000
+      val time = timeStamp + /*24 * 60 * 60 * 1000*/750
       //note: this scheduleTx from and to address are opposite to tx; amount is the register spend; the scheduleTx index
       // in leveldb is the id of tx, not the scheduleTx, the tx hash exists in the data filed of scheduleTx
       val scheduleTx = new Transaction(TransactionType.Schedule, tx.toPubKeyHash, tx.from, tx.toName,

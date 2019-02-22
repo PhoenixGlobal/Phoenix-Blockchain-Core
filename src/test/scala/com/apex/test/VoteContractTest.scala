@@ -5,7 +5,9 @@
  */
 package com.apex.test
 
-import com.apex.consensus.VoteData
+import java.time.Instant
+
+import com.apex.consensus.{ProducerUtil, VoteData}
 import com.apex.core.{OperationType, Transaction, TransactionType}
 import com.apex.crypto.{BinaryData, FixedNumber, UInt160}
 import com.apex.vm.{DataWord, PrecompiledContracts}
@@ -194,7 +196,17 @@ class VoteContractTest extends RegisterContractTest {
     try {
       val baseDir = "VoteContractTest/testVoteAndCancelSuccess"
       Given.createChain(baseDir){}
-      When.produceBlock()
+      var nowTime = Instant.now.toEpochMilli - 10000
+      var blockTime = ProducerUtil.nextBlockTime(chain.getHeadTime(), nowTime, _produceInterval / 10, _produceInterval) //  chain.getHeadTime() + _consensusSettings.produceInterval
+      sleepTo(blockTime)
+      //nowTime = Instant.now.toEpochMilli
+      blockTime += _produceInterval
+      startProduceBlock(chain, blockTime, Long.MaxValue)
+      assert(chain.isProducingBlock())
+
+      //nowTime = Instant.now.toEpochMilli
+      assert(nowTime < blockTime - 200)
+      sleepTo(blockTime)
       Then.checkTx()
       And.checkAccount()
       When.makeRegisterTransaction()(checkRegisterSuccess)
@@ -207,8 +219,51 @@ class VoteContractTest extends RegisterContractTest {
       When.makeVoteTransaction(OperationType.resisterCancel,nonce = 3, counter = FixedNumber.One)(tx => {
         assert(chain.addTransaction(tx))
         assert(chain.getVote(_acct1.publicKey.pubKeyHash).get.targetMap(_acct3.publicKey.pubKeyHash) == FixedNumber(FixedNumber.One.value * 9))
-        assert(chain.getBalance(new UInt160(PrecompiledContracts.voteAddr.getLast20Bytes)).get == FixedNumber(FixedNumber.One.value * 9))
+        assert(chain.getBalance(new UInt160(PrecompiledContracts.voteAddr.getLast20Bytes)).get == FixedNumber(FixedNumber.One.value * 10))
+        assert(chain.getBalance(_acct1.publicKey.pubKeyHash).get == FixedNumber.fromDecimal(110.12))
       })
+
+      val block1 = chain.produceBlockFinalize()
+      assert(block1.isDefined)
+      assert(block1.get.transactions.size == 7)
+
+      assert(!chain.isProducingBlock())
+      assert(chain.getHeight() == 1)
+      assert(chain.getHeadTime() == blockTime)
+      assert(chain.head.id() == block1.get.id())
+
+      blockTime += _produceInterval
+      startProduceBlock(chain, blockTime, Long.MaxValue)
+      assert(chain.isProducingBlock())
+
+      sleepTo(blockTime)
+
+      val block2 = chain.produceBlockFinalize()
+      assert(block2.isDefined)
+      assert(block2.get.transactions.size == 1)
+
+      assert(!chain.isProducingBlock())
+      assert(chain.getHeight() == 2)
+      assert(chain.getHeadTime() == blockTime)
+      assert(chain.head.id() == block2.get.id())
+
+      blockTime += _produceInterval
+      startProduceBlock(chain, blockTime, Long.MaxValue)
+      assert(chain.isProducingBlock())
+
+      sleepTo(blockTime)
+
+      val block3 = chain.produceBlockFinalize()
+      assert(block3.isDefined)
+      assert(block3.get.transactions.size == 2)
+
+      assert(!chain.isProducingBlock())
+      assert(chain.getHeight() == 3)
+      assert(chain.getHeadTime() == blockTime)
+      assert(chain.head.id() == block3.get.id())
+
+      assert(chain.getBalance(new UInt160(PrecompiledContracts.voteAddr.getLast20Bytes)).get == FixedNumber(FixedNumber.One.value * 9))
+      assert(chain.getBalance(_acct1.publicKey.pubKeyHash).get == FixedNumber.fromDecimal(111.12))
     }
     finally {
       chain.close()
