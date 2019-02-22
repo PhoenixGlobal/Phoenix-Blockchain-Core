@@ -233,15 +233,9 @@ class Blockchain(chainSettings: ChainSettings,
     }
 
     if (timeoutTx.isDefined) {
-      val oldTimeoutTx = timeoutTx.get
-
-      // must set to null before call applyTransaction() because applyTransaction() may set it again
-      timeoutTx = None
-
-      log.info(s"try again for the old timeout tx ${oldTimeoutTx.id().shortString()}")
-
-      // return value can be ignore
-      applyTransaction(oldTimeoutTx, producer, stopProcessTxTime, blockTime, forkHead.block.height + 1)
+      log.info(s"try again for the old timeout tx ${timeoutTx.get.id().shortString()}")
+      addTransaction(timeoutTx.get)
+      timeoutTx = None // set to None even if addTransaction fail or timeout again.
     }
 
     val badTxs = ArrayBuffer.empty[Transaction]
