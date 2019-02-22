@@ -228,7 +228,8 @@ class Blockchain(chainSettings: ChainSettings,
     val scheduleTxs = dataBase.getAllScheduleTx()
     if(scheduleTxs.nonEmpty){
       scheduleTxs.foreach(scheduleTx => {
-        applyTransaction(scheduleTx, producer, stopProcessTxTime, blockTime, forkHead.block.height + 1)
+        if(applyTransaction(scheduleTx, producer, stopProcessTxTime, blockTime, forkHead.block.height + 1))
+          pendingState.txs.append(scheduleTx)
       })
     }
 

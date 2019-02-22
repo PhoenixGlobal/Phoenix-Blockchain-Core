@@ -635,16 +635,7 @@ class Tracking(backend: Storage.raw) extends Storage.raw {
       if (trackValue.deleted) {
         backend.delete(key.bytes, null)
       } else {
-        if(key.bytes.size == 34){
-          println("11111111111111111111111")
-          println(key.bytes)
-          backend.set(key.bytes, trackValue.value, null)
-          println(backend.getClass.toString)
-          backend.scan(Array(0,1))
-          val list = backend.get(key.bytes)
-          println(list.size)
-        }
-        else backend.set(key.bytes, trackValue.value, null)
+        backend.set(key.bytes, trackValue.value, null)
       }
     }
     buffer.clear()
