@@ -954,7 +954,7 @@ object VM {
     val program = ctx.program
     program.setHReturn(Array.empty)
     program.stop()
-  })(GasCost.STOP)
+  })(Some(GasCost.STOP))
 
   instructionTable(OpCode.ADD.id) = Runtime(ctx => {
     binaryOp1("+", (word1, word2) => word1.add(word2), ctx)
@@ -990,7 +990,7 @@ object VM {
 
   instructionTable(OpCode.EXP.id) = Runtime(ctx => {
     binaryOp1("**", (word1, word2) => word1.exp(word2), ctx)
-  })
+  }, expGasCost)
 
   instructionTable(OpCode.SIGNEXTEND.id) = Runtime(ctx => {
     val program = ctx.program
@@ -1098,7 +1098,7 @@ object VM {
       val encoded = Crypto.sha3(buffer)
       DataWord.of(encoded)
     }, ctx)
-  })
+  }, sha3GasCost)
 
   instructionTable(OpCode.ADDRESS.id) = Runtime(ctx => {
     val program = ctx.program
@@ -1115,7 +1115,7 @@ object VM {
     ctx.setHint(s"address: ${address.getLast20Bytes.toHex} balance: ${balance.toString}")
     program.stackPush(balance)
     program.step()
-  })
+  })(Some(GasCost.BALANCE))
 
   instructionTable(OpCode.ORIGIN.id) = Runtime(ctx => {
     val program = ctx.program
@@ -1167,7 +1167,7 @@ object VM {
     ctx.setHint(s"data: ${msgData.toHex}")
     program.memorySave(memOffsetData.intValueSafe, lengthData.intValueSafe, msgData)
     program.step()
-  })
+  }, dataCopyGasCost)
 
   instructionTable(OpCode.CODESIZE.id) = Runtime(ctx => {
     val program = ctx.program
@@ -1235,7 +1235,7 @@ object VM {
     ctx.setHint(s"size: $length")
     program.stackPush(codeLength)
     program.step()
-  })
+  })(Some(GasCost.EXT_CODE_SIZE))
 
   instructionTable(OpCode.EXTCODECOPY.id) = Runtime(ctx => {
     val program = ctx.program
@@ -1291,7 +1291,7 @@ object VM {
     ctx.setHint(s"data: ${msgData.toHex}")
     program.memorySave(memOffsetData.intValueSafe, lengthData.intValueSafe, msgData)
     program.step()
-  })
+  }, dataCopyGasCost)
 
   instructionTable(OpCode.EXTCODEHASH.id) = Runtime(ctx => {
     val program = ctx.program
@@ -1299,7 +1299,7 @@ object VM {
     val codeHash = program.getCodeHashAt(address)
     program.stackPush(codeHash)
     program.step()
-  })
+  })(Some(GasCost.EXT_CODE_HASH))
 
   instructionTable(OpCode.BLOCKHASH.id) = Runtime(ctx => {
     val program = ctx.program
@@ -1362,7 +1362,7 @@ object VM {
     val codeHash = program.getCodeHashAt(address)
     program.stackPush(codeHash)
     program.step()
-  })
+  }, mloadGasCost)
 
   instructionTable(OpCode.MSTORE.id) = Runtime(ctx => {
     val program = ctx.program
@@ -1371,7 +1371,7 @@ object VM {
     ctx.setHint(s"addr: $addr value: $value")
     program.memorySave(addr, value)
     program.step()
-  })
+  }, mstoreGasCost)
 
   instructionTable(OpCode.MSTORE8.id) = Runtime(ctx => {
     val program = ctx.program
@@ -1380,7 +1380,7 @@ object VM {
     val byteVal = Array(value.getData(31))
     program.memorySave(addr.intValueSafe, byteVal)
     program.step()
-  })
+  }, mstore8GasCost)
 
   instructionTable(OpCode.SLOAD.id) = Runtime(ctx => {
     val program = ctx.program
@@ -1390,7 +1390,7 @@ object VM {
     if (value == null) value = key.and(DataWord.ZERO)
     program.stackPush(value)
     program.step()
-  })
+  })(Some(GasCost.SLOAD))
 
   instructionTable(OpCode.SSTORE.id) = Runtime(ctx => {
     val program = ctx.program
@@ -1403,7 +1403,7 @@ object VM {
     ctx.setHint(s"[${program.getOwnerAddress.toPrefixString}] key: $addr value: $value")
     program.storageSave(addr, value)
     program.step()
-  })
+  }, sstoreGasCost)
 
   instructionTable(OpCode.JUMP.id) = Runtime(ctx => {
     val program = ctx.program
@@ -1530,7 +1530,7 @@ object VM {
 
       program.getResult.addLogInfo(logInfo)
       program.step()
-    })
+    }, logGasCost)
   }
 
   instructionTable(OpCode.CREATE.id) = Runtime(ctx => {
@@ -1547,7 +1547,7 @@ object VM {
     program.createContract(value, inOffset, inSize)
 
     program.step()
-  })
+  }, createGasCost)
 
   instructionTable(OpCode.CREATE2.id) = Runtime(ctx => {
     val program = ctx.program
@@ -1564,7 +1564,7 @@ object VM {
     program.createContract2(value, inOffset, inSize, salt)
 
     program.step()
-  })
+  }, create2GasCost)
 
   instructionTable(OpCode.CALL.id) = Runtime(ctx => {
     val program = ctx.program
@@ -1629,7 +1629,7 @@ object VM {
     if (op.code == OpCode.REVERT) {
       program.getResult.setRevert()
     }
-  })
+  }, stopGasCost)
 
   instructionTable(OpCode.REVERT.id) = instructionTable(OpCode.RETURN.id)
 
@@ -1644,11 +1644,8 @@ object VM {
     ctx.setHint(s"address: ${program.getOwnerAddress.getLast20Bytes.toHex}")
 
     program.stop()
-  })
+  }, suicideGasCost)
 
-  private def simpleCalculator(gasCost: Long): Option[ExecuteContext => Unit] = {
-    Some(ctx => ctx.spendGas(gasCost))
-  }
 
   private def callGasCost(ctx: ExecuteContext): Unit = {
     val op = ctx.op
@@ -1689,7 +1686,161 @@ object VM {
     val gasLeft = program.getGas
     val subResult = gasLeft.sub(DataWord.of(gasCost))
     val adjustedCallGas = getCallGas(op.code, callGasWord, subResult)
-    ctx.spendGas(gasCost, Some(adjustedCallGas))
+    ctx.spendGas(gasCost, adjustedCallGas, true)
+  }
+
+  private def suicideGasCost(ctx: ExecuteContext): Unit = {
+    val stack = ctx.stack
+    val program = ctx.program
+    val suicideAddress = stack.get(stack.size - 1).toUInt160
+    var gasCost = GasCost.SUICIDE
+    if (!program.getStorage.accountExists(suicideAddress)) {
+      gasCost += GasCost.NEW_ACCT_SUICIDE
+    }
+    ctx.spendGas(gasCost)
+  }
+
+  private def sstoreGasCost(ctx: ExecuteContext): Unit = {
+    val stack = ctx.stack
+    val program = ctx.program
+    var currentValue = program.getCurrentValue(stack.peek)
+    if (currentValue == null) currentValue = DataWord.ZERO
+    val newValue = stack.get(stack.size - 2)
+    var gasCost = 0
+    if (newValue == currentValue) {
+      gasCost = GasCost.REUSE_SSTORE
+    } else {
+      var origValue = program.getOriginalValue(stack.peek)
+      if (origValue == null) origValue = DataWord.ZERO
+      if (currentValue == origValue) {
+        if (origValue.isZero) {
+          gasCost = GasCost.SET_SSTORE
+        } else {
+          gasCost = GasCost.CLEAR_SSTORE
+          if (newValue.isZero) {
+            program.futureRefundGas(GasCost.REFUND_SSTORE)
+          }
+        }
+      } else {
+        gasCost = GasCost.REUSE_SSTORE
+        if (!origValue.isZero) {
+          if (currentValue.isZero) {
+            program.futureRefundGas(-GasCost.REFUND_SSTORE)
+          } else if (newValue.isZero) {
+            program.futureRefundGas(GasCost.REFUND_SSTORE)
+          }
+        }
+        if (origValue == newValue) {
+          if (origValue.isZero) {
+            program.futureRefundGas(GasCost.SET_SSTORE - GasCost.REUSE_SSTORE)
+          } else {
+            program.futureRefundGas(GasCost.CLEAR_SSTORE - GasCost.REUSE_SSTORE)
+          }
+        }
+      }
+    }
+    ctx.spendGas(gasCost)
+  }
+
+  private def mstoreGasCost(ctx: ExecuteContext): Unit = {
+    val stack = ctx.stack
+    val oldMemSize = ctx.oldMemSize
+    val gasCost = calcMemGas(oldMemSize, memNeeded(stack.peek, DataWord.of(32)), 0)
+    ctx.spendGas(gasCost, false)
+  }
+
+  private def mstore8GasCost(ctx: ExecuteContext): Unit = {
+    val stack = ctx.stack
+    val oldMemSize = ctx.oldMemSize
+    val gasCost = calcMemGas(oldMemSize, memNeeded(stack.peek, DataWord.ONE), 0)
+    ctx.spendGas(gasCost)
+  }
+
+  private def mloadGasCost(ctx: ExecuteContext): Unit = {
+    val stack = ctx.stack
+    val oldMemSize = ctx.oldMemSize
+    val gasCost = calcMemGas(oldMemSize, memNeeded(stack.peek, DataWord.of(32)), 0)
+    ctx.spendGas(gasCost, false)
+  }
+
+  private def stopGasCost(ctx: ExecuteContext): Unit = {
+    val stack = ctx.stack
+    val oldMemSize = ctx.oldMemSize
+    val gasCost = GasCost.STOP + calcMemGas(oldMemSize, memNeeded(stack.peek, stack.get(stack.size - 2)), 0)
+    ctx.spendGas(gasCost)
+  }
+
+  private def sha3GasCost(ctx: ExecuteContext): Unit = {
+    val stack = ctx.stack
+    val oldMemSize = ctx.oldMemSize
+    var gasCost = GasCost.SHA3 + calcMemGas(oldMemSize, memNeeded(stack.peek, stack.get(stack.size - 2)), 0)
+    val size = stack.get(stack.size - 2)
+    val chunkUsed = VM.getSizeInWords(size.longValueSafe)
+    gasCost += chunkUsed * GasCost.SHA3_WORD
+    ctx.spendGas(gasCost)
+  }
+
+  private def dataCopyGasCost(ctx: ExecuteContext): Unit = {
+    val stack = ctx.stack
+    val oldMemSize = ctx.oldMemSize
+    val gasCost = calcMemGas(oldMemSize, memNeeded(stack.peek, stack.get(stack.size - 3)), stack.get(stack.size - 3).longValueSafe)
+    ctx.spendGas(gasCost, false)
+  }
+
+  private def codeCopyGasCost(ctx: ExecuteContext): Unit = {
+    val stack = ctx.stack
+    val oldMemSize = ctx.oldMemSize
+    val gasCost = calcMemGas(oldMemSize, memNeeded(stack.peek, stack.get(stack.size - 3)), stack.get(stack.size - 3).longValueSafe)
+    ctx.spendGas(gasCost, false)
+  }
+
+  private def extCodeCopyGasCost(ctx: ExecuteContext): Unit = {
+    val stack = ctx.stack
+    val oldMemSize = ctx.oldMemSize
+    val gasCost = GasCost.EXT_CODE_COPY + calcMemGas(oldMemSize, memNeeded(stack.get(stack.size - 2), stack.get(stack.size - 4)), stack.get(stack.size - 4).longValueSafe)
+    ctx.spendGas(gasCost)
+  }
+
+  private def createGasCost(ctx: ExecuteContext): Unit = {
+    val stack = ctx.stack
+    val oldMemSize = ctx.oldMemSize
+    val gasCost = GasCost.CREATE + calcMemGas(oldMemSize, memNeeded(stack.get(stack.size - 2), stack.get(stack.size - 3)), 0)
+    ctx.spendGas(gasCost)
+  }
+
+  private def create2GasCost(ctx: ExecuteContext): Unit = {
+    val stack = ctx.stack
+    val oldMemSize = ctx.oldMemSize
+    val codeSize = stack.get(stack.size - 3)
+    val gasCost = GasCost.CREATE +
+      calcMemGas(oldMemSize, memNeeded(stack.get(stack.size - 2), codeSize), 0) +
+      getSizeInWords(codeSize.longValueSafe) * GasCost.SHA3_WORD
+    ctx.spendGas(gasCost)
+  }
+
+  private def logGasCost(ctx: ExecuteContext): Unit = {
+    val op = ctx.op
+    val stack = ctx.stack
+    val program = ctx.program
+    val oldMemSize = ctx.oldMemSize
+    val dataSize = stack.get(stack.size - 2).value
+    val dataCost = dataSize * BigInt(GasCost.LOG_DATA_GAS)
+    if (program.getGas.value < dataCost) {
+      throw Program.notEnoughOpGas(op.code, dataCost, program.getGas.value)
+    }
+    val nTopics = op.code.value - OpCode.LOG0.value
+    val gasCost = GasCost.LOG_GAS + GasCost.LOG_TOPIC_GAS * nTopics +
+      GasCost.LOG_DATA_GAS * stack.get(stack.size - 2).longValue +
+      calcMemGas(oldMemSize, memNeeded(stack.peek, stack.get(stack.size - 2)), 0)
+    ctx.spendGas(gasCost)
+  }
+
+  private def expGasCost(ctx: ExecuteContext): Unit = {
+    val stack = ctx.stack
+    val exp = stack.get(stack.size - 2)
+    val bytesOccupied = exp.bytesOccupied
+    val gasCost = GasCost.EXP_GAS + GasCost.EXP_BYTE_GAS * bytesOccupied
+    ctx.spendGas(gasCost)
   }
 
   private def binaryOp1(op: String, action: (DataWord, DataWord) => DataWord, ctx: ExecuteContext) = {
@@ -1816,15 +1967,16 @@ class Runtime(executor: ExecuteContext => Unit,
 }
 
 object Runtime {
-  def apply(executor: ExecuteContext => Unit)(implicit gasCost: Int = 0): Runtime = {
-    new Runtime(ctx => executor.andThen(_ => ctx.setPreviousOp)(ctx), ctx => ctx.spendGas(gasCost))
+  def apply(executor: ExecuteContext => Unit)(implicit gasCostOpt: Option[Int] = None): Runtime = {
+    apply(executor, gasCostOpt match {
+      case Some(gasCost) => ctx => ctx.spendGas(gasCost)
+      case None => ctx => ctx.spendGas(0, false)
+    })
   }
 
   def apply(executor: ExecuteContext => Unit, calculator: ExecuteContext => Unit): Runtime = {
     new Runtime(ctx => executor.andThen(_ => ctx.setPreviousOp)(ctx), calculator)
   }
-
-  private implicit val defaultExtraGasCost = 0
 }
 
 class ExecuteContext(val op: OpObject, val program: Program, val settings: ContractSettings, val log: Logger) {
@@ -1843,10 +1995,14 @@ class ExecuteContext(val op: OpObject, val program: Program, val settings: Contr
   var adjustedCallGas: DataWord = null
   var hint: String = ""
 
-  def spendGas(extraGas: Long, adjustedGas: Option[DataWord] = None): Unit = {
-    gasCost += extraGas + adjustedGas.map(_.longValueSafe).getOrElse(0L)
-    adjustedGas.foreach(gas => adjustedCallGas = gas)
+  def spendGas(gas: Long, reset: Boolean = true): Unit = {
+    if (reset) gasCost = gas else gasCost += gas
     program.spendGas(gasCost, op.code.name)
+  }
+
+  def spendGas(gas: Long, adjustedGas: DataWord, reset: Boolean): Unit = {
+    spendGas(gas + adjustedGas.longValueSafe, reset)
+    adjustedCallGas = adjustedGas
   }
 
   def checkTime() = {
