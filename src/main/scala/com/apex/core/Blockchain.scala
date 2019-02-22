@@ -28,8 +28,7 @@ object Blockchain {
 }
 
 class PendingState {
-  var producer: UInt160 = _
-  var privKey: PrivateKey = _
+  var producerPrivKey: PrivateKey = _
   var blockTime: Long = _
   var startTime: Long = _
   var blockIndex: Long = _
@@ -38,9 +37,8 @@ class PendingState {
 
   val txs = ArrayBuffer.empty[Transaction]
 
-  def set(producer: UInt160, privKey: PrivateKey, blockTime: Long, stopProcessTxTime: Long, blockIndex: Long) = {
-    this.producer = producer
-    this.privKey = privKey
+  def set(producerPrivKey: PrivateKey, blockTime: Long, stopProcessTxTime: Long, blockIndex: Long) = {
+    this.producerPrivKey = producerPrivKey
     this.blockTime = blockTime
     this.stopProcessTxTime = stopProcessTxTime
     this.startTime = Instant.now.toEpochMilli
@@ -206,10 +204,11 @@ class Blockchain(chainSettings: ChainSettings,
     unapplyTxs.get(txid)
   }
 
-  def startProduceBlock(producer: UInt160, privKey: PrivateKey, blockTime: Long, stopProcessTxTime: Long): Unit = {
+  def startProduceBlock(producerPrivKey: PrivateKey, blockTime: Long, stopProcessTxTime: Long): Unit = {
     require(!isProducingBlock())
+    val producer = producerPrivKey.publicKey.pubKeyHash
     val forkHead = forkBase.head.get
-    pendingState.set(producer, privKey, blockTime, stopProcessTxTime, forkHead.block.height + 1)
+    pendingState.set(producerPrivKey, blockTime, stopProcessTxTime, forkHead.block.height + 1)
     log.debug(s"start block at: ${pendingState.startTime}  blockTime=${blockTime}  stopProcessTxTime=${stopProcessTxTime}")
 
     val minerTx = new Transaction(TransactionType.Miner, minerCoinFrom,
@@ -291,7 +290,11 @@ class Blockchain(chainSettings: ChainSettings,
           added = addTransactionToUnapplyTxs(tx)
         }
         else {
-          if (applyTransaction(tx, pendingState.producer, pendingState.stopProcessTxTime, pendingState.blockTime, pendingState.blockIndex)) {
+          if (applyTransaction(tx,
+                               pendingState.producerPrivKey.publicKey.pubKeyHash,
+                               pendingState.stopProcessTxTime,
+                               pendingState.blockTime,
+                               pendingState.blockIndex)) {
             pendingState.txs.append(tx)
             added = true
           }
@@ -318,7 +321,7 @@ class Blockchain(chainSettings: ChainSettings,
       val timeStamp = pendingState.blockTime
       val header = BlockHeader.build(
         forkHead.block.height + 1, timeStamp, merkleRoot,
-        forkHead.block.id, pendingState.privKey)
+        forkHead.block.id, pendingState.producerPrivKey)
       val block = Block.build(header, pendingState.txs.clone)
       pendingState.txs.clear()
       pendingState.isProducingBlock = false

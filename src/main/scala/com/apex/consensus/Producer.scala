@@ -120,7 +120,7 @@ class Producer(apexSettings: ApexSettings)
         //println(delay)
         scheduleBegin(delay)
       } else {
-        chain.startProduceBlock(witness, apexSettings.miner.findPrivKey(witness).get,
+        chain.startProduceBlock(apexSettings.miner.findPrivKey(witness).get,
                                  next, next - apexSettings.runtimeParas.stopProcessTxTimeSlot)
         val now = Instant.now.toEpochMilli
         val delay = calcDelay(now, next, myTurn)
