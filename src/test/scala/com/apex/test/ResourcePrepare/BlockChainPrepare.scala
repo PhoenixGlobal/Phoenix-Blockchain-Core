@@ -50,20 +50,21 @@ class BlockChainPrepare {
   private val minerCoinFrom = UInt160.Zero
 
   def makeTx(from: PrivateKey,
-                     to: UInt160,
+                     to: PrivateKey,
                      amount: FixedNumber,
                      nonce: Long,
                      gasLimit: Long = 21000,
                      gasPrice: FixedNumber = FixedNumber.Zero,
                      txType: TransactionType.Value = TransactionType.Transfer) = {
 
-    val tx = new Transaction(txType, from.publicKey.pubKeyHash, to, "",
+    val tx = new Transaction(txType, from.publicKey.pubKeyHash, to.publicKey.pubKeyHash, "",
       amount, nonce, BinaryData.empty, gasPrice, gasLimit, BinaryData.empty)
     tx.sign(from)
     tx
   }
 
-  private def makeBlock(preBlock: Block,
+  def makeBlock(chain: Blockchain,
+                        preBlock: Block,
                         txs: Seq[Transaction],
                         award: Double = _minerAward): Block = {
     val blockTime = preBlock.header.timeStamp + _consensusSettings.produceInterval
@@ -86,6 +87,30 @@ class BlockChainPrepare {
 
     Block.build(header, allTxs)
   }
+
+//  def makeBlock(preBlock: Block,
+//                        txs: Seq[Transaction],
+//                        award: Double = _minerAward): Block = {
+//    val blockTime = preBlock.header.timeStamp + _consensusSettings.produceInterval
+//    val miner = chain.getWitness(blockTime)
+//
+//    val minerTx = new Transaction(TransactionType.Miner, minerCoinFrom,
+//      miner, "", FixedNumber.fromDecimal(award),
+//      preBlock.height + 1,
+//      BinaryData(Crypto.randomBytes(8)), // add random bytes to distinct different blocks with same block index during debug in some cases
+//      FixedNumber.Zero, 0, BinaryData.empty)
+//
+//    val allTxs = ArrayBuffer.empty[Transaction]
+//
+//    allTxs.append(minerTx)
+//    txs.foreach(allTxs.append(_))
+//
+//    val header: BlockHeader = BlockHeader.build(preBlock.header.index + 1,
+//      blockTime, MerkleTree.root(allTxs.map(_.id)),
+//      preBlock.id(), _miners.findPrivKey(miner).get)
+//
+//    Block.build(header, allTxs)
+//  }
 
   private def makeBlockByTime(chain: Blockchain, preBlock: Block,
                               //txs: Seq[Transaction],
@@ -111,10 +136,10 @@ class BlockChainPrepare {
     Block.build(header, allTxs)
   }
 
-  private def startProduceBlock(chain: Blockchain, blockTime: Long, stopProcessTxTime: Long) = {
+  def startProduceBlock(chain: Blockchain, blockTime: Long, stopProcessTxTime: Long) = {
 
     val witness = chain.getWitness(blockTime)
-    chain.startProduceBlock(witness, _miners.findPrivKey(witness).get, blockTime, stopProcessTxTime)
+    chain.startProduceBlock(_miners.findPrivKey(witness).get, blockTime, stopProcessTxTime)
   }
 
   def createChain(baseDir: String)(f : => Unit){
@@ -145,6 +170,7 @@ class BlockChainPrepare {
 
     nowTime = Instant.now.toEpochMilli
     assert(nowTime < blockTime - 200)
+    sleepTo(blockTime)
   }
 
   def createAccount(){

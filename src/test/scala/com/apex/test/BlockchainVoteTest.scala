@@ -182,7 +182,7 @@ class BlockchainVoteTest {
   private def startProduceBlock(chain: Blockchain, blockTime: Long, stopProcessTxTime: Long) = {
 
     val witness = chain.getWitness(blockTime)
-    chain.startProduceBlock(witness, _miners.findPrivKey(witness).get, blockTime, stopProcessTxTime)
+    chain.startProduceBlock(_miners.findPrivKey(witness).get, blockTime, stopProcessTxTime)
   }
 
   private def createChain(path: String,
