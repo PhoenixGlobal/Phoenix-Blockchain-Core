@@ -6,7 +6,7 @@
  * @author: shan.huang@chinapex.com: 2018-08-09 下午4:06@version: 1.0
  */
 
-package com.apex.network.rpc
+package com.apex.rpc
 
 import com.apex.crypto.{BinaryData, UInt160, UInt256}
 import com.apex.crypto.Ecdsa.PublicKeyHash

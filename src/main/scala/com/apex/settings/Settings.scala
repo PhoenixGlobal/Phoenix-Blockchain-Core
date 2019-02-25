@@ -174,10 +174,6 @@ object ApexSettings extends SettingsReaders with ApexLogging {
     (conf.as[ApexSettings](configPath), conf)
   }
 
-  //  def readConfig(configFilePath: String): Config = {
-  //    readConfigFromPath(Some(configFilePath), configPath)
-  //  }
-
   def readConfigFromPath(userConfigPath: Option[String], configPath: String): Config = {
 
     val maybeConfigFile: Option[File] = userConfigPath.map(filename => new File(filename)).filter(_.exists())

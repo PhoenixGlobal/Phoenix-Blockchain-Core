@@ -8,15 +8,10 @@
 
 package com.apex
 
-import java.util.concurrent.TimeUnit
-
 import akka.actor.ActorSystem
-import akka.util.Timeout
 import com.apex.common.ApexLogging
-import com.apex.network.NodeRef
-import com.apex.network.rpc.RpcServer
 import com.apex.settings.ApexSettings
-import com.typesafe.config.{Config, ConfigFactory}
+import com.typesafe.config.Config
 import net.sourceforge.argparse4j.ArgumentParsers
 import net.sourceforge.argparse4j.inf.{ArgumentParser, ArgumentParserException, Namespace}
 
@@ -25,24 +20,13 @@ import scala.concurrent.ExecutionContext
 object MainEntry extends ApexLogging {
 
   def main(args: Array[String]): Unit = {
-    val ns = parseArgs(args)
-    val (settings, config) = getApexSettings(ns)
-    println(settings.chain.genesis.timeStamp.toEpochMilli)
-    println(java.time.Instant.now.toEpochMilli)
+    val (settings, config) = getApexSettings(args)
+    log.debug(s"genesis: ${settings.chain.genesis.timeStamp.toEpochMilli}, now: ${java.time.Instant.now.toEpochMilli}")
 
     implicit val system = ActorSystem("APEX-NETWORK", config)
     implicit val executionContext: ExecutionContext = system.dispatcher
 
-    val node = NodeRef(settings)
-
-    //temp
-    while (true) {
-      Thread.sleep(50000000)
-    }
-
-    //  stopping node
-    implicit val timeout = Timeout(30, TimeUnit.MICROSECONDS)
-    system.terminate.foreach(_ => log.info("quit"))
+    NodeRef(settings)
   }
 
   private def parseArgs(args: Array[String]): Namespace = {
@@ -62,8 +46,9 @@ object MainEntry extends ApexLogging {
     ns
   }
 
-  private def getApexSettings(ns: Namespace): (ApexSettings, Config) = {
+  private def getApexSettings(args: Array[String]): (ApexSettings, Config) = {
     //val digest: MessageDigest = null
+    val ns = parseArgs(args)
     val files = ns.getList[String]("configFile")
     if (files.size() > 0) {
       val conf = files.toArray().head.toString

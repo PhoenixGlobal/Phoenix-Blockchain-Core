@@ -124,6 +124,11 @@ class NetworkManager(settings: NetworkSettings,
   //      context stop self
   //  }
 
+  override def postStop(): Unit = {
+    log.info("network stopped")
+    super.postStop()
+  }
+
   override def receive: Receive = bindingLogic orElse peerLogic orElse getHandler orElse {
     case CommandFailed(cmd: Tcp.Command) =>
       log.info("执行命令失败 : " + cmd)

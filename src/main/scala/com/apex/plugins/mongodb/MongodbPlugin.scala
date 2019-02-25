@@ -36,6 +36,11 @@ class MongodbPlugin(settings: ApexSettings)
 
   init()
 
+  override def postStop(): Unit = {
+    log.info("mongodb plugin stopped")
+    super.postStop()
+  }
+
   override def receive: Receive = {
     case NewBlockProducedNotify(block) => {
 

@@ -6,7 +6,7 @@
  * @author: shan.huang@chinapex.com: 2018-08-01 下午4:06@version: 1.0
  */
 
-package com.apex.network.rpc
+package com.apex.rpc
 
 import akka.actor.{ActorRef, ActorSystem}
 import akka.http.scaladsl.Http
@@ -16,7 +16,7 @@ import akka.pattern.ask
 import akka.stream.ActorMaterializer
 import akka.util.Timeout
 import com.apex.common.ApexLogging
-import com.apex.consensus.{Vote, WitnessInfo, WitnessList}
+import com.apex.consensus.{WitnessInfo, WitnessList}
 import com.apex.core.{Account, Block, TransactionReceipt}
 import com.apex.settings.{RPCSettings, SecretRPCSettings}
 import play.api.libs.json._

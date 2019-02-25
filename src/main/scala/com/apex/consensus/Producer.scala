@@ -16,11 +16,11 @@ import java.time.Instant
 import java.util.concurrent.TimeUnit
 
 import akka.actor.{Actor, ActorContext, ActorRef, Props}
+import com.apex.ProduceTask
 import com.apex.common.ApexLogging
 import com.apex.core.Blockchain
 import com.apex.crypto.Ecdsa.PublicKey
 import com.apex.crypto.UInt160
-import com.apex.network.ProduceTask
 import com.apex.settings.{ApexSettings, ConsensusSettings, Witness}
 
 import scala.concurrent.ExecutionContext
@@ -52,6 +52,11 @@ class Producer(apexSettings: ApexSettings)
   private var enableProduce = false
 
   scheduleBegin()
+
+  override def postStop(): Unit = {
+    log.info("producer stopped")
+    super.postStop()
+  }
 
   override def receive: Receive = {
     case a: Any => {
