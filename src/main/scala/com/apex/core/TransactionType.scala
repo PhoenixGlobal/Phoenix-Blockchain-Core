@@ -7,7 +7,7 @@ object TransactionType extends Enumeration {
   val RegisterName = Value(0x03)
   val Deploy = Value(0x04)
   val Call = Value(0x05)
-  val Schedule = Value(0x06)
+  val Refund = Value(0x06)
 
   implicit class Extension(val value: TransactionType.Value) {
     def toByte: Byte = value.id.toByte

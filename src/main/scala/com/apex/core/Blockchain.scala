@@ -228,8 +228,10 @@ class Blockchain(chainSettings: ChainSettings,
     val scheduleTxs = dataBase.getAllScheduleTx()
     if(scheduleTxs.nonEmpty){
       scheduleTxs.foreach(scheduleTx => {
-        if(applyTransaction(scheduleTx, producer, stopProcessTxTime, blockTime, forkHead.block.height + 1))
-          pendingState.txs.append(scheduleTx)
+        if(scheduleTx.executeTime <= blockTime){
+          if(applyTransaction(scheduleTx, producer, stopProcessTxTime, blockTime, forkHead.block.height + 1))
+            pendingState.txs.append(scheduleTx)
+        }
       })
     }
 
@@ -277,9 +279,9 @@ class Blockchain(chainSettings: ChainSettings,
     }
     else{
       //just for a normal schedule transaction not for a vote or register contract transaction
-      if(tx.txType == TransactionType.Schedule){
-        dataBase.addScheduleTxToDb(tx.id, tx)
-      }
+//      if(tx.txType == TransactionType.Schedule){
+//        dataBase.addScheduleTxToDb(tx.id, tx)
+//      }
       if (isProducingBlock()) {
         if (Instant.now.toEpochMilli > pendingState.stopProcessTxTime) {
           added = addTransactionToUnapplyTxs(tx)
@@ -461,33 +463,26 @@ class Blockchain(chainSettings: ChainSettings,
                                stopTime: Long, timeStamp: Long, blockIndex: Long): Boolean = {
     var txValid = false
     tx.txType match {
-      case TransactionType.Miner => txValid = applySendTransaction(tx, blockProducer)
-      case TransactionType.Transfer => txValid = applySendTransaction(tx, blockProducer)
+      case TransactionType.Miner => txValid = applySendTransaction(tx, blockProducer, timeStamp)
+      case TransactionType.Transfer => txValid = applySendTransaction(tx, blockProducer, timeStamp)
       //case TransactionType.Fee =>
       //case TransactionType.RegisterName =>
       case TransactionType.Deploy => txValid = applyContractTransaction(tx, blockProducer, stopTime, timeStamp, blockIndex)
       case TransactionType.Call => txValid = applyContractTransaction(tx, blockProducer, stopTime, timeStamp, blockIndex)
-      case TransactionType.Schedule => txValid = applyScheduleTransaction(tx, blockProducer,timeStamp)
+      case TransactionType.Refund => txValid = applyScheduleTransaction(tx, blockProducer,timeStamp)
     }
     txValid
   }
 
   private def applyScheduleTransaction(tx: Transaction, blockProducer: UInt160,timeStamp: Long): Boolean ={
-    var applied = false
-    if(timeStamp >= tx.executeTime){
-      //if transaction is a normal schedule transaction, go to applySendTransaction directly.
-      if(!PrecompiledContracts.isVoteOrRegisterAddr(tx.from)){
-        applied = applySendTransaction(tx, blockProducer)
-        if(applied) dataBase.deleteScheduleTx(tx.id())
-      }
-      else{
+      if(timeStamp >= tx.executeTime){
         dataBase.transfer(tx.from, tx.toPubKeyHash, tx.amount)
         dataBase.deleteScheduleTx(new UInt256(tx.data))
-        applied = true
+        return true
       }
+    false
     }
-    applied
-  }
+
 
   private def applyContractTransaction(tx: Transaction, blockProducer: UInt160,
                                        stopTime: Long, timeStamp: Long, blockIndex: Long): Boolean = {
@@ -524,7 +519,24 @@ class Blockchain(chainSettings: ChainSettings,
     applied
   }
 
-  private def applySendTransaction(tx: Transaction, blockProducer: UInt160): Boolean = {
+  private def applySendTransaction(tx: Transaction, blockProducer: UInt160, timeStamp: Long): Boolean = {
+    //if tx is a schedule tx and it is time to execute, than start send tx
+    if(tx.executeTime != 0 && timeStamp >= tx.executeTime){
+      startSendTransaction(tx, blockProducer)
+    }
+    else {
+      //if tx is a schedule tx, it spend a small fee to execute this special tx
+      if(tx.executeTime >0){
+        //todo
+        true
+      }
+      //if tx is a normal transfer or miner tx, start send tx directly.
+      else startSendTransaction(tx, blockProducer)
+    }
+
+  }
+
+  private def startSendTransaction(tx: Transaction, blockProducer: UInt160): Boolean ={
     var txValid = true
 
     val fromAccount = dataBase.getAccount(tx.from).getOrElse(Account.newAccount(tx.from))
@@ -537,6 +549,13 @@ class Blockchain(chainSettings: ChainSettings,
 
     }
     else {
+      //      if(tx.executeTime!= 0 && tx.executeTime <= timeStamp){
+      //
+      //      }
+      //      else{
+      //        if(tx.executeTime > 0){}
+      //        else
+      //      }
       txFee = FixedNumber(BigInt(txGas)) * tx.gasPrice
       if (txGas > tx.gasLimit) {
         log.info(s"Not enough gas for transaction tx ${tx.id().shortString()}")
