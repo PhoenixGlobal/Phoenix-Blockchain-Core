@@ -25,8 +25,9 @@ object MainEntry extends ApexLogging {
 
     implicit val system = ActorSystem("APEX-NETWORK", config)
     implicit val executionContext: ExecutionContext = system.dispatcher
+    system.registerOnTermination(log.info("node terminated"))
 
-    NodeRef(settings)
+    NodeRef(settings, config)
   }
 
   private def parseArgs(args: Array[String]): Namespace = {

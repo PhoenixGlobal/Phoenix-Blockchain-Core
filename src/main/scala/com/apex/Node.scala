@@ -59,7 +59,7 @@ object Node {
 
 }
 
-class Node(val settings: ApexSettings)
+class Node(val settings: ApexSettings, config: Config)
           (implicit ec: ExecutionContext)
   extends Actor with ApexLogging {
 
@@ -86,7 +86,7 @@ class Node(val settings: ApexSettings)
   private val producer = ProducerRef(settings)
 
   if (settings.rpc.enabled) {
-    RpcServer.run(settings.rpc, settings.secretRpc, self)
+    RpcServer.run(settings, config, self)
   }
 
   override def receive: Receive = {
@@ -109,9 +109,9 @@ class Node(val settings: ApexSettings)
   }
 
   override def postStop(): Unit = {
-    if (settings.rpc.enabled) {
-      RpcServer.stop()
-    }
+//    if (settings.rpc.enabled) {
+//      RpcServer.stop()
+//    }
     chain.close()
     super.postStop()
   }
@@ -375,12 +375,12 @@ class Node(val settings: ApexSettings)
 
 object NodeRef {
 
-  def props(settings: ApexSettings)(implicit system: ActorSystem, ec: ExecutionContext): Props = Props(new Node(settings)).withMailbox("apex.actor.node-mailbox")
+  def props(settings: ApexSettings, config: Config)(implicit system: ActorSystem, ec: ExecutionContext): Props = Props(new Node(settings, config)).withMailbox("apex.actor.node-mailbox")
 
-  def apply(settings: ApexSettings)
-           (implicit system: ActorSystem, ec: ExecutionContext): ActorRef = system.actorOf(props(settings))
+  def apply(settings: ApexSettings, config: Config)
+           (implicit system: ActorSystem, ec: ExecutionContext): ActorRef = system.actorOf(props(settings, config))
 
-  def apply(settings: ApexSettings, name: String)
-           (implicit system: ActorSystem, ec: ExecutionContext): ActorRef = system.actorOf(props(settings), name)
+  def apply(settings: ApexSettings, config: Config, name: String)
+           (implicit system: ActorSystem, ec: ExecutionContext): ActorRef = system.actorOf(props(settings, config), name)
 
 }

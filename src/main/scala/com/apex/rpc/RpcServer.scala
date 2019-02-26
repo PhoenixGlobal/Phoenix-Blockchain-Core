@@ -18,24 +18,33 @@ import akka.util.Timeout
 import com.apex.common.ApexLogging
 import com.apex.consensus.{WitnessInfo, WitnessList}
 import com.apex.core.{Account, Block, TransactionReceipt}
-import com.apex.settings.{RPCSettings, SecretRPCSettings}
+import com.apex.settings.ApexSettings
+import com.typesafe.config.Config
 import play.api.libs.json._
 
 import scala.collection.mutable.ArrayBuffer
-import scala.concurrent.Future
 import scala.concurrent.duration._
+import scala.concurrent.{ExecutionContextExecutor, Future}
 
 object RpcServer extends ApexLogging {
 
-  implicit val system = ActorSystem("rpc")
-  implicit val executionContext = system.dispatcher
-  implicit val materializer = ActorMaterializer()
   implicit val timeout = Timeout(5.seconds)
 
-  private var bindingFuture: Future[Http.ServerBinding] = null
-  private var secretBindingFuture: Future[Http.ServerBinding] = null
+  private implicit var system: ActorSystem = _
+  private implicit var materializer: ActorMaterializer = _
+  private implicit var dispatcher: ExecutionContextExecutor = _
 
-  def run(rpcSettings: RPCSettings, secretRPCSettings : SecretRPCSettings, nodeRef: ActorRef) = {
+  private var bindingFuture: Future[Http.ServerBinding] = _
+  private var secretBindingFuture: Future[Http.ServerBinding] = _
+
+  def run(settings: ApexSettings, config: Config, nodeRef: ActorRef) = {
+    system = ActorSystem("RPC", config)
+    materializer = ActorMaterializer()
+    dispatcher = getDispatcher("apex.actor.rpc-dispatcher")
+    system.registerOnTermination(log.info("rpc terminated"))
+
+    val rpcSettings = settings.rpc
+    val secretRPCSettings = settings.secretRpc
     val route =
       path("getblock") {
         post {
@@ -169,7 +178,7 @@ object RpcServer extends ApexLogging {
     val secretRoute =
       path("getGasLimit") {
         post {
-          entity(as[String]) {_ =>
+          entity(as[String]) { _ =>
             val f = (nodeRef ? GetGasLimitCmd()).mapTo[Long].map(Json.toJson(_).toString)
             complete(f)
           }
@@ -197,10 +206,18 @@ object RpcServer extends ApexLogging {
     //  StdIn.readLine() // let it run until user presses return
   }
 
-  def stop() = {
-    log.info("stopping rpc server")
-    system.terminate.foreach(_ => log.info("rpc server stopped"))
+  private def getDispatcher(id: String) = {
+    if (system.dispatchers.hasDispatcher(id)) {
+      system.dispatchers.lookup(id)
+    }  else {
+      system.dispatcher
+    }
   }
+
+//  def stop() = {
+//    log.info("stopping rpc server")
+//    system.terminate.foreach(_ => log.info("rpc server stopped"))
+//  }
 
 }
 
