@@ -1,7 +1,8 @@
 package com.apex.network.peer
 
 import java.net.InetSocketAddress
-import com.apex.network.ConnectionType
+
+import com.apex.network.{ConnectionType, NodeInfo}
 import com.apex.utils.NetworkTime
 
 case class PeerInfo(address: String, port: Int, lastSeen: Long, nodeName: Option[String] = None, connectionType: Option[ConnectionType] = None)
@@ -10,11 +11,11 @@ trait PeerDatabase {
 
   def isEmpty(): Boolean
 
-  def addOrUpdateKnownPeer(peer: InetSocketAddress, peerInfo: PeerInfo): Unit
+  def addOrUpdateKnownPeer(address: String, peerInfo: NodeInfo): Unit
 
-  def knownPeers(): Map[InetSocketAddress, PeerInfo]
+  def knownPeers(): Map[String, NodeInfo]
 
-  def blacklistPeer(peer: InetSocketAddress, time: NetworkTime.Time): Unit
+  def addBlacklistPeer(peer: InetSocketAddress, time: NetworkTime.Time): Unit
 
   def blacklistedPeers(): Seq[String]
 
@@ -22,7 +23,7 @@ trait PeerDatabase {
 
   def remove(address: InetSocketAddress): Boolean
 
-  def selectPeersByRandom(number: Long): Seq[PeerInfo]
+  def selectPeersByRandom(number: Long): Seq[NodeInfo]
 
   def peerSize(): Int
 }

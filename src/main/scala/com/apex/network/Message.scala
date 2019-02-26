@@ -189,7 +189,7 @@ object GetBlocksPayload {
 }
 
 
-class PeerInfoPayload(val knownPeers: Seq[InetSocketAddressSer]) extends com.apex.common.Serializable {
+class PeerInfoPayload(val knownPeers: Seq[NodeInfo]) extends com.apex.common.Serializable {
   override def serialize(os: DataOutputStream) = {
     import com.apex.common.Serializable._
     os.writeSeq(knownPeers)
@@ -199,7 +199,7 @@ class PeerInfoPayload(val knownPeers: Seq[InetSocketAddressSer]) extends com.ape
 object PeerInfoPayload {
   def deserialize(is: DataInputStream): PeerInfoPayload = {
     import com.apex.common.Serializable._
-    val peers = is.readSeq(InetSocketAddressSer.deserialize)
+    val peers = is.readSeq(NodeInfo.deserialize)
     new PeerInfoPayload(peers)
   }
 
