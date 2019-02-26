@@ -273,6 +273,7 @@ class Blockchain(chainSettings: ChainSettings,
   }
 
   def addTransaction(tx: Transaction): Boolean = {
+    if(tx.txType == TransactionType.Miner || tx.txType == TransactionType.Refund) return false
     var added = false
     if (tx.gasLimit > runtimeParas.txAcceptGasLimit) {
       added = false
@@ -460,24 +461,32 @@ class Blockchain(chainSettings: ChainSettings,
   }
 
   private def applyTransaction(tx: Transaction, blockProducer: UInt160,
-                               stopTime: Long, timeStamp: Long, blockIndex: Long): Boolean = {
+                               stopTime: Long, timeStamp: Long, blockIndex: Long, scheduleTx: Boolean = false): Boolean = {
     var txValid = false
-    tx.txType match {
-      case TransactionType.Miner => txValid = applySendTransaction(tx, blockProducer, timeStamp)
-      case TransactionType.Transfer => txValid = applySendTransaction(tx, blockProducer, timeStamp)
-      //case TransactionType.Fee =>
-      //case TransactionType.RegisterName =>
-      case TransactionType.Deploy => txValid = applyContractTransaction(tx, blockProducer, stopTime, timeStamp, blockIndex)
-      case TransactionType.Call => txValid = applyContractTransaction(tx, blockProducer, stopTime, timeStamp, blockIndex)
-      case TransactionType.Refund => txValid = applyScheduleTransaction(tx, blockProducer,timeStamp)
+    //if tx is a schedule tx and it is time to execute,or tx is a normal transfer or miner tx, start execute tx directly
+    if(tx.executeTime > 0 && timeStamp >= tx.executeTime || tx.executeTime <=0) {
+      tx.txType match {
+        case TransactionType.Miner => txValid = applySendTransaction(tx, blockProducer, timeStamp)
+        case TransactionType.Transfer => txValid = applySendTransaction(tx, blockProducer, timeStamp)
+        //case TransactionType.Fee =>
+        //case TransactionType.RegisterName =>
+        case TransactionType.Deploy => txValid = applyContractTransaction(tx, blockProducer, stopTime, timeStamp, blockIndex)
+        case TransactionType.Call => txValid = applyContractTransaction(tx, blockProducer, stopTime, timeStamp, blockIndex)
+        case TransactionType.Refund => txValid = applyRefundTransaction(tx, blockProducer,timeStamp)
+      }
+      if(tx.executeTime > 0) dataBase.deleteScheduleTx(new UInt256(tx.data))
+      txValid
     }
-    txValid
+    ////if tx is a schedule tx, it spend a small fee to execute this special tx
+    else{
+      //todo
+      true
+    }
   }
 
-  private def applyScheduleTransaction(tx: Transaction, blockProducer: UInt160,timeStamp: Long): Boolean ={
+  private def applyRefundTransaction(tx: Transaction, blockProducer: UInt160, timeStamp: Long): Boolean ={
       if(timeStamp >= tx.executeTime){
         dataBase.transfer(tx.from, tx.toPubKeyHash, tx.amount)
-        dataBase.deleteScheduleTx(new UInt256(tx.data))
         return true
       }
     false
@@ -520,23 +529,6 @@ class Blockchain(chainSettings: ChainSettings,
   }
 
   private def applySendTransaction(tx: Transaction, blockProducer: UInt160, timeStamp: Long): Boolean = {
-    //if tx is a schedule tx and it is time to execute, than start send tx
-    if(tx.executeTime != 0 && timeStamp >= tx.executeTime){
-      startSendTransaction(tx, blockProducer)
-    }
-    else {
-      //if tx is a schedule tx, it spend a small fee to execute this special tx
-      if(tx.executeTime >0){
-        //todo
-        true
-      }
-      //if tx is a normal transfer or miner tx, start send tx directly.
-      else startSendTransaction(tx, blockProducer)
-    }
-
-  }
-
-  private def startSendTransaction(tx: Transaction, blockProducer: UInt160): Boolean ={
     var txValid = true
 
     val fromAccount = dataBase.getAccount(tx.from).getOrElse(Account.newAccount(tx.from))
@@ -549,13 +541,7 @@ class Blockchain(chainSettings: ChainSettings,
 
     }
     else {
-      //      if(tx.executeTime!= 0 && tx.executeTime <= timeStamp){
-      //
-      //      }
-      //      else{
-      //        if(tx.executeTime > 0){}
-      //        else
-      //      }
+
       txFee = FixedNumber(BigInt(txGas)) * tx.gasPrice
       if (txGas > tx.gasLimit) {
         log.info(s"Not enough gas for transaction tx ${tx.id().shortString()}")
@@ -583,7 +569,9 @@ class Blockchain(chainSettings: ChainSettings,
 
     }
     txValid
+
   }
+
 
   private def verifyBlock(block: Block): Boolean = {
     if (!verifyHeader(block.header))
