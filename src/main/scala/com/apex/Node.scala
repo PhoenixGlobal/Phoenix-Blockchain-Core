@@ -147,17 +147,21 @@ class Node(val settings: ApexSettings)
         sender() ! chain.getAccount(address)
       }
       case SendRawTransactionCmd(rawTx) => {
-        val is = new DataInputStream(new ByteArrayInputStream(rawTx))
-        val tx = Transaction.deserialize(is)
-        if (tx.verifySignature()) {
-          peerHandlerManager ! InventoryMessage(new InventoryPayload(InventoryType.Tx, Seq(tx.id)))
-          if (chain.addTransaction(tx))
-            sender() ! true
+        try {
+          val is = new DataInputStream(new ByteArrayInputStream(rawTx))
+          val tx = Transaction.deserialize(is)
+          if (tx.verifySignature()) {
+            peerHandlerManager ! InventoryMessage(new InventoryPayload(InventoryType.Tx, Seq(tx.id)))
+            if (chain.addTransaction(tx))
+              sender() ! true
+            else
+              sender() ! false
+          }
           else
             sender() ! false
+        } catch {
+          case ex: Exception => sender() ! false
         }
-        else
-          sender() ! false
       }
       case GetContractByIdCmd(id) => {
         sender() ! chain.getReceipt(id)
