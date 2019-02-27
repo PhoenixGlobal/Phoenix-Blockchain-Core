@@ -242,19 +242,24 @@ class VMTest {
 
   @Test
   def testvm1: Unit = {
-    // deploy contract
     val abi = Abi.fromJson("[{\"constant\":false,\"inputs\":[{\"name\":\"x\",\"type\":\"uint256\"}],\"name\":\"set\",\"outputs\":[],\"payable\":false,\"stateMutability\":\"nonpayable\",\"type\":\"function\"},{\"constant\":true,\"inputs\":[],\"name\":\"get\",\"outputs\":[{\"name\":\"retVal\",\"type\":\"uint256\"}],\"payable\":false,\"stateMutability\":\"view\",\"type\":\"function\"}]")
-    val (contract, result) = VMTest.newdeploy(dataBase, author, BinaryData("60806040526001600460006101000a81548160ff02191690831515021790555034801561002b57600080fd5b506101588061003b6000396000f30060806040526004361061004c576000357c0100000000000000000000000000000000000000000000000000000000900463ffffffff16806360fe47b1146100515780636d4ce63c1461007e575b600080fd5b34801561005d57600080fd5b5061007c600480360381019080803590602001909291905050506100a9565b005b34801561008a57600080fd5b50610093610123565b6040518082815260200191505060405180910390f35b6001810160008190555060018103600181905550600181026002819055506001818115156100d357fe5b046003819055506003811080156100ea5750600681115b156101205760011515600460009054906101000a900460ff161515141561011857600060038190555061011f565b6001810390505b5b50565b600080549050905600a165627a7a72305820f6d79bc2d5ec3849bdb0459bba238a89602730e37022c881b385493704ed63050029"), over = true)
-    println("result.getGasUsed:"+result.getGasUsed)
-    println("---------------------------------------------")
-    /*// call set(0x777)
-    val setResult = VMTest.call(dataBase, caller, contract, result.getHReturn, abi.encode("set(2)"))
-    println("result.getGasUsed:"+setResult.getGasUsed)*/
 
-    // call get() must return 0x777
-    val getResult = VMTest.newcall(dataBase, caller, contract, result.getHReturn, abi.encode("get()"), over = true)
-    val getResult1 = VMTest.newcall(dataBase, caller, contract, result.getHReturn, abi.encode("get()"), over = false)
-    println("result.getGasUsed:"+getResult.getGasUsed)
+    val code = "60806040526001600460006101000a81548160ff02191690831515021790555034801561002b57600080fd5b506101588061003b6000396000f30060806040526004361061004c576000357c0100000000000000000000000000000000000000000000000000000000900463ffffffff16806360fe47b1146100515780636d4ce63c1461007e575b600080fd5b34801561005d57600080fd5b5061007c600480360381019080803590602001909291905050506100a9565b005b34801561008a57600080fd5b50610093610123565b6040518082815260200191505060405180910390f35b6001810160008190555060018103600181905550600181026002819055506001818115156100d357fe5b046003819055506003811080156100ea5750600681115b156101205760011515600460009054906101000a900460ff161515141561011857600060038190555061011f565b6001810390505b5b50565b600080549050905600a165627a7a72305820f6d79bc2d5ec3849bdb0459bba238a89602730e37022c881b385493704ed63050029"
+    val call = abi.encode("get()")
+    val (deployGasUsed1, callGasUsed1) = deployThenCall(code, call, true)
+    val (deployGasUsed2, callGasUsed2) = deployThenCall(code, call, false)
+    println(s"deploy: $deployGasUsed1 $deployGasUsed2")
+    println(s"call: $callGasUsed1 $callGasUsed2")
+    assert(deployGasUsed1 == deployGasUsed2)
+    assert(callGasUsed1 == callGasUsed2)
+  }
+
+  private def deployThenCall(code: String, call: Array[Byte], newStep: Boolean) = {
+    println("|------begin deploy ------------------")
+    val (contract, result) = VMTest.newdeploy(dataBase, author, BinaryData(code), over = newStep)
+    println("|------begin call ------------------")
+    val getResult = VMTest.newcall(dataBase, caller, contract, result.getHReturn, call, over = newStep)
+    (result.getGasUsed, getResult.getGasUsed)
   }
 }
 
