@@ -76,8 +76,8 @@ class Blockchain(chainSettings: ChainSettings,
   log.info("creating PeerBase")
 
   private val peerBase = new PeerBase(chainSettings.peerBase)
-  val dbGasLimit =  peerBase.getGasLimit()
-  if(dbGasLimit != null && dbGasLimit != None){
+  val dbGasLimit = peerBase.getGasLimit()
+  if (dbGasLimit != null && dbGasLimit != None) {
     runtimeParas.setAcceptGasLimit(dbGasLimit.get.longValue())
   }
 
@@ -206,6 +206,7 @@ class Blockchain(chainSettings: ChainSettings,
 
   def startProduceBlock(producerPrivKey: PrivateKey, blockTime: Long, stopProcessTxTime: Long): Unit = {
     require(!isProducingBlock())
+    log.info(s"startProduceBlock  ${producerPrivKey.publicKey.address}")
     val producer = producerPrivKey.publicKey.pubKeyHash
     val forkHead = forkBase.head.get
     pendingState.set(producerPrivKey, blockTime, stopProcessTxTime, forkHead.block.height + 1)
@@ -225,22 +226,20 @@ class Blockchain(chainSettings: ChainSettings,
     pendingState.txs.append(minerTx)
     pendingState.isProducingBlock = true
 
-    val scheduleTxs = dataBase.getAllScheduleTx()
-    if(scheduleTxs.nonEmpty){
-      scheduleTxs.foreach(scheduleTx => {
-        if(scheduleTx.executeTime <= blockTime){
-          if(applyTransaction(scheduleTx, producer, stopProcessTxTime, blockTime, forkHead.block.height + 1))
-            pendingState.txs.append(scheduleTx)
-        }
-      })
-    }
-
     if (timeoutTx.isDefined) {
       log.info(s"try again for the old timeout tx ${timeoutTx.get.id().shortString()}")
       addTransaction(timeoutTx.get)
       timeoutTx = None // set to None even if addTransaction fail or timeout again.
     }
-
+    val scheduleTxs = dataBase.getAllScheduleTx()
+    if (scheduleTxs.nonEmpty) {
+      scheduleTxs.foreach(scheduleTx => {
+        if (scheduleTx.executeTime <= blockTime) {
+          if (applyTransaction(scheduleTx, producer, stopProcessTxTime, blockTime, forkHead.block.height + 1, true))
+          pendingState.txs.append(scheduleTx)
+        }
+      })
+    }
     val badTxs = ArrayBuffer.empty[Transaction]
 
     unapplyTxs.foreach(p => {
@@ -273,41 +272,51 @@ class Blockchain(chainSettings: ChainSettings,
   }
 
   def addTransaction(tx: Transaction): Boolean = {
-    if(tx.txType == TransactionType.Miner || tx.txType == TransactionType.Refund) return false
-    var added = false
-    if (tx.gasLimit > runtimeParas.txAcceptGasLimit) {
-      added = false
+    if (tx.txType == TransactionType.Miner || tx.txType == TransactionType.Refund) {
+      false
     }
-    else{
-      //just for a normal schedule transaction not for a vote or register contract transaction
-//      if(tx.txType == TransactionType.Schedule){
-//        dataBase.addScheduleTxToDb(tx.id, tx)
-//      }
-      if (isProducingBlock()) {
-        if (Instant.now.toEpochMilli > pendingState.stopProcessTxTime) {
-          added = addTransactionToUnapplyTxs(tx)
+    else {
+      if(tx.executeTime > 0) {
+        dataBase.addScheduleTxToDb(tx.id(), tx)
+        true
+      }
+      else{
+        var added = false
+        if (tx.gasLimit > runtimeParas.txAcceptGasLimit) {
+          added = false
         }
         else {
-          if (applyTransaction(tx,
-                               pendingState.producerPrivKey.publicKey.pubKeyHash,
-                               pendingState.stopProcessTxTime,
-                               pendingState.blockTime,
-                               pendingState.blockIndex)) {
-            pendingState.txs.append(tx)
-            added = true
+          if (isProducingBlock()) {
+            if (Instant.now.toEpochMilli > pendingState.stopProcessTxTime) {
+              added = addTransactionToUnapplyTxs(tx)
+            }
+            else {
+              if (applyTransaction(tx,
+                pendingState.producerPrivKey.publicKey.pubKeyHash,
+                pendingState.stopProcessTxTime,
+                pendingState.blockTime,
+                pendingState.blockIndex)) {
+                pendingState.txs.append(tx)
+                added = true
+              }
+            }
+          }
+          else {
+            added = addTransactionToUnapplyTxs(tx)
           }
         }
-      }
-      else {
-        added = addTransactionToUnapplyTxs(tx)
+        if (added)
+          notification.broadcast(AddTransactionNotify(tx))
+        added
       }
     }
-    if (added)
-      notification.broadcast(AddTransactionNotify(tx))
-    added
+
   }
 
+  private var lastBlockNum: Long = 0
+
   def produceBlockFinalize(): Option[Block] = {
+    log.info("produceBlockFinalize")
     val endTime = Instant.now.toEpochMilli
     if (!isProducingBlock()) {
       log.info("block canceled")
@@ -325,6 +334,10 @@ class Blockchain(chainSettings: ChainSettings,
       pendingState.isProducingBlock = false
       if (tryInsertBlock(block, false)) {
         log.info(s"block #${block.height} ${block.shortId} produced by ${block.header.producer.address.substring(0, 7)} ${block.header.timeString()}")
+        if (block.height == lastBlockNum) {
+          log.info("error")
+        }
+        lastBlockNum = block.height
         notification.broadcast(NewBlockProducedNotify(block))
         Some(block)
       } else {
@@ -409,7 +422,7 @@ class Blockchain(chainSettings: ChainSettings,
         val newInfo = allWitnessesMap.get(oldInfo.addr)
         if (newInfo.isDefined)
           updatedCurrentWitness.append(newInfo.get)
-        else  // some producer have quit, but we still need keep it
+        else // some producer have quit, but we still need keep it
           updatedCurrentWitness.append(oldInfo.setVoteCounts(FixedNumber.Zero))
       })
 
@@ -464,7 +477,7 @@ class Blockchain(chainSettings: ChainSettings,
                                stopTime: Long, timeStamp: Long, blockIndex: Long, scheduleTx: Boolean = false): Boolean = {
     var txValid = false
     //if tx is a schedule tx and it is time to execute,or tx is a normal transfer or miner tx, start execute tx directly
-    if(tx.executeTime > 0 && timeStamp >= tx.executeTime || tx.executeTime <=0) {
+    if (timeStamp >= tx.executeTime) {
       tx.txType match {
         case TransactionType.Miner => txValid = applySendTransaction(tx, blockProducer, timeStamp)
         case TransactionType.Transfer => txValid = applySendTransaction(tx, blockProducer, timeStamp)
@@ -472,25 +485,25 @@ class Blockchain(chainSettings: ChainSettings,
         //case TransactionType.RegisterName =>
         case TransactionType.Deploy => txValid = applyContractTransaction(tx, blockProducer, stopTime, timeStamp, blockIndex)
         case TransactionType.Call => txValid = applyContractTransaction(tx, blockProducer, stopTime, timeStamp, blockIndex)
-        case TransactionType.Refund => txValid = applyRefundTransaction(tx, blockProducer,timeStamp)
+        case TransactionType.Refund => txValid = applyRefundTransaction(tx, blockProducer, timeStamp)
       }
-      if(tx.executeTime > 0) dataBase.deleteScheduleTx(new UInt256(tx.data))
+      if (scheduleTx) dataBase.deleteScheduleTx(new UInt256(tx.data))
       txValid
     }
     ////if tx is a schedule tx, it spend a small fee to execute this special tx
-    else{
+    else {
       //todo
       true
     }
   }
 
-  private def applyRefundTransaction(tx: Transaction, blockProducer: UInt160, timeStamp: Long): Boolean ={
-      if(timeStamp >= tx.executeTime){
-        dataBase.transfer(tx.from, tx.toPubKeyHash, tx.amount)
-        return true
-      }
-    false
+  private def applyRefundTransaction(tx: Transaction, blockProducer: UInt160, timeStamp: Long): Boolean = {
+    if (timeStamp >= tx.executeTime) {
+      dataBase.transfer(tx.from, tx.toPubKeyHash, tx.amount)
+      return true
     }
+    false
+  }
 
 
   private def applyContractTransaction(tx: Transaction, blockProducer: UInt160,
@@ -499,7 +512,7 @@ class Blockchain(chainSettings: ChainSettings,
     var applied = false
 
     val executor = new TransactionExecutor(tx, blockProducer, dataBase, stopTime,
-                                           timeStamp, blockIndex, this)
+      timeStamp, blockIndex, this)
 
     executor.init()
     executor.execute()
@@ -714,6 +727,7 @@ class Blockchain(chainSettings: ChainSettings,
 
       updateWitnessLists()
     }
+
     log.info("chain populate")
     if (forkBase.head.isEmpty) {
       initGenesisWitness()
@@ -804,10 +818,11 @@ class Blockchain(chainSettings: ChainSettings,
       peerBase.setGasLimit(gasLimit)
       runtimeParas.setAcceptGasLimit(gasLimit.longValue())
       true
-    }catch {
-      case e: Throwable =>false
+    } catch {
+      case e: Throwable => false
     }
   }
+
   def getGasLimit(): Long = {
     peerBase.getGasLimit().get.longValue()
   }
