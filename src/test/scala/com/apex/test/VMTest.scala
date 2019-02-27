@@ -254,6 +254,120 @@ class VMTest {
     assert(callGasUsed1 == callGasUsed2)
   }
 
+  @Test
+  def testvm2: Unit = {
+
+    val _ =
+      "contract SimpleStorage {\n\n    function sdiv() returns (int) {\n        int a =10;\n        int b = 2;\n        \n       return a/b;\n    }\n    \n}"
+    val abi = Abi.fromJson("[{\"constant\":false,\"inputs\":[],\"name\":\"sdiv\",\"outputs\":[{\"name\":\"\",\"type\":\"int256\"}],\"payable\":false,\"stateMutability\":\"nonpayable\",\"type\":\"function\"}]")
+
+    val code = "608060405234801561001057600080fd5b5060b78061001f6000396000f300608060405260043610603f576000357c0100000000000000000000000000000000000000000000000000000000900463ffffffff168063d5cfd270146044575b600080fd5b348015604f57600080fd5b506056606c565b6040518082815260200191505060405180910390f35b6000806000600a9150600290508082811515608357fe5b0592505050905600a165627a7a72305820f5175c5663211063e5b45e52b81e281701450e24afb798e65c1017aa8272d65a0029"
+
+    val call1 = abi.encode("sdiv()")
+    val (deployGasUsed3, callGasUsed3) = deployThenCall(code, call1, true)
+    val (deployGasUsed4, callGasUsed4) = deployThenCall(code, call1, false)
+    println(s"deploy: $deployGasUsed3 $deployGasUsed4")
+    println(s"call: $callGasUsed3 $callGasUsed4")
+    assert(deployGasUsed3 == deployGasUsed4)
+    assert(callGasUsed3 == callGasUsed4)
+  }
+
+
+  @Test
+  def testvm3: Unit = {
+
+    val _ =
+      "contract SimpleStorage {\n\n    function addmodtest(uint a, uint b, uint c)  returns (uint){\n      uint ret= addmod(a,b,c);\n      return ret;\n    }\n    \n}"
+
+    val abi = Abi.fromJson("[{\"constant\":false,\"inputs\":[{\"name\":\"a\",\"type\":\"uint256\"},{\"name\":\"b\",\"type\":\"uint256\"},{\"name\":\"c\",\"type\":\"uint256\"}],\"name\":\"addmodtest\",\"outputs\":[{\"name\":\"\",\"type\":\"uint256\"}],\"payable\":false,\"stateMutability\":\"nonpayable\",\"type\":\"function\"}]")
+    val code = "608060405234801561001057600080fd5b5060de8061001f6000396000f300608060405260043610603f576000357c0100000000000000000000000000000000000000000000000000000000900463ffffffff1680634a2ea12e146044575b600080fd5b348015604f57600080fd5b5060806004803603810190808035906020019092919080359060200190929190803590602001909291905050506096565b6040518082815260200191505060405180910390f35b6000808280151560a257fe5b84860890508091505093925050505600a165627a7a723058200e5fbe3002883d55df8ec42b7767068430029c68cb2bed74f243b472ab04e9d40029"
+
+    val call2 = abi.encode("addmodtest(1,1)")
+    val (deployGasUsed5, callGasUsed5) = deployThenCall(code, call2, true)
+    val (deployGasUsed6, callGasUsed6) = deployThenCall(code, call2, false)
+    println(s"deploy: $deployGasUsed5 $deployGasUsed6")
+    println(s"call: $callGasUsed5 $callGasUsed6")
+    assert(deployGasUsed5 == deployGasUsed6)
+    assert(callGasUsed5 == callGasUsed6)
+
+  }
+
+
+  @Test
+  def testvm4: Unit = {
+
+    val _ =
+      "contract SimpleStorage {\n\n    function mulmodtest(uint a, uint b, uint c)  returns (uint){\n      uint ret= mulmod(a,b,c);\n      \n      return ret;\n    }\n    \n}"
+
+    val abi = Abi.fromJson("[{\"constant\":false,\"inputs\":[{\"name\":\"a\",\"type\":\"uint256\"},{\"name\":\"b\",\"type\":\"uint256\"},{\"name\":\"c\",\"type\":\"uint256\"}],\"name\":\"mulmodtest\",\"outputs\":[{\"name\":\"\",\"type\":\"uint256\"}],\"payable\":false,\"stateMutability\":\"nonpayable\",\"type\":\"function\"}]")
+
+    val code = "608060405234801561001057600080fd5b5060de8061001f6000396000f300608060405260043610603f576000357c0100000000000000000000000000000000000000000000000000000000900463ffffffff168063edddcf2a146044575b600080fd5b348015604f57600080fd5b5060806004803603810190808035906020019092919080359060200190929190803590602001909291905050506096565b6040518082815260200191505060405180910390f35b6000808280151560a257fe5b84860990508091505093925050505600a165627a7a7230582053bf8d479863e2252f85416b7767b53942acc4202e51ac9b58ffa6665f4195350029"
+
+    val call3 = abi.encode("mulmodtest(2,2)")
+    val (deployGasUsed7, callGasUsed7) = deployThenCall(code, call3, true)
+    val (deployGasUsed8, callGasUsed8) = deployThenCall(code, call3, false)
+    println(s"deploy: $deployGasUsed7 $deployGasUsed8")
+    println(s"call: $callGasUsed7 $callGasUsed8")
+    assert(deployGasUsed7 == deployGasUsed8)
+    assert(callGasUsed7 == callGasUsed8)
+  }
+
+
+  @Test
+  def testvm5: Unit = {
+
+    val _ =
+      "contract SimpleStorage {\n\n    function modtest(uint a, uint b) returns (uint) {\n       return a%b;\n    }\n    \n}"
+
+    val abi = Abi.fromJson("[{\"constant\":false,\"inputs\":[{\"name\":\"a\",\"type\":\"uint256\"},{\"name\":\"b\",\"type\":\"uint256\"}],\"name\":\"modtest\",\"outputs\":[{\"name\":\"\",\"type\":\"uint256\"}],\"payable\":false,\"stateMutability\":\"nonpayable\",\"type\":\"function\"}]")
+
+    val code = "608060405234801561001057600080fd5b5060cd8061001f6000396000f300608060405260043610603f576000357c0100000000000000000000000000000000000000000000000000000000900463ffffffff168063607dcc1f146044575b600080fd5b348015604f57600080fd5b5060766004803603810190808035906020019092919080359060200190929190505050608c565b6040518082815260200191505060405180910390f35b60008183811515609857fe5b069050929150505600a165627a7a723058200c04baf167cea4a07df8df1952073357aa4de0ee83a13a8ae56c83b7608a0b280029"
+    val call = abi.encode("modtest(2,1)")
+    val (deployGasUsed1, callGasUsed1) = deployThenCall(code, call, true)
+    val (deployGasUsed2, callGasUsed2) = deployThenCall(code, call, false)
+    println(s"deploy: $deployGasUsed1 $deployGasUsed2")
+    println(s"call: $callGasUsed1 $callGasUsed2")
+    assert(deployGasUsed1 == deployGasUsed2)
+    assert(callGasUsed1 == callGasUsed2)
+
+  }
+
+  @Test
+  def testvm6: Unit = {
+
+    val _ =
+      "contract SimpleStorage {\n\n\tfunction sltgt(){\n        int a=10;\n        int b=5;\n        \n        assert(a>b);\n        assert(b<a);\n        \n        int c=a^b;\n    }\n    \n}0"
+
+    val abi = Abi.fromJson("[{\"constant\":false,\"inputs\":[],\"name\":\"sltgt\",\"outputs\":[],\"payable\":false,\"stateMutability\":\"nonpayable\",\"type\":\"function\"}]")
+    val code = "608060405234801561001057600080fd5b5060af8061001f6000396000f300608060405260043610603f576000357c0100000000000000000000000000000000000000000000000000000000900463ffffffff168063f2d91475146044575b600080fd5b348015604f57600080fd5b5060566058565b005b6000806000600a9250600591508183131515606f57fe5b8282121515607957fe5b81831890505050505600a165627a7a723058208a53cebbcce0bda52e6c247af9a05e0efa7bbbe96db3345c808a84b405941e770029"
+
+    val call3 = abi.encode("sltgt()")
+    val (deployGasUsed7, callGasUsed7) = deployThenCall(code, call3, true)
+    val (deployGasUsed8, callGasUsed8) = deployThenCall(code, call3, false)
+    println(s"deploy: $deployGasUsed7 $deployGasUsed8")
+    println(s"call: $callGasUsed7 $callGasUsed8")
+    assert(deployGasUsed7 == deployGasUsed8)
+    assert(callGasUsed7 == callGasUsed8)
+  }
+
+  @Test
+  def testvm7: Unit = {
+
+    val _ =
+      "contract SimpleStorage {\n\n\tfunction memsore8test(uint v){\n        \n        assembly {\n            mstore8(0x80, v)\n        }\n    }\n    \n}"
+
+    val abi = Abi.fromJson("[{\"constant\":false,\"inputs\":[{\"name\":\"v\",\"type\":\"uint256\"}],\"name\":\"memsore8test\",\"outputs\":[],\"payable\":false,\"stateMutability\":\"nonpayable\",\"type\":\"function\"}]")
+    val code = "6080604052348015600f57600080fd5b5060a18061001e6000396000f300608060405260043610603f576000357c0100000000000000000000000000000000000000000000000000000000900463ffffffff168063985abd49146044575b600080fd5b348015604f57600080fd5b50606c60048036038101908080359060200190929190505050606e565b005b80608053505600a165627a7a72305820f97c723b11eb7c59be2051142bf2ab2a1c6cf0b2dbdb3530c51b19cdd38f24500029"
+
+    val call3 = abi.encode("memsore8test(8)")
+    val (deployGasUsed7, callGasUsed7) = deployThenCall(code, call3, true)
+    val (deployGasUsed8, callGasUsed8) = deployThenCall(code, call3, false)
+    println(s"deploy: $deployGasUsed7 $deployGasUsed8")
+    println(s"call: $callGasUsed7 $callGasUsed8")
+    assert(deployGasUsed7 == deployGasUsed8)
+    assert(callGasUsed7 == callGasUsed8)
+  }
+
   private def deployThenCall(code: String, call: Array[Byte], newStep: Boolean) = {
     println("|------begin deploy ------------------")
     val (contract, result) = VMTest.newdeploy(dataBase, author, BinaryData(code), over = newStep)
