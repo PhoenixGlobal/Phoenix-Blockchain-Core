@@ -257,7 +257,7 @@ class VMTest {
   private def deployThenCall(code: String, call: Array[Byte], newStep: Boolean) = {
     println("|------begin deploy ------------------")
     val (contract, result) = VMTest.newdeploy(dataBase, author, BinaryData(code), over = newStep)
-    println("|------begin call ------------------")
+    println(s"|------begin call $contract------------------")
     val getResult = VMTest.newcall(dataBase, caller, contract, result.getHReturn, call, over = newStep)
     (result.getGasUsed, getResult.getGasUsed)
   }
@@ -273,9 +273,16 @@ object VMTest {
   val contractAddress = Crypto.calcNewAddr(author, BigInt(1).toByteArray)
   val vmSettings = ContractSettings(0, false, Int.MaxValue)
 
+  private var nonce = 0
+
+  def newNonce = {
+    nonce += 1
+    nonce
+  }
+
   def deploy(dataBase: DataBase, caller: UInt160, code: Array[Byte], value: Int = 0, gasLimit: Long = Int.MaxValue) = {
     val tracking = dataBase.startTracking()
-    val contract = Crypto.calcNewAddr(author, BigInt(1).toByteArray)
+    val contract = Crypto.calcNewAddr(author, BigInt(newNonce).toByteArray)
     if (value > 0) tracking.transfer(caller, contract, value)
     val invoker = createInvoker(tracking, dataBase, caller, contract, Array.empty, value, gasLimit)
     val program = new Program(vmSettings, code, invoker, Long.MaxValue)
@@ -306,11 +313,9 @@ object VMTest {
     result
   }
 
-
-
   def newdeploy(dataBase: DataBase, caller: UInt160, code: Array[Byte], value: Int = 0, gasLimit: Long = Int.MaxValue, over: Boolean) = {
     val tracking = dataBase.startTracking()
-    val contract = Crypto.calcNewAddr(author, BigInt(1).toByteArray)
+    val contract = Crypto.calcNewAddr(author, BigInt(newNonce).toByteArray)
     if (value > 0) tracking.transfer(caller, contract, value)
     val invoker = createInvoker(tracking, dataBase, caller, contract, Array.empty, value, gasLimit)
     val program = new Program(vmSettings, code, invoker, Long.MaxValue, over = over)
