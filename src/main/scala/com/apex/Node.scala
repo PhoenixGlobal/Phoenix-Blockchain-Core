@@ -146,10 +146,8 @@ class Node(val settings: ApexSettings, config: Config)
       case GetAccountCmd(address) => {
         sender() ! chain.getAccount(address)
       }
-      case SendRawTransactionCmd(rawTx) => {
+      case SendRawTransactionCmd(tx) => {
         try {
-          val is = new DataInputStream(new ByteArrayInputStream(rawTx))
-          val tx = Transaction.deserialize(is)
           if (tx.verifySignature()) {
             peerHandlerManager ! InventoryMessage(new InventoryPayload(InventoryType.Tx, Seq(tx.id)))
             if (chain.addTransaction(tx))

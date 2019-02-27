@@ -8,6 +8,8 @@
 
 package com.apex.rpc
 
+import java.io.{ByteArrayInputStream, DataInputStream}
+import com.apex.core.Transaction
 import com.apex.crypto.{BinaryData, UInt160, UInt256}
 import com.apex.crypto.Ecdsa.PublicKeyHash
 import play.api.libs.json.Reads._
@@ -68,16 +70,19 @@ object SetGasLimitCmd {
 
 case class GetGasLimitCmd() extends RPCCommand
 
-case class SendRawTransactionCmd(rawTx: BinaryData) extends RPCCommand
+case class SendRawTransactionCmd(rawTx: Transaction) extends RPCCommand
 
 object SendRawTransactionCmd {
   implicit val testWrites = new Writes[SendRawTransactionCmd] {
     override def writes(o: SendRawTransactionCmd): JsValue = Json.obj(
-      "rawTx" -> o.rawTx.toString
+      "rawTx" -> BinaryData(o.rawTx.toBytes).toString
     )
   }
   implicit val testReads: Reads[SendRawTransactionCmd] = (
-    (__ \ "rawTx").read[String](Validators.HexValidator).map(c => BinaryData(c))
+    (__ \ "rawTx").read[String](Validators.HexValidator).map(c => {
+      val is = new DataInputStream(new ByteArrayInputStream(BinaryData(c)))
+      Transaction.deserialize(is)
+    })
     ) map (SendRawTransactionCmd.apply _)
 }
 
@@ -107,6 +112,7 @@ object GetBlockByHeightCmd {
 }
 
 case class GetBlockByIdCmd(id: UInt256) extends RPCCommand
+
 //{
 //  def run(): JsValue = {
 //    val block = Blockchain.Current.getBlock(id)
@@ -144,7 +150,7 @@ object GetContractByIdCmd {
     ) map (GetContractByIdCmd.apply _)
 }
 
-case class GetProducerCmd(address:UInt160) extends RPCCommand
+case class GetProducerCmd(address: UInt160) extends RPCCommand
 
 object GetProducerCmd {
   implicit val testWrites = new Writes[GetProducerCmd] {
