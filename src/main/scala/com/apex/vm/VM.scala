@@ -56,8 +56,7 @@ class VM(settings: ContractSettings, hook: VMHook) extends com.apex.common.ApexL
       try {
         if (hasHooks) hooks.foreach(_.startPlay(program))
         while (!program.isStopped) {
-//                    step(program)
-          overwritestep(program)
+          step(program)
         }
       } catch {
         case e: RuntimeException => program.setRuntimeFailure(e)
@@ -74,6 +73,11 @@ class VM(settings: ContractSettings, hook: VMHook) extends com.apex.common.ApexL
   }
 
   def step(program: Program): Unit = {
+    //matchStep(program)
+    overwriteStep(program)
+  }
+
+  private def matchStep(program: Program): Unit = {
     if (vmTrace) {
       program.saveOpTrace()
     }
@@ -901,7 +905,7 @@ class VM(settings: ContractSettings, hook: VMHook) extends com.apex.common.ApexL
     }
   }
 
-  def overwritestep(program: Program): Unit = {
+  private def overwriteStep(program: Program): Unit = {
     if (vmTrace) {
       program.saveOpTrace()
     }
@@ -948,7 +952,7 @@ object VM {
   private val opValidators = OpCode.emptyValidators
   private val _32_ = BigInt(32)
 
-  val instructionTable = new Array[Runtime](256)
+  private val instructionTable = new Array[Runtime](256)
 
   instructionTable(OpCode.STOP.id) = Runtime(ctx => {
     val program = ctx.program
