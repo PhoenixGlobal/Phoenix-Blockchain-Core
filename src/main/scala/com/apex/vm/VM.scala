@@ -929,7 +929,7 @@ class VM(settings: ContractSettings, hook: VMHook) extends com.apex.common.ApexL
       val res = runtime.execute(ctx)
 
       if (log.isInfoEnabled && !op.isCall) {
-        log.info(s"[${program.getPC.formatted("%5s")}]    Op: [${op.code.name.formatted("%-12s")}]  Gas: [${program.getGas.value}] Deep: [${program.getCallDeep}]  Hint: [${res.toString}]")
+        ctx.logHint
       }
 
       vmCounter += 1
@@ -1363,8 +1363,9 @@ object VM {
   instructionTable(OpCode.MLOAD.id) = Runtime(ctx => {
     val program = ctx.program
     val address = program.stackPop
-    val codeHash = program.getCodeHashAt(address)
-    program.stackPush(codeHash)
+    val data = program.memoryLoad(address)
+    ctx.setHint(s"data: $data")
+    program.stackPush(data)
     program.step()
   }, mloadGasCost)
 
@@ -1548,7 +1549,7 @@ object VM {
     val inOffset = program.stackPop
     val inSize = program.stackPop
 
-    ctx.logHint("")
+    ctx.logHint
 
     program.createContract(value, inOffset, inSize)
 
@@ -1565,7 +1566,7 @@ object VM {
     val inSize = program.stackPop
     val salt = program.stackPop
 
-    ctx.logHint("")
+    ctx.logHint
 
     program.createContract2(value, inOffset, inSize, salt)
 
@@ -1592,7 +1593,8 @@ object VM {
     val outDataOffs = program.stackPop
     val outDataSize = program.stackPop
 
-    ctx.logHint(s"addr: ${codeAddress.getLast20Bytes.toHex} gas: ${ctx.adjustedCallGas.shortHex} inOff: ${inDataOffs.shortHex} inSize: ${inDataSize.shortHex}")
+    ctx.setHint(s"addr: ${codeAddress.getLast20Bytes.toHex} gas: ${ctx.adjustedCallGas.shortHex} inOff: ${inDataOffs.shortHex} inSize: ${inDataSize.shortHex}")
+    ctx.logHint
 
     program.memoryExpand(outDataOffs, outDataSize)
 
@@ -2025,9 +2027,8 @@ class ExecuteContext(val op: OpObject, val program: Program, val settings: Contr
     }
   }
 
-  def logHint(message: String) = {
+  def logHint() = {
     if (log.isInfoEnabled) {
-      hint = message
       log.info(s"[${program.getPC.formatted("%5s")}]    Op: [${op.code.name.formatted("%-12s")}]  Gas: [${program.getGas.value}] Deep: [${program.getCallDeep}]  Hint: [${hint}]")
     }
   }
