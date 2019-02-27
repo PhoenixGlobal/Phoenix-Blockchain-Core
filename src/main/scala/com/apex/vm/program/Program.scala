@@ -45,7 +45,7 @@ class Program(settings: ContractSettings,
               ops: Array[Byte],
               invoke: ProgramInvoke,
               stopTime: Long,
-              vmHook: VMHook = VMHook.EMPTY) extends ApexLogging {
+              vmHook: VMHook = VMHook.EMPTY, var over:Boolean = true) extends ApexLogging {
   private final val MAX_STACKSIZE = 1024
   /**
     * This attribute defines the number of recursive calls allowed in the EVM

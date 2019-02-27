@@ -73,8 +73,8 @@ class VM(settings: ContractSettings, hook: VMHook) extends com.apex.common.ApexL
   }
 
   def step(program: Program): Unit = {
-    //matchStep(program)
-    overwriteStep(program)
+    if(program.over)overwriteStep(program)
+    else matchStep(program)
   }
 
   private def matchStep(program: Program): Unit = {
