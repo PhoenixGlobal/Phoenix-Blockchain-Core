@@ -239,6 +239,22 @@ class VMTest {
       case e: Throwable => e.printStackTrace()
     }
   }
+
+  @Test
+  def testvm1: Unit = {
+    // deploy contract
+    val abi = Abi.fromJson("[{\"constant\":false,\"inputs\":[{\"name\":\"x\",\"type\":\"uint256\"}],\"name\":\"set\",\"outputs\":[],\"payable\":false,\"stateMutability\":\"nonpayable\",\"type\":\"function\"},{\"constant\":true,\"inputs\":[],\"name\":\"get\",\"outputs\":[{\"name\":\"retVal\",\"type\":\"uint256\"}],\"payable\":false,\"stateMutability\":\"view\",\"type\":\"function\"}]")
+    val (contract, result) = VMTest.deploy(dataBase, author, BinaryData("60806040526001600460006101000a81548160ff02191690831515021790555034801561002b57600080fd5b506101588061003b6000396000f30060806040526004361061004c576000357c0100000000000000000000000000000000000000000000000000000000900463ffffffff16806360fe47b1146100515780636d4ce63c1461007e575b600080fd5b34801561005d57600080fd5b5061007c600480360381019080803590602001909291905050506100a9565b005b34801561008a57600080fd5b50610093610123565b6040518082815260200191505060405180910390f35b6001810160008190555060018103600181905550600181026002819055506001818115156100d357fe5b046003819055506003811080156100ea5750600681115b156101205760011515600460009054906101000a900460ff161515141561011857600060038190555061011f565b6001810390505b5b50565b600080549050905600a165627a7a72305820f6d79bc2d5ec3849bdb0459bba238a89602730e37022c881b385493704ed63050029"))
+    println("result.getGasUsed:"+result.getGasUsed)
+    println("---------------------------------------------")
+    /*// call set(0x777)
+    val setResult = VMTest.call(dataBase, caller, contract, result.getHReturn, abi.encode("set(2)"))
+    println("result.getGasUsed:"+setResult.getGasUsed)*/
+
+    // call get() must return 0x777
+    val getResult = VMTest.call(dataBase, caller, contract, result.getHReturn, abi.encode("get()"))
+    println("result.getGasUsed:"+getResult.getGasUsed)
+  }
 }
 
 object VMTest {
