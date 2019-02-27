@@ -449,8 +449,15 @@ class ForkBase(settings: ForkBaseSettings,
   def add(block: Block, curWitnessList: WitnessList): Boolean = {
     def makeItem(heights: IMap[UInt160, Long], master: Boolean) = {
       val lph = Map.empty[UInt160, Long]
-      for (p <- heights if curWitnessList.contains(p._1)) {
-        lph.put(p._1, p._2)
+      var oldProducerHeight: Option[Long] = None
+      for (p <- heights) {
+        if (curWitnessList.contains(p._1))
+          lph.put(p._1, p._2)
+        else {
+          //only allow max ONE producer be replaced every time
+          require(oldProducerHeight.isEmpty)
+          oldProducerHeight = Some(p._2)
+        }
       }
       val producer = block.header.producer
       //if (lph.contains(producer)) {
@@ -459,7 +466,9 @@ class ForkBase(settings: ForkBaseSettings,
       //}
       curWitnessList.witnesses.foreach(w => {
         if (!lph.contains(w.addr)) {
-          lph.put(w.addr, 0)
+          require(oldProducerHeight.isDefined)
+          lph.put(w.addr, oldProducerHeight.get)
+          oldProducerHeight = None
         }
       })
       require(lph.size == curWitnessList.witnesses.size)

@@ -258,6 +258,8 @@ class BlockchainVoteTest {
       assert(chain.getProducers("all").witnesses.size == 4)
       assert(!chain.getProducers("all").contains(_acct1.publicKey.pubKeyHash))
 
+      assert(chain.getBalance(_acct1).get == FixedNumber.fromDecimal(200))
+
       // Not allowed to register as genesis witness
       val block2error = makeBlock(chain, block1, Seq(createRegisterTransaction(0, _acct1, "123", true)))
       assert(!chain.tryInsertBlock(block2error))

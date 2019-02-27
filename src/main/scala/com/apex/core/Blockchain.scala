@@ -206,7 +206,6 @@ class Blockchain(chainSettings: ChainSettings,
 
   def startProduceBlock(producerPrivKey: PrivateKey, blockTime: Long, stopProcessTxTime: Long): Unit = {
     require(!isProducingBlock())
-    log.info(s"startProduceBlock  ${producerPrivKey.publicKey.address}")
     val producer = producerPrivKey.publicKey.pubKeyHash
     val forkHead = forkBase.head.get
     pendingState.set(producerPrivKey, blockTime, stopProcessTxTime, forkHead.block.height + 1)
@@ -313,10 +312,7 @@ class Blockchain(chainSettings: ChainSettings,
 
   }
 
-  private var lastBlockNum: Long = 0
-
   def produceBlockFinalize(): Option[Block] = {
-    log.info("produceBlockFinalize")
     val endTime = Instant.now.toEpochMilli
     if (!isProducingBlock()) {
       log.info("block canceled")
@@ -334,10 +330,6 @@ class Blockchain(chainSettings: ChainSettings,
       pendingState.isProducingBlock = false
       if (tryInsertBlock(block, false)) {
         log.info(s"block #${block.height} ${block.shortId} produced by ${block.header.producer.address.substring(0, 7)} ${block.header.timeString()}")
-        if (block.height == lastBlockNum) {
-          log.info("error")
-        }
-        lastBlockNum = block.height
         notification.broadcast(NewBlockProducedNotify(block))
         Some(block)
       } else {
@@ -371,7 +363,7 @@ class Blockchain(chainSettings: ChainSettings,
         inserted = true
       }
       else
-        log.info(s"block ${block.height} ${block.shortId} apply error")
+        log.error(s"block ${block.height} ${block.shortId} apply error")
       if (inserted) {
         notification.broadcast(BlockAddedToHeadNotify(block))
         checkUpdateWitnessList(block)

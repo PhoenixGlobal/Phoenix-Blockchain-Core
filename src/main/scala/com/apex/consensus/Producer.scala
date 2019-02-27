@@ -49,7 +49,7 @@ class Producer(apexSettings: ApexSettings)
   private val delayOneBlock = blockDuration(1)
   private val noDelay = blockDuration(0)
 
-  private var enableProduce = true
+  private var enableProduce = false
 
   scheduleBegin()
 
@@ -116,7 +116,6 @@ class Producer(apexSettings: ApexSettings)
       scheduleBegin(delayOneBlock)
     } else {
       val next = ProducerUtil.nextBlockTime(headTime, now, minProducingTime, settings.produceInterval)
-      log.info(s"next time: $next")
       //println(s"head: $headTime, now: $now, next: $next, delta: ${headTime - now}")
       val witness = chain.getWitness(next) // ProducerUtil.getWitness(next, settings)
       val myTurn = apexSettings.miner.findPrivKey(witness).isDefined
@@ -130,7 +129,6 @@ class Producer(apexSettings: ApexSettings)
                                  next, next - apexSettings.runtimeParas.stopProcessTxTimeSlot)
         val now = Instant.now.toEpochMilli
         val delay = calcDelay(now, next, myTurn)
-        log.info(f"delay time:   $delay")
         scheduleEnd(delay)
       }
     }
@@ -143,7 +141,7 @@ class Producer(apexSettings: ApexSettings)
     if (myTurn && rest == 1) {
         delay = if (delay < earlyMS) 0 else delay - earlyMS
     }
-    log.info(s"now: $now, next: $next, delay: $delay, delta: ${next - now}, rest: $rest")
+    //log.info(s"now: $now, next: $next, delay: $delay, delta: ${next - now}, rest: $rest")
     calcDuration(delay.toInt)
   }
 
