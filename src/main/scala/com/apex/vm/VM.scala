@@ -1761,7 +1761,7 @@ object VM {
     val stack = ctx.stack
     val oldMemSize = ctx.oldMemSize
     val gasCost = calcMemGas(oldMemSize, memNeeded(stack.peek, DataWord.ONE), 0)
-    ctx.spendGas(gasCost)
+    ctx.spendGas(gasCost, false)
   }
 
   private def mloadGasCost(ctx: ExecuteContext): Unit = {
