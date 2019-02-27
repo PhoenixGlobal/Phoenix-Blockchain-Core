@@ -10,7 +10,6 @@ import play.api.libs.json.{JsValue, Json, Writes}
 class Transaction(val txType: TransactionType.Value,
                   val from: UInt160,
                   val toPubKeyHash: UInt160,
-                  val toName: String,
                   val amount: FixedNumber,
                   val nonce: Long,
                   val data: BinaryData,
@@ -80,7 +79,6 @@ class Transaction(val txType: TransactionType.Value,
     os.writeByte(txType.toByte)
     os.write(from)
     os.write(toPubKeyHash)
-    os.writeString(toName)
     os.write(amount)
     os.writeLong(nonce)
     os.writeByteArray(data)
@@ -117,7 +115,6 @@ object Transaction {
             "type" -> o.txType.toString,
             "from" -> { if (o.txType == TransactionType.Miner) "" else o.from.address },
             "to" ->  o.toAddress,
-            "toName" -> o.toName,
             "amount" -> o.amount.toString,
             "nonce" -> o.nonce.toString,
             "data" -> o.data.toString,
@@ -137,7 +134,6 @@ object Transaction {
     val txType = TransactionType(is.readByte)
     val from = UInt160.deserialize(is)
     val toPubKeyHash = UInt160.deserialize(is)
-    val toName = is.readString
     val amount = FixedNumber.deserialize(is)
     val nonce = is.readLong
     val data = is.readByteArray
@@ -146,6 +142,6 @@ object Transaction {
     val executeTime = is.readLong()
     val signature = is.readByteArray
 
-    new Transaction(txType, from, toPubKeyHash, toName, amount, nonce, data, gasPrice, gasLimit, signature, version, executeTime)
+    new Transaction(txType, from, toPubKeyHash, amount, nonce, data, gasPrice, gasLimit, signature, version, executeTime)
   }
 }

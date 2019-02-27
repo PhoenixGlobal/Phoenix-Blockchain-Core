@@ -117,7 +117,7 @@ class BlockchainTest {
                      gasPrice: FixedNumber = FixedNumber.Zero,
                      txType: TransactionType.Value = TransactionType.Transfer): Transaction = {
 
-    val tx = new Transaction(txType, from.publicKey.pubKeyHash, to.publicKey.pubKeyHash, "",
+    val tx = new Transaction(txType, from.publicKey.pubKeyHash, to.publicKey.pubKeyHash,
       amount, nonce, BinaryData.empty, gasPrice, gasLimit, BinaryData.empty)
     tx.sign(from)
     tx
@@ -131,7 +131,7 @@ class BlockchainTest {
     val miner = chain.getWitness(blockTime)
 
     val minerTx = new Transaction(TransactionType.Miner, minerCoinFrom,
-      miner, "", FixedNumber.fromDecimal(award),
+      miner, FixedNumber.fromDecimal(award),
       preBlock.height + 1,
       BinaryData(Crypto.randomBytes(8)), // add random bytes to distinct different blocks with same block index during debug in some cases
       FixedNumber.Zero, 0, BinaryData.empty)
@@ -155,8 +155,7 @@ class BlockchainTest {
     val miner = chain.getWitness(blockTime)
 
     val minerTx = new Transaction(TransactionType.Miner, minerCoinFrom,
-      miner, "", FixedNumber.fromDecimal(_minerAward),
-      preBlock.height + 1,
+      miner, FixedNumber.fromDecimal(_minerAward), preBlock.height + 1,
       BinaryData(Crypto.randomBytes(8)), // add random bytes to distinct different blocks with same block index during debug in some cases
       FixedNumber.Zero, 0, BinaryData.empty)
 

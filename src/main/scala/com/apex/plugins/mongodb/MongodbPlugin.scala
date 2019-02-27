@@ -153,7 +153,6 @@ class MongodbPlugin(settings: ApexSettings)
       "type" -> tx.txType.toString,
       "from" -> { if (tx.txType == TransactionType.Miner) "" else tx.from.address },
       "to" ->  tx.toAddress,
-      "toName" -> tx.toName,
       "amount" -> tx.amount.toString,
       "nonce" -> tx.nonce.toString,
       "data" -> tx.data.toString,

@@ -127,7 +127,7 @@ object VoteContractExecutor {
       val time = timeStamp + /*24 * 60 * 60 * 1000*/750
       //note: this scheduleTx from and to address are opposite to tx; amount is the register spend; the scheduleTx index
       // in leveldb is the id of tx, not the scheduleTx, the tx hash exists in the data filed of scheduleTx
-      val scheduleTx = new Transaction(TransactionType.Refund, tx.toPubKeyHash, tx.from, tx.toName, voteData.voterCount, tx.nonce, tx.id.data,
+      val scheduleTx = new Transaction(TransactionType.Refund, tx.toPubKeyHash, tx.from, voteData.voterCount, tx.nonce, tx.id.data,
         tx.gasPrice, tx.gasLimit, tx.signature, tx.version, time)
       track.addScheduleTxToDb(tx.id, scheduleTx)
       if(witness.isDefined){

@@ -118,7 +118,7 @@ class BlockchainVoteTest {
                      gasPrice: FixedNumber = FixedNumber.Zero,
                      txType: TransactionType.Value = TransactionType.Transfer): Transaction = {
 
-    val tx = new Transaction(txType, from.publicKey.pubKeyHash, to.publicKey.pubKeyHash, "",
+    val tx = new Transaction(txType, from.publicKey.pubKeyHash, to.publicKey.pubKeyHash,
       amount, nonce, BinaryData.empty, gasPrice, gasLimit, BinaryData.empty)
     tx.sign(from)
     tx
@@ -132,8 +132,7 @@ class BlockchainVoteTest {
     val miner = chain.getWitness(blockTime)
 
     val minerTx = new Transaction(TransactionType.Miner, minerCoinFrom,
-      miner, "", FixedNumber.fromDecimal(award),
-      preBlock.height + 1,
+      miner, FixedNumber.fromDecimal(award), preBlock.height + 1,
       BinaryData(Crypto.randomBytes(8)), // add random bytes to distinct different blocks with same block index during debug in some cases
       FixedNumber.Zero, 0, BinaryData.empty)
 
@@ -162,8 +161,7 @@ class BlockchainVoteTest {
     val miner = chain.getWitness(blockTime)
 
     val minerTx = new Transaction(TransactionType.Miner, minerCoinFrom,
-      miner, "", FixedNumber.fromDecimal(_minerAward),
-      preBlock.height + 1,
+      miner, FixedNumber.fromDecimal(_minerAward), preBlock.height + 1,
       BinaryData(Crypto.randomBytes(8)), // add random bytes to distinct different blocks with same block index during debug in some cases
       FixedNumber.Zero, 0, BinaryData.empty)
 
@@ -220,7 +218,7 @@ class BlockchainVoteTest {
                     WitnessInfo(from.publicKey.pubKeyHash, isGenesisWitness, name),
                     OperationType.register).toBytes
     val registerContractAddr = new UInt160(DataWord.of("0000000000000000000000000000000000000000000000000000000000000101").getLast20Bytes)
-    val tx = new Transaction(TransactionType.Call, from.publicKey.pubKeyHash, registerContractAddr, "",
+    val tx = new Transaction(TransactionType.Call, from.publicKey.pubKeyHash, registerContractAddr,
       FixedNumber.Zero, nonce, txData, FixedNumber(0), 9000000L, BinaryData.empty)
     tx.sign(from)
     tx
@@ -233,7 +231,7 @@ class BlockchainVoteTest {
                                   nonce: Long = 0): Transaction = {
     val txData = VoteData(candidate.publicKey.pubKeyHash, counter, operationType).toBytes
     val registerContractAddr = new UInt160(DataWord.of("0000000000000000000000000000000000000000000000000000000000000102").getLast20Bytes)
-    val tx = new Transaction(TransactionType.Call, voter.publicKey.pubKeyHash, registerContractAddr, "", FixedNumber.Zero,
+    val tx = new Transaction(TransactionType.Call, voter.publicKey.pubKeyHash, registerContractAddr, FixedNumber.Zero,
       nonce, txData, FixedNumber(0), 9000000L, BinaryData.empty)
     tx.sign(voter)
     tx

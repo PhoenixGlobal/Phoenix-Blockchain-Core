@@ -29,7 +29,6 @@ class TransactionTest {
     val tx = new Transaction(TransactionType.Transfer,
                     Ecdsa.PublicKey(BinaryData("0345ffbf8dc9d8ff15785e2c228ac48d98d29b834c2e98fb8cfe6e71474d7f6322")).pubKeyHash,
                     Ecdsa.PublicKeyHash.fromAddress("APGMmPKLYdtTNhiEkDGU6De8gNCk3bTsME9").get,
-                    "bob",
                     FixedNumber.Ten,
                     1,
                     BinaryData("1234"),
@@ -49,7 +48,6 @@ class TransactionTest {
         && x.txType == tx.txType
         && x.from.data.sameElements(tx.from.data)
         && x.toPubKeyHash.data.sameElements(tx.toPubKeyHash.data)
-        && x.toName == tx.toName
         && x.amount.value == tx.amount.value
         && x.nonce == tx.nonce
         && x.data.sameElements(tx.data)
@@ -67,7 +65,7 @@ class TransactionTest {
     val tx1 = new Transaction(TransactionType.Transfer,
       Ecdsa.PublicKey(BinaryData("0345ffbf8dc9d8ff15785e2c228ac48d98d29b834c2e98fb8cfe6e71474d7f6322")).pubKeyHash,
       Ecdsa.PublicKeyHash.fromAddress("APGMmPKLYdtTNhiEkDGU6De8gNCk3bTsME9").get,
-      "bob", FixedNumber.Ten,1,
+      FixedNumber.Ten,1,
       BinaryData("1234"), FixedNumber(567),789, BinaryData.empty)
 
     assert(tx1.zeroDataBytes() == 0)
@@ -76,7 +74,7 @@ class TransactionTest {
     val tx2 = new Transaction(TransactionType.Transfer,
       Ecdsa.PublicKey(BinaryData("0345ffbf8dc9d8ff15785e2c228ac48d98d29b834c2e98fb8cfe6e71474d7f6322")).pubKeyHash,
       Ecdsa.PublicKeyHash.fromAddress("APGMmPKLYdtTNhiEkDGU6De8gNCk3bTsME9").get,
-      "bob", FixedNumber.Ten,1,
+      FixedNumber.Ten,1,
       BinaryData("123400"), FixedNumber(567),789, BinaryData.empty)
 
     assert(tx2.zeroDataBytes() == 1)
@@ -85,7 +83,7 @@ class TransactionTest {
     val tx3 = new Transaction(TransactionType.Transfer,
       Ecdsa.PublicKey(BinaryData("0345ffbf8dc9d8ff15785e2c228ac48d98d29b834c2e98fb8cfe6e71474d7f6322")).pubKeyHash,
       Ecdsa.PublicKeyHash.fromAddress("APGMmPKLYdtTNhiEkDGU6De8gNCk3bTsME9").get,
-      "bob", FixedNumber.Ten,1,
+      FixedNumber.Ten,1,
       BinaryData("120034"), FixedNumber(567),789, BinaryData.empty)
 
     assert(tx3.zeroDataBytes() == 1)
@@ -94,7 +92,7 @@ class TransactionTest {
     val tx4 = new Transaction(TransactionType.Transfer,
       Ecdsa.PublicKey(BinaryData("0345ffbf8dc9d8ff15785e2c228ac48d98d29b834c2e98fb8cfe6e71474d7f6322")).pubKeyHash,
       Ecdsa.PublicKeyHash.fromAddress("APGMmPKLYdtTNhiEkDGU6De8gNCk3bTsME9").get,
-      "bob", FixedNumber.Ten,1,
+      FixedNumber.Ten,1,
       BinaryData("00123400"), FixedNumber(567),789, BinaryData.empty)
 
     assert(tx4.zeroDataBytes() == 2)
@@ -103,7 +101,7 @@ class TransactionTest {
     val tx5 = new Transaction(TransactionType.Transfer,
       Ecdsa.PublicKey(BinaryData("0345ffbf8dc9d8ff15785e2c228ac48d98d29b834c2e98fb8cfe6e71474d7f6322")).pubKeyHash,
       Ecdsa.PublicKeyHash.fromAddress("APGMmPKLYdtTNhiEkDGU6De8gNCk3bTsME9").get,
-      "bob", FixedNumber.Ten, 1,
+      FixedNumber.Ten, 1,
       BinaryData("00"), FixedNumber(567),789, BinaryData.empty)
 
     assert(tx5.zeroDataBytes() == 1)
@@ -112,7 +110,7 @@ class TransactionTest {
     val tx6 = new Transaction(TransactionType.Transfer,
       Ecdsa.PublicKey(BinaryData("0345ffbf8dc9d8ff15785e2c228ac48d98d29b834c2e98fb8cfe6e71474d7f6322")).pubKeyHash,
       Ecdsa.PublicKeyHash.fromAddress("APGMmPKLYdtTNhiEkDGU6De8gNCk3bTsME9").get,
-      "bob", FixedNumber.Ten,1,
+      FixedNumber.Ten,1,
       BinaryData.empty, FixedNumber(567),789, BinaryData.empty)
 
     assert(tx6.zeroDataBytes() == 0)

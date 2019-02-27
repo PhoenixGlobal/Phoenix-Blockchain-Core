@@ -275,7 +275,7 @@ class VoteContractTest extends RegisterContractTest {
                                   voter: UInt160 = _acct1.publicKey.pubKeyHash)(f: Transaction => Unit){
     val txData = VoteData(candidate, counter,operationType).toBytes
     val registerContractAddr = new UInt160(DataWord.of("0000000000000000000000000000000000000000000000000000000000000102").getLast20Bytes)
-    val tx = new Transaction(TransactionType.Call, voter ,registerContractAddr, "", FixedNumber.Zero,
+    val tx = new Transaction(TransactionType.Call, voter, registerContractAddr, FixedNumber.Zero,
       nonce, txData, FixedNumber(0), 9000000L, BinaryData.empty)
     f(tx)
   }

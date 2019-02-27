@@ -26,7 +26,7 @@ class BlockTest {
     val privKey = Ecdsa.PrivateKey.fromWIF("KxFC1jmwwCoACiCAWZ3eXa96mBM6tb3TYzGmf6YwgdGWZgawvrtJ").get
 
     val minerTx = new Transaction(TransactionType.Miner, UInt160.Zero,
-      UInt160.Zero, "", FixedNumber.fromDecimal(1),
+      UInt160.Zero, FixedNumber.fromDecimal(1),
       234,
       BinaryData(Crypto.randomBytes(8)), // add random bytes to distinct different blocks with same block index during debug in some cases
       FixedNumber.Zero, 0, BinaryData.empty)

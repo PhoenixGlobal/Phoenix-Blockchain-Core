@@ -106,7 +106,7 @@ class Blockchain(chainSettings: ChainSettings,
 
     chainSettings.genesis.genesisCoinAirdrop.foreach(airdrop => {
       genesisTxs.append(new Transaction(TransactionType.Miner, minerCoinFrom,
-        PublicKeyHash.fromAddress(airdrop.addr).get, "", FixedNumber.fromDecimal(airdrop.coins),
+        PublicKeyHash.fromAddress(airdrop.addr).get, FixedNumber.fromDecimal(airdrop.coins),
         0, consensusSettings.fingerprint(), FixedNumber.Zero, 0, BinaryData.empty))
     })
 
@@ -212,7 +212,7 @@ class Blockchain(chainSettings: ChainSettings,
     log.debug(s"start block at: ${pendingState.startTime}  blockTime=${blockTime}  stopProcessTxTime=${stopProcessTxTime}")
 
     val minerTx = new Transaction(TransactionType.Miner, minerCoinFrom,
-      producer, "", minerAward,
+      producer, minerAward,
       forkHead.block.height + 1,
       BinaryData(Crypto.randomBytes(8)), // add random bytes to distinct different blocks with same block index during debug in some cases
       FixedNumber.Zero, 0, BinaryData.empty
