@@ -15,6 +15,7 @@ import com.apex.crypto.Ecdsa.PublicKey
 import com.apex.crypto.{BinaryData, Crypto, UInt160}
 import com.apex.settings.{ContractSettings, DBType, DataBaseSettings}
 import com.apex.solidity.Abi
+import com.apex.test.VMTest.author
 import com.apex.vm.hook.VMHook
 import com.apex.vm.program.invoke.{ProgramInvoke, ProgramInvokeImpl}
 import com.apex.vm.program.{Program, ProgramResult}
@@ -28,25 +29,28 @@ class VMOpTest {
 
   import VMOpTest._
 
+  val invoker = new ProgramInvokeImpl(
+    DataWord.of(BinaryData("2341DE5527492BCB42EC68DFEDF0742A98EC3F1E")),
+    DataWord.of(caller),
+    DataWord.of(caller),
+    DataWord.of(10),
+    DataWord.of(30),
+    DataWord.of(900000),
+    DataWord.of(0),
+    Array.empty,
+    DataWord.ZERO,
+    DataWord.of(BinaryData("E559DE5527492BCB42EC68D07DF0742A98EC3F1E")),
+    DataWord.of(BinaryData("0000000000000000000000000000000000000123")),
+    DataWord.of(BinaryData("0000000000000000000000000000000000000111")),
+    null,
+    null,
+    null,
+    null)
+
+
   @Test  // COINBASE Op
   def test1: Unit = {
-    val invoker = new ProgramInvokeImpl(
-      DataWord.ZERO,
-      DataWord.of(caller),
-      DataWord.of(caller),
-      DataWord.ZERO,
-      DataWord.ZERO,
-      DataWord.of(900000),
-      DataWord.of(0),
-      Array.empty,
-      DataWord.ZERO,
-      DataWord.of(BinaryData("E559DE5527492BCB42EC68D07DF0742A98EC3F1E")),
-      DataWord.ZERO,
-      DataWord.ZERO,
-      null,
-      null,
-      null,
-      null)
+
 
     val program = new Program(VMOpTest.vmSettings, BinaryData("41"), invoker, Long.MaxValue)
 
@@ -58,6 +62,103 @@ class VMOpTest {
 
     assert(item1 == DataWord.of(BinaryData("E559DE5527492BCB42EC68D07DF0742A98EC3F1E")))
   }
+
+  @Test  // GASPRICE Op
+  def testGASPRICE: Unit = {
+
+
+    val program = new Program(VMOpTest.vmSettings, BinaryData("3a"), invoker, Long.MaxValue)
+
+    val vm = new VM(VMOpTest.vmSettings, VMHook.EMPTY)
+
+    vm.step(program)
+
+    val item1 = program.stackPop
+
+    assert(item1 == DataWord.of(BinaryData("000000000000000000000000000000000000001e")))
+  }
+
+  @Test  // GAS Op
+  def testGAS: Unit = {
+
+
+    val program = new Program(VMOpTest.vmSettings, BinaryData("5a"), invoker, Long.MaxValue)
+
+    val vm = new VM(VMOpTest.vmSettings, VMHook.EMPTY)
+
+    vm.step(program)
+
+    val item1 = program.stackPop
+
+    assert(item1 == DataWord.of(BinaryData("00000000000000000000000000000000000dbb9e")))
+  }
+
+  @Test  // TIMESTAMP Op
+  def testTimeStamp: Unit = {
+
+    val program = new Program(VMOpTest.vmSettings, BinaryData("42"), invoker, Long.MaxValue)
+
+    val vm = new VM(VMOpTest.vmSettings, VMHook.EMPTY)
+
+    vm.step(program)
+
+    val item1 = program.stackPop
+
+    assert(item1 == DataWord.of(BinaryData("0000000000000000000000000000000000000123")))
+  }
+
+  @Test  // NUMBER Op
+  def testNUMBER: Unit = {
+    val program = new Program(VMOpTest.vmSettings, BinaryData("43"), invoker, Long.MaxValue)
+
+    val vm = new VM(VMOpTest.vmSettings, VMHook.EMPTY)
+
+    vm.step(program)
+
+    val item1 = program.stackPop
+
+    assert(item1 == DataWord.of(BinaryData("0000000000000000000000000000000000000111")))
+  }
+
+  @Test  // DIFFICULTY Op
+  def testDIFFICULTY: Unit = {
+    val program = new Program(VMOpTest.vmSettings, BinaryData("44"), invoker, Long.MaxValue)
+
+    val vm = new VM(VMOpTest.vmSettings, VMHook.EMPTY)
+
+    vm.step(program)
+
+    val item1 = program.stackPop
+
+    assert(item1 == DataWord.of(BinaryData("0000000000000000000000000000000000000000")))
+  }
+
+  @Test  // GASLIMIT Op
+  def testGASLIMIT: Unit = {
+    val program = new Program(VMOpTest.vmSettings, BinaryData("45"), invoker, Long.MaxValue)
+
+    val vm = new VM(VMOpTest.vmSettings, VMHook.EMPTY)
+
+    vm.step(program)
+
+    val item1 = program.stackPop
+
+    assert(item1 == DataWord.of(BinaryData("00000000000000000000000000000000000DBBA0")))
+  }
+
+  @Test  // ADDRESS Op
+  def testADDRESS: Unit = {
+    val program = new Program(VMOpTest.vmSettings, BinaryData("30"), invoker, Long.MaxValue)
+
+    val vm = new VM(VMOpTest.vmSettings, VMHook.EMPTY)
+
+    vm.step(program)
+
+    val item1 = program.stackPop
+
+    assert(item1 == DataWord.of(BinaryData("2341DE5527492BCB42EC68DFEDF0742A98EC3F1E")))
+  }
+
 
   private var dataBase: DataBase = null
 
