@@ -40,6 +40,9 @@ import scala.collection.mutable.ListBuffer
 
 class VM(settings: ContractSettings, hook: VMHook) extends com.apex.common.ApexLogging {
   private val hooks = Array(VMHook.EMPTY, hook).filterNot(_.isEmpty)
+
+  private val opValidators = OpCode.emptyValidators
+
   private val hasHooks = hooks.length > 0
 
   private val dumpBlock = settings.dumpBlock
@@ -52,13 +55,10 @@ class VM(settings: ContractSettings, hook: VMHook) extends com.apex.common.ApexL
     if (!program.byTestingSuite) {
       try {
         if (hasHooks) hooks.foreach(_.startPlay(program))
-        import java.util.Date
-        val s = new Date().getTime()
         while (!program.isStopped) {
-          //          step(program)
+//                    step(program)
           overwritestep(program)
         }
-        println("end:" + (new Date().getTime() - s))
       } catch {
         case e: RuntimeException => program.setRuntimeFailure(e)
         case e: StackOverflowError => {
@@ -1211,7 +1211,7 @@ object VM {
     ctx.setHint(s"code: ${codeCopy.toHex}")
     program.memorySave(memOffset, lengthData, codeCopy)
     program.step()
-  })
+  },codeCopyGasCost)
 
   instructionTable(OpCode.GASPRICE.id) = Runtime(ctx => {
     val program = ctx.program
@@ -1268,7 +1268,7 @@ object VM {
     ctx.setHint(s"code: ${codeCopy.toHex}")
     program.memorySave(memOffset, lengthData, codeCopy)
     program.step()
-  })
+  },extCodeCopyGasCost)
 
   instructionTable(OpCode.RETURNDATASIZE.id) = Runtime(ctx => {
     val program = ctx.program
@@ -1502,34 +1502,36 @@ object VM {
     })
   }
 
-  for (i <- OpCode.LOG1.id to OpCode.LOG4.id) {
+  for (i <- OpCode.LOG0.id to OpCode.LOG4.id) {
     instructionTable(i) = Runtime(ctx => {
-      val program = ctx.program
-      val stack = program.getStack
       val op = ctx.op
-      if (program.isStaticCall) {
-        throw Program.staticCallModificationException
+      if(op.code.id != OpCode.LOG0.id){
+        val program = ctx.program
+        val stack = program.getStack
+        if (program.isStaticCall) {
+          throw Program.staticCallModificationException
+        }
+        val address = program.getOwnerAddress
+
+        val memStart = stack.pop
+        val memOffset = stack.pop
+
+        val nTopics = op.code.value - OpCode.LOG0.value
+
+        val topics = ListBuffer.empty[DataWord]
+        for (_ <- 1 to nTopics) {
+          topics.append(stack.pop)
+        }
+
+        val data = program.memoryChunk(memStart.intValueSafe, memOffset.intValueSafe)
+
+        val logInfo = LogInfo(address.getLast20Bytes, topics, data)
+
+        ctx.setHint(logInfo.toString)
+
+        program.getResult.addLogInfo(logInfo)
+        program.step()
       }
-      val address = program.getOwnerAddress
-
-      val memStart = stack.pop
-      val memOffset = stack.pop
-
-      val nTopics = op.code.value - OpCode.LOG0.value
-
-      val topics = ListBuffer.empty[DataWord]
-      for (_ <- 1 to nTopics) {
-        topics.append(stack.pop)
-      }
-
-      val data = program.memoryChunk(memStart.intValueSafe, memOffset.intValueSafe)
-
-      val logInfo = LogInfo(address.getLast20Bytes, topics, data)
-
-      ctx.setHint(logInfo.toString)
-
-      program.getResult.addLogInfo(logInfo)
-      program.step()
     }, logGasCost)
   }
 
