@@ -51,22 +51,18 @@ object RpcServer extends ApexLogging {
           entity(as[String]) { data =>
             Json.parse(data).validate[GetBlockByHeightCmd] match {
               case cmd: JsSuccess[GetBlockByHeightCmd] => {
-                val f = (nodeRef ? cmd.get)
-                  .mapTo[Option[Block]]
-                  .map(_.map(Json.toJson(_).toString).getOrElse(JsNull.toString))
+                val f = (nodeRef ? cmd.get).mapTo[String]
                 complete(f)
               }
               case _: JsError => {
                 Json.parse(data).validate[GetBlockByIdCmd] match {
                   case cmd: JsSuccess[GetBlockByIdCmd] => {
-                    val f = (nodeRef ? cmd.get)
-                      .mapTo[Option[Block]]
-                      .map(_.map(Json.toJson(_).toString).getOrElse(JsNull.toString))
+                    val f = (nodeRef ? cmd.get).mapTo[String]
                     complete(f)
                   }
                   case _: JsError => {
-                    //                    log.error("", idError)
-                    complete(HttpEntity(ContentTypes.`application/json`, Json.parse( """ {"result": "Error"}""").toString()))
+                    //  log.error("", idError)
+                    complete(HttpEntity(ContentTypes.`application/json`, Json.parse( """ {"succeed": false,"status": 400,"message": "Param check error"}""").toString()))
                   }
                 }
               }
@@ -77,7 +73,7 @@ object RpcServer extends ApexLogging {
         path("getblocks") {
           post {
             entity(as[String]) { _ =>
-              val f = (nodeRef ? GetBlocksCmd()).mapTo[ArrayBuffer[Block]].map(Json.toJson(_).toString)
+              val f = (nodeRef ? GetBlocksCmd()).mapTo[String]
               complete(f)
             }
           }
@@ -87,14 +83,12 @@ object RpcServer extends ApexLogging {
             entity(as[String]) { data =>
               Json.parse(data).validate[GetAccountCmd] match {
                 case cmd: JsSuccess[GetAccountCmd] => {
-                  val f = (nodeRef ? cmd.value)
-                    .mapTo[Option[Account]]
-                    .map(_.map(Json.toJson(_).toString).getOrElse(JsNull.toString))
+                  val f = (nodeRef ? cmd.value) .mapTo[String]
                   complete(f)
                 }
                 case e: JsError => {
                   println(e)
-                  complete(HttpEntity(ContentTypes.`application/json`, Json.parse( """{"result": "Error"}""").toString()))
+                  complete(HttpEntity(ContentTypes.`application/json`, Json.parse( """ {"succeed": false,"status": 400,"message": "Param check error"}""").toString()))
                 }
               }
             }
@@ -105,14 +99,12 @@ object RpcServer extends ApexLogging {
             entity(as[String]) { data =>
               Json.parse(data).validate[GetContractByIdCmd] match {
                 case cmd: JsSuccess[GetContractByIdCmd] => {
-                  val f = (nodeRef ? cmd.get)
-                    .mapTo[Option[TransactionReceipt]]
-                    .map(_.map(Json.toJson(_).toString).getOrElse(JsNull.toString))
+                  val f = (nodeRef ? cmd.get).mapTo[String]
                   complete(f)
                 }
                 case _: JsError => {
-                  //                    log.error("", idError)
-                  complete(HttpEntity(ContentTypes.`application/json`, Json.parse( """ {"result": "Error"}""").toString()))
+                  //  log.error("", idError)
+                  complete(HttpEntity(ContentTypes.`application/json`, Json.parse( """ {"succeed": false,"status": 400,"message": "Param check error"}""").toString()))
                 }
               }
             }
@@ -123,12 +115,12 @@ object RpcServer extends ApexLogging {
             entity(as[String]) { data =>
               Json.parse(data).validate[SendRawTransactionCmd] match {
                 case cmd: JsSuccess[SendRawTransactionCmd] => {
-                  val f = (nodeRef ? cmd.value).mapTo[Boolean].map(Json.toJson(_).toString)
+                  val f = (nodeRef ? cmd.value).mapTo[String]
                   complete(f)
                 }
                 case e: JsError => {
                   println(e)
-                  complete(HttpEntity(ContentTypes.`application/json`, Json.parse( """{"result": "Error"}""").toString()))
+                  complete(HttpEntity(ContentTypes.`application/json`, Json.parse( """ {"succeed": false,"status": 400,"message": "Param check error"}""").toString()))
                 }
               }
             }
@@ -137,7 +129,7 @@ object RpcServer extends ApexLogging {
         path("getblockheight") {
           post {
             entity(as[String]) { _ =>
-              val f = (nodeRef ? GetBlockCountCmd()).mapTo[Long].map(GetBlockCountResult(_)).map(Json.toJson(_).toString)
+              val f = (nodeRef ? GetBlockCountCmd()).mapTo[String]
               complete(f)
             }
           }
@@ -147,11 +139,11 @@ object RpcServer extends ApexLogging {
             entity(as[String]) { data =>
               Json.parse(data).validate[GetProducersCmd] match {
                 case cmd: JsSuccess[GetProducersCmd] => {
-                  val f = (nodeRef ? cmd.get).mapTo[WitnessList].map(Json.toJson(_).toString)
+                  val f = (nodeRef ? cmd.get).mapTo[String]
                   complete(f)
                 }
                 case _: JsError => {
-                  complete(HttpEntity(ContentTypes.`application/json`, Json.parse( """ {"result": "Error"}""").toString()))
+                  complete(HttpEntity(ContentTypes.`application/json`, Json.parse( """ {"succeed": false,"status": 400,"message": "Param check error"}""").toString()))
                 }
               }
             }
@@ -162,13 +154,11 @@ object RpcServer extends ApexLogging {
             entity(as[String]) { data =>
               Json.parse(data).validate[GetProducerCmd] match {
                 case cmd: JsSuccess[GetProducerCmd] => {
-                  val f = (nodeRef ? cmd.value)
-                    .mapTo[Option[WitnessInfo]]
-                    .map(_.map(Json.toJson(_).toString).getOrElse(JsNull.toString))
+                  val f = (nodeRef ? cmd.value).mapTo[String]
                   complete(f)
                 }
                 case e: JsError => {
-                  complete(HttpEntity(ContentTypes.`application/json`, Json.parse( """{"result": "Error"}""").toString()))
+                  complete(HttpEntity(ContentTypes.`application/json`, Json.parse( """ {"succeed": false,"status": 400,"message": "Param check error"}""").toString()))
                 }
               }
             }
@@ -179,7 +169,7 @@ object RpcServer extends ApexLogging {
       path("getGasLimit") {
         post {
           entity(as[String]) { _ =>
-            val f = (nodeRef ? GetGasLimitCmd()).mapTo[Long].map(Json.toJson(_).toString)
+            val f = (nodeRef ? GetGasLimitCmd()).mapTo[String]
             complete(f)
           }
         }
@@ -189,11 +179,11 @@ object RpcServer extends ApexLogging {
             entity(as[String]) { data =>
               Json.parse(data).validate[SetGasLimitCmd] match {
                 case cmd: JsSuccess[SetGasLimitCmd] => {
-                  val f = (nodeRef ? cmd.get).mapTo[Boolean].map(Json.toJson(_).toString)
+                  val f = (nodeRef ? cmd.get).mapTo[String]
                   complete(f)
                 }
                 case _: JsError => {
-                  complete(HttpEntity(ContentTypes.`application/json`, Json.parse( """ {"result": "Error"}""").toString()))
+                  complete(HttpEntity(ContentTypes.`application/json`, Json.parse( """ {"succeed": false,"status": 400,"message": "Param check error"}""").toString()))
                 }
               }
             }

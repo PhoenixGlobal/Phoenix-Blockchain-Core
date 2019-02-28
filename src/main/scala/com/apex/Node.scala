@@ -8,8 +8,6 @@
 
 package com.apex
 
-import java.io.{ByteArrayInputStream, DataInputStream}
-
 import akka.actor.{Actor, ActorRef, ActorSystem, Props}
 import akka.dispatch.{PriorityGenerator, UnboundedStablePriorityMailbox}
 import com.apex.common.ApexLogging
@@ -19,11 +17,12 @@ import com.apex.crypto.UInt256
 import com.apex.network._
 import com.apex.network.peer.PeerHandlerManager.ReceivableMessages.ReceivedPeers
 import com.apex.network.peer.PeerHandlerManagerRef
-import com.apex.rpc._
+import com.apex.rpc.{ExecResult, _}
 import com.apex.plugins.mongodb.MongodbPluginRef
 import com.apex.settings.ApexSettings
 import com.apex.utils.NetworkTimeProvider
 import com.typesafe.config.Config
+import play.api.libs.json.Json
 
 import scala.collection.mutable.ArrayBuffer
 import scala.concurrent.ExecutionContext
@@ -123,58 +122,75 @@ class Node(val settings: ApexSettings, config: Config)
     }
   }
 
+  private def resultString(execResult: ExecResult): String ={
+    Json.toJson(execResult).toString()
+  }
+
   private def processRPCCommand(cmd: RPCCommand) = {
-    cmd match {
-      case GetBlockByIdCmd(id) => {
-        sender() ! chain.getBlock(id)
-      }
-      case GetBlockByHeightCmd(height) => {
-        sender() ! chain.getBlock(height)
-      }
-      case GetBlockCountCmd() => {
-        sender() ! chain.getHeight()
-      }
-      case GetBlocksCmd() => {
-        val blockNum = chain.getHeight()
-        val blocks = ArrayBuffer.empty[Block]
-        for (i <- blockNum - 5 to blockNum) {
-          if (i >= 0)
-            blocks.append(chain.getBlock(i).get)
+    try{
+      cmd match {
+        case GetBlockByIdCmd(id) => {
+          val res = Json.toJson(chain.getBlock(id).get).toString()
+          sender() ! resultString(new ExecResult(result = res))
         }
-        sender() ! blocks
-      }
-      case GetAccountCmd(address) => {
-        sender() ! chain.getAccount(address)
-      }
-      case SendRawTransactionCmd(tx) => {
-        try {
-          if (tx.verifySignature()) {
-            peerHandlerManager ! InventoryMessage(new InventoryPayload(InventoryType.Tx, Seq(tx.id)))
-            if (chain.addTransaction(tx))
-              sender() ! true
-            else
-              sender() ! false
+        case GetBlockByHeightCmd(height) => {
+          /*import Block.blockWrites*/
+          val res = Json.toJson(chain.getBlock(height).get).toString()
+          sender() ! resultString(new ExecResult(result = res))
+        }
+        case GetBlockCountCmd() => {
+          sender() ! resultString(new ExecResult(result = chain.getHeight().toString()))
+        }
+        case GetBlocksCmd() => {
+          val blockNum = chain.getHeight()
+          val blocks = ArrayBuffer.empty[Block]
+          for (i <- blockNum - 5 to blockNum) {
+            if (i >= 0)
+              blocks.append(chain.getBlock(i).get)
           }
-          else
-            sender() ! false
-        } catch {
-          case ex: Exception => sender() ! false
+          val res = Json.toJson(blocks).toString()
+          sender() ! resultString(new ExecResult(result = res))
+        }
+        case GetAccountCmd(address) => {
+          val res = Json.toJson(chain.getAccount(address)).toString()
+          sender() ! resultString(new ExecResult(result = res))
+        }
+        case SendRawTransactionCmd(tx) => {
+          var exec = false
+            if (tx.verifySignature()) {
+              peerHandlerManager ! InventoryMessage(new InventoryPayload(InventoryType.Tx, Seq(tx.id)))
+              if (chain.addTransaction(tx))
+                 exec = true
+            }
+          sender() ! resultString(new ExecResult(result = exec.toString))
+        }
+        case GetContractByIdCmd(id) => {
+          val res = Json.toJson(chain.getReceipt(id)).toString()
+          sender() ! resultString(new ExecResult(result = res))
+        }
+        case SetGasLimitCmd(gasLimit) => {
+          sender() ! resultString(new ExecResult(result = chain.setGasLimit(gasLimit).toString()))
+        }
+        case GetGasLimitCmd() => {
+          sender() ! resultString(new ExecResult(result = chain.getGasLimit().toString))
+        }
+        case GetProducersCmd(listType) => {
+          val res = Json.toJson(chain.getProducers(listType)).toString()
+          sender() ! resultString(new ExecResult(result = res))
+        }
+        case GetProducerCmd(addr) => {
+          val res = Json.toJson(chain.getProducer(addr)).toString()
+          sender() ! resultString(new ExecResult(result = res))
+        }
+        case _ =>{
+          // 返回404
+          sender() ! resultString(new ExecResult(false, 404, "can not found"))
         }
       }
-      case GetContractByIdCmd(id) => {
-        sender() ! chain.getReceipt(id)
-      }
-      case SetGasLimitCmd(gasLimit) => {
-        sender() ! chain.setGasLimit(gasLimit)
-      }
-      case GetGasLimitCmd() => {
-        sender() ! chain.getGasLimit()
-      }
-      case GetProducersCmd(listType) => {
-        sender() ! chain.getProducers(listType)
-      }
-      case GetProducerCmd(addr) => {
-        sender() ! chain.getProducer(addr)
+    }catch {
+      case e: Exception => {
+        // 返回500
+        sender() ! resultString(new ExecResult(false, 500, e.getMessage))
       }
     }
   }

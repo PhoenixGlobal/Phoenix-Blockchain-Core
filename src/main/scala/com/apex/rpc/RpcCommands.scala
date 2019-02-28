@@ -175,3 +175,16 @@ object GetProducersCmd {
     (JsPath \ "listType").read[String]
     ) map (GetProducersCmd.apply _)
 }
+
+case class ExecResult(succeed: Boolean = true,  status: Int = 200, message:String ="", result: String ="") extends RPCCommand
+
+object ExecResult {
+  implicit val resultWrites = new Writes[ExecResult] {
+    override def writes(o: ExecResult): JsValue = Json.obj(
+      "succeed" -> o.succeed,
+      "status" -> o.status,
+      "message" -> o.message,
+      "result" -> o.result
+    )
+  }
+}
