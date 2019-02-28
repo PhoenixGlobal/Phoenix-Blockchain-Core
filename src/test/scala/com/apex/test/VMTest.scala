@@ -441,15 +441,16 @@ class VMTest {
     assert(callGasUsed7 == callGasUsed8)
   }
 
-  /*@Test
+  @Test
   def testvm11: Unit = {
+    // 调用call
     val _ =
-      "contract Purchase {\n\tfunction at(address _addr) public view returns (bytes memory o_code) {\n        assembly {\n            // retrieve the size of the code, this needs assembly\n            let size := extcodesize(_addr)\n            // allocate output byte array - this could also be done without assembly\n            // by using o_code = new bytes(size)\n            o_code := mload(0x40)\n            // new \"memory end\" including padding\n            mstore(0x40, add(o_code, and(add(add(size, 0x20), 0x1f), not(0x1f))))\n            // store length in memory\n            mstore(o_code, size)\n            // actually retrieve the code, this needs assembly\n            extcodecopy(_addr, add(o_code, 0x20), 0, size)\n\t\t\tcalldatacopy(add(o_code, 0x20), 0, size)\n        }\n    } \n}"
+      "contract G {\n\tuint value;\n\tconstructor() payable public {\n\t\tvalue = msg.value;\n\t}\n\t\n\tfunction get(uint amount) payable public {\n\t\tmsg.sender.transfer(amount);\n\t}\n}"
 
-    val abi = Abi.fromJson("[{\"constant\":true,\"inputs\":[{\"name\":\"_addr\",\"type\":\"address\"}],\"name\":\"at\",\"outputs\":[{\"name\":\"o_code\",\"type\":\"bytes\"}],\"payable\":false,\"stateMutability\":\"view\",\"type\":\"function\"}]")
-    val code = "608060405234801561001057600080fd5b50610161806100206000396000f300608060405260043610610041576000357c0100000000000000000000000000000000000000000000000000000000900463ffffffff168063dce4a44714610046575b600080fd5b34801561005257600080fd5b50610087600480360381019080803573ffffffffffffffffffffffffffffffffffffffff169060200190929190505050610102565b6040518080602001828103825283818151815260200191508051906020019080838360005b838110156100c75780820151818401526020810190506100ac565b50505050905090810190601f1680156100f45780820380516001836020036101000a031916815260200191505b509250505060405180910390f35b6060813b6040519150601f19601f602083010116820160405280825280600060208401853c8060006020840137509190505600a165627a7a72305820637cbe6fa56b5aa193d537f7b695fe7fd8b773c71da1796fbcc62d4c1588efff0029"
+    val abi = Abi.fromJson("[{\"constant\":false,\"inputs\":[{\"name\":\"amount\",\"type\":\"uint256\"}],\"name\":\"get\",\"outputs\":[],\"payable\":true,\"stateMutability\":\"payable\",\"type\":\"function\"},{\"inputs\":[],\"payable\":true,\"stateMutability\":\"payable\",\"type\":\"constructor\"}]")
+    val code = "60806040523460008190555060d7806100196000396000f300608060405260043610603f576000357c0100000000000000000000000000000000000000000000000000000000900463ffffffff1680639507d39a146044575b600080fd5b6060600480360381019080803590602001909291905050506062565b005b3373ffffffffffffffffffffffffffffffffffffffff166108fc829081150290604051600060405180830381858888f1935050505015801560a7573d6000803e3d6000fd5b50505600a165627a7a723058208a21277ee24fe49f11b52171582e8f62350b55b492567a166f26f8bef9dfa05f0029"
 
-    val call3 = abi.encode("at('APHmn5xqWTw7fmQ1TZZsMkt2rLYk5uuJNRg')")
+    val call3 = abi.encode("get(1)")
     val (deployGasUsed7, callGasUsed7) = deployThenCall(code, call3, true)
     val (deployGasUsed8, callGasUsed8) = deployThenCall(code, call3, false)
     println(s"deploy: $deployGasUsed7 $deployGasUsed8")
@@ -536,89 +537,35 @@ class VMTest {
     println(s"call: $callGasUsed3 $callGasUsed4")
     assert(deployGasUsed3 == deployGasUsed4)
     assert(callGasUsed3 == callGasUsed4)
-
   }
 
   @Test
-  def test14 = {
+  def testvm14: Unit = {
     val _ =
-      "contract G {\n" +
-        "    uint value;\n" +
-        "    constructor() payable public {\n" +
-        "        value = msg.value;\n" +
-        "    }\n" +
-        "\n" +
-        "    function get(uint amount) payable public {\n" +
-        "        if (value >= amount) {\n" +
-        "            msg.sender.transfer(amount);\n" +
-        "        }\n" +
-        "    }" +
-        "\n}"
+      "contract Purchase {\n\tfunction at(address _addr) public view returns (bytes memory o_code) {\n        assembly {\n            // retrieve the size of the code, this needs assembly\n            let size := extcodesize(_addr)\n            // allocate output byte array - this could also be done without assembly\n            // by using o_code = new bytes(size)\n            o_code := mload(0x40)\n            // new \"memory end\" including padding\n            mstore(0x40, add(o_code, and(add(add(size, 0x20), 0x1f), not(0x1f))))\n            // store length in memory\n            mstore(o_code, size)\n            // actually retrieve the code, this needs assembly\n            extcodecopy(_addr, add(o_code, 0x20), 0, size)\n\t\t\tcalldatacopy(add(o_code, 0x20), 0, size)\n        }\n    } \n}"
 
-    // author has 1000
-    dataBase.addBalance(author, 1000)
+    val abi = Abi.fromJson("[{\"constant\":true,\"inputs\":[{\"name\":\"_addr\",\"type\":\"address\"}],\"name\":\"at\",\"outputs\":[{\"name\":\"o_code\",\"type\":\"bytes\"}],\"payable\":false,\"stateMutability\":\"view\",\"type\":\"function\"}]")
+    val code = "608060405234801561001057600080fd5b50610161806100206000396000f300608060405260043610610041576000357c0100000000000000000000000000000000000000000000000000000000900463ffffffff168063dce4a44714610046575b600080fd5b34801561005257600080fd5b50610087600480360381019080803573ffffffffffffffffffffffffffffffffffffffff169060200190929190505050610102565b6040518080602001828103825283818151815260200191508051906020019080838360005b838110156100c75780820151818401526020810190506100ac565b50505050905090810190601f1680156100f45780820380516001836020036101000a031916815260200191505b509250505060405180910390f35b6060813b6040519150601f19601f602083010116820160405280825280600060208401853c8060006020840137509190505600a165627a7a72305820637cbe6fa56b5aa193d537f7b695fe7fd8b773c71da1796fbcc62d4c1588efff0029"
 
-    // author deploy a contract and send it 500
-    val abi = Abi.fromJson("[{\"constant\":false,\"inputs\":[{\"name\":\"amount\",\"type\":\"uint256\"}],\"name\":\"get\",\"outputs\":[],\"payable\":true,\"stateMutability\":\"payable\",\"type\":\"function\"},{\"inputs\":[],\"payable\":true,\"stateMutability\":\"payable\",\"type\":\"constructor\"}]")
-    val code ="60806040523460008190555060f5806100196000396000f3fe6080604052600436106039576000357c0100000000000000000000000000000000000000000000000000000000900480639507d39a14603e575b600080fd5b348015604957600080fd5b50607360048036036020811015605e57600080fd5b81019080803590602001909291905050506075565b005b8060005410151560c6573373ffffffffffffffffffffffffffffffffffffffff166108fc829081150290604051600060405180830381858888f1935050505015801560c4573d6000803e3d6000fd5b505b5056fea165627a7a723058204d8c453a38511784d625551b11ee4c7fc439074acd2bc27b3c63bce2aa6cb5ac0029"
-
-
-    val call1 = abi.encode("get(501)")
-    val (deployGasUsed1, callGasUsed1) = deployThenCall(code, call1, true)
-    val (deployGasUsed2, callGasUsed2) = deployThenCall(code, call1, false)
-    println(s"deploy: $deployGasUsed1 $deployGasUsed2")
-    println(s"call: $callGasUsed1 $callGasUsed2")
-    assert(deployGasUsed1 == deployGasUsed2)
-    assert(callGasUsed1 == callGasUsed2)
-
-    val call2 = abi.encode("get(-1)")
-    val (deployGasUsed3, callGasUsed3) = deployThenCall(code, call2, true)
-    val (deployGasUsed4, callGasUsed4) = deployThenCall(code, call2, false)
-    println(s"deploy: $deployGasUsed3 $deployGasUsed4")
-    println(s"call: $callGasUsed3 $callGasUsed4")
-    assert(deployGasUsed3 == deployGasUsed4)
-    assert(callGasUsed3 == callGasUsed4)
-
-    val call3 = abi.encode("get(100)")
-    val (deployGasUsed5, callGasUsed5) = deployThenCall(code, call3, true)
-    val (deployGasUsed6, callGasUsed6) = deployThenCall(code, call3, false)
-    println(s"deploy: $deployGasUsed5 $deployGasUsed6")
-    println(s"call: $callGasUsed5 $callGasUsed6")
-    assert(deployGasUsed5 == deployGasUsed6)
-    assert(callGasUsed5 == callGasUsed6)
-
+    val call3 = abi.encode("at('APHmn5xqWTw7fmQ1TZZsMkt2rLYk5uuJNRg')")
+    val (deployGasUsed7, callGasUsed7) = deployThenCall(code, call3, true)
+    val (deployGasUsed8, callGasUsed8) = deployThenCall(code, call3, false)
+    println(s"deploy: $deployGasUsed7 $deployGasUsed8")
+    println(s"call: $callGasUsed7 $callGasUsed8")
+    assert(deployGasUsed7 == deployGasUsed8)
+    assert(callGasUsed7 == callGasUsed8)
   }
 
   @Test
   def test15 = {
     val _ =
-      "contract SuicideTest {\n" +
-        "    address payable owner;\n" +
-        "\n" +
-        "    modifier onlyOwner() {\n" +
-        "        require(msg.sender == owner);\n" +
-        "        _;\n" +
-        "    }\n" +
-        "\n" +
-        "    constructor() payable public {\n" +
-        "        owner = msg.sender;\n" +
-        "    }\n" +
-        "\n" +
-        "    function destroy() onlyOwner public {\n" +
-        "        selfdestruct(owner);\n" +
-        "    }\n" +
-        "}"
+      "contract SuicideTest {\n\n\tfunction destroy(address _addr) public {\n\t\tselfdestruct(_addr);\n\t}\n}"
 
-    // author has 1000
-    println(dataBase.getBalance(author))
-    dataBase.addBalance(author, 1000)
-    println(dataBase.getBalance(author))
     // author deploy a contract and send it 500
-    val abi = Abi.fromJson("[{\"constant\":false,\"inputs\":[],\"name\":\"destroy\",\"outputs\":[],\"payable\":false,\"stateMutability\":\"nonpayable\",\"type\":\"function\"},{\"inputs\":[],\"payable\":true,\"stateMutability\":\"payable\",\"type\":\"constructor\"}]")
-    val code ="6080604052600436106039576000357c01000000000000000000000000000000000000000000000000000000009004806383197ef014603e575b600080fd5b348015604957600080fd5b5060506052565b005b6000809054906101000a900473ffffffffffffffffffffffffffffffffffffffff1673ffffffffffffffffffffffffffffffffffffffff163373ffffffffffffffffffffffffffffffffffffffff1614151560ac57600080fd5b6000809054906101000a900473ffffffffffffffffffffffffffffffffffffffff1673ffffffffffffffffffffffffffffffffffffffff16fffea165627a7a72305820855a7b5ead6876153fd7b3f61d6f451d7ec98c0a99acef41c5eb71476307146f0029"
+    val abi = Abi.fromJson("[{\"constant\":false,\"inputs\":[{\"name\":\"_addr\",\"type\":\"address\"}],\"name\":\"destroy\",\"outputs\":[],\"payable\":false,\"stateMutability\":\"nonpayable\",\"type\":\"function\"}]")
+    val code ="608060405234801561001057600080fd5b5060c88061001f6000396000f300608060405260043610603e576000357c0100000000000000000000000000000000000000000000000000000000900463ffffffff168062f55d9d146043575b600080fd5b348015604e57600080fd5b506081600480360381019080803573ffffffffffffffffffffffffffffffffffffffff1690602001909291905050506083565b005b8073ffffffffffffffffffffffffffffffffffffffff16ff00a165627a7a723058208a4aff98295cf0b0c8782247310e4194905afe3f40213c93afeafb284b05584f0029"
 
-
-    val call1 = abi.encode("destroy()")
+    val call1 = abi.encode("destroy('11cee5dd2b22ebd96a42e4c9318d6bf050c9b3b7')")
     val (deployGasUsed1, callGasUsed1) = deployThenCall(code, call1, true)
     val (deployGasUsed2, callGasUsed2) = deployThenCall(code, call1, false)
     println(s"deploy: $deployGasUsed1 $deployGasUsed2")
@@ -626,16 +573,27 @@ class VMTest {
     assert(deployGasUsed1 == deployGasUsed2)
     assert(callGasUsed1 == callGasUsed2)
 
-    val call2 = abi.encode("destroy()")
-    val (deployGasUsed3, callGasUsed3) = deployThenCall(code, call2, true)
-    val (deployGasUsed4, callGasUsed4) = deployThenCall(code, call2, false)
-    println(s"deploy: $deployGasUsed3 $deployGasUsed4")
-    println(s"call: $callGasUsed3 $callGasUsed4")
-    assert(deployGasUsed3 == deployGasUsed4)
-    assert(callGasUsed3 == callGasUsed4)
+  }
 
-  }*/
+  @Test
+  def test16 = {
+    // 执行create2
+    val _ =
+      "contract Factory {\n\n    function createHolder(address _owner) {\n        \n        address h;\n        assembly{\n            h := create2(0, 0, 32, _owner)\n        }\n    }\n}"
 
+    // author deploy a contract and send it 500
+    val abi = Abi.fromJson("[{\"constant\":false,\"inputs\":[{\"name\":\"_owner\",\"type\":\"address\"}],\"name\":\"createHolder\",\"outputs\":[],\"payable\":false,\"stateMutability\":\"nonpayable\",\"type\":\"function\"}]")
+    val code ="608060405234801561001057600080fd5b5060bf8061001f6000396000f300608060405260043610603f576000357c0100000000000000000000000000000000000000000000000000000000900463ffffffff16806351e8054c146044575b600080fd5b348015604f57600080fd5b506082600480360381019080803573ffffffffffffffffffffffffffffffffffffffff1690602001909291905050506084565b005b6000816020600080fb905050505600a165627a7a723058202095d0114e0e839a0e8c92f5ac449a4bd70450e01493fed4c94028c276bde78f0029"
+
+    val call1 = abi.encode("createHolder('11cee5dd2b22ebd96a42e4c9318d6bf050c9b3b7')")
+    val (deployGasUsed1, callGasUsed1) = deployThenCall(code, call1, true)
+    val (deployGasUsed2, callGasUsed2) = deployThenCall(code, call1, false)
+    println(s"deploy: $deployGasUsed1 $deployGasUsed2")
+    println(s"call: $callGasUsed1 $callGasUsed2")
+    assert(deployGasUsed1 == deployGasUsed2)
+    assert(callGasUsed1 == callGasUsed2)
+
+  }
 
   private def deployThenCall(code: String, call: Array[Byte], newStep: Boolean):(BigInt, BigInt) = {
     deployThenCall(Array(code),call,newStep)
