@@ -31,7 +31,13 @@ class VMOpTest {
 
   import VMOpTest._
 
-  val invoker = new ProgramInvokeImpl(
+  private def invoker(): ProgramInvoke = invoker(Array.empty)
+
+  private def invoker2(): ProgramInvoke = invoker(BinaryData(
+    "00000000000000000000000000000000000000000000000000000000000000A1" +
+    "00000000000000000000000000000000000000000000000000000000000000B1"))
+
+  private def invoker(msgData: Array[Byte] = Array.empty): ProgramInvoke = new ProgramInvokeImpl(
     DataWord.of(BinaryData("2341DE5527492BCB42EC68DFEDF0742A98EC3F1E")),
     DataWord.of(caller),
     DataWord.of(caller),
@@ -39,7 +45,7 @@ class VMOpTest {
     DataWord.of(30),
     DataWord.of(900000),
     DataWord.of(0),
-    Array.empty,
+    msgData,
     DataWord.ZERO,
     DataWord.of(BinaryData("E559DE5527492BCB42EC68D07DF0742A98EC3F1E")),
     DataWord.of(BinaryData("0000000000000000000000000000000000000123")),
@@ -253,14 +259,104 @@ class VMOpTest {
 
   @Test  // CALLDATACOPY
   def testCALLDATACOPY_1: Unit = {
-    val program = new Program(VMOpTest.vmSettings, BinaryData("60206000600037"), invoker, Long.MaxValue)
+    val program = new Program(VMOpTest.vmSettings, BinaryData("60206000600037"),
+      invoker2, Long.MaxValue)
     val vm = new VM(VMOpTest.vmSettings, VMHook.EMPTY)
     vm.step(program)
     vm.step(program)
     vm.step(program)
     vm.step(program)
-    val wefwef = program.getMemory
     assert(program.getMemory sameElements BinaryData("00000000000000000000000000000000000000000000000000000000000000A1"))
+  }
+
+  @Test  // CALLDATACOPY
+  def testCALLDATACOPY_2: Unit = {
+    val program = new Program(VMOpTest.vmSettings, BinaryData("60406000600037"),
+      invoker2, Long.MaxValue)
+    val vm = new VM(VMOpTest.vmSettings, VMHook.EMPTY)
+    vm.step(program)
+    vm.step(program)
+    vm.step(program)
+    vm.step(program)
+    assert(program.getMemory sameElements
+      BinaryData("00000000000000000000000000000000000000000000000000000000000000A1" +
+        "00000000000000000000000000000000000000000000000000000000000000B1"))
+  }
+
+  @Test  // CALLDATACOPY
+  def testCALLDATACOPY_3: Unit = {
+    val program = new Program(VMOpTest.vmSettings, BinaryData("60406004600037"),
+      invoker2, Long.MaxValue)
+    val vm = new VM(VMOpTest.vmSettings, VMHook.EMPTY)
+    vm.step(program)
+    vm.step(program)
+    vm.step(program)
+    vm.step(program)
+    assert(program.getMemory sameElements
+      BinaryData(
+        "000000000000000000000000000000000000000000000000000000A100000000" +
+        "000000000000000000000000000000000000000000000000000000B100000000"))
+  }
+
+  @Test  // CALLDATACOPY
+  def testCALLDATACOPY_4: Unit = {
+    val program = new Program(VMOpTest.vmSettings, BinaryData("60406000600437"),
+      invoker2, Long.MaxValue)
+    val vm = new VM(VMOpTest.vmSettings, VMHook.EMPTY)
+    vm.step(program)
+    vm.step(program)
+    vm.step(program)
+    vm.step(program)
+    assert(program.getMemory sameElements
+      BinaryData(
+        "0000000000000000000000000000000000000000000000000000000000000000" +
+        "000000A100000000000000000000000000000000000000000000000000000000" +
+        "000000B100000000000000000000000000000000000000000000000000000000"))
+  }
+
+  @Test  // CALLDATACOPY
+  def testCALLDATACOPY_5: Unit = {
+    val program = new Program(VMOpTest.vmSettings, BinaryData("60406000600437"),
+      invoker2, Long.MaxValue)
+    val vm = new VM(VMOpTest.vmSettings, VMHook.EMPTY)
+    vm.step(program)
+    vm.step(program)
+    vm.step(program)
+    vm.step(program)
+    assert(program.getMemory sameElements
+      BinaryData(
+        "0000000000000000000000000000000000000000000000000000000000000000" +
+        "000000A100000000000000000000000000000000000000000000000000000000" +
+        "000000B100000000000000000000000000000000000000000000000000000000"))
+  }
+
+  @Test(expected = classOf[vm.exceptions.StackTooSmallException])  // CALLDATACOPY
+  def testCALLDATACOPY_6: Unit = {
+    val program = new Program(VMOpTest.vmSettings, BinaryData("6040600037"),
+      invoker2, Long.MaxValue)
+    val vm = new VM(VMOpTest.vmSettings, VMHook.EMPTY)
+    try {
+      vm.step(program)
+      vm.step(program)
+      vm.step(program)
+    } finally {
+      assert(program.isStopped)
+    }
+  }
+
+  @Test(expected = classOf[vm.exceptions.OutOfGasException])  // CALLDATACOPY
+  def testCALLDATACOPY_7: Unit = {
+    val program = new Program(VMOpTest.vmSettings, BinaryData("6020600073CC0929EB16730E7C14FEFC63006AC2D794C5795637"),
+      invoker2, Long.MaxValue)
+    val vm = new VM(VMOpTest.vmSettings, VMHook.EMPTY)
+    try {
+      vm.step(program)
+      vm.step(program)
+      vm.step(program)
+      vm.step(program)
+    } finally {
+      assert(program.isStopped)
+    }
   }
 
   private var dataBase: DataBase = null
@@ -290,39 +386,6 @@ object VMOpTest {
   val author = PublicKey("022ac01a1ea9275241615ea6369c85b41e2016abc47485ec616c3c583f1b92a5c8").pubKeyHash
   val contractAddress = Crypto.calcNewAddr(author, BigInt(1).toByteArray)
   val vmSettings = ContractSettings(0, false, Int.MaxValue)
-
-  def deploy(dataBase: DataBase, caller: UInt160, code: Array[Byte], value: Int = 0, gasLimit: Long = Int.MaxValue) = {
-    val tracking = dataBase.startTracking()
-    val contract = Crypto.calcNewAddr(author, BigInt(1).toByteArray)
-    if (value > 0) tracking.transfer(caller, contract, value)
-    val invoker = createInvoker(tracking, dataBase, caller, contract, Array.empty, value, gasLimit)
-    val program = new Program(vmSettings, code, invoker, Long.MaxValue)
-    val result = VM.play(vmSettings, VMHook.EMPTY, program)
-    if (success(result)) {
-      tracking.commit()
-    } else {
-      tracking.rollBack()
-    }
-    (contract, result)
-  }
-
-  def call(dataBase: DataBase, caller: UInt160, contract: UInt160, code: Array[Byte],
-           signature: Array[Byte], value: Int = 0, gasLimit: Long = Int.MaxValue) = {
-    val tracking = dataBase.startTracking()
-    if (value > 0) {
-      tracking.transfer(caller, contract, value)
-    }
-
-    val invoker = createInvoker(tracking, dataBase, caller, contract, signature, value, gasLimit)
-    val program = new Program(vmSettings, code, invoker, Long.MaxValue)
-    val result = VM.play(vmSettings, VMHook.EMPTY, program)
-    if (success(result)) {
-      tracking.commit()
-    } else {
-      tracking.rollBack()
-    }
-    result
-  }
 
   def createInvoker(tracking: DataBase, origin: DataBase, caller: UInt160, contract: UInt160,
                     data: Array[Byte], value: Int, gasLimit: Long): ProgramInvoke = {
