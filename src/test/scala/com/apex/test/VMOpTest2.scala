@@ -323,7 +323,6 @@ class VMOpTest2 {
       assert(chain.addTransaction(tx))
       assert(chain.getReceipt(tx.id()).get.status == 0)
       assert(chain.getReceipt(tx.id()).get.error == "")
-      val ewfwefef = DataWord.of(chain.getReceipt(tx.id()).get.output).sValue
       assert(DataWord.of(chain.getReceipt(tx.id()).get.output).value ==
         BigInt("c000000000000000000000000000000000000000000000000000000000000000", 16))
     }
@@ -360,7 +359,6 @@ class VMOpTest2 {
       assert(chain.addTransaction(tx))
       assert(chain.getReceipt(tx.id()).get.status == 0)
       assert(chain.getReceipt(tx.id()).get.error == "")
-      val ewfwefef = DataWord.of(chain.getReceipt(tx.id()).get.output).sValue
       assert(DataWord.of(chain.getReceipt(tx.id()).get.output).value ==
         BigInt("ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff", 16))
     }
@@ -397,7 +395,6 @@ class VMOpTest2 {
       assert(chain.addTransaction(tx))
       assert(chain.getReceipt(tx.id()).get.status == 0)
       assert(chain.getReceipt(tx.id()).get.error == "")
-      val ewfwefef = DataWord.of(chain.getReceipt(tx.id()).get.output).sValue
       assert(DataWord.of(chain.getReceipt(tx.id()).get.output).value ==
         BigInt("ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff", 16))
     }
@@ -434,9 +431,80 @@ class VMOpTest2 {
       assert(chain.addTransaction(tx))
       assert(chain.getReceipt(tx.id()).get.status == 0)
       assert(chain.getReceipt(tx.id()).get.error == "")
-      val ewfwefef = DataWord.of(chain.getReceipt(tx.id()).get.output).sValue
       assert(DataWord.of(chain.getReceipt(tx.id()).get.output).value ==
         BigInt("ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff", 16))
+    }
+    finally {
+      chain.close()
+    }
+  }
+
+  @Test    // ORIGIN
+  def testORIGIN(): Unit = {
+    val chain = createChain("testORIGIN")
+    try {
+      val contractSrc = "pragma solidity ^0.4.25;\n\n\ncontract A {\n  function a() public returns (uint r) {\n      assembly {\n              r := origin\n       }\n  }\n}"
+      val res = SolidityCompiler.compile(contractSrc.getBytes, true, Seq(ABI, BIN, INTERFACE, METADATA))
+      val result = CompilationResult.parse(res.output)
+      val abiString = result.getContract("A").abi
+      val binString = result.getContract("A").bin
+
+      var nowTime = Instant.now.toEpochMilli - 90000
+      var blockTime = ProducerUtil.nextBlockTime(chain.getHeadTime(), nowTime, _produceInterval / 10, _produceInterval) //  chain.getHeadTime() + _consensusSettings.produceInterval
+      blockTime += _produceInterval
+      val producer = chain.getWitness(blockTime)
+      chain.startProduceBlock(_miners.findPrivKey(producer).get, blockTime, Long.MaxValue)
+
+      var deployTx = new Transaction(TransactionType.Deploy, _acct1.publicKey.pubKeyHash,
+        UInt160.Zero, FixedNumber.Zero, 0, BinaryData(binString),
+        FixedNumber(0), 9000000L, BinaryData.empty)
+      assert(chain.addTransaction(deployTx))
+
+      var txData = Abi.fromJson(abiString).encode(s"a()")
+      var tx = new Transaction(TransactionType.Call, _acct1.publicKey.pubKeyHash,
+        UInt160.fromBytes(BinaryData("7f97e6f4f660e6c09b894f34edae3626bf44039a")), FixedNumber.Zero,
+        1, txData, FixedNumber(0), 9000000L, BinaryData.empty)
+      assert(chain.addTransaction(tx))
+      assert(chain.getReceipt(tx.id()).get.status == 0)
+      assert(chain.getReceipt(tx.id()).get.error == "")
+      assert(DataWord.of(chain.getReceipt(tx.id()).get.output) ==
+        DataWord.of(_acct1.publicKey.pubKeyHash))
+    }
+    finally {
+      chain.close()
+    }
+  }
+
+  @Test    // CODESIZE
+  def testCODESIZE(): Unit = {
+    val chain = createChain("testCODESIZE")
+    try {
+      val contractSrc = "pragma solidity ^0.4.25;\n\n\ncontract A {\n  function a() public returns (uint r) {\n      assembly {\n              r := codesize\n       }\n  }\n}"
+      val res = SolidityCompiler.compile(contractSrc.getBytes, true, Seq(ABI, BIN, INTERFACE, METADATA))
+      val result = CompilationResult.parse(res.output)
+      val abiString = result.getContract("A").abi
+      val binString = result.getContract("A").bin
+
+      var nowTime = Instant.now.toEpochMilli - 90000
+      var blockTime = ProducerUtil.nextBlockTime(chain.getHeadTime(), nowTime, _produceInterval / 10, _produceInterval) //  chain.getHeadTime() + _consensusSettings.produceInterval
+      blockTime += _produceInterval
+      val producer = chain.getWitness(blockTime)
+      chain.startProduceBlock(_miners.findPrivKey(producer).get, blockTime, Long.MaxValue)
+
+      var deployTx = new Transaction(TransactionType.Deploy, _acct1.publicKey.pubKeyHash,
+        UInt160.Zero, FixedNumber.Zero, 0, BinaryData(binString),
+        FixedNumber(0), 9000000L, BinaryData.empty)
+      assert(chain.addTransaction(deployTx))
+
+      var txData = Abi.fromJson(abiString).encode(s"a()")
+      var tx = new Transaction(TransactionType.Call, _acct1.publicKey.pubKeyHash,
+        UInt160.fromBytes(BinaryData("7f97e6f4f660e6c09b894f34edae3626bf44039a")), FixedNumber.Zero,
+        1, txData, FixedNumber(0), 9000000L, BinaryData.empty)
+      assert(chain.addTransaction(tx))
+      assert(chain.getReceipt(tx.id()).get.status == 0)
+      assert(chain.getReceipt(tx.id()).get.error == "")
+      assert(DataWord.of(chain.getReceipt(tx.id()).get.output).value.intValue() ==
+        160)  // !!
     }
     finally {
       chain.close()
