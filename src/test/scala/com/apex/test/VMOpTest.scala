@@ -16,6 +16,7 @@ import com.apex.crypto.{BinaryData, Crypto, UInt160}
 import com.apex.settings.{ContractSettings, DBType, DataBaseSettings}
 import com.apex.solidity.Abi
 import com.apex.test.VMTest.author
+import com.apex.vm
 import com.apex.vm.hook.VMHook
 import com.apex.vm.program.invoke.{ProgramInvoke, ProgramInvokeImpl}
 import com.apex.vm.program.{Program, ProgramResult}
@@ -180,35 +181,52 @@ class VMOpTest {
     val item1 = program.stackPop
     assert(item1 == DataWord.of(BinaryData("0000000000000000000000000000000000000000000000000000000000000060")))
   }
-  @Test  // SHR Op
-  def testSHR: Unit = {
-//    val _ =
-//      "contract Purchase {\n\tfunction getBalance() constant public returns(uint){\n\t\treturn this.balance;\n\t} \n}"
-//
-//    val abi = Abi.fromJson("[{\"constant\":true,\"inputs\":[],\"name\":\"getBalance\",\"outputs\":[{\"name\":\"\",\"type\":\"uint256\"}],\"payable\":false,\"stateMutability\":\"view\",\"type\":\"function\"}]")
-//    val code = "6080604052348015600f57600080fd5b5060b78061001e6000396000f300608060405260043610603f576000357c0100000000000000000000000000000000000000000000000000000000900463ffffffff16806312065fe0146044575b600080fd5b348015604f57600080fd5b506056606c565b6040518082815260200191505060405180910390f35b60003073ffffffffffffffffffffffffffffffffffffffff16319050905600a165627a7a7230582086ab234bf457d6cac98fce110e5688da12a0ea23b98e67d9d4227592791fd9200029"
-//
-//    val call3 = abi.encode("getBalance()")
-//    dataBase.addBalance(caller, 1000)
-//
-//    println("(caller address.asString)" + caller.address)
-//    println("(authoer address.asString)" + PublicKey("022ac01a1ea9275241615ea6369c85b41e2016abc47485ec616c3c583f1b92a5c8").pubKeyHash.address)
-//    println(PublicKey("0345ffbf8dc9d8ff15785e2c228ac48d98d29b834c2e98fb8cfe6e71474d7f6322").pubKeyHash.address)
-//
-//    val (contract, result)= deploy(dataBase, caller, BinaryData(code))
-//    val getResult = call(dataBase,  caller, contract, result.getHReturn, call3)
 
-//    val program = new Program(VMOpTest.vmSettings, BinaryData(code), invoker, Long.MaxValue)
-//
-//    val vm = new VM(VMOpTest.vmSettings, VMHook.EMPTY)
-//
-//    vm.step(program)
-//
-//    val item1 = program.stackPop
-
-//    assert(getResult.getHReturn == DataWord.of(1000))
+  @Test  // BYTE
+  def testBYTE_1: Unit = {
+    val program = new Program(VMOpTest.vmSettings, BytecodeCompiler.compile("PUSH6 0xAABBCCDDEEFF PUSH1 0x1E BYTE"), invoker, Long.MaxValue)
+    val vm = new VM(VMOpTest.vmSettings, VMHook.EMPTY)
+    vm.step(program)
+    vm.step(program)
+    vm.step(program)
+    val item1 = program.stackPop
+    assert(item1 == DataWord.of(BinaryData("00000000000000000000000000000000000000000000000000000000000000EE")))
   }
 
+  @Test  // BYTE
+  def testBYTE_2: Unit = {
+    val program = new Program(VMOpTest.vmSettings, BytecodeCompiler.compile("PUSH6 0xAABBCCDDEEFF PUSH1 0x20 BYTE"), invoker, Long.MaxValue)
+    val vm = new VM(VMOpTest.vmSettings, VMHook.EMPTY)
+    vm.step(program)
+    vm.step(program)
+    vm.step(program)
+    val item1 = program.stackPop
+    assert(item1 == DataWord.of(BinaryData("0000000000000000000000000000000000000000000000000000000000000000")))
+  }
+
+  @Test  // BYTE
+  def testBYTE_3: Unit = {
+    val program = new Program(VMOpTest.vmSettings, BytecodeCompiler.compile("PUSH6 0xAABBCCDDEE3A PUSH1 0x1F BYTE"), invoker, Long.MaxValue)
+    val vm = new VM(VMOpTest.vmSettings, VMHook.EMPTY)
+    vm.step(program)
+    vm.step(program)
+    vm.step(program)
+    val item1 = program.stackPop
+    assert(item1 == DataWord.of(BinaryData("000000000000000000000000000000000000000000000000000000000000003A")))
+  }
+
+  @Test(expected = classOf[vm.exceptions.StackTooSmallException])  // BYTE
+  def testBYTE_4: Unit = {
+    val program = new Program(VMOpTest.vmSettings, BytecodeCompiler.compile("PUSH6 0xAABBCCDDEE3A BYTE"), invoker, Long.MaxValue)
+    val vm = new VM(VMOpTest.vmSettings, VMHook.EMPTY)
+    try {
+      vm.step(program)
+      vm.step(program)
+      vm.step(program)
+    } finally {
+      assert(program.isStopped)
+    }
+  }
 
   private var dataBase: DataBase = null
 
