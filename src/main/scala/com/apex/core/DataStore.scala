@@ -148,6 +148,7 @@ object DataType extends Enumeration {
   val Receipt = Value(0x08)
   val Peer = Value(0x09)
   val Votes = Value(0x0a)
+  val scheduleTransaction = Value(0x0b)
 }
 
 object IndexType extends Enumeration {
@@ -203,7 +204,7 @@ trait HeaderPrefix extends DataPrefix {
 }
 
 trait TxPrefix extends DataPrefix {
-  override val dataType: DataType.Value = DataType.Transaction
+  override val dataType: DataType.Value = DataType.scheduleTransaction
 }
 
 trait AccountPrefix extends DataPrefix {

@@ -129,7 +129,7 @@ object VoteContractExecutor {
       // in leveldb is the id of tx, not the scheduleTx, the tx hash exists in the data filed of scheduleTx
       val scheduleTx = new Transaction(TransactionType.Refund, tx.toPubKeyHash, tx.from, voteData.voterCount, tx.nonce, tx.id.data,
         tx.gasPrice, tx.gasLimit, tx.signature, tx.version, time)
-      track.setScheduleTx(tx.id, scheduleTx)
+      track.setScheduleTx(scheduleTx.id, scheduleTx)
       if(witness.isDefined){
         val newWitness = witness.get.copy(voteCounts = witness.get.voteCounts - voteData.voterCount)
         track.createWitness(newWitness)

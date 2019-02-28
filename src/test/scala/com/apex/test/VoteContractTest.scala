@@ -255,7 +255,7 @@ class VoteContractTest extends RegisterContractTest {
 
       val block3 = chain.produceBlockFinalize()
       assert(block3.isDefined)
-      assert(block3.get.transactions.size == 2)
+      assert(block3.get.transactions.size == 3)
 
       assert(!chain.isProducingBlock())
       assert(chain.getHeight() == 3)

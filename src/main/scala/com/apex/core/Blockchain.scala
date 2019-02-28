@@ -485,10 +485,7 @@ class Blockchain(chainSettings: ChainSettings,
         case TransactionType.Refund => txValid = applyRefundTransaction(tx, blockProducer, timeStamp)
       }
       if (scheduleTx)
-        {
-          if(tx.txType == TransactionType.Refund) dataBase.deleteScheduleTx(new UInt256(tx.data))
-          if(tx.txType == TransactionType.Transfer) dataBase.deleteScheduleTx(tx.id())
-        }
+          dataBase.deleteScheduleTx(tx.id())
       txValid
     }
     ////if tx is a schedule tx, it spend a small fee to execute this special tx
