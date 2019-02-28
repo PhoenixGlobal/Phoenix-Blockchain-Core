@@ -113,7 +113,7 @@ object RegisterContractExecutor {
       // in leveldb is the id of tx, not the scheduleTx, the tx hash exists in the data filed of scheduleTx
       val scheduleTx = new Transaction(TransactionType.Refund, tx.toPubKeyHash, tx.from,
         FixedNumber(registerSpend.value), tx.nonce, tx.id.data, tx.gasPrice, tx.gasLimit, tx.signature, tx.version, time)
-      track.addScheduleTxToDb(tx.id, scheduleTx)
+      track.setScheduleTx(tx.id, scheduleTx)
       //RegisterFeeScheduleActor(track, registerData, registerSpend)
       track.deleteWitness(registerData.registerAccount)
     }
