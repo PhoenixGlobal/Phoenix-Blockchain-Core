@@ -286,7 +286,7 @@ class DataWord(val data: Array[Byte]) {
         ZERO
       }
     } else {
-      val result = value >> arg.intValueSafe
+      val result = sValue >> arg.intValueSafe
       new DataWord((result & MAX_VALUE).toBytes)
     }
   }
