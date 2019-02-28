@@ -706,6 +706,11 @@ class Program(settings: ContractSettings,
 
   def byTestingSuite: Boolean = invoke.byTestingSuite
 
+  /**
+    * used mostly for testing reasons
+    */
+  def getMemory: Array[Byte] = memory.read(0, memory.size)
+
   private def setupProgramListener[T <: ProgramListenerAware](programListenerAware: T) = {
     if (programListener.isEmpty) {
       programListener.addListener(traceListener)

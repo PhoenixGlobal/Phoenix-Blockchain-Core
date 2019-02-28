@@ -228,6 +228,41 @@ class VMOpTest {
     }
   }
 
+  @Test  // PC
+  def testPC_1: Unit = {
+    val program = new Program(VMOpTest.vmSettings, BytecodeCompiler.compile("PC"), invoker, Long.MaxValue)
+    val vm = new VM(VMOpTest.vmSettings, VMHook.EMPTY)
+    vm.step(program)
+    val item1 = program.stackPop
+    assert(item1 == DataWord.of(BinaryData("0000000000000000000000000000000000000000000000000000000000000000")))
+  }
+
+  @Test  // PC
+  def testPC_2: Unit = {
+    val program = new Program(VMOpTest.vmSettings, BytecodeCompiler.compile("PUSH1 0x22 PUSH1 0xAA MSTORE PUSH1 0xAA NOT PC"), invoker, Long.MaxValue)
+    val vm = new VM(VMOpTest.vmSettings, VMHook.EMPTY)
+    vm.step(program)
+    vm.step(program)
+    vm.step(program)
+    vm.step(program)
+    vm.step(program)
+    vm.step(program)
+    val item1 = program.stackPop
+    assert(item1 == DataWord.of(BinaryData("0000000000000000000000000000000000000000000000000000000000000008")))
+  }
+
+  @Test  // CALLDATACOPY
+  def testCALLDATACOPY_1: Unit = {
+    val program = new Program(VMOpTest.vmSettings, BinaryData("60206000600037"), invoker, Long.MaxValue)
+    val vm = new VM(VMOpTest.vmSettings, VMHook.EMPTY)
+    vm.step(program)
+    vm.step(program)
+    vm.step(program)
+    vm.step(program)
+    val wefwef = program.getMemory
+    assert(program.getMemory sameElements BinaryData("00000000000000000000000000000000000000000000000000000000000000A1"))
+  }
+
   private var dataBase: DataBase = null
 
   @Before
