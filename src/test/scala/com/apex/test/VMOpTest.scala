@@ -20,6 +20,7 @@ import com.apex.vm.hook.VMHook
 import com.apex.vm.program.invoke.{ProgramInvoke, ProgramInvokeImpl}
 import com.apex.vm.program.{Program, ProgramResult}
 import com.apex.vm.{DataWord, VM}
+import org.apex.vm.BytecodeCompiler
 import org.junit.{After, Before, Test}
 
 import scala.reflect.io.Directory
@@ -159,6 +160,26 @@ class VMOpTest {
     assert(item1 == DataWord.of(BinaryData("2341DE5527492BCB42EC68DFEDF0742A98EC3F1E")))
   }
 
+  @Test  // MSIZE
+  def testMSIZE_1: Unit = {
+    val program = new Program(VMOpTest.vmSettings, BytecodeCompiler.compile("MSIZE"), invoker, Long.MaxValue)
+    val vm = new VM(VMOpTest.vmSettings, VMHook.EMPTY)
+    vm.step(program)
+    val item1 = program.stackPop
+    assert(item1 == DataWord.of(BinaryData("0000000000000000000000000000000000000000000000000000000000000000")))
+  }
+
+  @Test  // MSIZE
+  def testMSIZE_2: Unit = {
+    val program = new Program(VMOpTest.vmSettings, BytecodeCompiler.compile("PUSH1 0x20 PUSH1 0x30 MSTORE MSIZE"), invoker, Long.MaxValue)
+    val vm = new VM(VMOpTest.vmSettings, VMHook.EMPTY)
+    vm.step(program)
+    vm.step(program)
+    vm.step(program)
+    vm.step(program)
+    val item1 = program.stackPop
+    assert(item1 == DataWord.of(BinaryData("0000000000000000000000000000000000000000000000000000000000000060")))
+  }
 
   private var dataBase: DataBase = null
 
