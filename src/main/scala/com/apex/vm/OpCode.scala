@@ -725,6 +725,14 @@ object OpCode extends Enumeration {
     */
   val SUICIDE = getValue(0xff, 1, 0, Tier.ZeroTier)
 
+  private val stringToByteMap = scala.collection.mutable.Map.empty[String, Int]
+
+  for (opCodeType <- OpCode.values) {
+    stringToByteMap.put(opCodeType.name, opCodeType.id)
+  }
+
+  def byteVal(code: String): Byte = stringToByteMap.get(code).get.byteValue()
+
   def emptyValidators = {
     Map.empty[OpCode.Value, Boolean]
   }
