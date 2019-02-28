@@ -53,11 +53,7 @@ class DataBase(settings: DataBaseSettings, db: Storage.lowLevelRaw, tracking: Tr
     scheduleTxStore.getLists(Array(StoreType.Data.id.toByte, DataType.Transaction.id.toByte))
   }
 
-  def addScheduleTxToDb(id: UInt256, tx: Transaction): Unit ={
-    setScheduleTx(id, tx)
-  }
-
-  def setScheduleTx(id: UInt256, tx: Transaction) = {
+  def setScheduleTx(id: UInt256, tx: Transaction) ={
     scheduleTxStore.set(id, tx)
   }
 

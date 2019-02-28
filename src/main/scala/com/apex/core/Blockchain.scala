@@ -281,7 +281,7 @@ class Blockchain(chainSettings: ChainSettings,
         val newTx = new Transaction(tx.txType, tx.from, tx.toPubKeyHash, tx.amount, tx.nonce, tx.data, tx.gasPrice,
           tx.gasLimit, tx.signature, tx.version, tx.executeTime + pendingState.blockTime)
         println("newTx executeTime" + newTx.executeTime)
-        dataBase.addScheduleTxToDb(newTx.id(), newTx)
+        dataBase.setScheduleTx(newTx.id(), newTx)
         true
       }
       else{
