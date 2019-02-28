@@ -232,8 +232,10 @@ class Blockchain(chainSettings: ChainSettings,
     }
     val scheduleTxs = dataBase.getAllScheduleTx()
     if (scheduleTxs.nonEmpty) {
+      println("schedule size    " + scheduleTxs.size)
       scheduleTxs.foreach(scheduleTx => {
         if (scheduleTx.executeTime <= blockTime) {
+          println("schedule execute time is"+ scheduleTx.executeTime + "block time   "+ blockTime)
           if (applyTransaction(scheduleTx, producer, stopProcessTxTime, blockTime, forkHead.block.height + 1, true))
           pendingState.txs.append(scheduleTx)
         }
@@ -276,7 +278,10 @@ class Blockchain(chainSettings: ChainSettings,
     }
     else {
       if(tx.executeTime > 0) {
-        dataBase.addScheduleTxToDb(tx.id(), tx)
+        val newTx = new Transaction(tx.txType, tx.from, tx.toPubKeyHash, tx.amount, tx.nonce, tx.data, tx.gasPrice,
+          tx.gasLimit, tx.signature, tx.version, tx.executeTime + pendingState.blockTime)
+        println("newTx executeTime" + newTx.executeTime)
+        dataBase.addScheduleTxToDb(newTx.id(), newTx)
         true
       }
       else{
@@ -479,7 +484,11 @@ class Blockchain(chainSettings: ChainSettings,
         case TransactionType.Call => txValid = applyContractTransaction(tx, blockProducer, stopTime, timeStamp, blockIndex)
         case TransactionType.Refund => txValid = applyRefundTransaction(tx, blockProducer, timeStamp)
       }
-      if (scheduleTx) dataBase.deleteScheduleTx(new UInt256(tx.data))
+      if (scheduleTx)
+        {
+          if(tx.txType == TransactionType.Refund) dataBase.deleteScheduleTx(new UInt256(tx.data))
+          if(tx.txType == TransactionType.Transfer) dataBase.deleteScheduleTx(tx.id())
+        }
       txValid
     }
     ////if tx is a schedule tx, it spend a small fee to execute this special tx

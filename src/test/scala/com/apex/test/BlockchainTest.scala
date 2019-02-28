@@ -115,7 +115,8 @@ class BlockchainTest {
                      nonce: Long,
                      gasLimit: Long = 21000,
                      gasPrice: FixedNumber = FixedNumber.Zero,
-                     txType: TransactionType.Value = TransactionType.Transfer): Transaction = {
+                     txType: TransactionType.Value = TransactionType.Transfer,
+                     executedTime: Long = 0): Transaction = {
 
     val tx = new Transaction(txType, from.publicKey.pubKeyHash, to.publicKey.pubKeyHash,
       amount, nonce, BinaryData.empty, gasPrice, gasLimit, BinaryData.empty)
@@ -247,6 +248,10 @@ class BlockchainTest {
       assert(!chain.addTransaction(makeTx(_acct3, _acct5, FixedNumber.fromDecimal(1), 0)))
       // wrong nonce
       assert(!chain.addTransaction(makeTx(_acct1, _acct5, FixedNumber.fromDecimal(123), 1)))
+
+      //wrong txType
+      assert(!chain.addTransaction(makeTx(_acct1, _acct5, FixedNumber.fromDecimal(1), 0, txType = TransactionType.Miner)))
+      assert(!chain.addTransaction(makeTx(_acct1, _acct5, FixedNumber.fromDecimal(1), 0, txType = TransactionType.Refund)))
       assert(chain.addTransaction(makeTx(_acct1, _acct5, FixedNumber.fromDecimal(1), 0)))
       assert(!chain.addTransaction(makeTx(_acct1, _acct5, FixedNumber.fromDecimal(2), 0)))
       assert(chain.addTransaction(makeTx(_acct1, _acct5, FixedNumber.fromDecimal(2), 1)))

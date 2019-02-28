@@ -101,7 +101,7 @@ class RegisterContractTest extends BlockChainPrepare{
       val baseDir = "RegisterContractTest/testCancelWitnessSuccess"
       Given.createChain(baseDir){}
       //When.produceBlock()
-      var nowTime = Instant.now.toEpochMilli - 10000
+      var nowTime = Instant.now.toEpochMilli -10000
       var blockTime = ProducerUtil.nextBlockTime(chain.getHeadTime(), nowTime, _produceInterval / 10, _produceInterval) //  chain.getHeadTime() + _consensusSettings.produceInterval
       sleepTo(blockTime)
       //nowTime = Instant.now.toEpochMilli
@@ -120,7 +120,7 @@ class RegisterContractTest extends BlockChainPrepare{
           assert(chain.addTransaction(tx))
           val witness = chain.getWitness(_acct3.publicKey.pubKeyHash)
           assert(witness.isEmpty)
-          assert(chain.getScheduleTx().size == 1)
+          assert(chain.getScheduleTx().size == 2)
           assert(chain.getBalance(_acct3.publicKey.pubKeyHash).get == FixedNumber.fromDecimal(2))
           assert(chain.getBalance(new UInt160(PrecompiledContracts.registerNodeAddr.getLast20Bytes)).get == FixedNumber.One)
         }
@@ -128,10 +128,12 @@ class RegisterContractTest extends BlockChainPrepare{
       val block1 = chain.produceBlockFinalize()
       assert(block1.isDefined)
       assert(block1.get.transactions.size == 6)
+      assert(chain.getBalance(_acct2.publicKey.pubKeyHash).get == FixedNumber.fromDecimal(232.2))
 
       assert(!chain.isProducingBlock())
       assert(chain.getHeight() == 1)
       assert(chain.getHeadTime() == blockTime)
+      println("chain.getHeadTime()" + blockTime)
       assert(chain.head.id() == block1.get.id())
 
 //      val tx1 = makeTx(_acct3, _acct4, FixedNumber.fromDecimal(1), 2)
@@ -170,9 +172,11 @@ class RegisterContractTest extends BlockChainPrepare{
 
       sleepTo(blockTime)
 
+      println("chain.blockTime()" + blockTime)
+
       val block3 = chain.produceBlockFinalize()
       assert(block3.isDefined)
-      assert(block3.get.transactions.size == 2)
+      assert(block3.get.transactions.size == 3)
 
       assert(!chain.isProducingBlock())
       assert(chain.getHeight() == 3)
@@ -180,6 +184,7 @@ class RegisterContractTest extends BlockChainPrepare{
       assert(chain.head.id() == block3.get.id())
 
       assert(chain.getBalance(_acct3.publicKey.pubKeyHash).get == FixedNumber.fromDecimal(3))
+      assert(chain.getBalance(_acct2.publicKey.pubKeyHash).get == FixedNumber.fromDecimal(230.2))
       assert(chain.getBalance(new UInt160(PrecompiledContracts.registerNodeAddr.getLast20Bytes)).get == FixedNumber.Zero)
     }
     finally {
@@ -257,7 +262,7 @@ class RegisterContractTest extends BlockChainPrepare{
     assert(!chain.addTransaction(makeTx(_acct1, _acct3, FixedNumber.fromDecimal(2), 0)))
     assert(chain.addTransaction(makeTx(_acct1, _acct3, FixedNumber.fromDecimal(2), 1)))
     assert(chain.addTransaction(makeTx(_acct2, _acct4, FixedNumber.fromDecimal(2), 0)))
-    //assert(chain.addTransaction(makeTx(_acct1, _acct3.publicKey.pubKeyHash, FixedNumber.fromDecimal(2), 1)))
+    assert(chain.addTransaction(makeTx(_acct2, _acct4, FixedNumber.fromDecimal(2), 1, executedTime = 750)))
   }
 
   def checkAccount(): Unit ={

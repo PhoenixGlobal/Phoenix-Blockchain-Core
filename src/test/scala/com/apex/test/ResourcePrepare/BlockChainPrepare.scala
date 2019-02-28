@@ -55,10 +55,11 @@ class BlockChainPrepare {
                      nonce: Long,
                      gasLimit: Long = 21000,
                      gasPrice: FixedNumber = FixedNumber.Zero,
-                     txType: TransactionType.Value = TransactionType.Transfer) = {
+                     txType: TransactionType.Value = TransactionType.Transfer,
+                      executedTime: Long = 0) = {
 
     val tx = new Transaction(txType, from.publicKey.pubKeyHash, to.publicKey.pubKeyHash,
-      amount, nonce, BinaryData.empty, gasPrice, gasLimit, BinaryData.empty)
+      amount, nonce, BinaryData.empty, gasPrice, gasLimit, BinaryData.empty, executeTime = executedTime)
     tx.sign(from)
     tx
   }
