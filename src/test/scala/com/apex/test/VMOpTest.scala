@@ -359,6 +359,28 @@ class VMOpTest {
     }
   }
 
+  @Test  // CODESIZE
+  def testCODESIZE_1: Unit = {
+    val program = new Program(VMOpTest.vmSettings,
+      BinaryData("385E60076000396000605f556014600054601e60205463abcddcba6040545b51602001600a5254516040016014525451606001601e5254516080016028525460a052546016604860003960166000f26000603f556103e75660005460005360200235"),
+      invoker, Long.MaxValue)
+    val vm = new VM(VMOpTest.vmSettings, VMHook.EMPTY)
+    vm.step(program)
+    val item1 = program.stackPop
+    assert(item1 == DataWord.of(BinaryData("0000000000000000000000000000000000000000000000000000000000000062")))
+  }
+
+  @Test  // EXTCODESIZE  // todo: test is not testing EXTCODESIZE
+  def testEXTCODESIZE_1: Unit = {
+    val program = new Program(VMOpTest.vmSettings,
+      BinaryData("73471FD3AD3E9EEADEEC4608B92D16CE6B500704CC395E60076000396000605f556014600054601e60205463abcddcba6040545b51602001600a5254516040016014525451606001601e5254516080016028525460a052546016604860003960166000f26000603f556103e75660005460005360200235"),
+      invoker, Long.MaxValue)  // Push address on the stack and perform EXTCODECOPY
+    val vm = new VM(VMOpTest.vmSettings, VMHook.EMPTY)
+    vm.step(program)
+    val item1 = program.stackPop
+    assert(item1 == DataWord.of(BinaryData("000000000000000000000000471FD3AD3E9EEADEEC4608B92D16CE6B500704CC")))
+  }
+
   private var dataBase: DataBase = null
 
   @Before
