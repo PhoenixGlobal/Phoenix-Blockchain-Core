@@ -2,13 +2,13 @@ package com.apex.test
 
 import java.time.Instant
 
-import com.apex.consensus.ProducerUtil
+import com.apex.consensus.{ProducerUtil, RegisterData, WitnessInfo}
 import com.apex.core._
 import com.apex.crypto.{BinaryData, Crypto, Ecdsa, FixedNumber, MerkleTree, UInt160, UInt256}
 import com.apex.crypto.Ecdsa.{PrivateKey, PublicKey}
 import com.apex.settings.{ConsensusSettings, RuntimeParas, _}
 import com.apex.solidity.Abi
-import com.apex.vm.DataWord
+import com.apex.vm.{DataWord, PrecompiledContracts}
 import org.junit.{AfterClass, Test}
 
 import scala.collection.mutable.ArrayBuffer
@@ -119,7 +119,7 @@ class BlockchainTest {
                      executedTime: Long = 0): Transaction = {
 
     val tx = new Transaction(txType, from.publicKey.pubKeyHash, to.publicKey.pubKeyHash,
-      amount, nonce, BinaryData.empty, gasPrice, gasLimit, BinaryData.empty)
+      amount, nonce, BinaryData.empty, gasPrice, gasLimit, BinaryData.empty, executeTime = executedTime)
     tx.sign(from)
     tx
   }
@@ -283,6 +283,7 @@ class BlockchainTest {
       println("call tryInsertBlock block2")
       assert(chain.tryInsertBlock(block2, true))
       println("block2 inserted")
+      println(block2.shortId())
 
       assert(chain.getBalance(_acct4).get == FixedNumber.fromDecimal(11))
 
@@ -310,6 +311,16 @@ class BlockchainTest {
 
       assert(chain.getBalance(_acct3).get == FixedNumber.fromDecimal(20))
       assert(chain.getBalance(_acct4).isEmpty)
+
+//      val block332 = makeBlock(chain, block22, Seq.empty[Transaction])
+//      sleepTo(block332.header.timeStamp)
+//      assert(chain.tryInsertBlock(block332, true))
+//
+//      assert(chain.head.id() == block332.id())
+//      assert(chain.getLatestHeader().id() == block332.id())
+//
+//      assert(chain.getBalance(_acct3).get == FixedNumber.fromDecimal(20))
+//      assert(chain.getBalance(_acct4).isEmpty)
 
     }
     finally {
@@ -891,6 +902,143 @@ class BlockchainTest {
       chain.close()
     }
   }
+
+  @Test
+  def testChainForkScheduleTx(): Unit = {
+    val chain = createChain("testChainForkScheduleTx")
+    try {
+      assert(chain.getHeight() == 0)
+      assert(chain.getBalance(_acct1).get == FixedNumber.fromDecimal(123.12))
+      assert(chain.getBalance(_acct2).get == FixedNumber.fromDecimal(234.2))
+
+      var nowTime = Instant.now.toEpochMilli - 90000
+      var blockTime = ProducerUtil.nextBlockTime(chain.getHeadTime(), nowTime, _produceInterval / 10, _produceInterval) //  chain.getHeadTime() + _consensusSettings.produceInterval
+      sleepTo(blockTime)
+      blockTime += _produceInterval
+      startProduceBlock(chain, blockTime, Long.MaxValue)
+
+      assert(chain.isProducingBlock())
+      //assert(chain.addTransaction(makeTx(_acct1, _acct2, FixedNumber.fromDecimal(10), 0, executedTime = 750)))
+      assert(chain.addTransaction(makeTx(_acct1, _acct3, FixedNumber.fromDecimal(10), 0)))
+      makeRegisterTransaction(){
+        tx=>
+        assert(chain.addTransaction(tx))
+        val witness = chain.getWitness(_acct3.publicKey.pubKeyHash)
+        assert(witness.isDefined)
+        assert(witness.get.name == "register node1")
+        assert(chain.getBalance(_acct3.publicKey.pubKeyHash).get == FixedNumber.fromDecimal(9))
+        assert(chain.getBalance(new UInt160(PrecompiledContracts.registerNodeAddr.getLast20Bytes)).get == FixedNumber.One)
+      }
+      makeRegisterTransaction(OperationType.resisterCancel, 1){
+        tx => {
+          assert(chain.addTransaction(tx))
+          val witness = chain.getWitness(_acct3.publicKey.pubKeyHash)
+          assert(witness.isEmpty)
+          assert(chain.getScheduleTx().size == 1)
+          assert(chain.getBalance(_acct3.publicKey.pubKeyHash).get == FixedNumber.fromDecimal(9))
+          assert(chain.getBalance(new UInt160(PrecompiledContracts.registerNodeAddr.getLast20Bytes)).get == FixedNumber.One)
+        }
+      }
+      sleepTo(blockTime)
+      val block0 = chain.produceBlockFinalize()
+      assert(chain.head.id() == block0.get.id())
+      assert(chain.getBalance(_acct1).get == FixedNumber.fromDecimal(113.12))
+      assert(chain.getBalance(_acct2).get == FixedNumber.fromDecimal(234.2))
+//      val txxxx = chain.getScheduleTx()
+//      assert(chain.getScheduleTx().size == 1)
+//
+//      /*
+//      *
+//      *    0 ---> 1 ---> 2A
+//      *           |
+//      *           └----> 2B ---> 3A
+//      *                  |
+//      *                  └---->  3B ---> 4A
+//      * */
+//
+      blockTime += _produceInterval
+      startProduceBlock(chain, blockTime, Long.MaxValue)
+      assert(chain.isProducingBlock())
+      sleepTo(blockTime)
+      val block1 = chain.produceBlockFinalize()
+
+      blockTime += _produceInterval
+      startProduceBlock(chain, blockTime, Long.MaxValue)
+      assert(chain.isProducingBlock())
+      sleepTo(blockTime)
+      chain.addTransaction(makeTx(_acct1, _acct2, FixedNumber.fromDecimal(11), 1))
+
+      val block2A = chain.produceBlockFinalize().get
+
+      //val block2A = makeBlock(chain, block1.get, Seq(makeTx(_acct1, _acct2, FixedNumber.fromDecimal(11), 1)))
+      //assert(tryInsertBlock(chain, block2A))
+
+      assert(chain.head.id() == block2A.id())
+      assert(chain.getLatestHeader().id() == block2A.id())
+      assert(chain.getBalance(_acct1).get == FixedNumber.fromDecimal(102.12))
+      assert(chain.getBalance(_acct2).get == FixedNumber.fromDecimal(245.2))
+      assert(block2A.transactions.size == 3)
+      assert(chain.getScheduleTx().size == 0)
+      assert(chain.getBalance(_acct3).get == FixedNumber.fromDecimal(10))
+      assert(chain.getBalance(new UInt160(PrecompiledContracts.registerNodeAddr.getLast20Bytes)).get == FixedNumber.Zero)
+
+      val block2B = makeBlock(chain, block1.get, Seq(makeTx(_acct1, _acct2, FixedNumber.fromDecimal(12), 1)))
+      assert(tryInsertBlock(chain, block2B))
+
+      assert(chain.head.id() == block2A.id())
+      assert(chain.getLatestHeader().id() == block2A.id())
+      assert(chain.getBalance(_acct1).get == FixedNumber.fromDecimal(102.12))
+      assert(chain.getBalance(_acct2).get == FixedNumber.fromDecimal(245.2))
+
+      val block3A = makeBlock(chain, block2B, Seq(makeTx(_acct1, _acct2, FixedNumber.fromDecimal(13), 2)))
+      assert(tryInsertBlock(chain, block3A))
+
+      assert(chain.head.id() == block3A.id())
+      assert(chain.getLatestHeader().id() == block3A.id())
+      assert(chain.getBalance(_acct1).get == FixedNumber.fromDecimal(88.12))
+      assert(chain.getBalance(_acct2).get == FixedNumber.fromDecimal(259.2))
+
+      blockTime += _produceInterval
+      startProduceBlock(chain, blockTime, Long.MaxValue)
+      assert(chain.isProducingBlock())
+      sleepTo(blockTime)
+//      assert(chain.getBalance(_acct3).get == FixedNumber.fromDecimal(9))
+      //chain.addTransaction(makeTx(_acct1, _acct2, FixedNumber.fromDecimal(11), 1))
+
+      val block4A = chain.produceBlockFinalize().get
+      assert(chain.head.id() == block4A.id())
+      assert(chain.getLatestHeader().id() == block4A.id())
+      assert(block4A.transactions.size == 2)
+      val transaction = block4A.transactions.find(_.txType == TransactionType.Refund)
+      assert(transaction.isDefined)
+      assert(transaction.get.from == new UInt160(PrecompiledContracts.registerNodeAddr.getLast20Bytes))
+      assert(transaction.get.toPubKeyHash == _acct3.publicKey.pubKeyHash)
+
+    }
+    finally {
+      chain.close()
+    }
+  }
+
+  private def makeRegisterTransaction(operationType: OperationType.Value = OperationType.register,
+                              nonce: Long = 0,
+                              account: UInt160 = _acct3.publicKey.pubKeyHash,
+                              name: String = "register node1") (f: Transaction => Unit){
+    val txData = RegisterData(account, WitnessInfo(account, false, name),operationType).toBytes
+    val registerContractAddr = new UInt160(DataWord.of("0000000000000000000000000000000000000000000000000000000000000101").getLast20Bytes)
+    val tx = new Transaction(TransactionType.Call, account ,registerContractAddr, FixedNumber.Zero,
+      nonce, txData, FixedNumber(0), 9000000L, BinaryData.empty)
+    f(tx)
+  }
+
+//  def checkRegisterSuccess(tx: Transaction): Unit ={
+//    assert(chain.addTransaction(tx))
+//    val witness = chain.getWitness(_acct3.publicKey.pubKeyHash)
+//    assert(witness.isDefined)
+//    assert(witness.get.name == "register node1")
+//    assert(chain.getBalance(_acct3.publicKey.pubKeyHash).get == FixedNumber.fromDecimal(2))
+//    assert(chain.getBalance(new UInt160(PrecompiledContracts.registerNodeAddr.getLast20Bytes)).get == FixedNumber.One)
+//  }
 
   @Test
   def testStopProcessNewTxTime(): Unit = {

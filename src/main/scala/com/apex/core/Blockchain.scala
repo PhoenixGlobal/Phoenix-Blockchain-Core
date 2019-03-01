@@ -580,16 +580,16 @@ class Blockchain(chainSettings: ChainSettings,
 
 
   private def verifyBlock(block: Block): Boolean = {
-    if (!verifyHeader(block.header))
-      false
+    if (!verifyHeader(block.header))  false
+      //false
     else if (block.transactions.size == 0) {
       log.info("verifyBlock error: block.transactions.size == 0")
       false
     }
-    else if (!block.merkleRoot().equals(block.header.merkleRoot))
-      false
-    else if (!verifyTxTypeAndSignature(block.transactions))
-      false
+    else if (!block.merkleRoot().equals(block.header.merkleRoot)) false
+//      false
+    else if (!verifyTxTypeAndSignature(block.transactions)) false
+      //false
     //    else if (!verifyRegisterNames(block.transactions))
     //      false
     else
