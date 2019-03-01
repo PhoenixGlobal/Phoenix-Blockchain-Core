@@ -212,12 +212,10 @@ class Blockchain(chainSettings: ChainSettings,
     log.debug(s"start block at: ${pendingState.startTime}  blockTime=${blockTime}  stopProcessTxTime=${stopProcessTxTime}")
 
     val minerTx = new Transaction(TransactionType.Miner, minerCoinFrom,
-      producer, minerAward,
-      forkHead.block.height + 1,
+      producer, minerAward, forkHead.block.height + 1,
       BinaryData(Crypto.randomBytes(8)), // add random bytes to distinct different blocks with same block index during debug in some cases
-      FixedNumber.Zero, 0, BinaryData.empty
-    )
-    //isPendingBlock = true
+      FixedNumber.Zero, 0, BinaryData.empty)
+
     dataBase.startSession()
 
     val applied = applyTransaction(minerTx, producer, stopProcessTxTime, blockTime, forkHead.block.height + 1)
@@ -237,7 +235,7 @@ class Blockchain(chainSettings: ChainSettings,
         if (scheduleTx.executeTime <= blockTime) {
           println("schedule execute time is"+ scheduleTx.executeTime + "block time   "+ blockTime)
           if (applyTransaction(scheduleTx, producer, stopProcessTxTime, blockTime, forkHead.block.height + 1, true))
-          pendingState.txs.append(scheduleTx)
+            pendingState.txs.append(scheduleTx)
         }
       })
     }
@@ -580,18 +578,20 @@ class Blockchain(chainSettings: ChainSettings,
 
 
   private def verifyBlock(block: Block): Boolean = {
-    if (!verifyHeader(block.header))  false
-      //false
+    if (!verifyHeader(block.header))
+      false
     else if (block.transactions.size == 0) {
-      log.info("verifyBlock error: block.transactions.size == 0")
+      log.error("verifyBlock error: block.transactions.size == 0")
       false
     }
-    else if (!block.merkleRoot().equals(block.header.merkleRoot)) false
-//      false
-    else if (!verifyTxTypeAndSignature(block.transactions)) false
-      //false
-    //    else if (!verifyRegisterNames(block.transactions))
-    //      false
+    else if (!block.merkleRoot().equals(block.header.merkleRoot)) {
+      log.error("verifyBlock error: merkleRoot not equals")
+      false
+    }
+    else if (!verifyTxTypeAndSignature(block.transactions)) {
+      log.error("verifyBlock error: verifyTxTypeAndSignature fail")
+      false
+    }
     else
       true
   }
