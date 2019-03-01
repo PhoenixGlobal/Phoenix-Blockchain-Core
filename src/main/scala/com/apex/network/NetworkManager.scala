@@ -2,7 +2,7 @@ package com.apex.network
 
 import java.net.InetSocketAddress
 
-import akka.actor.Status.{Failure, Success}
+import scala.collection.mutable
 import akka.actor.{Actor, ActorContext, ActorRef, ActorSystem, Props, actorRef2Scala}
 import akka.io.Tcp.SO.KeepAlive
 import akka.pattern.ask
@@ -11,12 +11,12 @@ import akka.io.{IO, Tcp}
 import akka.util.Timeout
 import com.apex.common.ApexLogging
 import com.apex.core.ChainInfo
-import com.apex.network.peer.PeerHandlerManager.ReceivableMessages.{GetConnectedPeers, PeerHandler, RandomPeerToConnect}
+import com.apex.network.peer.PeerHandlerManager.ReceivableMessages.{PeerHandler, RandomPeerToConnect}
 import com.apex.settings.NetworkSettings
 import com.apex.utils.NetworkTimeProvider
 
 import scala.collection.mutable
-import scala.concurrent.{ExecutionContext, Future}
+import scala.concurrent.{ExecutionContext}
 import scala.concurrent.duration.DurationInt
 
 
@@ -51,6 +51,8 @@ class NetworkManager(settings: NetworkSettings,
 
   private val tcpManager = IO(Tcp)
 
+  private val failConnectedMap = mutable.Map[InetSocketAddress, Int]();
+
   //绑定来侦听传入的连接
   tcpManager ! Bind(self, localAddress, options = KeepAlive(true) :: Nil, pullMode = false)
 
@@ -71,9 +73,9 @@ class NetworkManager(settings: NetworkSettings,
   def peerLogic: Receive = {
     case ConnectTo(remote) =>
       if (declaredAddress.isDefined && declaredAddress.get == remote) {
-        log.info(s"不能自己连接到自己:$remote")
+        log.info(s"cannot connected to self:$remote")
       } else {
-        log.info(s"Connecting to: $remote")
+        log.info(s"found peer to connecting: $remote")
         outgoing += remote
         tcpManager ! Connect(remote,
           localAddress = externalSocketAddress,
@@ -102,10 +104,12 @@ class NetworkManager(settings: NetworkSettings,
       val handlerProps: Props = PeerConnectionManagerRef.props(settings, peerHandlerManager, node, chainInfo, connection, direction, externalSocketAddress, remote, timeProvider)
       handler = context.actorOf(handlerProps)
       outgoing -= remote
-
+      failConnectedMap.remove(remote)
     case CommandFailed(c: Connect) =>
       outgoing -= c.remoteAddress
-      log.info("未能连接到 : " + c.remoteAddress)
+      var failedTimes = failConnectedMap.getOrElse(c.remoteAddress, 0) + 1
+      failConnectedMap += c.remoteAddress -> failedTimes
+      log.info("Fail to connected : " + c.remoteAddress + s", times($failedTimes)")
       peerHandlerManager ! Disconnected(c.remoteAddress)
   }
 
@@ -145,8 +149,13 @@ class NetworkManager(settings: NetworkSettings,
       val randomPeerF = peerHandlerManager ? RandomPeerToConnect()
       randomPeerF.mapTo[Option[InetSocketAddress]].foreach { peerInfoOpt =>
         peerInfoOpt.foreach(peerInfo => {
-          log.info("found peerInfo:" + peerInfo.getAddress + ":" + peerInfo.getPort)
-          self ! ConnectTo(peerInfo)
+          if (failConnectedMap.getOrElse(peerInfo, 0) > 1) { //if connected fail 2 times,sleep 12 times
+            val times = failConnectedMap.get(peerInfo).get + 1
+            failConnectedMap += peerInfo -> times
+            if (times % 12 == 0) self ! ConnectTo(peerInfo)
+          } else {
+            self ! ConnectTo(peerInfo)
+          }
         }
         )
       }
