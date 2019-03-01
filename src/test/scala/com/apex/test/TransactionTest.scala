@@ -34,7 +34,7 @@ class TransactionTest {
                     BinaryData("1234"),
                     FixedNumber(567),
       789,
-                    BinaryData.empty)
+                    BinaryData.empty, 2, 3)
 
     tx.sign(privKeyWrong)
     assert(!tx.verifySignature())
@@ -56,7 +56,7 @@ class TransactionTest {
         && x.signature.sameElements(tx.signature)
         && x.version == tx.version
         && x.verifySignature() == true
-    &&x.executeTime == tx.executeTime)
+        && x.executeTime == tx.executeTime)
     o.test(tx)
   }
   

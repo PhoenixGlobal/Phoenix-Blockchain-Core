@@ -251,12 +251,6 @@ class Blockchain(chainSettings: ChainSettings,
     })
     pendingState.txs.foreach(tx => unapplyTxs.remove(tx.id))
     badTxs.foreach(tx => unapplyTxs.remove(tx.id))
-
-    //    for (p <- unapplyTxs if Instant.now.toEpochMilli < stopProcessTxTime) {
-    //      if (applyTransaction(p._2, producer.pubkey.pubKeyHash, stopProcessTxTime))
-    //        pendingState.txs.append(p._2)
-    //      unapplyTxs.remove(p._1)
-    //    }
   }
 
   def isProducingBlock(): Boolean = {

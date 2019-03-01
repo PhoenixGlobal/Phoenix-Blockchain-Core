@@ -160,6 +160,7 @@ class MongodbPlugin(settings: ApexSettings)
       "gasLimit" -> tx.gasLimit.longValue(),
       "signature" -> tx.signature.toString,
       "version" -> tx.version,
+      "executeTime" -> BsonDateTime(tx.executeTime),
       "createdAt" -> BsonDateTime(Instant.now.toEpochMilli),
       "confirmed" -> false)
 
