@@ -38,6 +38,8 @@ case class Failed(e: Throwable) extends ProduceState
 class Producer(apexSettings: ApexSettings)
               (implicit ec: ExecutionContext) extends Actor with ApexLogging {
 
+  log.info("Producer starting")
+
   private val settings = apexSettings.consensus
 
   private val scheduler = context.system.scheduler

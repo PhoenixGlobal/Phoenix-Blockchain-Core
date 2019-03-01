@@ -82,8 +82,9 @@ class Node(val settings: ApexSettings, config: Config)
 
   private val networkManager = NetworkManagerRef(settings.network, chain.getChainInfo, timeProvider, peerHandlerManager)
 
-  private val producer = ProducerRef(settings)
-
+  if (settings.miner.privKeys.size > 0) {
+    val producer = ProducerRef(settings)
+  }
   if (settings.rpc.enabled) {
     RpcServer.run(settings, config, self)
   }
