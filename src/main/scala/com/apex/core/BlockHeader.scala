@@ -81,7 +81,7 @@ class BlockHeader(val index: Long,
 object BlockHeader {
   implicit val blockHeaderWrites = new Writes[BlockHeader] {
     override def writes(o: BlockHeader): JsValue = Json.obj(
-      "id" -> o.id.toString,
+      "hash" -> o.id.toString,
       "index" -> o.index,
       "timeStamp" -> o.timeStamp,
       "time" -> o.timeString(),

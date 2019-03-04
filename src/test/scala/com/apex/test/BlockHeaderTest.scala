@@ -54,6 +54,6 @@ class BlockHeaderTest {
     val a = new BlockHeader(0, timeStamp, merkleRoot, prevBlock, producer.pubKeyHash, BinaryData("0000"))
     val eefe = Json.toJson(a).toString
     assert(Json.toJson(a).toString.equals(
-      s"""{"id":"${a.id}","index":${a.index},"timeStamp":${a.timeStamp},"time":"${a.timeString()}","merkleRoot":"${a.merkleRoot}","prevBlock":"${a.prevBlock}","producer":"${a.producer.address}","producerSig":"${a.producerSig}","version":${a.version}}"""))
+      s"""{"hash":"${a.id}","index":${a.index},"timeStamp":${a.timeStamp},"time":"${a.timeString()}","merkleRoot":"${a.merkleRoot}","prevBlock":"${a.prevBlock}","producer":"${a.producer.address}","producerSig":"${a.producerSig}","version":${a.version}}"""))
   }
 }

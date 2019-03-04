@@ -111,7 +111,7 @@ object Transaction {
   implicit val transactionWrites = new Writes[Transaction] {
     override def writes(o: Transaction): JsValue = {
       Json.obj(
-            "id" -> o.id.toString,
+            "hash" -> o.id.toString,
             "type" -> o.txType.toString,
             "from" -> { if (o.txType == TransactionType.Miner) "" else o.from.address },
             "to" ->  o.toAddress,
