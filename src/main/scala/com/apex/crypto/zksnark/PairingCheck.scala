@@ -30,9 +30,7 @@ object PairingCheck {
     var idx = 0
     // for each bit except most significant one
     var i = LOOP_COUNT.bitLength - 2
-    while ( {
-      i >= 0
-    }) {
+    while (i >= 0) {
       var c = coeffs.get({
         idx += 1; idx - 1
       })
@@ -44,10 +42,7 @@ object PairingCheck {
         })
         f = f.mulBy024(c.ell0, g1.y.mul(c.ellVW), g1.x.mul(c.ellVV))
       }
-
-      {
-        i -= 1; i + 1
-      }
+      i -= 1
     }
     var c = coeffs.get({
       idx += 1; idx - 1
@@ -63,9 +58,7 @@ object PairingCheck {
     val coeffs = new util.ArrayList[PairingCheck.EllCoeffs]
     var addend = base
     var i = LOOP_COUNT.bitLength - 2
-    while ( {
-      i >= 0
-    }) {
+    while (i >= 0) {
       val doubling = flippedMillerLoopDoubling(addend)
       addend = doubling.g2
       coeffs.add(doubling.coeffs)
@@ -74,10 +67,7 @@ object PairingCheck {
         addend = addition.g2
         coeffs.add(addition.coeffs)
       }
-
-      {
-        i -= 1; i + 1
-      }
+      i -= 1
     }
     val q1 = base.mulByP
     var q2 = q1.mulByP
@@ -179,8 +169,8 @@ class PairingCheck {
   }
 
   def run(): Unit = {
-    import scala.collection.JavaConversions._
-    for (pair <- pairs) {
+    import scala.collection.JavaConverters._
+    for (pair <- pairs.asScala) {
       val miller = pair.millerLoop
       if (!(miller == Fp12._1)) { // run mul code only if necessary
         product = product.mul(miller)

@@ -15,19 +15,17 @@ class Sources(val files: Array[File]) {
   private var targetArtifact: String = null
 
   def resolveDependencies(): Unit = {
-    import scala.collection.JavaConversions._
-    for (srcName <- artifacts.keySet) {
+    import scala.collection.JavaConverters._
+    for (srcName <- artifacts.keySet.asScala) {
       val src = artifacts.get(srcName)
-      import scala.collection.JavaConversions._
-      for (dep <- src.getDependencies) {
+      for (dep <- src.getDependencies.asScala) {
         val depArtifact = artifacts.get(dep)
         if (depArtifact == null)
           throw assembleError("can't resolve dependency: dependency '%s' not found.", dep)
         src.injectDependency(depArtifact)
       }
     }
-    import scala.collection.JavaConversions._
-    for (artifact <- artifacts.values) {
+    for (artifact <- artifacts.values.asScala) {
       if (!artifact.hasDependentArtifacts)
         targetArtifact = artifact.getName
     }
