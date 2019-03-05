@@ -265,18 +265,14 @@ class Blockchain(chainSettings: ChainSettings,
   }
 
   def addTransaction(tx: Transaction): Boolean = {
+//    val tx = if(oldTx.executeTime > 0) new Transaction(oldTx.txType,oldTx.from,oldTx.toPubKeyHash,oldTx.amount,
+//    oldTx.nonce,oldTx.data,oldTx.gasPrice,oldTx.gasLimit,oldTx.signature,oldTx.version,
+//      oldTx.executeTime + pendingState.blockTime) else oldTx
+
     if (tx.txType == TransactionType.Miner || tx.txType == TransactionType.Refund) {
       false
     }
     else {
-      if (tx.executeTime > 0) {
-        val newTx = new Transaction(tx.txType, tx.from, tx.toPubKeyHash, tx.amount, tx.nonce, tx.data, tx.gasPrice,
-          tx.gasLimit, tx.signature, tx.version, tx.executeTime + pendingState.blockTime)
-        println("newTx executeTime" + newTx.executeTime)
-        dataBase.setScheduleTx(newTx.id(), newTx)
-        true
-      }
-      else {
         var added = false
         if (tx.gasLimit > runtimeParas.txAcceptGasLimit) {
           added = false
@@ -304,7 +300,6 @@ class Blockchain(chainSettings: ChainSettings,
         if (added)
           notification.broadcast(AddTransactionNotify(tx))
         added
-      }
     }
 
   }
@@ -460,28 +455,51 @@ class Blockchain(chainSettings: ChainSettings,
     applied
   }
 
-  private def applyTransaction(tx: Transaction, blockProducer: UInt160,
-                               stopTime: Long, timeStamp: Long, blockIndex: Long, scheduleTx: Boolean = false): Boolean = {
-    var txValid = false
-    //if tx is a schedule tx and it is time to execute,or tx is a normal transfer or miner tx, start execute tx directly
-    if (timeStamp >= tx.executeTime) {
-      tx.txType match {
-        case TransactionType.Miner =>    txValid = applySendTransaction(tx, blockProducer, timeStamp)
-        case TransactionType.Transfer => txValid = applySendTransaction(tx, blockProducer, timeStamp)
-        case TransactionType.Deploy =>   txValid = applyContractTransaction(tx, blockProducer, stopTime, timeStamp, blockIndex)
-        case TransactionType.Call =>     txValid = applyContractTransaction(tx, blockProducer, stopTime, timeStamp, blockIndex)
-        case TransactionType.Refund =>   txValid = applyRefundTransaction(tx, blockProducer, timeStamp)
+//  private def applyTransaction(tx: Transaction, blockProducer: UInt160,
+//                               stopTime: Long, timeStamp: Long, blockIndex: Long, scheduleTx: Boolean = false): Boolean = {
+//    var txValid = false
+//    //if tx is a schedule tx and it is time to execute,or tx is a normal transfer or miner tx, start execute tx directly
+//    if (timeStamp >= tx.executeTime) {
+//      tx.txType match {
+//        case TransactionType.Miner =>    txValid = applySendTransaction(tx, blockProducer, timeStamp)
+//        case TransactionType.Transfer => txValid = applySendTransaction(tx, blockProducer, timeStamp)
+//        case TransactionType.Deploy =>   txValid = applyContractTransaction(tx, blockProducer, stopTime, timeStamp, blockIndex)
+//        case TransactionType.Call =>     txValid = applyContractTransaction(tx, blockProducer, stopTime, timeStamp, blockIndex)
+//        case TransactionType.Refund =>   txValid = applyRefundTransaction(tx, blockProducer, timeStamp)
+//      }
+//      if (scheduleTx)
+//        dataBase.deleteScheduleTx(tx.id())
+//      txValid
+//    }
+//    ////if tx is a schedule tx, it spend a small fee to execute this special tx
+//    else {
+//      if(tx.txType == TransactionType.Refund) {
+//        true
+//      }
+//      else {
+//        val fromAccount = dataBase.getAccount(tx.from).getOrElse(Account.newAccount(tx.from))
+//        if(fromAccount.nextNonce != tx.nonce) txValid = false
+//
+//        true
+//      }
+//
+//      //todo
+//    }
+//  }
+
+    private def applyTransaction(tx: Transaction, blockProducer: UInt160,
+                                 stopTime: Long, timeStamp: Long, blockIndex: Long, scheduleTx: Boolean = false): Boolean = {
+      var txValid = false
+      //if tx is a schedule tx and it is time to execute,or tx is a normal transfer or miner tx, start execute tx directly
+        tx.txType match {
+          case TransactionType.Miner =>    txValid = applySendTransaction(tx, blockProducer, timeStamp)
+          case TransactionType.Transfer => txValid = applySendTransaction(tx, blockProducer, timeStamp)
+          case TransactionType.Deploy =>   txValid = applyContractTransaction(tx, blockProducer, stopTime, timeStamp, blockIndex)
+          case TransactionType.Call =>     txValid = applyContractTransaction(tx, blockProducer, stopTime, timeStamp, blockIndex)
+          case TransactionType.Refund =>   txValid = applyRefundTransaction(tx, blockProducer, timeStamp)
       }
-      if (scheduleTx)
-        dataBase.deleteScheduleTx(tx.id())
       txValid
     }
-    ////if tx is a schedule tx, it spend a small fee to execute this special tx
-    else {
-      //todo
-      true
-    }
-  }
 
   private def applyRefundTransaction(tx: Transaction, blockProducer: UInt160, timeStamp: Long): Boolean = {
     if (timeStamp >= tx.executeTime) {
@@ -527,47 +545,44 @@ class Blockchain(chainSettings: ChainSettings,
   }
 
   private def applySendTransaction(tx: Transaction, blockProducer: UInt160, timeStamp: Long): Boolean = {
-    var txValid = true
+    val scheduleTx = if (tx.executeTime > 0) true else false
 
-    val fromAccount = dataBase.getAccount(tx.from).getOrElse(Account.newAccount(tx.from))
-    val toAccount = dataBase.getAccount(tx.toPubKeyHash).getOrElse(Account.newAccount(tx.toPubKeyHash))
+    if(!scheduleTx){
+      val checkTransactionValidResult = TransactionProccessor.checkTransactionValid(tx, dataBase)
+      val txValid: Boolean = checkTransactionValidResult._1
+      val txFee: FixedNumber = checkTransactionValidResult._2
+      val txGas: Long = checkTransactionValidResult._3
+      if(txValid){
+        dataBase.transfer(tx.from, tx.toPubKeyHash, tx.amount)
+        dataBase.increaseNonce(tx.from)
 
-    var txFee = FixedNumber.Zero
-    val txGas = tx.transactionCost()
+        if (txFee.value > 0) {
+          dataBase.transfer(tx.from, blockProducer, txFee)
+        }
 
-    if (tx.txType == TransactionType.Miner) {
+        dataBase.setReceipt(tx.id(), TransactionReceipt(tx.id(), tx.txType, tx.from, tx.toPubKeyHash, txGas, BinaryData.empty, 0, ""))
+      }
 
+      txValid
     }
-    else {
-
-      txFee = FixedNumber(BigInt(txGas)) * tx.gasPrice
-      if (txGas > tx.gasLimit) {
-        log.info(s"Not enough gas for transaction tx ${tx.id().shortString()}")
-        txValid = false
+    else{
+      if(timeStamp > tx.executeTime){
+        val txFee = FixedNumber(BigInt(tx.transactionCost())) * tx.gasPrice
+        if(dataBase.getAccount(tx.from).getOrElse(Account.newAccount(tx.from)).balance > (txFee + tx.amount)){
+          dataBase.transfer(tx.from, tx.toPubKeyHash, tx.amount)
+          if (txFee.value > 0) {
+            dataBase.transfer(tx.from, blockProducer, txFee)
+          }
+        }
+        dataBase.deleteScheduleTx(tx.id())
+        true
       }
-      if ((tx.amount + txFee) > fromAccount.balance) {
-        log.info(s"Not enough balance for transaction tx ${tx.id().shortString()}")
-        txValid = false
-      }
-      else if (tx.nonce != fromAccount.nextNonce) {
-        log.info(s"tx ${tx.id().shortString()} nonce ${tx.nonce} invalid, expect ${fromAccount.nextNonce}")
-        txValid = false
+      else {
+        TransactionProccessor.checkTransactionValid(tx, dataBase)._1
+        dataBase.setScheduleTx(tx.id, tx)
+        dataBase.increaseNonce(tx.from)
       }
     }
-
-    if (txValid) {
-      dataBase.transfer(tx.from, tx.toPubKeyHash, tx.amount)
-      dataBase.increaseNonce(tx.from)
-
-      if (txFee.value > 0) {
-        dataBase.transfer(tx.from, blockProducer, txFee)
-      }
-
-      dataBase.setReceipt(tx.id(), TransactionReceipt(tx.id(), tx.txType, tx.from, tx.toPubKeyHash, txGas, BinaryData.empty, 0, ""))
-
-    }
-    txValid
-
   }
 
 
@@ -866,3 +881,36 @@ class Blockchain(chainSettings: ChainSettings,
   }
 }
 
+object TransactionProccessor extends ApexLogging{
+  def checkTransactionValid(tx: Transaction, dataBase: DataBase) = {
+
+    var txValid = true
+
+    val fromAccount = dataBase.getAccount(tx.from).getOrElse(Account.newAccount(tx.from))
+    val toAccount = dataBase.getAccount(tx.toPubKeyHash).getOrElse(Account.newAccount(tx.toPubKeyHash))
+
+    var txFee = FixedNumber.Zero
+    val txGas = tx.transactionCost()
+
+    if (tx.txType == TransactionType.Miner) {
+
+    }
+    else {
+
+      txFee = FixedNumber(BigInt(txGas)) * tx.gasPrice
+      if (txGas > tx.gasLimit) {
+        log.info(s"Not enough gas for transaction tx ${tx.id().shortString()}")
+        txValid = false
+      }
+      if ((tx.amount + txFee) > fromAccount.balance) {
+        log.info(s"Not enough balance for transaction tx ${tx.id().shortString()}")
+        txValid = false
+      }
+      else if (tx.nonce != fromAccount.nextNonce) {
+        log.info(s"tx ${tx.id().shortString()} nonce ${tx.nonce} invalid, expect ${fromAccount.nextNonce}")
+        txValid = false
+      }
+    }
+    (txValid, txFee, txGas)
+  }
+}

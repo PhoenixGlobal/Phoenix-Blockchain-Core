@@ -175,7 +175,8 @@ class VoteContractTest extends RegisterContractTest {
         val witness = chain.getWitness(_acct4.publicKey.pubKeyHash)
         assert(witness.isDefined)
         assert(witness.get.name == "node 2")
-        assert(chain.getBalance(_acct4.publicKey.pubKeyHash).get == FixedNumber.fromDecimal(1))
+        val balance = chain.getBalance(_acct4.publicKey.pubKeyHash).get
+        assert(chain.getBalance(_acct4.publicKey.pubKeyHash).get == FixedNumber.fromDecimal(3))
       })
       When.makeVoteTransaction(nonce = 3, candidate = _acct4.publicKey.pubKeyHash)(tx => {
         assert(chain.addTransaction(tx))
@@ -207,7 +208,7 @@ class VoteContractTest extends RegisterContractTest {
       //nowTime = Instant.now.toEpochMilli
       assert(nowTime < blockTime - 200)
       sleepTo(blockTime)
-      Then.checkTx()
+      Then.checkTx(blockTime)
       And.checkAccount()
       When.makeRegisterTransaction()(checkRegisterSuccess)
       When.makeVoteTransaction(nonce = 2, counter = FixedNumber.Ten)(tx => {
@@ -225,7 +226,7 @@ class VoteContractTest extends RegisterContractTest {
 
       val block1 = chain.produceBlockFinalize()
       assert(block1.isDefined)
-      assert(block1.get.transactions.size == 7)
+      assert(block1.get.transactions.size == 9)
 
       assert(!chain.isProducingBlock())
       assert(chain.getHeight() == 1)

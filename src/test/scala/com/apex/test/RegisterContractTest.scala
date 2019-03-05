@@ -112,7 +112,7 @@ class RegisterContractTest extends BlockChainPrepare{
       //nowTime = Instant.now.toEpochMilli
       assert(nowTime < blockTime - 200)
       sleepTo(blockTime)
-      Then.checkTx()
+      Then.checkTx(blockTime)
       And.checkAccount()
       When.makeRegisterTransaction()(checkRegisterSuccess)
       When.makeRegisterTransaction(OperationType.resisterCancel, 1){
@@ -120,6 +120,7 @@ class RegisterContractTest extends BlockChainPrepare{
           assert(chain.addTransaction(tx))
           val witness = chain.getWitness(_acct3.publicKey.pubKeyHash)
           assert(witness.isEmpty)
+
           assert(chain.getScheduleTx().size == 2)
           assert(chain.getBalance(_acct3.publicKey.pubKeyHash).get == FixedNumber.fromDecimal(2))
           assert(chain.getBalance(new UInt160(PrecompiledContracts.registerNodeAddr.getLast20Bytes)).get == FixedNumber.One)
@@ -127,8 +128,8 @@ class RegisterContractTest extends BlockChainPrepare{
       }
       val block1 = chain.produceBlockFinalize()
       assert(block1.isDefined)
-      assert(block1.get.transactions.size == 6)
-      assert(chain.getBalance(_acct2.publicKey.pubKeyHash).get == FixedNumber.fromDecimal(232.2))
+      assert(block1.get.transactions.size == 8)
+      assert(chain.getBalance(_acct2.publicKey.pubKeyHash).get == FixedNumber.fromDecimal(230.2))
 
       assert(!chain.isProducingBlock())
       assert(chain.getHeight() == 1)
@@ -184,7 +185,7 @@ class RegisterContractTest extends BlockChainPrepare{
       assert(chain.head.id() == block3.get.id())
 
       assert(chain.getBalance(_acct3.publicKey.pubKeyHash).get == FixedNumber.fromDecimal(3))
-      assert(chain.getBalance(_acct2.publicKey.pubKeyHash).get == FixedNumber.fromDecimal(230.2))
+      assert(chain.getBalance(_acct2.publicKey.pubKeyHash).get == FixedNumber.fromDecimal(228.2))
       assert(chain.getBalance(new UInt160(PrecompiledContracts.registerNodeAddr.getLast20Bytes)).get == FixedNumber.Zero)
     }
     finally {
@@ -256,13 +257,15 @@ class RegisterContractTest extends BlockChainPrepare{
     assert(witness.isEmpty)
   }
 
-  def checkTx(): Unit ={
+  def checkTx(executeTime: Long = 0): Unit ={
+    val sheduleTime = if (executeTime ==0) blockTimeForSchedule + 750 else executeTime+ 750
     assert(!chain.addTransaction(makeTx(_acct1, _acct3, FixedNumber.fromDecimal(123), 1)))
     assert(chain.addTransaction(makeTx(_acct1, _acct3, FixedNumber.fromDecimal(1), 0)))
     assert(!chain.addTransaction(makeTx(_acct1, _acct3, FixedNumber.fromDecimal(2), 0)))
     assert(chain.addTransaction(makeTx(_acct1, _acct3, FixedNumber.fromDecimal(2), 1)))
     assert(chain.addTransaction(makeTx(_acct2, _acct4, FixedNumber.fromDecimal(2), 0)))
-    assert(chain.addTransaction(makeTx(_acct2, _acct4, FixedNumber.fromDecimal(2), 1, executedTime = 750)))
+    assert(chain.addTransaction(makeTx(_acct2, _acct4, FixedNumber.fromDecimal(2), 1, executedTime = sheduleTime)))
+    assert(chain.addTransaction(makeTx(_acct2, _acct4, FixedNumber.fromDecimal(2), 2)))
   }
 
   def checkAccount(): Unit ={

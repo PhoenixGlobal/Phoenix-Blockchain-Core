@@ -11,6 +11,8 @@ import com.apex.settings._
 import scala.collection.mutable.ArrayBuffer
 
 class BlockChainPrepare {
+
+  var  blockTimeForSchedule: Long = 0
   var  chain: Blockchain = _
   val _produceInterval = 500
 
@@ -170,6 +172,7 @@ class BlockChainPrepare {
 
     nowTime = Instant.now.toEpochMilli
     assert(nowTime < blockTime - 200)
+    blockTimeForSchedule = blockTime
     sleepTo(blockTime)
   }
 
