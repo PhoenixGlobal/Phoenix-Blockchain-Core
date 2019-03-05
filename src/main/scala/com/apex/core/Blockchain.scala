@@ -89,7 +89,7 @@ class Blockchain(chainSettings: ChainSettings,
 
   private val genesisBlock: Block = buildGenesisBlock()
 
-  private val unapplyTxs = mutable.Map.empty[UInt256, Transaction]
+  private val unapplyTxs = mutable.LinkedHashMap.empty[UInt256, Transaction]
 
   private var timeoutTx: Option[Transaction] = None
 
@@ -511,7 +511,6 @@ class Blockchain(chainSettings: ChainSettings,
 
   private def applyContractTransaction(tx: Transaction, blockProducer: UInt160,
                                        stopTime: Long, timeStamp: Long, blockIndex: Long): Boolean = {
-
     var applied = false
 
     val executor = new TransactionExecutor(tx, blockProducer, dataBase, stopTime,
