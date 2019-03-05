@@ -504,6 +504,7 @@ class Blockchain(chainSettings: ChainSettings,
   private def applyRefundTransaction(tx: Transaction, blockProducer: UInt160, timeStamp: Long): Boolean = {
     if (timeStamp >= tx.executeTime) {
       dataBase.transfer(tx.from, tx.toPubKeyHash, tx.amount)
+      dataBase.deleteScheduleTx(tx.id())
       return true
     }
     false
@@ -547,7 +548,7 @@ class Blockchain(chainSettings: ChainSettings,
   private def applySendTransaction(tx: Transaction, blockProducer: UInt160, timeStamp: Long): Boolean = {
     val scheduleTx = if (tx.executeTime > 0) true else false
 
-    if(!scheduleTx){
+    if(!scheduleTx || (timeStamp >= tx.executeTime && dataBase.getScheduleTx(tx.id()).isEmpty)){
       val checkTransactionValidResult = TransactionProccessor.checkTransactionValid(tx, dataBase)
       val txValid: Boolean = checkTransactionValidResult._1
       val txFee: FixedNumber = checkTransactionValidResult._2
@@ -566,7 +567,7 @@ class Blockchain(chainSettings: ChainSettings,
       txValid
     }
     else{
-      if(timeStamp > tx.executeTime){
+      if(timeStamp >= tx.executeTime){
         val txFee = FixedNumber(BigInt(tx.transactionCost())) * tx.gasPrice
         if(dataBase.getAccount(tx.from).getOrElse(Account.newAccount(tx.from)).balance > (txFee + tx.amount)){
           dataBase.transfer(tx.from, tx.toPubKeyHash, tx.amount)
