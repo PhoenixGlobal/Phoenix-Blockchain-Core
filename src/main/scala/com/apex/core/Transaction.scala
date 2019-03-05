@@ -102,8 +102,10 @@ class Transaction(val txType: TransactionType.Value,
   }
 
   def verifySignature(): Boolean = {
-    if(txType == TransactionType.Refund) true
-    else Crypto.verifySignature(dataForSigning(), signature, from)
+    if (txType == TransactionType.Refund)
+      true
+    else
+      Crypto.verifySignature(dataForSigning(), signature, from)
   }
 
 }
