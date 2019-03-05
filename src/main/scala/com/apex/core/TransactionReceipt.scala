@@ -18,6 +18,7 @@ case class TransactionReceipt(txId: UInt256,
                               txType: TransactionType.Value,
                               from: UInt160,
                               to: UInt160,
+                              blockIndex: Long,
                               gasUsed: BigInt,
                               //totalGasUsed: BigInt,
                               output: BinaryData,
@@ -32,6 +33,7 @@ case class TransactionReceipt(txId: UInt256,
     os.writeByte(txType.toByte)
     os.write(from)
     os.write(to)
+    os.writeLong(blockIndex)
     os.writeByteArray(gasUsed.toByteArray)
     //os.writeByteArray(totalGasUsed.toByteArray)
     os.writeByteArray(output)
@@ -48,6 +50,7 @@ object TransactionReceipt {
       TransactionType(is.readByte),
       is.readObj[UInt160],
       is.readObj[UInt160],
+      is.readLong,
       BigInt(is.readByteArray),
       //BigInt(is.readByteArray),
       is.readByteArray,
@@ -62,6 +65,7 @@ object TransactionReceipt {
         "txType" -> o.txType.toString,
         "from" -> o.from.address,
         "to" ->  o.to.address,
+        "blockIndex" -> o.blockIndex,
         "gasUsed" -> o.gasUsed.longValue(),
         //"totalGasUsed" -> o.totalGasUsed.longValue(),
         "output" -> o.output.toString,

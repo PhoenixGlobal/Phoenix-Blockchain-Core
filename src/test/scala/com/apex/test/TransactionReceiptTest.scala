@@ -23,6 +23,7 @@ class TransactionReceiptTest {
                     TransactionType.Transfer,
                     UInt160.Zero,
                     UInt160.Zero,
+                    890,
                     123,
                     BinaryData("1234"),
                     789,
@@ -34,6 +35,7 @@ class TransactionReceiptTest {
           && x.txType == tr.txType
           && x.from == tr.from
           && x.to == tr.to
+          && x.blockIndex == tr.blockIndex
           && x.gasUsed == tr.gasUsed
           //&& x.totalGasUsed == tr.totalGasUsed
           && x.output.sameElements(tr.output)
@@ -50,6 +52,7 @@ class TransactionReceiptTest {
       TransactionType.Transfer,
       UInt160.Zero,
       UInt160.Zero,
+      579,
       123,
       BinaryData("1234"),
       789,
@@ -61,6 +64,7 @@ class TransactionReceiptTest {
         && x.txType == tr.txType
         && x.from == tr.from
         && x.to == tr.to
+        && x.blockIndex == tr.blockIndex
         && x.gasUsed == tr.gasUsed
         //&& x.totalGasUsed == tr.totalGasUsed
         && x.output.sameElements(tr.output)

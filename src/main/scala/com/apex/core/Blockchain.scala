@@ -461,8 +461,8 @@ class Blockchain(chainSettings: ChainSettings,
 //    //if tx is a schedule tx and it is time to execute,or tx is a normal transfer or miner tx, start execute tx directly
 //    if (timeStamp >= tx.executeTime) {
 //      tx.txType match {
-//        case TransactionType.Miner =>    txValid = applySendTransaction(tx, blockProducer, timeStamp)
-//        case TransactionType.Transfer => txValid = applySendTransaction(tx, blockProducer, timeStamp)
+//        case TransactionType.Miner =>    txValid = applySendTransaction(tx, blockProducer, timeStamp, blockIndex)
+//        case TransactionType.Transfer => txValid = applySendTransaction(tx, blockProducer, timeStamp, blockIndex)
 //        case TransactionType.Deploy =>   txValid = applyContractTransaction(tx, blockProducer, stopTime, timeStamp, blockIndex)
 //        case TransactionType.Call =>     txValid = applyContractTransaction(tx, blockProducer, stopTime, timeStamp, blockIndex)
 //        case TransactionType.Refund =>   txValid = applyRefundTransaction(tx, blockProducer, timeStamp)
@@ -488,12 +488,13 @@ class Blockchain(chainSettings: ChainSettings,
 //  }
 
     private def applyTransaction(tx: Transaction, blockProducer: UInt160,
-                                 stopTime: Long, timeStamp: Long, blockIndex: Long, scheduleTx: Boolean = false): Boolean = {
+                                 stopTime: Long, timeStamp: Long, blockIndex: Long,
+                                 scheduleTx: Boolean = false): Boolean = {
       var txValid = false
       //if tx is a schedule tx and it is time to execute,or tx is a normal transfer or miner tx, start execute tx directly
         tx.txType match {
-          case TransactionType.Miner =>    txValid = applySendTransaction(tx, blockProducer, timeStamp)
-          case TransactionType.Transfer => txValid = applySendTransaction(tx, blockProducer, timeStamp)
+          case TransactionType.Miner =>    txValid = applySendTransaction(tx, blockProducer, timeStamp, blockIndex)
+          case TransactionType.Transfer => txValid = applySendTransaction(tx, blockProducer, timeStamp, blockIndex)
           case TransactionType.Deploy =>   txValid = applyContractTransaction(tx, blockProducer, stopTime, timeStamp, blockIndex)
           case TransactionType.Call =>     txValid = applyContractTransaction(tx, blockProducer, stopTime, timeStamp, blockIndex)
           case TransactionType.Refund =>   txValid = applyRefundTransaction(tx, blockProducer, timeStamp)
@@ -545,7 +546,8 @@ class Blockchain(chainSettings: ChainSettings,
     applied
   }
 
-  private def applySendTransaction(tx: Transaction, blockProducer: UInt160, timeStamp: Long): Boolean = {
+  private def applySendTransaction(tx: Transaction, blockProducer: UInt160,
+                                   timeStamp: Long, blockIndex: Long): Boolean = {
     val scheduleTx = if (tx.executeTime > 0) true else false
 
     if(!scheduleTx || (timeStamp >= tx.executeTime && dataBase.getScheduleTx(tx.id()).isEmpty)){
@@ -561,7 +563,8 @@ class Blockchain(chainSettings: ChainSettings,
           dataBase.transfer(tx.from, blockProducer, txFee)
         }
 
-        dataBase.setReceipt(tx.id(), TransactionReceipt(tx.id(), tx.txType, tx.from, tx.toPubKeyHash, txGas, BinaryData.empty, 0, ""))
+        dataBase.setReceipt(tx.id(), TransactionReceipt(tx.id(), tx.txType, tx.from, tx.toPubKeyHash,
+          blockIndex, txGas, BinaryData.empty, 0, ""))
       }
 
       txValid
