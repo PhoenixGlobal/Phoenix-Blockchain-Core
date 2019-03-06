@@ -218,6 +218,123 @@ class ContractTxTest {
   }
 
   @Test
+  def testScheduleContractTx(): Unit = {
+    val chain = createChain("testScheduleContractTx")
+    try {
+
+      assert(chain.getHeight() == 0)
+
+      assert(chain.getBalance(_acct1).get == FixedNumber.fromDecimal(123.12))
+
+      var nowTime = Instant.now.toEpochMilli - 90000
+      var blockTime = ProducerUtil.nextBlockTime(chain.getHeadTime(), nowTime, _produceInterval / 10, _produceInterval) //  chain.getHeadTime() + _consensusSettings.produceInterval
+      blockTime += _produceInterval
+      val producer = chain.getWitness(blockTime)
+      chain.startProduceBlock(_miners.findPrivKey(producer).get, blockTime, Long.MaxValue)
+
+      assert(chain.isProducingBlock())
+
+      /*
+      *
+      * contract Faucet {
+              uint value;
+              // Give out ether to anyone who asks
+              function set(uint withdraw_amount) public {
+                  value = withdraw_amount;
+              }
+              function get() public  returns (uint)  {
+                  return value;
+              }
+        }
+      *
+      * */
+
+      val codebin = BinaryData("608060405234801561001057600080fd5b5060e68061001f6000396000f3fe6080604052600436106043576000357c01000000000000000000000000000000000000000000000000000000009004806360fe47b11460485780636d4ce63c14607f575b600080fd5b348015605357600080fd5b50607d60048036036020811015606857600080fd5b810190808035906020019092919050505060a7565b005b348015608a57600080fd5b50609160b1565b6040518082815260200191505060405180910390f35b8060008190555050565b6000805490509056fea165627a7a723058202c7cfe05b5e1b84938fa70727102e914fba062d91fde5a0f0a92613ad081732b0029")
+
+      val deployTx = new Transaction(TransactionType.Deploy, _acct1.publicKey.pubKeyHash,
+        UInt160.Zero, FixedNumber.Zero, 0, codebin,
+        FixedNumber(0), 9000000L, BinaryData.empty, executeTime = blockTime + 2750)
+      assert(chain.addTransaction(deployTx))
+      assert(chain.getScheduleTx().size ==1)
+      val block1 = chain.produceBlockFinalize()
+
+      blockTime += _produceInterval
+      val witness1 = chain.getWitness(blockTime)
+      chain.startProduceBlock(_miners.findPrivKey(witness1).get, blockTime, Long.MaxValue)
+      assert(chain.isProducingBlock())
+
+      sleepTo(blockTime)
+      val block2 = chain.produceBlockFinalize()
+      assert(block2.isDefined)
+      assert(block2.get.transactions.size == 1)
+
+      assert(!chain.isProducingBlock())
+      assert(chain.getHeight() == 2)
+      assert(chain.getHeadTime() == blockTime)
+      assert(chain.head.id() == block2.get.id())
+
+      blockTime += _produceInterval
+      val witness2 = chain.getWitness(blockTime)
+      chain.startProduceBlock(_miners.findPrivKey(witness2).get, blockTime, Long.MaxValue)
+      assert(chain.isProducingBlock())
+
+      sleepTo(blockTime)
+
+      println("chain.blockTime()" + blockTime)
+
+      val block3 = chain.produceBlockFinalize()
+      assert(block3.isDefined)
+      assert(chain.getScheduleTx().size == 0)
+
+      blockTime += _produceInterval
+      val witness3 = chain.getWitness(blockTime)
+      chain.startProduceBlock(_miners.findPrivKey(witness3).get, blockTime, Long.MaxValue)
+      assert(chain.isProducingBlock())
+
+      sleepTo(blockTime)
+
+      println("chain.blockTime()" + blockTime)
+
+
+      val settt = Abi.fromJson("[{\"constant\":false,\"inputs\":[{\"name\":\"withdraw_amount\",\"type\":\"uint256\"}],\"name\":\"set\",\"outputs\":[],\"payable\":false,\"stateMutability\":\"nonpayable\",\"type\":\"function\"},{\"constant\":false,\"inputs\":[],\"name\":\"get\",\"outputs\":[{\"name\":\"\",\"type\":\"uint256\"}],\"payable\":false,\"stateMutability\":\"nonpayable\",\"type\":\"function\"}]").encode("set(123)")
+      val setTx = new Transaction(TransactionType.Call, _acct1.publicKey.pubKeyHash,
+      UInt160.fromBytes(BinaryData("7f97e6f4f660e6c09b894f34edae3626bf44039a")), FixedNumber.Zero,
+      1, settt, FixedNumber(0), 9000000L, BinaryData.empty)
+      assert(chain.addTransaction(setTx))
+
+      val gettt = Abi.fromJson("[{\"constant\":false,\"inputs\":[{\"name\":\"withdraw_amount\",\"type\":\"uint256\"}],\"name\":\"set\",\"outputs\":[],\"payable\":false,\"stateMutability\":\"nonpayable\",\"type\":\"function\"},{\"constant\":false,\"inputs\":[],\"name\":\"get\",\"outputs\":[{\"name\":\"\",\"type\":\"uint256\"}],\"payable\":false,\"stateMutability\":\"nonpayable\",\"type\":\"function\"}]").encode("get()")
+
+      var getTx = new Transaction(TransactionType.Call, _acct1.publicKey.pubKeyHash,
+      UInt160.fromBytes(BinaryData("7f97e6f4f660e6c09b894f34edae3626bf44039a")), FixedNumber.Zero,
+      2, gettt, FixedNumber(0), 9000000L, BinaryData.empty)
+      assert(chain.addTransaction(getTx))
+      assert(chain.getTransactionFromPendingTxs(getTx.id).isDefined)
+
+      var receipt = chain.getReceipt(getTx.id()).get
+
+      assert(DataWord.of(receipt.output).longValue == 123)
+
+      assert(chain.getBalance(_acct1).get == FixedNumber.fromDecimal(123.12))
+      assert(chain.getBalance(producer).get == FixedNumber.fromDecimal(12.3))
+
+      getTx = new Transaction(TransactionType.Call, _acct1.publicKey.pubKeyHash,
+      UInt160.fromBytes(BinaryData("7f97e6f4f660e6c09b894f34edae3626bf44039a")), FixedNumber.Zero,
+      3, gettt, FixedNumber(1000000000L), 21539, BinaryData.empty)
+      assert(chain.addTransaction(getTx))   // require gas 21540, but only give 21539
+      val block4 = chain.produceBlockFinalize()
+      receipt = chain.getReceipt(getTx.id()).get
+      assert(receipt.error.contains("Not enough gas"))
+      // Fee = 0.000021539
+      assert(chain.getBalance(_acct1).get == FixedNumber.fromDecimal(123.119978461))
+      assert(chain.getBalance(witness3).get == FixedNumber.fromDecimal(12.300021539))
+
+    }
+    finally {
+      chain.close()
+    }
+  }
+
+  @Test
   def testERC20(): Unit = {
     val chain = createChain("testERC20")
     try {
@@ -396,9 +513,17 @@ class ContractTxTest {
     }
   }
 
+
+  def sleepTo(time: Long) = {
+    val nowTime = Instant.now.toEpochMilli
+    if (time > nowTime)
+      Thread.sleep(time - nowTime)
+  }
+
 }
 
 object ContractTxTest {
+
   @AfterClass
   def cleanUp: Unit = {
     println("clean Directory")
