@@ -134,6 +134,14 @@ object RpcServer extends ApexLogging {
             }
           }
         } ~
+        path("getLatesBlockInfo") {
+          post {
+            entity(as[String]) { _ =>
+              val f = (nodeRef ? GetLatesBlockInfoCmd()).mapTo[String]
+              complete(f)
+            }
+          }
+        } ~
         path("getProducers") {
           post {
             entity(as[String]) { data =>
