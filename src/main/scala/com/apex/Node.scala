@@ -275,9 +275,9 @@ class Node(val settings: ApexSettings, config: Config)
     log.debug(s"received a block #${msg.block.height} (${msg.block.shortId})")
     if (chain.tryInsertBlock(msg.block, true)) {
       peerHandlerManager ! InventoryMessage(new InventoryPayload(InventoryType.Block, Seq(msg.block.id())))
-      log.info(s"success insert block #${msg.block.height} (${msg.block.shortId})")
+      log.info(s"success insert block #${msg.block.height} ${msg.block.shortId} by ${msg.block.header.producer.address.substring(0, 7)} ")
     } else {
-      log.error(s"failed insert block #${msg.block.height}, (${msg.block.shortId}) to db")
+      log.error(s"failed insert block #${msg.block.height}, ${msg.block.shortId} by ${msg.block.header.producer.address.substring(0, 7)} to db")
       if (!chain.containsBlock(msg.block.id)) {
         // out of sync, or there are fork chains, try to get more blocks
         if (msg.block.height - chain.getHeight < 10) // do not send too many request during init sync
