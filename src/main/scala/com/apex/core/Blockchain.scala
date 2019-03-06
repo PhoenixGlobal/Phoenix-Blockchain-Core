@@ -10,7 +10,7 @@ import com.apex.consensus.{ProducerUtil, WitnessInfo}
 import com.apex.crypto.Ecdsa.{PrivateKey, PublicKey, PublicKeyHash}
 import com.apex.crypto.{BinaryData, Crypto, FixedNumber, MerkleTree, UInt160, UInt256}
 import com.apex.settings.{ChainSettings, ConsensusSettings, RuntimeParas, Witness}
-import com.apex.vm.PrecompiledContracts
+import com.apex.vm.{GasCost, PrecompiledContracts}
 
 import scala.collection.{immutable, mutable}
 import scala.collection.mutable.{ArrayBuffer, Set}
@@ -520,7 +520,14 @@ class Blockchain(chainSettings: ChainSettings,
     executor.execute()
     executor.go()
 
-    if(executor.scheduleTxFirstExecuted) return executor.isReadyToExecuted
+    if(executor.scheduleTxFirstExecuted){
+      val txGas = GasCost.SCHEDULE_TRAN
+      val scheduleCost = FixedNumber(BigInt(GasCost.SCHEDULE_TRAN)) * (tx.executeTime - timeStamp) * tx.gasPrice
+      dataBase.transfer(tx.from, blockProducer, scheduleCost)
+      dataBase.setReceipt(tx.id(), TransactionReceipt(tx.id(), tx.txType, tx.from, blockProducer,
+        blockIndex, txGas, BinaryData.empty, 0, ""))
+      return executor.isReadyToExecuted
+    }
 
     val summary = executor.finalization()
     val receipt = executor.getReceipt
@@ -550,7 +557,7 @@ class Blockchain(chainSettings: ChainSettings,
     val scheduleTx = if (tx.executeTime > 0) true else false
 
     if(!scheduleTx || (timeStamp >= tx.executeTime && dataBase.getScheduleTx(tx.id()).isEmpty)){
-      val checkTransactionValidResult = TransactionProccessor.checkTransactionValid(tx, dataBase)
+      val checkTransactionValidResult = TransactionProccessor.checkTransactionValid(tx, dataBase,timeStamp)
       val txValid: Boolean = checkTransactionValidResult._1
       val txFee: FixedNumber = checkTransactionValidResult._2
       val txGas: Long = checkTransactionValidResult._3
@@ -560,13 +567,14 @@ class Blockchain(chainSettings: ChainSettings,
         if (txFee.value > 0) {
           dataBase.transfer(tx.from, blockProducer, txFee)
         }
-        dataBase.setReceipt(tx.id(), TransactionReceipt(tx.id(), tx.txType, tx.from, tx.toPubKeyHash,
+        dataBase.setReceipt(tx.id(), TransactionReceipt(tx.id(), tx.txType, tx.from, blockProducer,
           blockIndex, txGas, BinaryData.empty, 0, ""))
       }
       txValid
     }
     else {
       if (timeStamp >= tx.executeTime) {
+        tx.dataForSigning()
         val txFee = FixedNumber(BigInt(tx.transactionCost())) * tx.gasPrice
         if (dataBase.getAccount(tx.from).getOrElse(Account.newAccount(tx.from)).balance > (txFee + tx.amount)) {
           dataBase.transfer(tx.from, tx.toPubKeyHash, tx.amount)
@@ -575,12 +583,22 @@ class Blockchain(chainSettings: ChainSettings,
           }
         }
         dataBase.deleteScheduleTx(tx.id())
+        dataBase.setReceipt(tx.id(), TransactionReceipt(tx.id(), tx.txType, tx.from, tx.toPubKeyHash,
+          blockIndex, tx.transactionCost() , BinaryData.empty, 0, ""))
         true
       }
       else {
-        TransactionProccessor.checkTransactionValid(tx, dataBase)._1
-        dataBase.setScheduleTx(tx.id, tx)
-        dataBase.increaseNonce(tx.from)
+        val scheduleFee = FixedNumber(BigInt(GasCost.SCHEDULE_TRAN)) * tx.gasPrice * (tx.executeTime - timeStamp)
+          dataBase.transfer(tx.from, tx.toPubKeyHash, tx.amount)
+        val valid = TransactionProccessor.checkTransactionValid(tx, dataBase ,timeStamp, scheduleFee)._1
+        if(valid){
+          dataBase.transfer(tx.from, blockProducer, scheduleFee)
+          dataBase.setScheduleTx(tx.id, tx)
+          dataBase.increaseNonce(tx.from)
+          dataBase.setReceipt(tx.id(), TransactionReceipt(tx.id(), tx.txType, tx.from, tx.toPubKeyHash,
+            blockIndex, tx.transactionCost() , BinaryData.empty, 0, ""))
+        }
+        valid
       }
     }
   }
@@ -881,7 +899,7 @@ class Blockchain(chainSettings: ChainSettings,
 }
 
 object TransactionProccessor extends ApexLogging{
-  def checkTransactionValid(tx: Transaction, dataBase: DataBase) = {
+  def checkTransactionValid(tx: Transaction, dataBase: DataBase,timeStamp: Long, scheduleFee: FixedNumber = FixedNumber.Zero) = {
 
     var txValid = true
 
@@ -901,7 +919,11 @@ object TransactionProccessor extends ApexLogging{
         log.info(s"Not enough gas for transaction tx ${tx.id().shortString()}")
         txValid = false
       }
-      if ((tx.amount + txFee) > fromAccount.balance) {
+      if(tx.executeTime < timeStamp && tx.executeTime > 0 &&  scheduleFee > fromAccount.balance ){
+        log.info(s"Not enough basic gas for schedule transaction tx ${tx.id().shortString()}")
+        txValid = false
+      }
+      if ((tx.amount + txFee) > fromAccount.balance && timeStamp >= tx.executeTime) {
         log.info(s"Not enough balance for transaction tx ${tx.id().shortString()}")
         txValid = false
       }

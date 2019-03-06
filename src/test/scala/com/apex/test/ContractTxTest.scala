@@ -314,6 +314,8 @@ class ContractTxTest {
 
       assert(DataWord.of(receipt.output).longValue == 123)
 
+      val balance = chain.getBalance(_acct1).get
+
       assert(chain.getBalance(_acct1).get == FixedNumber.fromDecimal(123.12))
       assert(chain.getBalance(producer).get == FixedNumber.fromDecimal(12.3))
 

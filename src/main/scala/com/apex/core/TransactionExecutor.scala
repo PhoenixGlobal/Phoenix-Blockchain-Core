@@ -86,7 +86,8 @@ class TransactionExecutor(val tx: Transaction,
         return
       }
       val txGasCost = tx.gasPrice * txGasLimit
-      val totalCost = tx.amount + txGasCost
+      val scheduleCost = if(scheduleTx) FixedNumber(BigInt(GasCost.SCHEDULE_TRAN)) * (tx.executeTime - timeStamp)  * tx.gasPrice else FixedNumber.Zero
+      val totalCost = tx.amount + txGasCost + scheduleCost
       val senderBalance = track.getBalance(tx.sender()).getOrElse(FixedNumber.Zero)
       if (senderBalance.value < totalCost.value) {
         execError(s"Not enough cash: Require: ${totalCost}, Sender cash ${senderBalance}")

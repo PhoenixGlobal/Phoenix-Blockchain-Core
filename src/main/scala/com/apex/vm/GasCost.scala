@@ -92,4 +92,5 @@ object GasCost {
   final val EXT_CODE_COPY = 700
   final val EXT_CODE_HASH = 400
   final val NEW_ACCT_SUICIDE = 25000
+  final val SCHEDULE_TRAN = 21000
 }
