@@ -1,5 +1,7 @@
 package com.apex.core
 
+import java.io.{ByteArrayInputStream, DataInputStream}
+
 import com.apex.consensus.RegisterData
 import com.apex.crypto.{BinaryData, FixedNumber, UInt160, UInt256}
 import com.apex.settings.ContractSettings
@@ -67,7 +69,7 @@ class TransactionExecutor(val tx: Transaction,
     * set readyToExecute = true
     */
   def init(): Unit = {
-    if(!scheduleTx || scheduleTxDelayTimeEqualZero() || scheduleTxFirstExecuted()) {
+    if(!scheduleTx || scheduleTxFirstExecuted()) {
       basicTxCost = tx.transactionCost()
       if (localCall) {
         readyToExecute = true
@@ -94,15 +96,19 @@ class TransactionExecutor(val tx: Transaction,
         return
       }
       readyToExecute = true
-      if(readyToExecute && scheduleTxFirstExecuted) track.setScheduleTx(tx.id, tx)
+      if(readyToExecute && scheduleTxFirstExecuted) {
+        val scheduleTx = new Transaction(tx.txType, tx.from, tx.toPubKeyHash, tx.amount, tx.nonce, tx.dataForSigning(),
+          tx.gasPrice, tx.gasLimit, tx.signature, tx.version, tx.executeTime)
+        track.setScheduleTx(scheduleTx.id, scheduleTx)
+      }
       if(!localCall) track.increaseNonce(tx.sender())
     }
     else readyToExecute = true
   }
 
-  private def scheduleTxDelayTimeEqualZero(): Boolean ={
-    timeStamp >= tx.executeTime && track.getScheduleTx(tx.id()).isEmpty
-  }
+//  private def scheduleTxDelayTimeEqualZero(): Boolean ={
+//    timeStamp >= tx.executeTime && track.getScheduleTx(tx.id()).isEmpty
+//  }
 
   def scheduleTxFirstExecuted(): Boolean = {
     scheduleTx && timeStamp < tx.executeTime
@@ -130,10 +136,14 @@ class TransactionExecutor(val tx: Transaction,
 
   private def call(): Unit = {
     if (!readyToExecute || scheduleTxFirstExecuted() ) return
+    var txData = tx.data
+    if(scheduleTxSecondExecuted()){
+      txData = extractData(tx.data).data
+    }
     val targetAddress = tx.toPubKeyHash
     precompiledContract = PrecompiledContracts.getContractForAddress(DataWord.of(targetAddress.data), vmSettings, cacheTrack, tx, timeStamp)
     if (precompiledContract != null) {
-      val requiredGas = precompiledContract.getGasForData(tx.data)
+      val requiredGas = precompiledContract.getGasForData(txData)
       val spendingGas = BigInt(requiredGas) + basicTxCost
       if (!localCall && m_endGas < spendingGas) { // no refund
         // no endowment
@@ -145,7 +155,7 @@ class TransactionExecutor(val tx: Transaction,
       else {
         m_endGas = m_endGas - spendingGas
         // FIXME: save return for vm trace
-        val out = precompiledContract.execute(tx.data)
+        val out = precompiledContract.execute(txData)
         if (!out._1) {
           val reason = new String(out._2)
           execError(s"Error executing precompiled contract ${targetAddress.address}, causes: ${reason.toString}")
@@ -162,7 +172,7 @@ class TransactionExecutor(val tx: Transaction,
         result.spendGas(basicTxCost)
       }
       else {
-        val programInvoke = createInvoker(tx.data)
+        val programInvoke = createInvoker(txData)
         //val programInvoke = programInvokeFactory.createProgramInvoke(tx, currentBlock, cacheTrack, track, blockStore)
         this.vm = new VM(vmSettings, VMHook.EMPTY)
         this.program = new Program(vmSettings, code, programInvoke, stopTime) //.withCommonConfig(commonConfig)
@@ -197,6 +207,10 @@ class TransactionExecutor(val tx: Transaction,
 
   private def create(): Unit = {
     if(scheduleTxFirstExecuted()) return
+    var txData = tx.data
+    if(scheduleTxSecondExecuted()){
+      txData = extractData(tx.data).data
+    }
     val newContractAddress = tx.getContractAddress
 
     //In case of hashing collisions (for TCK tests only), check for any balance before createAccount()
@@ -205,14 +219,14 @@ class TransactionExecutor(val tx: Transaction,
     if (oldBalance.isDefined)
       cacheTrack.addBalance(newContractAddress.get, oldBalance.get)
     cacheTrack.increaseNonce(newContractAddress.get)
-    if (tx.data.data.length == 0) {
+    if (txData.data.length == 0) {
       m_endGas = m_endGas - basicTxCost
       result.spendGas(basicTxCost)
     }
     else {
       val programInvoke = createInvoker(Array.empty)
       this.vm = new VM(vmSettings, VMHook.EMPTY)
-      this.program = new Program(vmSettings, tx.data, programInvoke, stopTime) //.withCommonConfig(commonConfig)
+      this.program = new Program(vmSettings, txData, programInvoke, stopTime) //.withCommonConfig(commonConfig)
 
     }
     val endowment = tx.amount
@@ -353,6 +367,23 @@ class TransactionExecutor(val tx: Transaction,
   def getResult: ProgramResult = result
 
   def getGasUsed: BigInt = tx.gasLimit - m_endGas
+
+  private def extractData(data: Array[Byte]): Transaction = {
+    import com.apex.common.Serializable._
+    val bs = new ByteArrayInputStream(data)
+    val is = new DataInputStream(bs)
+    val version = is.readInt
+    val txType = TransactionType(is.readByte)
+    val from = UInt160.deserialize(is)
+    val toPubKeyHash = UInt160.deserialize(is)
+    val amount = FixedNumber.deserialize(is)
+    val nonce = is.readLong
+    val metaData = is.readByteArray()
+    val gasPrice = FixedNumber.deserialize(is)
+    val gasLimit = BigInt(is.readByteArray())
+    val executeTime = is.readLong()
+    new Transaction(txType, from, toPubKeyHash, amount, nonce, metaData, gasPrice, gasLimit, null, version, executeTime)
+  }
 }
 
 

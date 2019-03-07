@@ -1,5 +1,6 @@
 package com.apex.core
 
+import java.io.{ByteArrayInputStream, DataInputStream}
 import java.time.Instant
 
 import akka.actor.ActorRef
@@ -501,7 +502,7 @@ class Blockchain(chainSettings: ChainSettings,
   }
 
   private def applyRefundTransaction(tx: Transaction, blockProducer: UInt160, timeStamp: Long): Boolean = {
-    if (timeStamp >= tx.executeTime) {
+    if (timeStamp >= tx.executeTime && dataBase.getScheduleTx(tx.id()).isDefined) {
       dataBase.transfer(tx.from, tx.toPubKeyHash, tx.amount)
       dataBase.deleteScheduleTx(tx.id())
       return true
@@ -556,7 +557,7 @@ class Blockchain(chainSettings: ChainSettings,
                                    timeStamp: Long, blockIndex: Long): Boolean = {
     val scheduleTx = if (tx.executeTime > 0) true else false
 
-    if(!scheduleTx || (timeStamp >= tx.executeTime && dataBase.getScheduleTx(tx.id()).isEmpty)){
+    if(!scheduleTx){
       val checkTransactionValidResult = TransactionProccessor.checkTransactionValid(tx, dataBase,timeStamp)
       val txValid: Boolean = checkTransactionValidResult._1
       val txFee: FixedNumber = checkTransactionValidResult._2
@@ -574,8 +575,8 @@ class Blockchain(chainSettings: ChainSettings,
     }
     else {
       if (timeStamp >= tx.executeTime) {
-        tx.dataForSigning()
-        val txFee = FixedNumber(BigInt(tx.transactionCost())) * tx.gasPrice
+        val orginalTx = extractData(tx.data)
+        val txFee = FixedNumber(BigInt(orginalTx.transactionCost())) * tx.gasPrice
         if (dataBase.getAccount(tx.from).getOrElse(Account.newAccount(tx.from)).balance > (txFee + tx.amount)) {
           dataBase.transfer(tx.from, tx.toPubKeyHash, tx.amount)
           if (txFee.value > 0) {
@@ -589,11 +590,12 @@ class Blockchain(chainSettings: ChainSettings,
       }
       else {
         val scheduleFee = FixedNumber(BigInt(GasCost.SCHEDULE_TRAN)) * tx.gasPrice * (tx.executeTime - timeStamp)
-          dataBase.transfer(tx.from, tx.toPubKeyHash, tx.amount)
         val valid = TransactionProccessor.checkTransactionValid(tx, dataBase ,timeStamp, scheduleFee)._1
         if(valid){
           dataBase.transfer(tx.from, blockProducer, scheduleFee)
-          dataBase.setScheduleTx(tx.id, tx)
+          val scheduleTx = new Transaction(tx.txType, tx.from, tx.toPubKeyHash, tx.amount, tx.nonce, tx.dataForSigning(),
+            tx.gasPrice, tx.gasLimit, tx.signature, tx.version, tx.executeTime)
+          dataBase.setScheduleTx(scheduleTx.id, scheduleTx)
           dataBase.increaseNonce(tx.from)
           dataBase.setReceipt(tx.id(), TransactionReceipt(tx.id(), tx.txType, tx.from, tx.toPubKeyHash,
             blockIndex, tx.transactionCost() , BinaryData.empty, 0, ""))
@@ -601,6 +603,23 @@ class Blockchain(chainSettings: ChainSettings,
         valid
       }
     }
+  }
+
+  private def extractData(data: Array[Byte]): Transaction = {
+    import com.apex.common.Serializable._
+    val bs = new ByteArrayInputStream(data)
+    val is = new DataInputStream(bs)
+    val version = is.readInt
+    val txType = TransactionType(is.readByte)
+    val from = UInt160.deserialize(is)
+    val toPubKeyHash = UInt160.deserialize(is)
+    val amount = FixedNumber.deserialize(is)
+    val nonce = is.readLong
+    val metaData = is.readByteArray()
+    val gasPrice = FixedNumber.deserialize(is)
+    val gasLimit = BigInt(is.readByteArray())
+    val executeTime = is.readLong()
+    new Transaction(txType, from, toPubKeyHash, amount, nonce, metaData, gasPrice, gasLimit, null, version, executeTime)
   }
 
   private def verifyBlock(block: Block): Boolean = {
@@ -631,8 +650,13 @@ class Blockchain(chainSettings: ChainSettings,
         if (tx.amount.value != minerAward.value)
           isValid = false
       }
-      else if (!tx.verifySignature())
-        isValid = false
+      else {
+        if(tx.executeTime >0) {
+          if(dataBase.getScheduleTx(tx.id()).isEmpty) isValid = false
+        }
+        else if (!tx.verifySignature())
+          isValid = false
+      }
     })
     if (minerTxNum > 1)
       isValid = false

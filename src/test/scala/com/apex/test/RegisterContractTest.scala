@@ -157,12 +157,14 @@ class RegisterContractTest extends BlockChainPrepare{
       assert(chain.isProducingBlock())
 
       sleepTo(blockTime)
-      chain.addTransaction(makeTx(_acct2, _acct4, FixedNumber.fromDecimal(2), 3, executedTime = blockTime))
+      chain.addTransaction(makeTx(_acct2, _acct4, FixedNumber.fromDecimal(2), 3, executedTime = blockTime + 250))
 
       val block2 = chain.produceBlockFinalize()
       assert(block2.isDefined)
       assert(block2.get.transactions.size == 2)
-      assert(chain.getBalance(_acct2.publicKey.pubKeyHash).get == FixedNumber.fromDecimal(228.2))
+      val size = chain.getScheduleTx().size
+      assert(chain.getScheduleTx().size == 3)
+      assert(chain.getBalance(_acct2.publicKey.pubKeyHash).get == FixedNumber.fromDecimal(230.2))
 
       assert(!chain.isProducingBlock())
       assert(chain.getHeight() == 2)
@@ -179,7 +181,7 @@ class RegisterContractTest extends BlockChainPrepare{
 
       val block3 = chain.produceBlockFinalize()
       assert(block3.isDefined)
-      assert(block3.get.transactions.size == 3)
+      assert(block3.get.transactions.size == 4)
       assert(chain.getScheduleTx().size == 0)
 
       assert(!chain.isProducingBlock())
