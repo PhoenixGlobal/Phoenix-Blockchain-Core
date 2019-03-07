@@ -270,7 +270,7 @@ class Blockchain(chainSettings: ChainSettings,
 //    oldTx.nonce,oldTx.data,oldTx.gasPrice,oldTx.gasLimit,oldTx.signature,oldTx.version,
 //      oldTx.executeTime + pendingState.blockTime) else oldTx
 
-    if (tx.txType == TransactionType.Miner || tx.txType == TransactionType.Refund) {
+    if (tx.txType == TransactionType.Miner || tx.txType == TransactionType.Refund || tx.txType == TransactionType.Schedule) {
       false
     }
     else {
@@ -515,21 +515,23 @@ class Blockchain(chainSettings: ChainSettings,
                                        stopTime: Long, timeStamp: Long, blockIndex: Long,
                                        scheduleTx: Boolean = false): Boolean ={
     var txValid = false
-    val orginalTx = extractData(tx.data)
-    orginalTx.txType match {
-      case TransactionType.Transfer => txValid = applySendTransaction(tx, blockProducer, timeStamp, blockIndex,orginalTx)
-      case TransactionType.Deploy =>   txValid = applyContractTransaction(tx, blockProducer, stopTime, timeStamp, blockIndex)
-      case TransactionType.Call =>     txValid = applyContractTransaction(tx, blockProducer, stopTime, timeStamp, blockIndex)
+    val orginalTx = Transaction.fromBytes(tx.data)
+    if(dataBase.getScheduleTx(tx.id()).isDefined && timeStamp >= tx.executeTime){
+      orginalTx.txType match {
+        case TransactionType.Transfer => txValid = applySendTransaction(tx, blockProducer, timeStamp, blockIndex,orginalTx)
+        case TransactionType.Deploy =>   txValid = applyContractTransaction(tx, blockProducer, stopTime, timeStamp, blockIndex, orginalTx)
+        case TransactionType.Call =>     txValid = applyContractTransaction(tx, blockProducer, stopTime, timeStamp, blockIndex, orginalTx)
+      }
     }
     txValid
   }
 
   private def applyContractTransaction(tx: Transaction, blockProducer: UInt160,
-                                       stopTime: Long, timeStamp: Long, blockIndex: Long): Boolean = {
+                                       stopTime: Long, timeStamp: Long, blockIndex: Long, originalTx: Transaction = null): Boolean = {
     var applied = false
 
     val executor = new TransactionExecutor(tx, blockProducer, dataBase, stopTime,
-      timeStamp, blockIndex, this)
+      timeStamp, blockIndex, this, originalTx)
 
     executor.init()
     executor.execute()
@@ -537,8 +539,12 @@ class Blockchain(chainSettings: ChainSettings,
 
     if(executor.scheduleTxFirstExecuted){
       val txGas = GasCost.SCHEDULE_TRAN
+
       val scheduleCost = FixedNumber(BigInt(GasCost.SCHEDULE_TRAN)) * (tx.executeTime - timeStamp) * tx.gasPrice
+//      val scheduleCost = FixedNumber(BigInt(GasCost.SSTORE)) * scheduleTx.toBytes.size  * tx.gasPrice *
+//        (tx.executeTime - timeStamp) + FixedNumber(BigInt(GasCost.TRANSACTION)) * tx.gasPrice
       dataBase.transfer(tx.from, blockProducer, scheduleCost)
+
       dataBase.setReceipt(tx.id(), TransactionReceipt(tx.id(), tx.txType, tx.from, blockProducer,
         blockIndex, txGas, BinaryData.empty, 0, ""))
       return executor.isReadyToExecuted
@@ -569,46 +575,44 @@ class Blockchain(chainSettings: ChainSettings,
 
   private def applySendTransaction(tx: Transaction, blockProducer: UInt160,
                                    timeStamp: Long, blockIndex: Long, orginalTx: Transaction = null): Boolean = {
-    val scheduleTx = if (tx.executeTime > 0) true else false
-
-    if(!scheduleTx || timeStamp >= tx.executeTime && dataBase.getScheduleTx(tx.id()).isEmpty){
-      val checkTransactionValidResult = TransactionProccessor.checkTransactionValid(tx, dataBase,timeStamp)
-      val txValid: Boolean = checkTransactionValidResult._1
-      val txFee: FixedNumber = checkTransactionValidResult._2
-      val txGas: Long = checkTransactionValidResult._3
-      if (txValid) {
+    if(orginalTx != null){
+      val txFee = FixedNumber(BigInt(orginalTx.transactionCost())) * tx.gasPrice
+      if (!((txFee + tx.amount) > dataBase.getAccount(tx.from).getOrElse(Account.newAccount(tx.from)).balance)) {
         dataBase.transfer(tx.from, tx.toPubKeyHash, tx.amount)
-        dataBase.increaseNonce(tx.from)
         if (txFee.value > 0) {
           dataBase.transfer(tx.from, blockProducer, txFee)
         }
-        dataBase.setReceipt(tx.id(), TransactionReceipt(tx.id(), tx.txType, tx.from, blockProducer,
-          blockIndex, txGas, BinaryData.empty, 0, ""))
       }
-      txValid
+      dataBase.deleteScheduleTx(tx.id())
+      dataBase.setReceipt(tx.id(), TransactionReceipt(tx.id(), tx.txType, tx.from, tx.toPubKeyHash,
+        blockIndex, tx.transactionCost() , BinaryData.empty, 0, ""))
+      true
     }
     else {
       if (timeStamp >= tx.executeTime) {
-        //val orginalTx = extractData(tx.data)
-        val txFee = FixedNumber(BigInt(orginalTx.transactionCost())) * tx.gasPrice
-        if (dataBase.getAccount(tx.from).getOrElse(Account.newAccount(tx.from)).balance > (txFee + tx.amount)) {
+        val checkTransactionValidResult = TransactionProccessor.checkTransactionValid(tx, dataBase,timeStamp)
+        val txValid: Boolean = checkTransactionValidResult._1
+        val txFee: FixedNumber = checkTransactionValidResult._2
+        val txGas: Long = checkTransactionValidResult._3
+        if (txValid) {
           dataBase.transfer(tx.from, tx.toPubKeyHash, tx.amount)
+          dataBase.increaseNonce(tx.from)
           if (txFee.value > 0) {
             dataBase.transfer(tx.from, blockProducer, txFee)
           }
+          dataBase.setReceipt(tx.id(), TransactionReceipt(tx.id(), tx.txType, tx.from, blockProducer,
+            blockIndex, txGas, BinaryData.empty, 0, ""))
         }
-        dataBase.deleteScheduleTx(tx.id())
-        dataBase.setReceipt(tx.id(), TransactionReceipt(tx.id(), tx.txType, tx.from, tx.toPubKeyHash,
-          blockIndex, tx.transactionCost() , BinaryData.empty, 0, ""))
-        true
+        txValid
       }
       else {
-        val scheduleFee = FixedNumber(BigInt(GasCost.SCHEDULE_TRAN)) * tx.gasPrice * (tx.executeTime - timeStamp)
+        val scheduleTx = new Transaction(TransactionType.Schedule,  tx.from, tx.toPubKeyHash, tx.amount, tx.nonce, tx.toBytes,
+          tx.gasPrice, tx.gasLimit, tx.signature, tx.version, tx.executeTime)
+        val scheduleFee = FixedNumber(BigInt(GasCost.SSTORE)) * scheduleTx.toBytes.size  * tx.gasPrice *
+          (tx.executeTime - timeStamp) + FixedNumber(BigInt(GasCost.TRANSACTION)) * tx.gasPrice
         val valid = TransactionProccessor.checkTransactionValid(tx, dataBase ,timeStamp, scheduleFee)._1
         if(valid){
           dataBase.transfer(tx.from, blockProducer, scheduleFee)
-          val scheduleTx = new Transaction(TransactionType.Schedule,  tx.from, tx.toPubKeyHash, tx.amount, tx.nonce, tx.dataForSigning(),
-            tx.gasPrice, tx.gasLimit, tx.signature, tx.version, tx.executeTime)
           dataBase.setScheduleTx(scheduleTx.id, scheduleTx)
           dataBase.increaseNonce(tx.from)
           dataBase.setReceipt(tx.id(), TransactionReceipt(tx.id(), tx.txType, tx.from, tx.toPubKeyHash,
@@ -617,23 +621,6 @@ class Blockchain(chainSettings: ChainSettings,
         valid
       }
     }
-  }
-
-  private def extractData(data: Array[Byte]): Transaction = {
-    import com.apex.common.Serializable._
-    val bs = new ByteArrayInputStream(data)
-    val is = new DataInputStream(bs)
-    val version = is.readInt
-    val txType = TransactionType(is.readByte)
-    val from = UInt160.deserialize(is)
-    val toPubKeyHash = UInt160.deserialize(is)
-    val amount = FixedNumber.deserialize(is)
-    val nonce = is.readLong
-    val metaData = is.readByteArray()
-    val gasPrice = FixedNumber.deserialize(is)
-    val gasLimit = BigInt(is.readByteArray())
-    val executeTime = is.readLong()
-    new Transaction(txType, from, toPubKeyHash, amount, nonce, metaData, gasPrice, gasLimit, null, version, executeTime)
   }
 
   private def verifyBlock(block: Block): Boolean = {
