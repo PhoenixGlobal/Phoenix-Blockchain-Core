@@ -517,7 +517,7 @@ class Blockchain(chainSettings: ChainSettings,
     var txValid = false
     val orginalTx = extractData(tx.data)
     orginalTx.txType match {
-      case TransactionType.Transfer => txValid = applySendTransaction(tx, blockProducer, timeStamp, blockIndex)
+      case TransactionType.Transfer => txValid = applySendTransaction(tx, blockProducer, timeStamp, blockIndex,orginalTx)
       case TransactionType.Deploy =>   txValid = applyContractTransaction(tx, blockProducer, stopTime, timeStamp, blockIndex)
       case TransactionType.Call =>     txValid = applyContractTransaction(tx, blockProducer, stopTime, timeStamp, blockIndex)
     }
@@ -568,7 +568,7 @@ class Blockchain(chainSettings: ChainSettings,
   }
 
   private def applySendTransaction(tx: Transaction, blockProducer: UInt160,
-                                   timeStamp: Long, blockIndex: Long): Boolean = {
+                                   timeStamp: Long, blockIndex: Long, orginalTx: Transaction = null): Boolean = {
     val scheduleTx = if (tx.executeTime > 0) true else false
 
     if(!scheduleTx || timeStamp >= tx.executeTime && dataBase.getScheduleTx(tx.id()).isEmpty){
@@ -589,7 +589,7 @@ class Blockchain(chainSettings: ChainSettings,
     }
     else {
       if (timeStamp >= tx.executeTime) {
-        val orginalTx = extractData(tx.data)
+        //val orginalTx = extractData(tx.data)
         val txFee = FixedNumber(BigInt(orginalTx.transactionCost())) * tx.gasPrice
         if (dataBase.getAccount(tx.from).getOrElse(Account.newAccount(tx.from)).balance > (txFee + tx.amount)) {
           dataBase.transfer(tx.from, tx.toPubKeyHash, tx.amount)
