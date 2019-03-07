@@ -732,6 +732,10 @@ class Blockchain(chainSettings: ChainSettings,
     dataBase.getAccount(address)
   }
 
+  def getAccount(privKey: PrivateKey): Option[Account] = {
+    dataBase.getAccount(privKey.publicKey.pubKeyHash)
+  }
+
   def getWitness(address: UInt160): Option[WitnessInfo] = {
     dataBase.getWitness(address)
   }

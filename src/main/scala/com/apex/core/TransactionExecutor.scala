@@ -31,16 +31,9 @@ class TransactionExecutor(val tx: Transaction,
                           val blockIndex: Long,
                           val chain: Blockchain,
                           val originalTx: Transaction = null) {
-  //this.m_endGas = toBI(tx.getGasLimit)
-  //this.vmHook = if (isNull(vmHook)) VMHook.EMPTY else vmHook
-  //withCommonConfig(CommonConfig.getDefault)
 
   private val vmSettings = ContractSettings(0, false, Int.MaxValue)
   private val scheduleTx = if (tx.executeTime > 0) true else false
-  //private[core] var config = null
-
-  //private[core] var commonConfig: CommonConfig = null
-  //private[core] var blockchainConfig: BlockchainConfig = null
 
   private var cacheTrack = track.startTracking
   private var readyToExecute = false
@@ -52,10 +45,7 @@ class TransactionExecutor(val tx: Transaction,
   private[core] var precompiledContract: PrecompiledContract = null
   private[core] var m_endGas: BigInt = tx.gasLimit
   private[core] var basicTxCost: Long = 0
-  //private[core] var logs = null
-  //private val touchedAccounts = new ByteArraySet
   private[core] var localCall = false
-  //final private var vmHook = null
 
   private def execError(err: String): Unit = {
     TransactionExecutor.logger.warn(err)
@@ -231,9 +221,7 @@ class TransactionExecutor(val tx: Transaction,
 
     }
     val endowment = tx.amount
-    //transfer(cacheTrack, tx.sender(), newContractAddress, endowment)
     cacheTrack.transfer(tx.sender(), newContractAddress.get, endowment)
-    //touchedAccounts.add(newContractAddress)
   }
 
   def go(): Unit = {
@@ -249,25 +237,14 @@ class TransactionExecutor(val tx: Transaction,
         if (tx.isContractCreation && !result.isRevert) {
           val returnDataGasValue = getLength(program.getResult.getHReturn) * GasCost.CREATE_DATA
           if (m_endGas < BigInt(returnDataGasValue)) { // Not enough gas to return contract code
-            //     if (!blockchainConfig.getConstants.createEmptyContractOnOOG) {
-            //       program.setRuntimeFailure(Program.Exception.notEnoughSpendingGas("No gas to return just created contract", returnDataGasValue, program))
-            //       result = program.getResult
-            //     }
+
             result.setHReturn(EMPTY_BYTE_ARRAY)
           }
-          //            else if (getLength(result.getHReturn) > blockchainConfig.getConstants.getMAX_CONTRACT_SZIE) { // Contract size too large
-          //              program.setRuntimeFailure(Program.Exception.notEnoughSpendingGas("Contract size too large: " + getLength(result.getHReturn), returnDataGasValue, program))
-          //              result = program.getResult
-          //              result.setHReturn(EMPTY_BYTE_ARRAY)
-          //            }
           else { // Contract successfully created
             m_endGas = m_endGas - returnDataGasValue
             cacheTrack.saveCode(tx.getContractAddress.get, result.getHReturn)
           }
         }
-        //    val err = config.getBlockchainConfig.getConfigForBlock(currentBlock.getNumber).validateTransactionChanges(blockStore, currentBlock, tx, null)
-        //    if (err != null)
-        //       program.setRuntimeFailure(new RuntimeException("Transaction changes validation failed: " + err))
         if (result.getException != null || result.isRevert) {
           //result.getDeleteAccounts.clear()
           result.getLogInfoList.clear()
@@ -351,14 +328,6 @@ class TransactionExecutor(val tx: Transaction,
         getResult.getHReturn,
         0,
         execError)
-      //      val totalGasUsed = gasUsedInTheBlock + getGasUsed
-      //      receipt.setCumulativeGas(totalGasUsed)
-      //      receipt.setTransaction(tx)
-      //      receipt.setLogInfoList(getVMLogs)
-      //      receipt.setGasUsed(getGasUsed)
-      //      receipt.setExecutionResult(getResult.getHReturn)
-      //receipt.error = execError     //setError(execError)
-      //      //   receipt.setPostTxState(track.getRoot()); // TODO later when RepositoryTrack.getRoot() is implemented
     }
     receipt
   }
