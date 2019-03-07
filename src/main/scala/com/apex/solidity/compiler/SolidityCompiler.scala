@@ -149,11 +149,10 @@ object SolidityCompiler {
         case ioe: IOException => ioe.printStackTrace()
       }
       finally {
-        stream = null    //  synchronized (this)
-        notifyAll()
-
-        if (reader != null)
-          reader.close()
+        this.synchronized { // synchronized (this)
+          stream = null
+          notifyAll()
+        }
       }
     }
   }
