@@ -42,6 +42,8 @@ object GetBlockCountResult {
   }
 }
 
+case class GetLatesBlockInfoCmd() extends RPCCommand
+
 case class GetAccountCmd(address: UInt160) extends RPCCommand
 
 object GetAccountCmd {
@@ -128,11 +130,11 @@ case class GetBlockByIdCmd(id: UInt256) extends RPCCommand
 object GetBlockByIdCmd {
   implicit val testWrites = new Writes[GetBlockByIdCmd] {
     override def writes(o: GetBlockByIdCmd): JsValue = Json.obj(
-      "id" -> o.id.toString
+      "hash" -> o.id.toString
     )
   }
   implicit val testReads: Reads[GetBlockByIdCmd] = (
-    (__ \ "id").read[String](Validators.uint256Validator).map(c => UInt256.parse(c).get)
+    (__ \ "hash").read[String](Validators.uint256Validator).map(c => UInt256.parse(c).get)
     ) map (GetBlockByIdCmd.apply _)
 }
 

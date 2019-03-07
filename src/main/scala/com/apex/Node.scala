@@ -142,6 +142,10 @@ class Node(val settings: ApexSettings, config: Config)
         case GetBlockCountCmd() => {
           sender() ! resultString(new ExecResult(result = chain.getHeight().toString()))
         }
+        case GetLatesBlockInfoCmd() => {
+          val res = Json.toJson(chain.getLatestHeader()).toString()
+          sender() ! resultString(new ExecResult(result = res))
+        }
         case GetBlocksCmd() => {
           val blockNum = chain.getHeight()
           val blocks = ArrayBuffer.empty[Block]
@@ -190,6 +194,7 @@ class Node(val settings: ApexSettings, config: Config)
       }
     }catch {
       case e: Exception => {
+        println(e.getMessage)
         // 返回500
         sender() ! resultString(new ExecResult(false, 500, e.getMessage))
       }
