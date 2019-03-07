@@ -25,7 +25,9 @@ class Transaction(val txType: TransactionType.Value,
     toPubKeyHash.address
   }
 
-  def isContractCreation(): Boolean = (txType == TransactionType.Deploy && toPubKeyHash == UInt160.Zero)
+  def isContractCreation(): Boolean = (txType == TransactionType.Deploy && toPubKeyHash == UInt160.Zero
+    || txType == TransactionType.Schedule && Transaction.fromBytes(data).txType == TransactionType.Deploy &&
+    Transaction.fromBytes(data).toPubKeyHash == UInt160.Zero)
 
   def getContractAddress(): Option[UInt160] = {
     if (isContractCreation()) {
@@ -128,6 +130,12 @@ object Transaction {
             "executeTime" -> o.executeTime.toString
           )
     }
+  }
+
+  def fromBytes(bytes: Array[Byte]): Transaction = {
+    val bs = new ByteArrayInputStream(bytes)
+    val is = new DataInputStream(bs)
+    deserialize(is)
   }
 
   def deserialize(is: DataInputStream): Transaction = {

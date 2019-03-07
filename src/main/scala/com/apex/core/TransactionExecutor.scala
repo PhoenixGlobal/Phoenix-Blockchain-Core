@@ -29,7 +29,8 @@ class TransactionExecutor(val tx: Transaction,
                           val stopTime: Long,
                           val timeStamp: Long,
                           val blockIndex: Long,
-                          val chain: Blockchain) {
+                          val chain: Blockchain,
+                          val originalTx: Transaction = null) {
   //this.m_endGas = toBI(tx.getGasLimit)
   //this.vmHook = if (isNull(vmHook)) VMHook.EMPTY else vmHook
   //withCommonConfig(CommonConfig.getDefault)
@@ -97,7 +98,7 @@ class TransactionExecutor(val tx: Transaction,
       }
       readyToExecute = true
       if(readyToExecute && scheduleTxFirstExecuted) {
-        val scheduleTx = new Transaction(TransactionType.Schedule, tx.from, tx.toPubKeyHash, tx.amount, tx.nonce, tx.dataForSigning(),
+        val scheduleTx = new Transaction(TransactionType.Schedule, tx.from, tx.toPubKeyHash, tx.amount, tx.nonce, tx.toBytes,
           tx.gasPrice, tx.gasLimit, tx.signature, tx.version, tx.executeTime)
         track.setScheduleTx(scheduleTx.id, scheduleTx)
       }
@@ -138,7 +139,7 @@ class TransactionExecutor(val tx: Transaction,
     if (!readyToExecute || scheduleTxFirstExecuted() ) return
     var txData = tx.data
     if(scheduleTxSecondExecuted()){
-      txData = extractData(tx.data).data
+      txData = Transaction.fromBytes(tx.data).data
     }
     val targetAddress = tx.toPubKeyHash
     precompiledContract = PrecompiledContracts.getContractForAddress(DataWord.of(targetAddress.data), vmSettings, cacheTrack, tx, timeStamp)
@@ -209,7 +210,7 @@ class TransactionExecutor(val tx: Transaction,
     if(scheduleTxFirstExecuted()) return
     var txData = tx.data
     if(scheduleTxSecondExecuted()){
-      txData = extractData(tx.data).data
+      txData = Transaction.fromBytes(tx.data).data
     }
     val newContractAddress = tx.getContractAddress
 
