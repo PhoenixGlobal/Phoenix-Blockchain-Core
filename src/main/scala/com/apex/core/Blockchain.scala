@@ -497,6 +497,7 @@ class Blockchain(chainSettings: ChainSettings,
       case TransactionType.Deploy =>   txValid = applyContractTransaction(tx, blockProducer, stopTime, timeStamp, blockIndex)
       case TransactionType.Call =>     txValid = applyContractTransaction(tx, blockProducer, stopTime, timeStamp, blockIndex)
       case TransactionType.Refund =>   txValid = applyRefundTransaction(tx, blockProducer, timeStamp)
+      case TransactionType.Schedule => txValid = applyScheduleTransaction(tx, blockProducer, stopTime, timeStamp, blockIndex)
     }
     txValid
   }
@@ -508,6 +509,19 @@ class Blockchain(chainSettings: ChainSettings,
       return true
     }
     false
+  }
+
+  private def applyScheduleTransaction(tx: Transaction, blockProducer: UInt160,
+                                       stopTime: Long, timeStamp: Long, blockIndex: Long,
+                                       scheduleTx: Boolean = false): Boolean ={
+    var txValid = false
+    val orginalTx = extractData(tx.data)
+    orginalTx.txType match {
+      case TransactionType.Transfer => txValid = applySendTransaction(tx, blockProducer, timeStamp, blockIndex)
+      case TransactionType.Deploy =>   txValid = applyContractTransaction(tx, blockProducer, stopTime, timeStamp, blockIndex)
+      case TransactionType.Call =>     txValid = applyContractTransaction(tx, blockProducer, stopTime, timeStamp, blockIndex)
+    }
+    txValid
   }
 
   private def applyContractTransaction(tx: Transaction, blockProducer: UInt160,
@@ -557,7 +571,7 @@ class Blockchain(chainSettings: ChainSettings,
                                    timeStamp: Long, blockIndex: Long): Boolean = {
     val scheduleTx = if (tx.executeTime > 0) true else false
 
-    if(!scheduleTx){
+    if(!scheduleTx || timeStamp >= tx.executeTime && dataBase.getScheduleTx(tx.id()).isEmpty){
       val checkTransactionValidResult = TransactionProccessor.checkTransactionValid(tx, dataBase,timeStamp)
       val txValid: Boolean = checkTransactionValidResult._1
       val txFee: FixedNumber = checkTransactionValidResult._2
@@ -593,7 +607,7 @@ class Blockchain(chainSettings: ChainSettings,
         val valid = TransactionProccessor.checkTransactionValid(tx, dataBase ,timeStamp, scheduleFee)._1
         if(valid){
           dataBase.transfer(tx.from, blockProducer, scheduleFee)
-          val scheduleTx = new Transaction(tx.txType, tx.from, tx.toPubKeyHash, tx.amount, tx.nonce, tx.dataForSigning(),
+          val scheduleTx = new Transaction(TransactionType.Schedule,  tx.from, tx.toPubKeyHash, tx.amount, tx.nonce, tx.dataForSigning(),
             tx.gasPrice, tx.gasLimit, tx.signature, tx.version, tx.executeTime)
           dataBase.setScheduleTx(scheduleTx.id, scheduleTx)
           dataBase.increaseNonce(tx.from)
@@ -651,7 +665,7 @@ class Blockchain(chainSettings: ChainSettings,
           isValid = false
       }
       else {
-        if(tx.executeTime >0) {
+        if(tx.txType == TransactionType.Schedule ) {
           if(dataBase.getScheduleTx(tx.id()).isEmpty) isValid = false
         }
         else if (!tx.verifySignature())

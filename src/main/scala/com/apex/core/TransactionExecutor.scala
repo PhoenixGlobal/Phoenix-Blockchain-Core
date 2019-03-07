@@ -69,7 +69,7 @@ class TransactionExecutor(val tx: Transaction,
     * set readyToExecute = true
     */
   def init(): Unit = {
-    if(!scheduleTx || scheduleTxFirstExecuted()) {
+    if(!scheduleTx || scheduleTxDelayTimeEqualZero || scheduleTxFirstExecuted()) {
       basicTxCost = tx.transactionCost()
       if (localCall) {
         readyToExecute = true
@@ -97,7 +97,7 @@ class TransactionExecutor(val tx: Transaction,
       }
       readyToExecute = true
       if(readyToExecute && scheduleTxFirstExecuted) {
-        val scheduleTx = new Transaction(tx.txType, tx.from, tx.toPubKeyHash, tx.amount, tx.nonce, tx.dataForSigning(),
+        val scheduleTx = new Transaction(TransactionType.Schedule, tx.from, tx.toPubKeyHash, tx.amount, tx.nonce, tx.dataForSigning(),
           tx.gasPrice, tx.gasLimit, tx.signature, tx.version, tx.executeTime)
         track.setScheduleTx(scheduleTx.id, scheduleTx)
       }
@@ -106,9 +106,9 @@ class TransactionExecutor(val tx: Transaction,
     else readyToExecute = true
   }
 
-//  private def scheduleTxDelayTimeEqualZero(): Boolean ={
-//    timeStamp >= tx.executeTime && track.getScheduleTx(tx.id()).isEmpty
-//  }
+  private def scheduleTxDelayTimeEqualZero(): Boolean ={
+    timeStamp >= tx.executeTime && track.getScheduleTx(tx.id()).isEmpty
+  }
 
   def scheduleTxFirstExecuted(): Boolean = {
     scheduleTx && timeStamp < tx.executeTime
