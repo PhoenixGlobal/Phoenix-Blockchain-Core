@@ -122,7 +122,7 @@ class CompilationResult {
     * @return the contract with key { @code contractPath:contractName} if it exists; { @code null} otherwise
     */
   def getContract(contractPath: Path, contractName: String): CompilationResult.ContractMetadata = {
-    contracts.get(contractPath.toAbsolutePath.toString + ':' + contractName).get
+    contracts.get(contractPath.toAbsolutePath.toString.replaceAll("\\\\", "/") + ':' + contractName).get
   }
 
   /**

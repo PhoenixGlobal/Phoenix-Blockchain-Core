@@ -1,4 +1,4 @@
-pragma solidity ^0.4.7;
+pragma solidity ^0.5.2;
 
 import "../file1.sol";
 

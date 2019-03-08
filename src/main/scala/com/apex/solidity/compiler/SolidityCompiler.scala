@@ -240,6 +240,9 @@ class SolidityCompiler {
                  combinedJson: Boolean,
                  options: Seq[CompilerOption]): Result = {
     val commandParts = prepareCommandOptions(optimize, combinedJson, options)
+
+    commandParts.add("-")
+
     val processBuilder = new ProcessBuilder(commandParts).directory(solc.getExecutable.getParentFile)
     processBuilder.environment.put("LD_LIBRARY_PATH", solc.getExecutable.getParentFile.getCanonicalPath)
     val process = processBuilder.start

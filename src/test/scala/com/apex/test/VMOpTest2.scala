@@ -80,7 +80,7 @@ class VMOpTest2 {
   def testADDMOD(): Unit = {
     val chain = createChain("testADDMOD")
     try {
-      val contractSrc = "pragma solidity ^0.4.25;\n\n\ncontract A {\n  function a() public returns (uint r) {\n      assembly {\n              r := addmod(2, 3, 3)\n       }\n  }\n}"
+      val contractSrc = "pragma solidity ^0.5.2;\n\n\ncontract A {\n  function a() public returns (uint r) {\n      assembly {\n              r := addmod(2, 3, 3)\n       }\n  }\n}"
       val res = SolidityCompiler.compile(contractSrc.getBytes, true, Seq(ABI, BIN, INTERFACE, METADATA))
       val result = CompilationResult.parse(res.output)
       val abiString = result.getContract("A").abi
@@ -115,7 +115,7 @@ class VMOpTest2 {
   def testMULMOD(): Unit = {
     val chain = createChain("testMULMOD")
     try {
-      val contractSrc = "pragma solidity ^0.4.25;\n\n\ncontract A {\n  function a() public returns (uint r) {\n      assembly {\n              r := mulmod(3, 4, 7)\n       }\n  }\n}"
+      val contractSrc = "pragma solidity ^0.5.2;\n\n\ncontract A {\n  function a() public returns (uint r) {\n      assembly {\n              r := mulmod(3, 4, 7)\n       }\n  }\n}"
       val res = SolidityCompiler.compile(contractSrc.getBytes, true, Seq(ABI, BIN, INTERFACE, METADATA))
       val result = CompilationResult.parse(res.output)
       val abiString = result.getContract("A").abi
@@ -150,7 +150,7 @@ class VMOpTest2 {
   def testBLOCKHASH(): Unit = {
     val chain = createChain("testBLOCKHASH")
     try {
-      val contractSrc = "pragma solidity ^0.4.25;\n\n\ncontract A {\n  function a() public returns (uint r) {\n      assembly {\n              r := blockhash(1)\n       }\n  }\n}"
+      val contractSrc = "pragma solidity ^0.5.2;\n\n\ncontract A {\n  function a() public returns (uint r) {\n      assembly {\n              r := blockhash(1)\n       }\n  }\n}"
       val res = SolidityCompiler.compile(contractSrc.getBytes, true, Seq(ABI, BIN, INTERFACE, METADATA))
       val result = CompilationResult.parse(res.output)
       val abiString = result.getContract("A").abi
@@ -194,7 +194,7 @@ class VMOpTest2 {
   def testSHL(): Unit = {
     val chain = createChain("testSHL")
     try {
-      val contractSrc = "pragma solidity ^0.4.25;\n\n\ncontract A {\n  function a() public returns (uint r) {\n      assembly {\n              r := shl(23, 3)\n       }\n  }\n}"
+      val contractSrc = "pragma solidity ^0.5.2;\n\n\ncontract A {\n  function a() public returns (uint r) {\n      assembly {\n              r := shl(23, 3)\n       }\n  }\n}"
       val res = SolidityCompiler.compile(contractSrc.getBytes, true, Seq(ABI, BIN, INTERFACE, METADATA))
       val result = CompilationResult.parse(res.output)
       val abiString = result.getContract("A").abi
@@ -229,7 +229,7 @@ class VMOpTest2 {
   def testSHR(): Unit = {
     val chain = createChain("testSHR")
     try {
-      val contractSrc = "pragma solidity ^0.4.25;\n\n\ncontract A {\n  function a() public returns (uint r) {\n      assembly {\n              r := shr(184, 3)\n       }\n  }\n}"
+      val contractSrc = "pragma solidity ^0.5.2;\n\n\ncontract A {\n  function a() public returns (uint r) {\n      assembly {\n              r := shr(184, 3)\n       }\n  }\n}"
       val res = SolidityCompiler.compile(contractSrc.getBytes, true, Seq(ABI, BIN, INTERFACE, METADATA))
       val result = CompilationResult.parse(res.output)
       val abiString = result.getContract("A").abi
@@ -264,7 +264,7 @@ class VMOpTest2 {
   def testSAR1(): Unit = {
     val chain = createChain("testSAR1")
     try {
-      val contractSrc = "pragma solidity ^0.4.25;\n\n\ncontract A {\n  function a() public returns (uint r) {\n      assembly {\n              r := sar(184, 3)\n       }\n  }\n}"
+      val contractSrc = "pragma solidity ^0.5.2;\n\n\ncontract A {\n  function a() public returns (uint r) {\n      assembly {\n              r := sar(184, 3)\n       }\n  }\n}"
       val res = SolidityCompiler.compile(contractSrc.getBytes, true, Seq(ABI, BIN, INTERFACE, METADATA))
       val result = CompilationResult.parse(res.output)
       val abiString = result.getContract("A").abi
@@ -299,7 +299,7 @@ class VMOpTest2 {
   def testSAR2(): Unit = {
     val chain = createChain("testSAR2")
     try {
-      val contractSrc = "pragma solidity ^0.4.25;\n\n\ncontract A {\n  function a() public returns (uint r) {\n      assembly {\n              r := sar(0x8000000000000000000000000000000000000000000000000000000000000000, 1)\n       }\n  }\n}"
+      val contractSrc = "pragma solidity ^0.5.2;\n\n\ncontract A {\n  function a() public returns (uint r) {\n      assembly {\n              r := sar(0x8000000000000000000000000000000000000000000000000000000000000000, 1)\n       }\n  }\n}"
       val res = SolidityCompiler.compile(contractSrc.getBytes, true, Seq(ABI, BIN, INTERFACE, METADATA))
       val result = CompilationResult.parse(res.output)
       val abiString = result.getContract("A").abi
@@ -335,7 +335,7 @@ class VMOpTest2 {
   def testSAR3(): Unit = {
     val chain = createChain("testSAR3")
     try {
-      val contractSrc = "pragma solidity ^0.4.25;\n\n\ncontract A {\n  function a() public returns (uint r) {\n      assembly {\n              r := sar(0x8000000000000000000000000000000000000000000000000000000000000000, 256)\n       }\n  }\n}"
+      val contractSrc = "pragma solidity ^0.5.2;\n\n\ncontract A {\n  function a() public returns (uint r) {\n      assembly {\n              r := sar(0x8000000000000000000000000000000000000000000000000000000000000000, 256)\n       }\n  }\n}"
       val res = SolidityCompiler.compile(contractSrc.getBytes, true, Seq(ABI, BIN, INTERFACE, METADATA))
       val result = CompilationResult.parse(res.output)
       val abiString = result.getContract("A").abi
@@ -371,7 +371,7 @@ class VMOpTest2 {
   def testSAR4(): Unit = {
     val chain = createChain("testSAR4")
     try {
-      val contractSrc = "pragma solidity ^0.4.25;\n\n\ncontract A {\n  function a() public returns (uint r) {\n      assembly {\n              r := sar(0xffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff, 0)\n       }\n  }\n}"
+      val contractSrc = "pragma solidity ^0.5.2;\n\n\ncontract A {\n  function a() public returns (uint r) {\n      assembly {\n              r := sar(0xffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff, 0)\n       }\n  }\n}"
       val res = SolidityCompiler.compile(contractSrc.getBytes, true, Seq(ABI, BIN, INTERFACE, METADATA))
       val result = CompilationResult.parse(res.output)
       val abiString = result.getContract("A").abi
@@ -407,7 +407,7 @@ class VMOpTest2 {
   def testSAR5(): Unit = {
     val chain = createChain("testSAR5")
     try {
-      val contractSrc = "pragma solidity ^0.4.25;\n\n\ncontract A {\n  function a() public returns (uint r) {\n      assembly {\n              r := sar(0xffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff, 1)\n       }\n  }\n}"
+      val contractSrc = "pragma solidity ^0.5.2;\n\n\ncontract A {\n  function a() public returns (uint r) {\n      assembly {\n              r := sar(0xffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff, 1)\n       }\n  }\n}"
       val res = SolidityCompiler.compile(contractSrc.getBytes, true, Seq(ABI, BIN, INTERFACE, METADATA))
       val result = CompilationResult.parse(res.output)
       val abiString = result.getContract("A").abi
@@ -443,7 +443,7 @@ class VMOpTest2 {
   def testORIGIN(): Unit = {
     val chain = createChain("testORIGIN")
     try {
-      val contractSrc = "pragma solidity ^0.4.25;\n\n\ncontract A {\n  function a() public returns (uint r) {\n      assembly {\n              r := origin\n       }\n  }\n}"
+      val contractSrc = "pragma solidity ^0.5.2;\n\n\ncontract A {\n  function a() public returns (uint r) {\n      assembly {\n              r := origin\n       }\n  }\n}"
       val res = SolidityCompiler.compile(contractSrc.getBytes, true, Seq(ABI, BIN, INTERFACE, METADATA))
       val result = CompilationResult.parse(res.output)
       val abiString = result.getContract("A").abi
@@ -479,7 +479,7 @@ class VMOpTest2 {
   def testCODESIZE(): Unit = {
     val chain = createChain("testCODESIZE")
     try {
-      val contractSrc = "pragma solidity ^0.4.25;\n\n\ncontract A {\n  function a() public returns (uint r) {\n      assembly {\n              r := codesize\n       }\n  }\n}"
+      val contractSrc = "pragma solidity ^0.5.2;\n\n\ncontract A {\n  function a() public returns (uint r) {\n      assembly {\n              r := codesize\n       }\n  }\n}"
       val res = SolidityCompiler.compile(contractSrc.getBytes, true, Seq(ABI, BIN, INTERFACE, METADATA))
       val result = CompilationResult.parse(res.output)
       val abiString = result.getContract("A").abi
@@ -503,8 +503,9 @@ class VMOpTest2 {
       assert(chain.addTransaction(tx))
       assert(chain.getReceipt(tx.id()).get.status == 0)
       assert(chain.getReceipt(tx.id()).get.error == "")
+      val eeeeee = chain.getReceipt(tx.id()).get
       assert(DataWord.of(chain.getReceipt(tx.id()).get.output).value.intValue() ==
-        160)  // !!
+        154)  // !!
     }
     finally {
       chain.close()
@@ -515,7 +516,7 @@ class VMOpTest2 {
   def testSIGNEXTEND(): Unit = {
     val chain = createChain("testSIGNEXTEND")
     try {
-      val contractSrc = "pragma solidity ^0.4.25;\n\n\ncontract A {\n  function a() public returns (uint r) {\n      assembly {\n              r := signextend(3, 0xab82345678)\n       }\n  }\n}"
+      val contractSrc = "pragma solidity ^0.5.2;\n\n\ncontract A {\n  function a() public returns (uint r) {\n      assembly {\n              r := signextend(3, 0xab82345678)\n       }\n  }\n}"
       val res = SolidityCompiler.compile(contractSrc.getBytes, true, Seq(ABI, BIN, INTERFACE, METADATA))
       val result = CompilationResult.parse(res.output)
       val abiString = result.getContract("A").abi

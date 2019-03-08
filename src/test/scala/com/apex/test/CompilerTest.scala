@@ -36,7 +36,7 @@ class CompilerTest {
   @Test
   @throws[IOException]
   def simpleTest(): Unit = {
-    val contract = "pragma solidity ^0.4.7;\n" + "\n" + "contract a {\n" + "\n" + "        mapping(address => string) private mailbox;\n" + "\n" + "        event Mailed(address from, string message);\n" + "        event Read(address from, string message);\n" + "\n" + "}"
+    val contract = "pragma solidity ^0.5.2;\n" + "\n" + "contract a {\n" + "\n" + "        mapping(address => string) private mailbox;\n" + "\n" + "        event Mailed(address from, string message);\n" + "        event Read(address from, string message);\n" + "\n" + "}"
     val res = SolidityCompiler.compile(contract.getBytes, true, Seq(ABI, BIN, INTERFACE, METADATA))
     System.out.println("Out: '" + res.output + "'")
     System.out.println("Err: '" + res.errors + "'")
@@ -50,7 +50,7 @@ class CompilerTest {
   @Test
   @throws[IOException]
   def defaultFuncTest(): Unit = {
-    val contractSrc = "pragma solidity ^0.4.7;\n" + "contract a {" + "        function() {throw;}" + "}"
+    val contractSrc = "pragma solidity ^0.5.2;\n" + "contract a {" + "        function() external { }" + "}"
     val res = SolidityCompiler.compile(contractSrc.getBytes, true, Seq(ABI, BIN, INTERFACE, METADATA))
     System.out.println("Out: '" + res.output + "'")
     System.out.println("Err: '" + res.errors + "'")
