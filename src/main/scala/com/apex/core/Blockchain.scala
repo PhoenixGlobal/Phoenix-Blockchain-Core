@@ -233,7 +233,7 @@ class Blockchain(chainSettings: ChainSettings,
     if (scheduleTxs.nonEmpty) {
       println("schedule size    " + scheduleTxs.size)
       scheduleTxs.foreach(scheduleTx => {
-        if (scheduleTx.executeTime <= blockTime) {
+        if (scheduleTx.executeTime <= stopProcessTxTime) {
           println("schedule execute time is"+ scheduleTx.executeTime + "block time   "+ blockTime)
           if (applyTransaction(scheduleTx, producer, stopProcessTxTime, blockTime, forkHead.block.height + 1, true))
             pendingState.txs.append(scheduleTx)
@@ -942,7 +942,9 @@ object TransactionProccessor extends ApexLogging{
 
     }
     else {
-
+      if(!tx.verify()){
+        txValid = false
+      }
       txFee = FixedNumber(BigInt(txGas)) * tx.gasPrice
       if (txGas > tx.gasLimit) {
         log.info(s"Not enough gas for transaction tx ${tx.id().shortString()}")

@@ -50,6 +50,15 @@ case class FixedNumber(value: BigInt = 0) extends Serializable {
 
   def >(that: BigInt): Boolean = value > that
 
+  /**
+    * is less than 0
+    *
+    * @return true or false
+    */
+  def isNegate(): Boolean = {
+    FixedNumber.Zero > this
+  }
+
   def ==(that: FixedNumber): Boolean = {
     that match {
       case null => false
@@ -61,7 +70,7 @@ case class FixedNumber(value: BigInt = 0) extends Serializable {
 object FixedNumber {
   //final val MaxValue: Fixed18 = new Fixed18(Long.MaxValue)
   final val MinValue: FixedNumber = FixedNumber(1)
-  final val One: FixedNumber = FixedNumber(1000000000000000000L)  // 10^18
+  final val One: FixedNumber = FixedNumber(1000000000000000000L) // 10^18
   final val Ten: FixedNumber = FixedNumber(One.value * 10)
   final val Zero: FixedNumber = FixedNumber(0)
 

@@ -61,6 +61,11 @@ class TransactionExecutor(val tx: Transaction,
     */
   def init(): Unit = {
     if(!scheduleTx || scheduleTxDelayTimeEqualZero || scheduleTxFirstExecuted()) {
+      if(!tx.verify()){
+        execError(s" verify failed, ${tx.amount},${tx.gasPrice},${tx.executeTime} should not be negate.")
+        return
+      }
+
       basicTxCost = tx.transactionCost()
       if (localCall) {
         readyToExecute = true

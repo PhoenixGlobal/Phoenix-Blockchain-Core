@@ -2,7 +2,7 @@ package com.apex.core
 
 import java.io.{ByteArrayInputStream, ByteArrayOutputStream, DataInputStream, DataOutputStream}
 
-import com.apex.common.Serializable
+import com.apex.common.{ApexLogging, Serializable}
 import com.apex.crypto.{BinaryData, Crypto, Ecdsa, FixedNumber, UInt160, UInt256}
 import com.apex.vm.GasCost
 import play.api.libs.json.{JsValue, Json, Writes}
@@ -17,7 +17,7 @@ class Transaction(val txType: TransactionType.Value,
                   val gasLimit: BigInt,
                   var signature: BinaryData,
                   val version: Int = 0x01,
-                  val executeTime: Long = 0) extends Identifier[UInt256] with Serializable {
+                  val executeTime: Long = 0) extends Identifier[UInt256] with Serializable with ApexLogging {
 
   def sender(): UInt160 = from
 
@@ -53,6 +53,30 @@ class Transaction(val txType: TransactionType.Value,
     data.data.foreach(d => if (d == 0) counter += 1)
     counter
   }
+
+  /**
+    * verify this tx is a normal transaction
+    *
+    * @return true or false
+    */
+    def verify(): Boolean = {
+      var ret: Boolean = true
+      if (amount.isNegate()) {
+        log.info("tx:" + id() + s"transfer amount: ${amount} cann't be a negate.")
+        ret = false
+      }
+
+      if (gasPrice.isNegate()) {
+        log.info("tx:" + id() + s"gasPrice: ${gasPrice} cann't be a negate.")
+        ret = false
+      }
+
+      if (executeTime < 0) {
+        log.info("tx:" + id() + s" executeTime: ${executeTime} cann't be a negate.")
+        ret = false
+      }
+      ret
+    }
 
   def nonZeroDataBytes(): Long = {
     var counter = 0
@@ -116,19 +140,21 @@ object Transaction {
   implicit val transactionWrites = new Writes[Transaction] {
     override def writes(o: Transaction): JsValue = {
       Json.obj(
-            "hash" -> o.id.toString,
-            "type" -> o.txType.toString,
-            "from" -> { if (o.txType == TransactionType.Miner) "" else o.from.address },
-            "to" ->  o.toAddress,
-            "amount" -> o.amount.toString,
-            "nonce" -> o.nonce.toString,
-            "data" -> o.data.toString,
-            "gasPrice" -> o.gasPrice.toString,
-            "gasLimit" -> o.gasLimit.longValue(),
-            "signature" -> o.signature.toString,
-            "version" -> o.version,
-            "executeTime" -> o.executeTime.toString
-          )
+        "hash" -> o.id.toString,
+        "type" -> o.txType.toString,
+        "from" -> {
+          if (o.txType == TransactionType.Miner) "" else o.from.address
+        },
+        "to" -> o.toAddress,
+        "amount" -> o.amount.toString,
+        "nonce" -> o.nonce.toString,
+        "data" -> o.data.toString,
+        "gasPrice" -> o.gasPrice.toString,
+        "gasLimit" -> o.gasLimit.longValue(),
+        "signature" -> o.signature.toString,
+        "version" -> o.version,
+        "executeTime" -> o.executeTime.toString
+      )
     }
   }
 

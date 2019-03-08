@@ -109,9 +109,9 @@ class Node(val settings: ApexSettings, config: Config)
   }
 
   override def postStop(): Unit = {
-//    if (settings.rpc.enabled) {
-//      RpcServer.stop()
-//    }
+    //    if (settings.rpc.enabled) {
+    //      RpcServer.stop()
+    //    }
     chain.close()
     super.postStop()
   }
@@ -123,12 +123,12 @@ class Node(val settings: ApexSettings, config: Config)
     }
   }
 
-  private def resultString(execResult: ExecResult): String ={
+  private def resultString(execResult: ExecResult): String = {
     Json.toJson(execResult).toString()
   }
 
   private def processRPCCommand(cmd: RPCCommand) = {
-    try{
+    try {
       cmd match {
         case GetBlockByIdCmd(id) => {
           val res = Json.toJson(chain.getBlock(id).get).toString()
@@ -162,11 +162,11 @@ class Node(val settings: ApexSettings, config: Config)
         }
         case SendRawTransactionCmd(tx) => {
           var exec = false
-            if (tx.verifySignature()) {
-              peerHandlerManager ! InventoryMessage(new InventoryPayload(InventoryType.Tx, Seq(tx.id)))
-              if (chain.addTransaction(tx))
-                 exec = true
-            }
+          if (tx.verifySignature() && tx.verify()) {
+            peerHandlerManager ! InventoryMessage(new InventoryPayload(InventoryType.Tx, Seq(tx.id)))
+            if (chain.addTransaction(tx))
+              exec = true
+          }
           sender() ! resultString(new ExecResult(result = exec.toString))
         }
         case GetContractByIdCmd(id) => {
@@ -187,12 +187,12 @@ class Node(val settings: ApexSettings, config: Config)
           val res = Json.toJson(chain.getProducer(addr)).toString()
           sender() ! resultString(new ExecResult(result = res))
         }
-        case _ =>{
+        case _ => {
           // 返回404
           sender() ! resultString(new ExecResult(false, 404, "can not found"))
         }
       }
-    }catch {
+    } catch {
       case e: Exception => {
         println(e.getMessage)
         // 返回500
