@@ -234,6 +234,7 @@ class Blockchain(chainSettings: ChainSettings,
     if (scheduleTxs.nonEmpty) {
       println("schedule size    " + scheduleTxs.size)
       scheduleTxs.foreach(scheduleTx => {
+        //TODO scheduleTx.executeTime -> current time
         if (scheduleTx.executeTime <= stopProcessTxTime) {
           println("schedule execute time is" + scheduleTx.executeTime + "block time   " + blockTime)
           if (applyTransaction(scheduleTx, producer, stopProcessTxTime, blockTime, forkHead.block.height + 1, true))
@@ -441,10 +442,11 @@ class Blockchain(chainSettings: ChainSettings,
     if (!verify || verifyBlock(block)) {
       if (enableSession)
         dataBase.startSession()
-      block.transactions.foreach(tx => {
-        if (applied && !applyTransaction(tx, block.header.producer, Long.MaxValue, block.header.timeStamp, block.height()))
-          applied = false
-      })
+
+      for (tx <- block.transactions if applied) {
+        applied = applyTransaction(tx, block.header.producer, Long.MaxValue, block.header.timeStamp, block.height())
+      }
+
       if (enableSession && !applied)
         dataBase.rollBack()
     }
@@ -508,9 +510,10 @@ class Blockchain(chainSettings: ChainSettings,
     if (timeStamp >= tx.executeTime && dataBase.getScheduleTx(tx.id()).isDefined) {
       dataBase.transfer(tx.from, tx.toPubKeyHash, tx.amount)
       dataBase.deleteScheduleTx(tx.id())
-      return true
+      true
+    } else {
+      false
     }
-    false
   }
 
   private def applyScheduleTransaction(tx: Transaction, blockProducer: UInt160,
@@ -613,6 +616,7 @@ class Blockchain(chainSettings: ChainSettings,
         }
       }
       dataBase.deleteScheduleTx(tx.id())
+      //TODO tx.transactionCost() -> originalTx.transactionCost()
       dataBase.setReceipt(tx.id(), TransactionReceipt(tx.id(), tx.txType, tx.from, tx.toPubKeyHash,
         blockIndex, tx.transactionCost(), BinaryData.empty, 0, ""))
       true

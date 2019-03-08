@@ -19,6 +19,10 @@ class Transaction(val txType: TransactionType.Value,
                   val version: Int = 0x01,
                   val executeTime: Long = 0) extends Identifier[UInt256] with Serializable with ApexLogging {
 
+  require(amount > 0, "amount must be larger than or equal to 0")
+
+  require(gasPrice > 0, "gas price must be lager than 0")
+
   def sender(): UInt160 = from
 
   def toAddress(): String = {
@@ -59,24 +63,24 @@ class Transaction(val txType: TransactionType.Value,
     *
     * @return true or false
     */
-    def verify(): Boolean = {
-      var ret: Boolean = true
-      if (amount.isNegate()) {
-        log.info("tx:" + id() + s"transfer amount: ${amount} cann't be a negate.")
-        ret = false
-      }
-
-      if (gasPrice.isNegate()) {
-        log.info("tx:" + id() + s"gasPrice: ${gasPrice} cann't be a negate.")
-        ret = false
-      }
-
-      if (executeTime < 0) {
-        log.info("tx:" + id() + s" executeTime: ${executeTime} cann't be a negate.")
-        ret = false
-      }
-      ret
+  def verify(): Boolean = {
+    var ret: Boolean = true
+    if (amount.isNegate()) {
+      log.info("tx:" + id() + s"transfer amount: ${amount} cann't be a negate.")
+      ret = false
     }
+
+    if (gasPrice.isNegate()) {
+      log.info("tx:" + id() + s"gasPrice: ${gasPrice} cann't be a negate.")
+      ret = false
+    }
+
+    if (executeTime < 0) {
+      log.info("tx:" + id() + s" executeTime: ${executeTime} cann't be a negate.")
+      ret = false
+    }
+    ret
+  }
 
   def nonZeroDataBytes(): Long = {
     var counter = 0
