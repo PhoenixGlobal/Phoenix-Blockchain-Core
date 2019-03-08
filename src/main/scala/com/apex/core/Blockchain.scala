@@ -8,6 +8,7 @@ import com.apex.common.ApexLogging
 import com.apex.consensus.{ProducerUtil, Vote, WitnessInfo, WitnessList}
 import com.apex.consensus.{ProducerUtil, WitnessInfo, WitnessList}
 import com.apex.consensus.{ProducerUtil, WitnessInfo}
+import com.apex.core.TransactionProccessor.log
 import com.apex.crypto.Ecdsa.{PrivateKey, PublicKey, PublicKeyHash}
 import com.apex.crypto.{BinaryData, Crypto, FixedNumber, MerkleTree, UInt160, UInt256}
 import com.apex.settings.{ChainSettings, ConsensusSettings, RuntimeParas, Witness}
@@ -529,49 +530,76 @@ class Blockchain(chainSettings: ChainSettings,
 
   private def applyContractTransaction(tx: Transaction, blockProducer: UInt160,
                                        stopTime: Long, timeStamp: Long, blockIndex: Long, originalTx: Transaction = null): Boolean = {
-    var applied = false
+    if(originalTx != null){
+      var applied = false
 
-    val executor = new TransactionExecutor(tx, blockProducer, dataBase, stopTime,
-      timeStamp, blockIndex, this, originalTx)
+      val executor = new TransactionExecutor(originalTx, blockProducer, dataBase, stopTime,
+        timeStamp, blockIndex, this, true)
 
-    executor.init()
-    executor.execute()
-    executor.go()
+      executor.init()
+      executor.execute()
+      executor.go()
 
-    if (executor.scheduleTxFirstExecuted) {
-      val txGas = GasCost.SCHEDULE_TRAN
 
-      val scheduleCost = FixedNumber(BigInt(GasCost.SCHEDULE_TRAN)) * (tx.executeTime - timeStamp) * tx.gasPrice
-      //      val scheduleCost = FixedNumber(BigInt(GasCost.SSTORE)) * scheduleTx.toBytes.size  * tx.gasPrice *
-      //        (tx.executeTime - timeStamp) + FixedNumber(BigInt(GasCost.TRANSACTION)) * tx.gasPrice
-      dataBase.transfer(tx.from, blockProducer, scheduleCost)
+      val summary = executor.finalization()
+      val receipt = executor.getReceipt
 
-      dataBase.setReceipt(tx.id(), TransactionReceipt(tx.id(), tx.txType, tx.from, blockProducer,
-        blockIndex, txGas, BinaryData.empty, 0, ""))
-      return executor.isReadyToExecuted
+      if (executor.getResult.isBlockTimeout) {
+        log.error(s"tx ${tx.id.shortString()} executor time out")
+        if (isProducingBlock())
+          timeoutTx = Some(tx)
+        applied = false
+      }
+      else if (executor.getResult.isRunOutOfGas) {
+        applied = true
+      }
+      else if (!receipt.isSuccessful()) {
+        log.error(s"tx ${tx.id().shortString()} execute error: ${receipt.error}")
+        applied = false
+      }
+      else {
+        applied = true
+      }
+      dataBase.deleteScheduleTx(tx.id())
+      dataBase.setReceipt(tx.id(), receipt)
+      applied
+    }
+    else{
+      if(timeStamp >= tx.executeTime){
+        var applied = false
+
+        val executor = new TransactionExecutor(tx, blockProducer, dataBase, stopTime,
+          timeStamp, blockIndex, this)
+
+        executor.init()
+        executor.execute()
+        executor.go()
+
+        val summary = executor.finalization()
+        val receipt = executor.getReceipt
+
+        if (executor.getResult.isBlockTimeout) {
+          log.error(s"tx ${tx.id.shortString()} executor time out")
+          if (isProducingBlock())
+            timeoutTx = Some(tx)
+          applied = false
+        }
+        else if (executor.getResult.isRunOutOfGas) {
+          applied = true
+        }
+        else if (!receipt.isSuccessful()) {
+          log.error(s"tx ${tx.id().shortString()} execute error: ${receipt.error}")
+          applied = false
+        }
+        else {
+          applied = true
+        }
+        dataBase.setReceipt(tx.id(), receipt)
+        applied
+      }
+      else scheduleTxFisrtExecute(tx, blockProducer, timeStamp, blockIndex)
     }
 
-    val summary = executor.finalization()
-    val receipt = executor.getReceipt
-
-    if (executor.getResult.isBlockTimeout) {
-      log.error(s"tx ${tx.id.shortString()} executor time out")
-      if (isProducingBlock())
-        timeoutTx = Some(tx)
-      applied = false
-    }
-    else if (executor.getResult.isRunOutOfGas) {
-      applied = true
-    }
-    else if (!receipt.isSuccessful()) {
-      log.error(s"tx ${tx.id().shortString()} execute error: ${receipt.error}")
-      applied = false
-    }
-    else {
-      applied = true
-    }
-    dataBase.setReceipt(tx.id(), receipt)
-    applied
   }
 
   private def applySendTransaction(tx: Transaction, blockProducer: UInt160,
@@ -607,21 +635,34 @@ class Blockchain(chainSettings: ChainSettings,
         txValid
       }
       else {
-        val scheduleTx = new Transaction(TransactionType.Schedule, tx.from, tx.toPubKeyHash, tx.amount, tx.nonce, tx.toBytes,
-          tx.gasPrice, tx.gasLimit, tx.signature, tx.version, tx.executeTime)
-        val scheduleFee = FixedNumber(BigInt(GasCost.SSTORE)) * scheduleTx.toBytes.size * tx.gasPrice *
-          (tx.executeTime - timeStamp) + FixedNumber(BigInt(GasCost.TRANSACTION)) * tx.gasPrice
-        val valid = TransactionProccessor.checkTransactionValid(tx, dataBase, timeStamp, scheduleFee)._1
-        if (valid) {
-          dataBase.transfer(tx.from, blockProducer, scheduleFee)
-          dataBase.setScheduleTx(scheduleTx.id, scheduleTx)
-          dataBase.increaseNonce(tx.from)
-          dataBase.setReceipt(tx.id(), TransactionReceipt(tx.id(), tx.txType, tx.from, tx.toPubKeyHash,
-            blockIndex, tx.transactionCost(), BinaryData.empty, 0, ""))
-        }
-        valid
+        scheduleTxFisrtExecute(tx, blockProducer,timeStamp, blockIndex)
       }
     }
+  }
+
+  private def scheduleTxFisrtExecute(tx: Transaction, blockProducer: UInt160,
+                                     timeStamp: Long, blockIndex: Long) = {
+    var txValid = true
+
+    val scheduleTx = new Transaction(TransactionType.Schedule,  tx.from, tx.toPubKeyHash, tx.amount, tx.nonce, tx.toBytes,
+      tx.gasPrice, tx.gasLimit, tx.signature, tx.version, tx.executeTime)
+    val scheduleFee = FixedNumber(BigInt(GasCost.SSTORE)) * scheduleTx.toBytes.size  * tx.gasPrice *
+      (tx.executeTime - timeStamp) + FixedNumber(BigInt(GasCost.TRANSACTION)) * tx.gasPrice
+
+    val fromAccount = dataBase.getAccount(tx.from).getOrElse(Account.newAccount(tx.from))
+    if (tx.nonce != fromAccount.nextNonce) {
+      log.info(s"tx ${tx.id().shortString()} nonce ${tx.nonce} invalid, expect ${fromAccount.nextNonce}")
+      txValid = false
+    }
+    if(scheduleFee > fromAccount.balance) txValid = false
+    if(txValid){
+      dataBase.transfer(tx.from, blockProducer, scheduleFee)
+      dataBase.setScheduleTx(scheduleTx.id, scheduleTx)
+      dataBase.increaseNonce(tx.from)
+      dataBase.setReceipt(tx.id(), TransactionReceipt(tx.id(), tx.txType, tx.from, tx.toPubKeyHash,
+        blockIndex, tx.transactionCost() , BinaryData.empty, 0, ""))
+    }
+    txValid
   }
 
   private def verifyBlock(block: Block): Boolean = {
@@ -955,7 +996,7 @@ object TransactionProccessor extends ApexLogging {
         log.info(s"Not enough basic gas for schedule transaction tx ${tx.id().shortString()}")
         txValid = false
       }
-      if ((tx.amount + txFee) > fromAccount.balance && timeStamp >= tx.executeTime) {
+      if ((tx.amount + txFee) > fromAccount.balance) {
         log.info(s"Not enough balance for transaction tx ${tx.id().shortString()}")
         txValid = false
       }

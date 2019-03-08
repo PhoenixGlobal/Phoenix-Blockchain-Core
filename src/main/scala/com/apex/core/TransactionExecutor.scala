@@ -30,10 +30,9 @@ class TransactionExecutor(val tx: Transaction,
                           val timeStamp: Long,
                           val blockIndex: Long,
                           val chain: Blockchain,
-                          val originalTx: Transaction = null) {
+                          val isScheduleTx: Boolean = false) {
 
   private val vmSettings = ContractSettings(0, false, Int.MaxValue)
-  private val scheduleTx = if (tx.executeTime > 0) true else false
 
   private var cacheTrack = track.startTracking
   private var readyToExecute = false
@@ -60,7 +59,6 @@ class TransactionExecutor(val tx: Transaction,
     * set readyToExecute = true
     */
   def init(): Unit = {
-    if(!scheduleTx || scheduleTxDelayTimeEqualZero || scheduleTxFirstExecuted()) {
       if(!tx.verify()){
         execError(s" verify failed, ${tx.amount},${tx.gasPrice},${tx.executeTime} should not be negate.")
         return
@@ -77,46 +75,27 @@ class TransactionExecutor(val tx: Transaction,
         //execError(String.format("Not enough gas for transaction execution: Require: %s Got: %s", basicTxCost, txGasLimit))
         return
       }
+    if(!isScheduleTx){
       val reqNonce = track.getNonce(tx.sender())
       val txNonce = tx.nonce
       if (reqNonce != txNonce) {
         execError(s"Invalid nonce: required: $reqNonce , tx.nonce: $txNonce")
         return
       }
+    }
       val txGasCost = tx.gasPrice * txGasLimit
-      val scheduleCost = if(scheduleTx) FixedNumber(BigInt(GasCost.SCHEDULE_TRAN)) * (tx.executeTime - timeStamp)  * tx.gasPrice else FixedNumber.Zero
-      val totalCost = tx.amount + txGasCost + scheduleCost
+      val totalCost = tx.amount + txGasCost
       val senderBalance = track.getBalance(tx.sender()).getOrElse(FixedNumber.Zero)
       if (senderBalance.value < totalCost.value) {
         execError(s"Not enough cash: Require: ${totalCost}, Sender cash ${senderBalance}")
         return
       }
       readyToExecute = true
-      if(readyToExecute && scheduleTxFirstExecuted) {
-        val scheduleTx = new Transaction(TransactionType.Schedule, tx.from, tx.toPubKeyHash, tx.amount, tx.nonce, tx.toBytes,
-          tx.gasPrice, tx.gasLimit, tx.signature, tx.version, tx.executeTime)
-        track.setScheduleTx(scheduleTx.id, scheduleTx)
-      }
-      if(!localCall) track.increaseNonce(tx.sender())
-    }
-    else readyToExecute = true
-  }
-
-  private def scheduleTxDelayTimeEqualZero(): Boolean ={
-    timeStamp >= tx.executeTime && track.getScheduleTx(tx.id()).isEmpty
-  }
-
-  def scheduleTxFirstExecuted(): Boolean = {
-    scheduleTx && timeStamp < tx.executeTime
-  }
-
-  private def scheduleTxSecondExecuted(): Boolean = {
-    scheduleTx && timeStamp >= tx.executeTime && track.getScheduleTx(tx.id()).isDefined
+      if(!localCall || !isScheduleTx) track.increaseNonce(tx.sender())
   }
 
   def execute(): Unit = {
     if (!readyToExecute) return
-    if(scheduleTxFirstExecuted()) return
     if (!localCall) {
       val txGasLimit = tx.gasLimit
       val txGasCost = tx.gasPrice * txGasLimit
@@ -131,15 +110,11 @@ class TransactionExecutor(val tx: Transaction,
   }
 
   private def call(): Unit = {
-    if (!readyToExecute || scheduleTxFirstExecuted() ) return
-    var txData = tx.data
-    if(scheduleTxSecondExecuted()){
-      txData = Transaction.fromBytes(tx.data).data
-    }
+    if (!readyToExecute) return
     val targetAddress = tx.toPubKeyHash
     precompiledContract = PrecompiledContracts.getContractForAddress(DataWord.of(targetAddress.data), vmSettings, cacheTrack, tx, timeStamp)
     if (precompiledContract != null) {
-      val requiredGas = precompiledContract.getGasForData(txData)
+      val requiredGas = precompiledContract.getGasForData(tx.data)
       val spendingGas = BigInt(requiredGas) + basicTxCost
       if (!localCall && m_endGas < spendingGas) { // no refund
         // no endowment
@@ -151,7 +126,7 @@ class TransactionExecutor(val tx: Transaction,
       else {
         m_endGas = m_endGas - spendingGas
         // FIXME: save return for vm trace
-        val out = precompiledContract.execute(txData)
+        val out = precompiledContract.execute(tx.data)
         if (!out._1) {
           val reason = new String(out._2)
           execError(s"Error executing precompiled contract ${targetAddress.address}, causes: ${reason.toString}")
@@ -168,7 +143,7 @@ class TransactionExecutor(val tx: Transaction,
         result.spendGas(basicTxCost)
       }
       else {
-        val programInvoke = createInvoker(txData)
+        val programInvoke = createInvoker(tx.data)
         //val programInvoke = programInvokeFactory.createProgramInvoke(tx, currentBlock, cacheTrack, track, blockStore)
         this.vm = new VM(vmSettings, VMHook.EMPTY)
         this.program = new Program(vmSettings, code, programInvoke, stopTime) //.withCommonConfig(commonConfig)
@@ -202,11 +177,6 @@ class TransactionExecutor(val tx: Transaction,
   }
 
   private def create(): Unit = {
-    if(scheduleTxFirstExecuted()) return
-    var txData = tx.data
-    if(scheduleTxSecondExecuted()){
-      txData = Transaction.fromBytes(tx.data).data
-    }
     val newContractAddress = tx.getContractAddress
 
     //In case of hashing collisions (for TCK tests only), check for any balance before createAccount()
@@ -215,14 +185,14 @@ class TransactionExecutor(val tx: Transaction,
     if (oldBalance.isDefined)
       cacheTrack.addBalance(newContractAddress.get, oldBalance.get)
     cacheTrack.increaseNonce(newContractAddress.get)
-    if (txData.data.length == 0) {
+    if (tx.data.data.length == 0) {
       m_endGas = m_endGas - basicTxCost
       result.spendGas(basicTxCost)
     }
     else {
       val programInvoke = createInvoker(Array.empty)
       this.vm = new VM(vmSettings, VMHook.EMPTY)
-      this.program = new Program(vmSettings, txData, programInvoke, stopTime) //.withCommonConfig(commonConfig)
+      this.program = new Program(vmSettings, tx.data, programInvoke, stopTime) //.withCommonConfig(commonConfig)
 
     }
     val endowment = tx.amount
@@ -231,7 +201,7 @@ class TransactionExecutor(val tx: Transaction,
 
   def go(): Unit = {
     val EMPTY_BYTE_ARRAY = new Array[Byte](0)
-    if (!readyToExecute || scheduleTxFirstExecuted()) return
+    if (!readyToExecute) return
     try {
       if (vm != null) { // Charge basic cost of the transaction
         program.spendGas(tx.transactionCost(), "TRANSACTION COST")
@@ -273,7 +243,7 @@ class TransactionExecutor(val tx: Transaction,
         m_endGas = 0
         execError(e.getMessage)
     }
-    if(scheduleTxSecondExecuted()) track.deleteScheduleTx(tx.id())
+
   }
 
   private def rollback(): Unit = {
