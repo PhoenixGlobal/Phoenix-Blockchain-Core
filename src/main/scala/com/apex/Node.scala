@@ -162,7 +162,7 @@ class Node(val settings: ApexSettings, config: Config)
         }
         case SendRawTransactionCmd(tx) => {
           var exec = false
-          if (tx.verifySignature() && tx.verify()) {
+          if (tx.verifySignature()) {
             peerHandlerManager ! InventoryMessage(new InventoryPayload(InventoryType.Tx, Seq(tx.id)))
             if (chain.addTransaction(tx))
               exec = true

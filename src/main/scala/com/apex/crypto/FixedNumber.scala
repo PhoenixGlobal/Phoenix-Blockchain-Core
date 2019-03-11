@@ -11,7 +11,6 @@ package com.apex.crypto
 import java.io.{DataInputStream, DataOutputStream}
 
 import com.apex.common.Serializable
-import com.apex.exceptions.OverflowException
 
 case class FixedNumber(value: BigInt = 0) extends Serializable {
   def isZero: Boolean = value == 0
@@ -50,14 +49,7 @@ case class FixedNumber(value: BigInt = 0) extends Serializable {
 
   def >(that: BigInt): Boolean = value > that
 
-  /**
-    * is less than 0
-    *
-    * @return true or false
-    */
-  def isNegate(): Boolean = {
-    FixedNumber.Zero > this
-  }
+  def >=(that: FixedNumber): Boolean = value >= that.value
 
   def ==(that: FixedNumber): Boolean = {
     that match {

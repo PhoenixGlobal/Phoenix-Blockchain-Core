@@ -109,7 +109,7 @@ class Blockchain(chainSettings: ChainSettings,
     chainSettings.genesis.genesisCoinAirdrop.foreach(airdrop => {
       genesisTxs.append(new Transaction(TransactionType.Miner, minerCoinFrom,
         PublicKeyHash.fromAddress(airdrop.addr).get, FixedNumber.fromDecimal(airdrop.coins),
-        0, consensusSettings.fingerprint(), FixedNumber.Zero, 0, BinaryData.empty))
+        0, consensusSettings.fingerprint(), FixedNumber.MinValue, 0, BinaryData.empty))
     })
 
     val genesisBlockHeader: BlockHeader = BlockHeader.build(0,
@@ -216,7 +216,7 @@ class Blockchain(chainSettings: ChainSettings,
     val minerTx = new Transaction(TransactionType.Miner, minerCoinFrom,
       producer, minerAward, forkHead.block.height + 1,
       BinaryData(Crypto.randomBytes(8)), // add random bytes to distinct different blocks with same block index during debug in some cases
-      FixedNumber.Zero, 0, BinaryData.empty)
+      FixedNumber.MinValue, 0, BinaryData.empty)
 
     dataBase.startSession()
 
@@ -963,9 +963,6 @@ object TransactionProccessor extends ApexLogging {
 
     }
     else {
-      if (!tx.verify()) {
-        txValid = false
-      }
       txFee = FixedNumber(BigInt(txGas)) * tx.gasPrice
       if (txGas > tx.gasLimit) {
         log.info(s"Not enough gas for transaction tx ${tx.id().shortString()}")

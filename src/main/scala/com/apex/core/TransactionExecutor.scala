@@ -59,11 +59,6 @@ class TransactionExecutor(val tx: Transaction,
     * set readyToExecute = true
     */
   def init(): Unit = {
-      if(!tx.verify()){
-        execError(s" verify failed, ${tx.amount},${tx.gasPrice},${tx.executeTime} should not be negate.")
-        return
-      }
-
       basicTxCost = tx.transactionCost()
       val txGasLimit = tx.gasLimit
       if (txGasLimit < basicTxCost) {
