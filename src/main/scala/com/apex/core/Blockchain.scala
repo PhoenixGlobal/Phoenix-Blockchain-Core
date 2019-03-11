@@ -534,75 +534,50 @@ class Blockchain(chainSettings: ChainSettings,
   private def applyContractTransaction(tx: Transaction, blockProducer: UInt160,
                                        stopTime: Long, timeStamp: Long, blockIndex: Long, originalTx: Transaction = null): Boolean = {
     if(originalTx != null){
-      var applied = false
-
-      val executor = new TransactionExecutor(originalTx, blockProducer, dataBase, stopTime,
-        timeStamp, blockIndex, this, true)
-
-      executor.init()
-      executor.execute()
-      executor.go()
-
-
-      val summary = executor.finalization()
-      val receipt = executor.getReceipt
-
-      if (executor.getResult.isBlockTimeout) {
-        log.error(s"tx ${tx.id.shortString()} executor time out")
-        if (isProducingBlock())
-          timeoutTx = Some(tx)
-        applied = false
-      }
-      else if (executor.getResult.isRunOutOfGas) {
-        applied = true
-      }
-      else if (!receipt.isSuccessful()) {
-        log.error(s"tx ${tx.id().shortString()} execute error: ${receipt.error}")
-        applied = false
-      }
-      else {
-        applied = true
-      }
+      applyContractTransactionExecutor(originalTx, blockProducer, stopTime, timeStamp, blockIndex,true)
       dataBase.deleteScheduleTx(tx.id())
-      dataBase.setReceipt(tx.id(), receipt)
-      applied
+      true
     }
     else{
       if(timeStamp >= tx.executeTime){
-        var applied = false
-
-        val executor = new TransactionExecutor(tx, blockProducer, dataBase, stopTime,
-          timeStamp, blockIndex, this)
-
-        executor.init()
-        executor.execute()
-        executor.go()
-
-        val summary = executor.finalization()
-        val receipt = executor.getReceipt
-
-        if (executor.getResult.isBlockTimeout) {
-          log.error(s"tx ${tx.id.shortString()} executor time out")
-          if (isProducingBlock())
-            timeoutTx = Some(tx)
-          applied = false
-        }
-        else if (executor.getResult.isRunOutOfGas) {
-          applied = true
-        }
-        else if (!receipt.isSuccessful()) {
-          log.error(s"tx ${tx.id().shortString()} execute error: ${receipt.error}")
-          applied = false
-        }
-        else {
-          applied = true
-        }
-        dataBase.setReceipt(tx.id(), receipt)
-        applied
+        applyContractTransactionExecutor(tx, blockProducer, stopTime, timeStamp, blockIndex)
       }
       else scheduleTxFisrtExecute(tx, blockProducer, timeStamp, blockIndex)
     }
+  }
 
+  private def applyContractTransactionExecutor(tx: Transaction, blockProducer: UInt160,stopTime: Long, timeStamp: Long,
+                                               blockIndex: Long, isScheduleTx: Boolean = false) = {
+    var applied = false
+
+    val executor = new TransactionExecutor(tx, blockProducer, dataBase, stopTime,
+      timeStamp, blockIndex, this, isScheduleTx)
+
+    executor.init()
+    executor.execute()
+    executor.go()
+
+    val summary = executor.finalization()
+    val receipt = executor.getReceipt
+
+    if (executor.getResult.isBlockTimeout) {
+      log.error(s"tx ${tx.id.shortString()} executor time out")
+      if (isProducingBlock())
+        timeoutTx = Some(tx)
+      applied = false
+    }
+    else if (executor.getResult.isRunOutOfGas) {
+      applied = true
+    }
+    else if (!receipt.isSuccessful()) {
+      log.error(s"tx ${tx.id().shortString()} execute error: ${receipt.error}")
+      applied = false
+    }
+    else {
+      applied = true
+    }
+    dataBase.setReceipt(tx.id(), receipt)
+    applied
   }
 
   private def applySendTransaction(tx: Transaction, blockProducer: UInt160,
@@ -618,7 +593,7 @@ class Blockchain(chainSettings: ChainSettings,
       dataBase.deleteScheduleTx(tx.id())
       //TODO tx.transactionCost() -> originalTx.transactionCost()
       dataBase.setReceipt(tx.id(), TransactionReceipt(tx.id(), tx.txType, tx.from, tx.toPubKeyHash,
-        blockIndex, tx.transactionCost(), BinaryData.empty, 0, ""))
+        blockIndex, orginalTx.transactionCost(), BinaryData.empty, 0, ""))
       true
     }
     else {

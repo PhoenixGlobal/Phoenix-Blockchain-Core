@@ -19,9 +19,9 @@ class Transaction(val txType: TransactionType.Value,
                   val version: Int = 0x01,
                   val executeTime: Long = 0) extends Identifier[UInt256] with Serializable with ApexLogging {
 
-  require(amount > 0, "amount must be larger than or equal to 0")
+  //require(amount > 0, "amount must be larger than or equal to 0")
 
-  require(gasPrice > 0, "gas price must be lager than 0")
+  //require(gasPrice > 0, "gas price must be lager than 0")
 
   def sender(): UInt160 = from
 

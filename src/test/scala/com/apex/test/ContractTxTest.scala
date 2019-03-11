@@ -256,7 +256,6 @@ class ContractTxTest {
         FixedNumber(0), 9000000L, BinaryData.empty, executeTime = blockTime + 2750)
       assert(chain.addTransaction(deployTx))
       assert(chain.getScheduleTx().size ==1)
-      val sheduleTx = chain.getScheduleTx().head
       val block1 = chain.produceBlockFinalize()
 
       blockTime += _produceInterval
