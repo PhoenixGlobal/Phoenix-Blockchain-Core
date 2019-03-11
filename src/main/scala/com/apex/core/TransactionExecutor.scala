@@ -44,7 +44,7 @@ class TransactionExecutor(val tx: Transaction,
   private[core] var precompiledContract: PrecompiledContract = null
   private[core] var m_endGas: BigInt = tx.gasLimit
   private[core] var basicTxCost: Long = 0
-  private[core] var localCall = false
+  //private[core] var localCall = false
 
   private def execError(err: String): Unit = {
     TransactionExecutor.logger.warn(err)
@@ -65,10 +65,6 @@ class TransactionExecutor(val tx: Transaction,
       }
 
       basicTxCost = tx.transactionCost()
-      if (localCall) {
-        readyToExecute = true
-        return
-      }
       val txGasLimit = tx.gasLimit
       if (txGasLimit < basicTxCost) {
         execError(s"Not enough gas for transaction execution: Require: ${basicTxCost} Got: ${txGasLimit}")
@@ -91,18 +87,19 @@ class TransactionExecutor(val tx: Transaction,
         return
       }
       readyToExecute = true
-      if(!localCall || !isScheduleTx) track.increaseNonce(tx.sender())
+      if (!isScheduleTx)
+        track.increaseNonce(tx.sender())
   }
 
   def execute(): Unit = {
     if (!readyToExecute) return
-    if (!localCall) {
-      val txGasLimit = tx.gasLimit
-      val txGasCost = tx.gasPrice * txGasLimit
-      track.addBalance(tx.sender(), -txGasCost)
-      if (TransactionExecutor.logger.isInfoEnabled)
-        TransactionExecutor.logger.info("Paying: txGasCost: [{}], gasPrice: [{}], gasLimit: [{}]", txGasCost, tx.gasPrice, txGasLimit)
-    }
+
+    val txGasLimit = tx.gasLimit
+    val txGasCost = tx.gasPrice * txGasLimit
+    track.addBalance(tx.sender(), -txGasCost)
+    if (TransactionExecutor.logger.isInfoEnabled)
+      TransactionExecutor.logger.info("Paying: txGasCost: [{}], gasPrice: [{}], gasLimit: [{}]", txGasCost, tx.gasPrice, txGasLimit)
+
     if (tx.isContractCreation)
       create()
     else
@@ -116,7 +113,7 @@ class TransactionExecutor(val tx: Transaction,
     if (precompiledContract != null) {
       val requiredGas = precompiledContract.getGasForData(tx.data)
       val spendingGas = BigInt(requiredGas) + basicTxCost
-      if (!localCall && m_endGas < spendingGas) { // no refund
+      if (m_endGas < spendingGas) { // no refund
         // no endowment
         execError(s"Out of Gas calling precompiled contract ${targetAddress.address} required: $spendingGas  left: $m_endGas")
         //execError("Out of Gas calling precompiled contract 0x" + toHexString(targetAddress) + ", required: " + spendingGas + ", left: " + m_endGas)
@@ -284,11 +281,6 @@ class TransactionExecutor(val tx: Transaction,
     TransactionExecutor.logger.info("Pay fees to miner: [{}], feesEarned: [{}]", coinbase.address, summary.getFee.longValue())
 
     summary
-  }
-
-  def setLocalCall(localCall: Boolean): TransactionExecutor = {
-    this.localCall = localCall
-    this
   }
 
   def getReceipt: TransactionReceipt = {
