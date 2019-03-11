@@ -263,8 +263,10 @@ class Blockchain(chainSettings: ChainSettings,
   private def addTransactionToUnapplyTxs(tx: Transaction): Boolean = {
     if (!unapplyTxs.contains(tx.id)) {
       unapplyTxs += (tx.id -> tx)
+      true
     }
-    true // always true
+    else
+      false
   }
 
   def addTransaction(tx: Transaction): Boolean = {
