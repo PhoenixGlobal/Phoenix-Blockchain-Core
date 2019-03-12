@@ -162,44 +162,43 @@ class ContractTxTest {
 
       var deployTx = new Transaction(TransactionType.Deploy, _acct1.publicKey.pubKeyHash,
         UInt160.Zero, FixedNumber.Zero, 1, codebin,
-        FixedNumber(0), 9000000L, BinaryData.empty)
+        FixedNumber(1), 9000000L, BinaryData.empty)
       assert(!chain.addTransaction(deployTx))   // nonce error
 
       deployTx = new Transaction(TransactionType.Deploy, _acct1.publicKey.pubKeyHash,
         UInt160.Zero, FixedNumber.Zero, 0, codebin,
-        FixedNumber(0), 9, BinaryData.empty)
+        FixedNumber(1), 9, BinaryData.empty)
       assert(!chain.addTransaction(deployTx))   // gas limit error
 
       deployTx = new Transaction(TransactionType.Deploy, _acct1.publicKey.pubKeyHash,
         UInt160.Zero, FixedNumber.Zero, 0, codebin,
-        FixedNumber(0), 9000000L, BinaryData.empty)
+        FixedNumber(1), 9000000L, BinaryData.empty)
       assert(chain.addTransaction(deployTx))
 
       val settt = Abi.fromJson("[{\"constant\":false,\"inputs\":[{\"name\":\"withdraw_amount\",\"type\":\"uint256\"}],\"name\":\"set\",\"outputs\":[],\"payable\":false,\"stateMutability\":\"nonpayable\",\"type\":\"function\"},{\"constant\":false,\"inputs\":[],\"name\":\"get\",\"outputs\":[{\"name\":\"\",\"type\":\"uint256\"}],\"payable\":false,\"stateMutability\":\"nonpayable\",\"type\":\"function\"}]").encode("set(123)")
       var setTx = new Transaction(TransactionType.Call, _acct1.publicKey.pubKeyHash,
         UInt160.fromBytes(BinaryData("7f97e6f4f660e6c09b894f34edae3626bf44039a")), FixedNumber.Zero,
-        1, settt, FixedNumber(0), 9, BinaryData.empty)
+        1, settt, FixedNumber(1), 9, BinaryData.empty)
       assert(!chain.addTransaction(setTx))   // gas limit error
 
       setTx = new Transaction(TransactionType.Call, _acct1.publicKey.pubKeyHash,
         UInt160.fromBytes(BinaryData("7f97e6f4f660e6c09b894f34edae3626bf44039a")), FixedNumber.Zero,
-        1, settt, FixedNumber(0), 9000000L, BinaryData.empty)
+        1, settt, FixedNumber(1), 9000000L, BinaryData.empty)
       assert(chain.addTransaction(setTx))
 
       val gettt = Abi.fromJson("[{\"constant\":false,\"inputs\":[{\"name\":\"withdraw_amount\",\"type\":\"uint256\"}],\"name\":\"set\",\"outputs\":[],\"payable\":false,\"stateMutability\":\"nonpayable\",\"type\":\"function\"},{\"constant\":false,\"inputs\":[],\"name\":\"get\",\"outputs\":[{\"name\":\"\",\"type\":\"uint256\"}],\"payable\":false,\"stateMutability\":\"nonpayable\",\"type\":\"function\"}]").encode("get()")
 
       var getTx = new Transaction(TransactionType.Call, _acct1.publicKey.pubKeyHash,
         UInt160.fromBytes(BinaryData("7f97e6f4f660e6c09b894f34edae3626bf44039a")), FixedNumber.Zero,
-        2, gettt, FixedNumber(0), 9000000L, BinaryData.empty)
+        2, gettt, FixedNumber(1), 9000000L, BinaryData.empty)
       assert(chain.addTransaction(getTx))
       assert(chain.getTransactionFromPendingTxs(getTx.id).isDefined)
 
       var receipt = chain.getReceipt(getTx.id()).get
 
       assert(DataWord.of(receipt.output).longValue == 123)
-
-      assert(chain.getBalance(_acct1).get == FixedNumber.fromDecimal(123.12))
-      assert(chain.getBalance(producer).get == FixedNumber.fromDecimal(12.3))
+      assert(chain.getBalance(_acct1).get == FixedNumber.fromDecimal(BigDecimal("123.119999999999822462")))
+      assert(chain.getBalance(producer).get == FixedNumber.fromDecimal(BigDecimal("12.300000000000177538")))
 
       getTx = new Transaction(TransactionType.Call, _acct1.publicKey.pubKeyHash,
         UInt160.fromBytes(BinaryData("7f97e6f4f660e6c09b894f34edae3626bf44039a")), FixedNumber.Zero,
@@ -208,8 +207,8 @@ class ContractTxTest {
       receipt = chain.getReceipt(getTx.id()).get
       assert(receipt.error.contains("Not enough gas"))
       // Fee = 0.000021539
-      assert(chain.getBalance(_acct1).get == FixedNumber.fromDecimal(123.119978461))
-      assert(chain.getBalance(producer).get == FixedNumber.fromDecimal(12.300021539))
+      assert(chain.getBalance(_acct1).get == FixedNumber.fromDecimal(BigDecimal("123.119978460999822462")))
+      assert(chain.getBalance(producer).get == FixedNumber.fromDecimal(BigDecimal("12.300021539000177538")))
 
     }
     finally {
@@ -253,7 +252,7 @@ class ContractTxTest {
 
       val deployTx = new Transaction(TransactionType.Deploy, _acct1.publicKey.pubKeyHash,
         UInt160.Zero, FixedNumber.Zero, 0, codebin,
-        FixedNumber(0), 9000000L, BinaryData.empty, executeTime = blockTime + 2750)
+        FixedNumber(1), 9000000L, BinaryData.empty, executeTime = blockTime + 2750)
       assert(chain.addTransaction(deployTx))
       assert(chain.getScheduleTx().size ==1)
       val block1 = chain.produceBlockFinalize()
@@ -299,14 +298,14 @@ class ContractTxTest {
       val settt = Abi.fromJson("[{\"constant\":false,\"inputs\":[{\"name\":\"withdraw_amount\",\"type\":\"uint256\"}],\"name\":\"set\",\"outputs\":[],\"payable\":false,\"stateMutability\":\"nonpayable\",\"type\":\"function\"},{\"constant\":false,\"inputs\":[],\"name\":\"get\",\"outputs\":[{\"name\":\"\",\"type\":\"uint256\"}],\"payable\":false,\"stateMutability\":\"nonpayable\",\"type\":\"function\"}]").encode("set(123)")
       val setTx = new Transaction(TransactionType.Call, _acct1.publicKey.pubKeyHash,
       UInt160.fromBytes(BinaryData("7f97e6f4f660e6c09b894f34edae3626bf44039a")), FixedNumber.Zero,
-      1, settt, FixedNumber(0), 9000000L, BinaryData.empty)
+      1, settt, FixedNumber(1), 9000000L, BinaryData.empty)
       assert(chain.addTransaction(setTx))
 
       val gettt = Abi.fromJson("[{\"constant\":false,\"inputs\":[{\"name\":\"withdraw_amount\",\"type\":\"uint256\"}],\"name\":\"set\",\"outputs\":[],\"payable\":false,\"stateMutability\":\"nonpayable\",\"type\":\"function\"},{\"constant\":false,\"inputs\":[],\"name\":\"get\",\"outputs\":[{\"name\":\"\",\"type\":\"uint256\"}],\"payable\":false,\"stateMutability\":\"nonpayable\",\"type\":\"function\"}]").encode("get()")
 
       var getTx = new Transaction(TransactionType.Call, _acct1.publicKey.pubKeyHash,
       UInt160.fromBytes(BinaryData("7f97e6f4f660e6c09b894f34edae3626bf44039a")), FixedNumber.Zero,
-      2, gettt, FixedNumber(0), 9000000L, BinaryData.empty)
+      2, gettt, FixedNumber(1), 9000000L, BinaryData.empty)
       assert(chain.addTransaction(getTx))
       assert(chain.getTransactionFromPendingTxs(getTx.id).isDefined)
 
@@ -314,10 +313,8 @@ class ContractTxTest {
 
       assert(DataWord.of(receipt.output).longValue == 123)
 
-      val balance = chain.getBalance(_acct1).get
-
-      assert(chain.getBalance(_acct1).get == FixedNumber.fromDecimal(123.12))
-      assert(chain.getBalance(producer).get == FixedNumber.fromDecimal(12.3))
+      assert(chain.getBalance(_acct1).get == FixedNumber.fromDecimal(BigDecimal("123.119999999662376462")))
+      assert(chain.getBalance(producer).get == FixedNumber.fromDecimal(BigDecimal("12.300000000337446000")))
 
       getTx = new Transaction(TransactionType.Call, _acct1.publicKey.pubKeyHash,
       UInt160.fromBytes(BinaryData("7f97e6f4f660e6c09b894f34edae3626bf44039a")), FixedNumber.Zero,
@@ -327,8 +324,8 @@ class ContractTxTest {
       receipt = chain.getReceipt(getTx.id()).get
       assert(receipt.error.contains("Not enough gas"))
       // Fee = 0.000021539
-      assert(chain.getBalance(_acct1).get == FixedNumber.fromDecimal(123.119978461))
-      assert(chain.getBalance(witness3).get == FixedNumber.fromDecimal(12.300021539))
+      assert(chain.getBalance(_acct1).get == FixedNumber.fromDecimal(BigDecimal("123.119978460662376462")))
+      assert(chain.getBalance(witness3).get == FixedNumber.fromDecimal(BigDecimal("12.300021539000063379")))
 
     }
     finally {
@@ -356,7 +353,7 @@ class ContractTxTest {
 
       var deployTx = new Transaction(TransactionType.Deploy, _acct1.publicKey.pubKeyHash,
         UInt160.Zero, FixedNumber.Zero, 0, codebin,
-        FixedNumber(0), 9000000L, BinaryData.empty)
+        FixedNumber(1), 9000000L, BinaryData.empty)
       assert(chain.addTransaction(deployTx))
 
       val abiString = "[{\"constant\":true,\"inputs\":[],\"name\":\"name\",\"outputs\":[{\"name\":\"\",\"type\":\"string\"}],\"payable\":false,\"stateMutability\":\"view\",\"type\":\"function\"},{\"constant\":false,\"inputs\":[{\"name\":\"_spender\",\"type\":\"address\"},{\"name\":\"_value\",\"type\":\"uint256\"}],\"name\":\"approve\",\"outputs\":[{\"name\":\"success\",\"type\":\"bool\"}],\"payable\":false,\"stateMutability\":\"nonpayable\",\"type\":\"function\"},{\"constant\":true,\"inputs\":[],\"name\":\"totalSupply\",\"outputs\":[{\"name\":\"\",\"type\":\"uint256\"}],\"payable\":false,\"stateMutability\":\"view\",\"type\":\"function\"},{\"constant\":false,\"inputs\":[{\"name\":\"_from\",\"type\":\"address\"},{\"name\":\"_to\",\"type\":\"address\"},{\"name\":\"_value\",\"type\":\"uint256\"}],\"name\":\"transferFrom\",\"outputs\":[{\"name\":\"success\",\"type\":\"bool\"}],\"payable\":false,\"stateMutability\":\"nonpayable\",\"type\":\"function\"},{\"constant\":true,\"inputs\":[],\"name\":\"decimals\",\"outputs\":[{\"name\":\"\",\"type\":\"uint8\"}],\"payable\":false,\"stateMutability\":\"view\",\"type\":\"function\"},{\"constant\":false,\"inputs\":[{\"name\":\"amount\",\"type\":\"uint256\"}],\"name\":\"withdrawEther\",\"outputs\":[],\"payable\":false,\"stateMutability\":\"nonpayable\",\"type\":\"function\"},{\"constant\":false,\"inputs\":[{\"name\":\"_value\",\"type\":\"uint256\"}],\"name\":\"burn\",\"outputs\":[{\"name\":\"success\",\"type\":\"bool\"}],\"payable\":false,\"stateMutability\":\"nonpayable\",\"type\":\"function\"},{\"constant\":false,\"inputs\":[{\"name\":\"_value\",\"type\":\"uint256\"}],\"name\":\"unfreeze\",\"outputs\":[{\"name\":\"success\",\"type\":\"bool\"}],\"payable\":false,\"stateMutability\":\"nonpayable\",\"type\":\"function\"},{\"constant\":true,\"inputs\":[{\"name\":\"\",\"type\":\"address\"}],\"name\":\"balanceOf\",\"outputs\":[{\"name\":\"\",\"type\":\"uint256\"}],\"payable\":false,\"stateMutability\":\"view\",\"type\":\"function\"},{\"constant\":true,\"inputs\":[],\"name\":\"owner\",\"outputs\":[{\"name\":\"\",\"type\":\"address\"}],\"payable\":false,\"stateMutability\":\"view\",\"type\":\"function\"},{\"constant\":true,\"inputs\":[],\"name\":\"symbol\",\"outputs\":[{\"name\":\"\",\"type\":\"string\"}],\"payable\":false,\"stateMutability\":\"view\",\"type\":\"function\"},{\"constant\":false,\"inputs\":[{\"name\":\"_to\",\"type\":\"address\"},{\"name\":\"_value\",\"type\":\"uint256\"}],\"name\":\"transfer\",\"outputs\":[],\"payable\":false,\"stateMutability\":\"nonpayable\",\"type\":\"function\"},{\"constant\":true,\"inputs\":[{\"name\":\"\",\"type\":\"address\"}],\"name\":\"freezeOf\",\"outputs\":[{\"name\":\"\",\"type\":\"uint256\"}],\"payable\":false,\"stateMutability\":\"view\",\"type\":\"function\"},{\"constant\":false,\"inputs\":[{\"name\":\"_value\",\"type\":\"uint256\"}],\"name\":\"freeze\",\"outputs\":[{\"name\":\"success\",\"type\":\"bool\"}],\"payable\":false,\"stateMutability\":\"nonpayable\",\"type\":\"function\"},{\"constant\":true,\"inputs\":[{\"name\":\"\",\"type\":\"address\"},{\"name\":\"\",\"type\":\"address\"}],\"name\":\"allowance\",\"outputs\":[{\"name\":\"\",\"type\":\"uint256\"}],\"payable\":false,\"stateMutability\":\"view\",\"type\":\"function\"},{\"constant\":false,\"inputs\":[{\"name\":\"_addr\",\"type\":\"address\"}],\"name\":\"getBalance\",\"outputs\":[{\"name\":\"balance\",\"type\":\"uint256\"}],\"payable\":false,\"stateMutability\":\"nonpayable\",\"type\":\"function\"},{\"inputs\":[],\"payable\":false,\"stateMutability\":\"nonpayable\",\"type\":\"constructor\"},{\"payable\":true,\"stateMutability\":\"payable\",\"type\":\"fallback\"},{\"anonymous\":false,\"inputs\":[{\"indexed\":true,\"name\":\"from\",\"type\":\"address\"},{\"indexed\":true,\"name\":\"to\",\"type\":\"address\"},{\"indexed\":false,\"name\":\"value\",\"type\":\"uint256\"}],\"name\":\"Transfer\",\"type\":\"event\"},{\"anonymous\":false,\"inputs\":[{\"indexed\":true,\"name\":\"from\",\"type\":\"address\"},{\"indexed\":false,\"name\":\"value\",\"type\":\"uint256\"}],\"name\":\"Burn\",\"type\":\"event\"},{\"anonymous\":false,\"inputs\":[{\"indexed\":true,\"name\":\"from\",\"type\":\"address\"},{\"indexed\":false,\"name\":\"value\",\"type\":\"uint256\"}],\"name\":\"Freeze\",\"type\":\"event\"},{\"anonymous\":false,\"inputs\":[{\"indexed\":true,\"name\":\"from\",\"type\":\"address\"},{\"indexed\":false,\"name\":\"value\",\"type\":\"uint256\"}],\"name\":\"Unfreeze\",\"type\":\"event\"}]"
@@ -374,7 +371,7 @@ class ContractTxTest {
       var txData = Abi.fromJson(abiString).encode(s"getBalance('${_acct1.publicKey.pubKeyHash.address}')")
       var tx = new Transaction(TransactionType.Call, _acct1.publicKey.pubKeyHash,
         UInt160.fromBytes(BinaryData("7f97e6f4f660e6c09b894f34edae3626bf44039a")), FixedNumber.Zero,
-        1, txData, FixedNumber(0), 9000000L, BinaryData.empty)
+        1, txData, FixedNumber(1), 9000000L, BinaryData.empty)
       assert(chain.addTransaction(tx))
       assert(DataWord.of(chain.getReceipt(tx.id()).get.output).value == totalSupply)
 
@@ -382,7 +379,7 @@ class ContractTxTest {
       txData = Abi.fromJson(abiString).encode(s"getBalance('${_acct2.publicKey.pubKeyHash.address}')")
       tx = new Transaction(TransactionType.Call, _acct1.publicKey.pubKeyHash,
         UInt160.fromBytes(BinaryData("7f97e6f4f660e6c09b894f34edae3626bf44039a")), FixedNumber.Zero,
-        2, txData, FixedNumber(0), 9000000L, BinaryData.empty)
+        2, txData, FixedNumber(1), 9000000L, BinaryData.empty)
       assert(chain.addTransaction(tx))
       assert(DataWord.of(chain.getReceipt(tx.id()).get.output).longValue == 0)
 
@@ -391,7 +388,7 @@ class ContractTxTest {
       assert(txData sameElements BinaryData("a9059cbb0000000000000000000000002ee607c3ed304353dd8a2d16636b46bd91d1115200000000000000000000000000000000000000000000000000000000000001f5"))
       tx = new Transaction(TransactionType.Call, _acct1.publicKey.pubKeyHash,
         UInt160.fromBytes(BinaryData("7f97e6f4f660e6c09b894f34edae3626bf44039a")), FixedNumber.Zero,
-        3, txData, FixedNumber(0), 9000000L, BinaryData.empty)
+        3, txData, FixedNumber(1), 9000000L, BinaryData.empty)
       assert(chain.addTransaction(tx))
       var receipt = chain.getReceipt(tx.id()).get
 
@@ -399,7 +396,7 @@ class ContractTxTest {
       txData = Abi.fromJson(abiString).encode(s"getBalance('${_acct1.publicKey.pubKeyHash.address}')")
       tx = new Transaction(TransactionType.Call, _acct1.publicKey.pubKeyHash,
         UInt160.fromBytes(BinaryData("7f97e6f4f660e6c09b894f34edae3626bf44039a")), FixedNumber.Zero,
-        4, txData, FixedNumber(0), 9000000L, BinaryData.empty)
+        4, txData, FixedNumber(1), 9000000L, BinaryData.empty)
       assert(chain.addTransaction(tx))
       val wefwef = chain.getReceipt(tx.id())
       var ercBalance1 = totalSupply - BigInt(501)
@@ -409,7 +406,7 @@ class ContractTxTest {
       txData = Abi.fromJson(abiString).encode(s"getBalance('${_acct2.publicKey.pubKeyHash.address}')")
       tx = new Transaction(TransactionType.Call, _acct1.publicKey.pubKeyHash,
         UInt160.fromBytes(BinaryData("7f97e6f4f660e6c09b894f34edae3626bf44039a")), FixedNumber.Zero,
-        5, txData, FixedNumber(0), 9000000L, BinaryData.empty)
+        5, txData, FixedNumber(1), 9000000L, BinaryData.empty)
       assert(chain.addTransaction(tx))
       assert(DataWord.of(chain.getReceipt(tx.id()).get.output).value == BigInt(501))
 
@@ -425,7 +422,7 @@ class ContractTxTest {
       txData = Abi.fromJson(abiString).encode(s"burn(1001)")
       tx = new Transaction(TransactionType.Call, _acct1.publicKey.pubKeyHash,
         UInt160.fromBytes(BinaryData("7f97e6f4f660e6c09b894f34edae3626bf44039a")), FixedNumber.Zero,
-        6, txData, FixedNumber(0), 9000000L, BinaryData.empty)
+        6, txData, FixedNumber(1), 9000000L, BinaryData.empty)
       assert(chain.addTransaction(tx))
 
       ercBalance1 = ercBalance1 - BigInt(1001)
@@ -434,7 +431,7 @@ class ContractTxTest {
       txData = Abi.fromJson(abiString).encode(s"freeze(700)")
       tx = new Transaction(TransactionType.Call, _acct1.publicKey.pubKeyHash,
         UInt160.fromBytes(BinaryData("7f97e6f4f660e6c09b894f34edae3626bf44039a")), FixedNumber.Zero,
-        7, txData, FixedNumber(0), 9000000L, BinaryData.empty)
+        7, txData, FixedNumber(1), 9000000L, BinaryData.empty)
       assert(chain.addTransaction(tx))
 
       ercBalance1 = ercBalance1 - BigInt(700)
@@ -444,7 +441,7 @@ class ContractTxTest {
       txData = Abi.fromJson(abiString).encode(s"getBalance('${_acct1.publicKey.pubKeyHash.address}')")
       tx = new Transaction(TransactionType.Call, _acct1.publicKey.pubKeyHash,
         UInt160.fromBytes(BinaryData("7f97e6f4f660e6c09b894f34edae3626bf44039a")), FixedNumber.Zero,
-        8, txData, FixedNumber(0), 9000000L, BinaryData.empty)
+        8, txData, FixedNumber(1), 9000000L, BinaryData.empty)
       assert(chain.addTransaction(tx))
       assert(DataWord.of(chain.getReceipt(tx.id()).get.output).value == ercBalance1)
 
@@ -452,7 +449,7 @@ class ContractTxTest {
       txData = Abi.fromJson(abiString).encode(s"unfreeze(500)")
       tx = new Transaction(TransactionType.Call, _acct1.publicKey.pubKeyHash,
         UInt160.fromBytes(BinaryData("7f97e6f4f660e6c09b894f34edae3626bf44039a")), FixedNumber.Zero,
-        9, txData, FixedNumber(0), 9000000L, BinaryData.empty)
+        9, txData, FixedNumber(1), 9000000L, BinaryData.empty)
       assert(chain.addTransaction(tx))
 
       ercBalance1 = ercBalance1 + BigInt(500)
@@ -461,7 +458,7 @@ class ContractTxTest {
       txData = Abi.fromJson(abiString).encode(s"getBalance('${_acct1.publicKey.pubKeyHash.address}')")
       tx = new Transaction(TransactionType.Call, _acct1.publicKey.pubKeyHash,
         UInt160.fromBytes(BinaryData("7f97e6f4f660e6c09b894f34edae3626bf44039a")), FixedNumber.Zero,
-        10, txData, FixedNumber(0), 9000000L, BinaryData.empty)
+        10, txData, FixedNumber(1), 9000000L, BinaryData.empty)
       assert(chain.addTransaction(tx))
       assert(DataWord.of(chain.getReceipt(tx.id()).get.output).value == ercBalance1)
 
@@ -470,7 +467,7 @@ class ContractTxTest {
       txData = Abi.fromJson(abiString).encode(s"approve('${_acct3.publicKey.pubKeyHash.address}', 2000)")
       tx = new Transaction(TransactionType.Call, _acct1.publicKey.pubKeyHash,
         UInt160.fromBytes(BinaryData("7f97e6f4f660e6c09b894f34edae3626bf44039a")), FixedNumber.Zero,
-        11, txData, FixedNumber(0), 9000000L, BinaryData.empty)
+        11, txData, FixedNumber(1), 9000000L, BinaryData.empty)
       assert(chain.addTransaction(tx))
 
 
@@ -478,7 +475,7 @@ class ContractTxTest {
       txData = Abi.fromJson(abiString).encode(s"transferFrom('${_acct1.publicKey.pubKeyHash.address}', '${_acct4.publicKey.pubKeyHash.address}', 2000)")
       tx = new Transaction(TransactionType.Call, _acct3.publicKey.pubKeyHash,
         UInt160.fromBytes(BinaryData("7f97e6f4f660e6c09b894f34edae3626bf44039a")), FixedNumber.Zero,
-        0, txData, FixedNumber(0), 9000000L, BinaryData.empty)
+        0, txData, FixedNumber(1), 9000000L, BinaryData.empty)
       assert(chain.addTransaction(tx))
 
       ercBalance1 = ercBalance1 - BigInt(2000)
@@ -487,7 +484,7 @@ class ContractTxTest {
       txData = Abi.fromJson(abiString).encode(s"getBalance('${_acct1.publicKey.pubKeyHash.address}')")
       tx = new Transaction(TransactionType.Call, _acct1.publicKey.pubKeyHash,
         UInt160.fromBytes(BinaryData("7f97e6f4f660e6c09b894f34edae3626bf44039a")), FixedNumber.Zero,
-        12, txData, FixedNumber(0), 9000000L, BinaryData.empty)
+        12, txData, FixedNumber(1), 9000000L, BinaryData.empty)
       assert(chain.addTransaction(tx))
       assert(DataWord.of(chain.getReceipt(tx.id()).get.output).value == ercBalance1)
 
@@ -495,7 +492,7 @@ class ContractTxTest {
       txData = Abi.fromJson(abiString).encode(s"getBalance('${_acct4.publicKey.pubKeyHash.address}')")
       tx = new Transaction(TransactionType.Call, _acct1.publicKey.pubKeyHash,
         UInt160.fromBytes(BinaryData("7f97e6f4f660e6c09b894f34edae3626bf44039a")), FixedNumber.Zero,
-        13, txData, FixedNumber(0), 9000000L, BinaryData.empty)
+        13, txData, FixedNumber(1), 9000000L, BinaryData.empty)
       assert(chain.addTransaction(tx))
       assert(DataWord.of(chain.getReceipt(tx.id()).get.output).value == BigInt(2000))
 

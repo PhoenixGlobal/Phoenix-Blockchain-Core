@@ -29,7 +29,7 @@ class BlockTest {
       UInt160.Zero, FixedNumber.fromDecimal(1),
       234,
       BinaryData(Crypto.randomBytes(8)), // add random bytes to distinct different blocks with same block index during debug in some cases
-      FixedNumber.Zero, 0, BinaryData.empty)
+      FixedNumber.MinValue, 0, BinaryData.empty)
 
     val allTxs = ArrayBuffer.empty[Transaction]
 
