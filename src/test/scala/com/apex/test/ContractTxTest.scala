@@ -8,6 +8,8 @@ import com.apex.crypto.{BinaryData, Crypto, Ecdsa, FixedNumber, MerkleTree, UInt
 import com.apex.crypto.Ecdsa.{PrivateKey, PublicKey}
 import com.apex.settings._
 import com.apex.solidity.Abi
+import com.apex.solidity.compiler.{CompilationResult, SolidityCompiler}
+import com.apex.solidity.compiler.SolidityCompiler.Options.{ABI, BIN, INTERFACE, METADATA}
 import com.apex.vm.DataWord
 import org.junit.{AfterClass, Test}
 
@@ -316,16 +318,6 @@ class ContractTxTest {
       assert(chain.getBalance(_acct1).get == FixedNumber.fromDecimal(BigDecimal("123.119999999662376462")))
       assert(chain.getBalance(producer).get == FixedNumber.fromDecimal(BigDecimal("12.300000000337446000")))
 
-      getTx = new Transaction(TransactionType.Call, _acct1.publicKey.pubKeyHash,
-      UInt160.fromBytes(BinaryData("7f97e6f4f660e6c09b894f34edae3626bf44039a")), FixedNumber.Zero,
-      3, gettt, FixedNumber(1000000000L), 21539, BinaryData.empty)
-      assert(chain.addTransaction(getTx))   // require gas 21540, but only give 21539
-      val block4 = chain.produceBlockFinalize()
-      receipt = chain.getReceipt(getTx.id()).get
-      assert(receipt.error.contains("Not enough gas"))
-      // Fee = 0.000021539
-      assert(chain.getBalance(_acct1).get == FixedNumber.fromDecimal(BigDecimal("123.119978460662376462")))
-      assert(chain.getBalance(witness3).get == FixedNumber.fromDecimal(BigDecimal("12.300021539000063379")))
 
     }
     finally {
@@ -506,6 +498,59 @@ class ContractTxTest {
 //      assert(chain.addTransaction(tx))
 //
 
+    }
+    finally {
+      chain.close()
+    }
+  }
+
+  @Test
+  def testGAS(): Unit = {
+    val chain = createChain("testGAS")
+    try {
+      val contractSrc = "pragma solidity ^0.5.2;\n\ncontract supportPay {\n\n\n  function test(uint a) public returns (uint256) {  \n     uint sum = 0;\n  \n     for (uint i = 1; i <= 100; i++) {\n        sum += a;     \n     }      \n     return sum;\n  }\n\n}"
+      val res = SolidityCompiler.compile(contractSrc.getBytes, true, Seq(ABI, BIN, INTERFACE, METADATA))
+      val result = CompilationResult.parse(res.output)
+      val abiString = result.getContract("supportPay").abi
+      val binString = result.getContract("supportPay").bin
+
+      var nowTime = Instant.now.toEpochMilli - 90000
+      var blockTime = ProducerUtil.nextBlockTime(chain.getHeadTime(), nowTime, _produceInterval / 10, _produceInterval) //  chain.getHeadTime() + _consensusSettings.produceInterval
+      blockTime += _produceInterval
+      val producer = chain.getWitness(blockTime)
+      chain.startProduceBlock(_miners.findPrivKey(producer).get, blockTime, Long.MaxValue)
+
+      assert(chain.getBalance(_acct1).get == FixedNumber.fromDecimal(123.12))
+
+      var deployTx = new Transaction(TransactionType.Deploy, _acct1.publicKey.pubKeyHash,
+        UInt160.Zero, FixedNumber.Zero, 0, BinaryData(binString),
+        FixedNumber(1), 9000000L, BinaryData.empty)
+      assert(chain.addTransaction(deployTx))
+
+      assert(chain.getAccount(_acct1).get.nextNonce == 1)
+      var balance1 = chain.getBalance(_acct1).get
+
+      var txData = Abi.fromJson(abiString).encode(s"test(2)")
+      var tx = new Transaction(TransactionType.Call, _acct1.publicKey.pubKeyHash,
+        UInt160.fromBytes(BinaryData("7f97e6f4f660e6c09b894f34edae3626bf44039a")), FixedNumber.Zero,
+        1, txData, FixedNumber(100000),
+        BigInt(28000), // require gas 29083
+        BinaryData.empty)
+      assert(chain.addTransaction(tx))
+      assert(chain.getReceipt(tx.id()).get.status == 0)
+      assert(chain.getReceipt(tx.id()).get.error.contains("Not enough gas"))
+
+      assert(chain.getAccount(_acct1).get.nextNonce == 2)
+      assert(chain.getBalance(_acct1).get == balance1 - FixedNumber(100000) * FixedNumber(28000))
+
+      val efwefwef = chain.getReceipt(tx.id()).get
+
+      tx = new Transaction(TransactionType.Call, _acct1.publicKey.pubKeyHash,
+        UInt160.fromBytes(BinaryData("7f97e6f4f660e6c09b894f34edae3626bf44039a")), FixedNumber.One,
+        2, BinaryData.empty, FixedNumber(100000),
+        BigInt(28000), // require gas 29083
+        BinaryData.empty)
+      assert(chain.addTransaction(tx))
     }
     finally {
       chain.close()
