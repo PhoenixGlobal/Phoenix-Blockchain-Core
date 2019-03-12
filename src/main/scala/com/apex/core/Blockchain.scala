@@ -550,7 +550,9 @@ class Blockchain(chainSettings: ChainSettings,
                                                blockIndex: Long, isScheduleTx: Boolean = false) = {
     var applied = false
 
-    val executor = new TransactionExecutor(tx, blockProducer, dataBase, stopTime,
+    val cacheTrack = dataBase.startTracking()
+
+    val executor = new TransactionExecutor(tx, blockProducer, cacheTrack, stopTime,
       timeStamp, blockIndex, this, isScheduleTx)
 
     executor.init()
@@ -569,6 +571,9 @@ class Blockchain(chainSettings: ChainSettings,
     else if (receipt.isValid()) {
       applied = true
     }
+    if (applied)
+      cacheTrack.commit()
+
     dataBase.setReceipt(tx.id(), receipt)
     applied
   }

@@ -557,6 +557,229 @@ class ContractTxTest {
     }
   }
 
+  @Test
+  def testTransfer1(): Unit = {
+    val chain = createChain("testTransfer1")
+    try {
+        //      pragma solidity >=0.4.0 <0.7.0;
+        //
+        //      contract test3 {
+        //
+        //        function() external payable { }
+        //
+        //        function get3(uint a) public  {
+        //          for (uint i = 1; i <= a; i++) {
+        //            msg.sender.transfer(1);
+        //          }
+        //        }
+        //      }
+      val contractSrc = "pragma solidity >=0.4.0 <0.7.0;\n\ncontract test3 {\n\n  function() external payable { }\n\n  function get3(uint a) public  {\n     for (uint i = 1; i <= a; i++) {\n       msg.sender.transfer(1);\n     } \n  }  \n}"
+      val res = SolidityCompiler.compile(contractSrc.getBytes, true, Seq(ABI, BIN, INTERFACE, METADATA))
+      val result = CompilationResult.parse(res.output)
+      val abiString = result.getContract("test3").abi
+      val binString = result.getContract("test3").bin
+
+      var nowTime = Instant.now.toEpochMilli - 90000
+      var blockTime = ProducerUtil.nextBlockTime(chain.getHeadTime(), nowTime, _produceInterval / 10, _produceInterval) //  chain.getHeadTime() + _consensusSettings.produceInterval
+      blockTime += _produceInterval
+      val producer = chain.getWitness(blockTime)
+      chain.startProduceBlock(_miners.findPrivKey(producer).get, blockTime, Long.MaxValue)
+
+      assert(chain.getBalance(_acct1).get == FixedNumber.fromDecimal(123.12))
+
+      var deployTx = new Transaction(TransactionType.Deploy, _acct1.publicKey.pubKeyHash,
+        UInt160.Zero, FixedNumber.Zero, 0, BinaryData(binString),
+        FixedNumber(1), 9000000L, BinaryData.empty)
+      assert(chain.addTransaction(deployTx))
+      assert(chain.getAccount(_acct1).get.nextNonce == 1)
+      var balance1 = chain.getBalance(_acct1).get
+
+      val contractAddr = UInt160.fromBytes(BinaryData("7f97e6f4f660e6c09b894f34edae3626bf44039a"))
+
+      // transefer 1.2 coin, no call function
+      var tx = new Transaction(TransactionType.Call, _acct1.publicKey.pubKeyHash,
+        contractAddr, FixedNumber.fromDecimal(1.2),
+        1, BinaryData.empty, FixedNumber(1),9000000L, BinaryData.empty)
+      assert(chain.addTransaction(tx))
+      var receipt = chain.getReceipt(tx.id()).get
+      assert(chain.getReceipt(tx.id()).get.status == 0)
+      assert(chain.getReceipt(tx.id()).get.gasUsed == BigInt(21040L))
+      assert(chain.getAccount(_acct1).get.nextNonce == 2)
+      assert(chain.getBalance(contractAddr).get == FixedNumber.fromDecimal(1.2))
+      assert(chain.getBalance(_acct1).get == balance1 - FixedNumber.fromDecimal(1.2) - FixedNumber(21040) )
+      balance1 = chain.getBalance(_acct1).get
+
+
+      var txData = Abi.fromJson(abiString).encode(s"get3(9)")
+      tx = new Transaction(TransactionType.Call, _acct1.publicKey.pubKeyHash,
+        contractAddr, FixedNumber.Zero,
+        2, txData, FixedNumber(1),9000000L, BinaryData.empty)
+      assert(chain.addTransaction(tx))
+      receipt = chain.getReceipt(tx.id()).get
+      assert(chain.getReceipt(tx.id()).get.status == 0)
+      assert(chain.getReceipt(tx.id()).get.gasUsed == BigInt(89776L))
+      assert(chain.getAccount(_acct1).get.nextNonce == 3)
+      assert(chain.getBalance(contractAddr).get == FixedNumber.fromDecimal(BigDecimal("1.199999999999999991")))
+      assert(chain.getBalance(_acct1).get == balance1 + FixedNumber.fromDecimal(BigDecimal("0.000000000000000009")) - FixedNumber(89776) )
+
+    }
+    finally {
+      chain.close()
+    }
+  }
+
+  @Test
+  def testTransfer2(): Unit = {
+    val chain = createChain("testTransfer2")
+    try {
+      //      pragma solidity >=0.4.0 <0.7.0;
+      //
+      //      contract test3 {
+      //
+      //        function() external payable { }
+      //
+      //        function get3(uint a) public  {
+      //          for (uint i = 1; i <= a; i++) {
+      //            msg.sender.transfer(1);
+      //          }
+      //        }
+      //      }
+      val contractSrc = "pragma solidity >=0.4.0 <0.7.0;\n\ncontract test3 {\n\n  function() external payable { }\n\n  function get3(uint a) public  {\n     for (uint i = 1; i <= a; i++) {\n       msg.sender.transfer(1);\n     } \n  }  \n}"
+      val res = SolidityCompiler.compile(contractSrc.getBytes, true, Seq(ABI, BIN, INTERFACE, METADATA))
+      val result = CompilationResult.parse(res.output)
+      val abiString = result.getContract("test3").abi
+      val binString = result.getContract("test3").bin
+
+      var nowTime = Instant.now.toEpochMilli - 90000
+      var blockTime = ProducerUtil.nextBlockTime(chain.getHeadTime(), nowTime, _produceInterval / 10, _produceInterval) //  chain.getHeadTime() + _consensusSettings.produceInterval
+      blockTime += _produceInterval
+      val producer = chain.getWitness(blockTime)
+      chain.startProduceBlock(_miners.findPrivKey(producer).get, blockTime, Long.MaxValue)
+
+      assert(chain.getBalance(_acct1).get == FixedNumber.fromDecimal(123.12))
+
+      var deployTx = new Transaction(TransactionType.Deploy, _acct1.publicKey.pubKeyHash,
+        UInt160.Zero, FixedNumber.Zero, 0, BinaryData(binString),
+        FixedNumber(1), 9000000L, BinaryData.empty)
+      assert(chain.addTransaction(deployTx))
+      assert(chain.getAccount(_acct1).get.nextNonce == 1)
+      var balance1 = chain.getBalance(_acct1).get
+
+      val contractAddr = UInt160.fromBytes(BinaryData("7f97e6f4f660e6c09b894f34edae3626bf44039a"))
+
+      // transefer 1.2 coin, no call function
+      var tx = new Transaction(TransactionType.Call, _acct1.publicKey.pubKeyHash,
+        contractAddr, FixedNumber.fromDecimal(1.2),
+        1, BinaryData.empty, FixedNumber(1),9000000L, BinaryData.empty)
+      assert(chain.addTransaction(tx))
+      var receipt = chain.getReceipt(tx.id()).get
+      assert(chain.getReceipt(tx.id()).get.status == 0)
+      assert(chain.getReceipt(tx.id()).get.gasUsed == BigInt(21040L))
+      assert(chain.getAccount(_acct1).get.nextNonce == 2)
+      assert(chain.getBalance(contractAddr).get == FixedNumber.fromDecimal(1.2))
+      assert(chain.getBalance(_acct1).get == balance1 - FixedNumber.fromDecimal(1.2) - FixedNumber(21040) )
+      balance1 = chain.getBalance(_acct1).get
+
+      var txData = Abi.fromJson(abiString).encode(s"get3(9)")
+      tx = new Transaction(TransactionType.Call, _acct1.publicKey.pubKeyHash,
+        contractAddr, FixedNumber.Zero,
+        2, txData, FixedNumber(1),
+        89200L,    // require 89776
+        BinaryData.empty)
+      assert(chain.addTransaction(tx))
+      receipt = chain.getReceipt(tx.id()).get
+      assert(chain.getReceipt(tx.id()).get.status == 0)
+      assert(chain.getReceipt(tx.id()).get.gasUsed == BigInt(89200))
+      assert(chain.getAccount(_acct1).get.nextNonce == 3)
+      assert(chain.getBalance(contractAddr).get == FixedNumber.fromDecimal(BigDecimal("1.2")))
+      assert(chain.getBalance(_acct1).get == balance1 - FixedNumber(89200))
+
+    }
+    finally {
+      chain.close()
+    }
+  }
+
+  @Test
+  def testTimeout1(): Unit = {
+    val chain = createChain("testTimeout1")
+    try {
+      //      pragma solidity >=0.4.0 <0.7.0;
+      //
+      //      contract test3 {
+      //
+      //        function() external payable { }
+      //
+      //        function get3(uint a) public  {
+      //          for (uint i = 1; i <= a; i++) {
+      //            msg.sender.transfer(1);
+      //          }
+      //        }
+      //      }
+      val contractSrc = "pragma solidity >=0.4.0 <0.7.0;\n\ncontract test3 {\n\n  function() external payable { }\n\n  function get3(uint a) public  {\n     for (uint i = 1; i <= a; i++) {\n       msg.sender.transfer(1);\n     } \n  }  \n}"
+      val res = SolidityCompiler.compile(contractSrc.getBytes, true, Seq(ABI, BIN, INTERFACE, METADATA))
+      val result = CompilationResult.parse(res.output)
+      val abiString = result.getContract("test3").abi
+      val binString = result.getContract("test3").bin
+
+      var nowTime = Instant.now.toEpochMilli
+      var blockTime = ProducerUtil.nextBlockTime(chain.getHeadTime(), nowTime, _produceInterval / 10, _produceInterval) //  chain.getHeadTime() + _consensusSettings.produceInterval
+      blockTime += _produceInterval
+      var producer = chain.getWitness(blockTime)
+      sleepTo(blockTime - _produceInterval)
+      chain.startProduceBlock(_miners.findPrivKey(producer).get, blockTime, Long.MaxValue)
+
+      assert(chain.getBalance(_acct1).get == FixedNumber.fromDecimal(123.12))
+
+      var deployTx = new Transaction(TransactionType.Deploy, _acct1.publicKey.pubKeyHash,
+        UInt160.Zero, FixedNumber.Zero, 0, BinaryData(binString),
+        FixedNumber(1), 9000000L, BinaryData.empty)
+      assert(chain.addTransaction(deployTx))
+      assert(chain.getAccount(_acct1).get.nextNonce == 1)
+      var balance1 = chain.getBalance(_acct1).get
+
+      val contractAddr = UInt160.fromBytes(BinaryData("7f97e6f4f660e6c09b894f34edae3626bf44039a"))
+
+      // transefer 1.2 coin, no call function
+      var tx = new Transaction(TransactionType.Call, _acct1.publicKey.pubKeyHash,
+        contractAddr, FixedNumber.fromDecimal(1.2),
+        1, BinaryData.empty, FixedNumber(1),9000000L, BinaryData.empty)
+      assert(chain.addTransaction(tx))
+      var receipt = chain.getReceipt(tx.id()).get
+      assert(chain.getReceipt(tx.id()).get.status == 0)
+      assert(chain.getReceipt(tx.id()).get.gasUsed == BigInt(21040L))
+      assert(chain.getAccount(_acct1).get.nextNonce == 2)
+      assert(chain.getBalance(contractAddr).get == FixedNumber.fromDecimal(1.2))
+      assert(chain.getBalance(_acct1).get == balance1 - FixedNumber.fromDecimal(1.2) - FixedNumber(21040) )
+      balance1 = chain.getBalance(_acct1).get
+
+      chain.produceBlockFinalize()
+      blockTime += _produceInterval
+      producer = chain.getWitness(blockTime)
+      sleepTo(blockTime - _produceInterval)
+      chain.startProduceBlock(_miners.findPrivKey(producer).get, blockTime, blockTime - 10)
+
+      println("=========== now test timeout tx =================")
+
+      // get3(999999) make sure vm run long enough
+      var txData = Abi.fromJson(abiString).encode(s"get3(999999)")
+      tx = new Transaction(TransactionType.Call, _acct1.publicKey.pubKeyHash,
+        contractAddr, FixedNumber.Zero,
+        2, txData, FixedNumber(1), 9000000L, BinaryData.empty)
+
+      sleepTo(blockTime - 110)  // allocate 100 ms to run this tx
+
+      assert(!chain.addTransaction(tx))
+      assert(chain.getAccount(_acct1).get.nextNonce == 2)
+      assert(chain.getBalance(contractAddr).get == FixedNumber.fromDecimal(1.2))
+      assert(chain.getBalance(_acct1).get == balance1)
+
+    }
+    finally {
+      chain.close()
+    }
+  }
+
 
   def sleepTo(time: Long) = {
     val nowTime = Instant.now.toEpochMilli
