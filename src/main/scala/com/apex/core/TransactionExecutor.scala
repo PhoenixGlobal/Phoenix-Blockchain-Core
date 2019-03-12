@@ -34,7 +34,7 @@ class TransactionExecutor(val tx: Transaction,
 
   private val vmSettings = ContractSettings(0, false, Int.MaxValue)
 
-  private var cacheTrack = track.startTracking
+  private val cacheTrack = track.startTracking
   private var readyToExecute = false
   private var execError: String = ""
   private var receipt: TransactionReceipt = null
@@ -44,7 +44,6 @@ class TransactionExecutor(val tx: Transaction,
   private[core] var precompiledContract: PrecompiledContract = null
   private[core] var m_endGas: BigInt = tx.gasLimit
   private[core] var basicTxCost: Long = 0
-  //private[core] var localCall = false
 
   private def execError(err: String): Unit = {
     TransactionExecutor.logger.warn(err)

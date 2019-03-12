@@ -45,22 +45,17 @@ class Transaction(val txType: TransactionType.Value,
       cost = GasCost.TRANSACTION_CREATE_CONTRACT
     else
       cost = GasCost.TRANSACTION
-    cost += (zeroDataBytes() * GasCost.TX_ZERO_DATA)
-    cost += (nonZeroDataBytes() * GasCost.TX_NO_ZERO_DATA)
+    val (zeroBytes, nonZeroBytes) = zeroDataBytes()
+    cost += (zeroBytes * GasCost.TX_ZERO_DATA)
+    cost += (nonZeroBytes * GasCost.TX_NO_ZERO_DATA)
     cost.longValue()
   }
 
-  def zeroDataBytes(): Long = {
-    var counter = 0
-    data.data.foreach(d => if (d == 0) counter += 1)
-    counter
-  }
-
-
-  def nonZeroDataBytes(): Long = {
-    var counter = 0
-    data.data.foreach(d => if (d != 0) counter += 1)
-    counter
+  def zeroDataBytes(): (Long, Long) = {
+    var zeroCounter = 0
+    var nonZeroCounter = 0
+    data.data.foreach(d => if (d == 0) zeroCounter += 1 else nonZeroCounter += 1)
+    (zeroCounter, nonZeroCounter)
   }
 
   override protected def genId(): UInt256 = {

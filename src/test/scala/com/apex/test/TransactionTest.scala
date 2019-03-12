@@ -68,8 +68,7 @@ class TransactionTest {
       FixedNumber.Ten,1,
       BinaryData("1234"), FixedNumber(567),789, BinaryData.empty)
 
-    assert(tx1.zeroDataBytes() == 0)
-    assert(tx1.nonZeroDataBytes() == 2)
+    assert(tx1.zeroDataBytes() == (0, 2))
 
     val tx2 = new Transaction(TransactionType.Transfer,
       Ecdsa.PublicKey(BinaryData("0345ffbf8dc9d8ff15785e2c228ac48d98d29b834c2e98fb8cfe6e71474d7f6322")).pubKeyHash,
@@ -77,8 +76,7 @@ class TransactionTest {
       FixedNumber.Ten,1,
       BinaryData("123400"), FixedNumber(567),789, BinaryData.empty)
 
-    assert(tx2.zeroDataBytes() == 1)
-    assert(tx2.nonZeroDataBytes() == 2)
+    assert(tx2.zeroDataBytes() == (1, 2))
 
     val tx3 = new Transaction(TransactionType.Transfer,
       Ecdsa.PublicKey(BinaryData("0345ffbf8dc9d8ff15785e2c228ac48d98d29b834c2e98fb8cfe6e71474d7f6322")).pubKeyHash,
@@ -86,8 +84,7 @@ class TransactionTest {
       FixedNumber.Ten,1,
       BinaryData("120034"), FixedNumber(567),789, BinaryData.empty)
 
-    assert(tx3.zeroDataBytes() == 1)
-    assert(tx3.nonZeroDataBytes() == 2)
+    assert(tx3.zeroDataBytes() == (1, 2))
 
     val tx4 = new Transaction(TransactionType.Transfer,
       Ecdsa.PublicKey(BinaryData("0345ffbf8dc9d8ff15785e2c228ac48d98d29b834c2e98fb8cfe6e71474d7f6322")).pubKeyHash,
@@ -95,8 +92,7 @@ class TransactionTest {
       FixedNumber.Ten,1,
       BinaryData("00123400"), FixedNumber(567),789, BinaryData.empty)
 
-    assert(tx4.zeroDataBytes() == 2)
-    assert(tx4.nonZeroDataBytes() == 2)
+    assert(tx4.zeroDataBytes() == (2, 2))
 
     val tx5 = new Transaction(TransactionType.Transfer,
       Ecdsa.PublicKey(BinaryData("0345ffbf8dc9d8ff15785e2c228ac48d98d29b834c2e98fb8cfe6e71474d7f6322")).pubKeyHash,
@@ -104,8 +100,7 @@ class TransactionTest {
       FixedNumber.Ten, 1,
       BinaryData("00"), FixedNumber(567),789, BinaryData.empty)
 
-    assert(tx5.zeroDataBytes() == 1)
-    assert(tx5.nonZeroDataBytes() == 0)
+    assert(tx5.zeroDataBytes() == (1, 0))
 
     val tx6 = new Transaction(TransactionType.Transfer,
       Ecdsa.PublicKey(BinaryData("0345ffbf8dc9d8ff15785e2c228ac48d98d29b834c2e98fb8cfe6e71474d7f6322")).pubKeyHash,
@@ -113,8 +108,7 @@ class TransactionTest {
       FixedNumber.Ten,1,
       BinaryData.empty, FixedNumber(567),789, BinaryData.empty)
 
-    assert(tx6.zeroDataBytes() == 0)
-    assert(tx6.nonZeroDataBytes() == 0)
+    assert(tx6.zeroDataBytes() == (0, 0))
 
   }
 }
