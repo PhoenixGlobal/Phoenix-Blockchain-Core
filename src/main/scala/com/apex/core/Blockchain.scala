@@ -626,7 +626,7 @@ class Blockchain(chainSettings: ChainSettings,
     var txValid = true
 
     val scheduleTx = new Transaction(TransactionType.Schedule,  tx.from, tx.toPubKeyHash, tx.amount, tx.nonce, tx.toBytes,
-      tx.gasPrice, tx.gasLimit, tx.signature, tx.version, tx.executeTime)
+      tx.gasPrice, tx.gasLimit, BinaryData.empty, tx.version, tx.executeTime)
     val scheduleFee = FixedNumber(BigInt(GasCost.SSTORE)) * scheduleTx.toBytes.size  * tx.gasPrice *
       (tx.executeTime - timeStamp) + FixedNumber(BigInt(GasCost.TRANSACTION)) * tx.gasPrice
 
