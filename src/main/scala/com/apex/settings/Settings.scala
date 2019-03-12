@@ -21,7 +21,8 @@ import scala.concurrent.duration._
 case class ContractSettings(dumpBlock: Long,
                             vmTrace: Boolean,
                             maxContractSize: Int,
-                            registerSpend: FixedNumber = FixedNumber.One)
+                            registerSpend: FixedNumber = FixedNumber.One,
+                            refundDelay: Long = 24 * 60 * 60 * 1000)
 
 case class RPCSettings(enabled: Boolean, host: String, port: Int)
 

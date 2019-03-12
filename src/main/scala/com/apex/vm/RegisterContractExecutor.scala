@@ -1,11 +1,8 @@
 package com.apex.vm
 
-import java.time.Instant
-
 import com.apex.consensus.RegisterData
 import com.apex.core.{DataBase, OperationType, Transaction, TransactionType}
-import com.apex.crypto.{BinaryData, FixedNumber, UInt160}
-import com.apex.crypto.FixedNumber.One
+import com.apex.crypto.{FixedNumber, UInt160}
 
 object RegisterContractExecutor {
   import OperationChecker._
@@ -106,11 +103,9 @@ object RegisterContractExecutor {
     }
 
     private def cancelRegisterWitness(track: DataBase, registerSpend: FixedNumber, tx: Transaction, timeStamp: Long) = {
-//      track.addBalance(registerData.registerAccount, registerSpend.value)
-//      track.addBalance(new UInt160(PrecompiledContracts.registerNodeAddr.getLast20Bytes), -registerSpend.value)
       val time = timeStamp + /*24 * 60 * 60 * 1000*/750/*60 * 1000 * 2*/
-      //note: this scheduleTx from and to address are opposite to tx; amount is the register spend; the scheduleTx index
-      // in leveldb is the id of tx, not the scheduleTx, the tx hash exists in the data filed of scheduleTx
+      //note: this scheduleTx from and to address are opposite to tx; amount is the register spend;
+      // the tx hash exists in the data filed of scheduleTx
       val scheduleTx = new Transaction(TransactionType.Refund, tx.toPubKeyHash, tx.from,
         FixedNumber(registerSpend.value), tx.nonce, tx.id.data, tx.gasPrice, tx.gasLimit, tx.signature, tx.version, time)
       track.setScheduleTx(scheduleTx.id, scheduleTx)

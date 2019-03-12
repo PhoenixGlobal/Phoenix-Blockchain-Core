@@ -56,7 +56,7 @@ class BlockChainPrepare {
                      amount: FixedNumber,
                      nonce: Long,
                      gasLimit: Long = 21000,
-                     gasPrice: FixedNumber = FixedNumber.Zero,
+                     gasPrice: FixedNumber = FixedNumber.MinValue,
                      txType: TransactionType.Value = TransactionType.Transfer,
                       executedTime: Long = 0) = {
 

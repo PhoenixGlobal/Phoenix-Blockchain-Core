@@ -29,9 +29,7 @@ class Transaction(val txType: TransactionType.Value,
     toPubKeyHash.address
   }
 
-  def isContractCreation(): Boolean = (txType == TransactionType.Deploy && toPubKeyHash == UInt160.Zero
-    || txType == TransactionType.Schedule && Transaction.fromBytes(data).txType == TransactionType.Deploy &&
-    Transaction.fromBytes(data).toPubKeyHash == UInt160.Zero)
+  def isContractCreation(): Boolean = txType == TransactionType.Deploy && toPubKeyHash == UInt160.Zero
 
   def getContractAddress(): Option[UInt160] = {
     if (isContractCreation()) {

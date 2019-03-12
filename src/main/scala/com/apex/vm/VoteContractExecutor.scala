@@ -122,20 +122,16 @@ object VoteContractExecutor {
     }
 
     private def cancelCounterFromWitness(track: DataBase, tx: Transaction, witness: Option[WitnessInfo],timeStamp: Long): Unit ={
-//      track.addBalance(tx.from, voteData.voterCount)
-//      track.addBalance(new UInt160(PrecompiledContracts.voteAddr.getLast20Bytes), -voteData.voterCount)
       //TODO read from settings
       val time = timeStamp + /*24 * 60 * 60 * 1000*/750
-      //note: this scheduleTx from and to address are opposite to tx; amount is the register spend; the scheduleTx index
-      // in leveldb is the id of tx, not the scheduleTx, the tx hash exists in the data filed of scheduleTx
+      //note: this scheduleTx from and to address are opposite to tx; amount is the register spend;
+      // the tx hash exists in the data filed of scheduleTx
       val scheduleTx = new Transaction(TransactionType.Refund, tx.toPubKeyHash, tx.from, voteData.voterCount, tx.nonce, tx.id.data,
         tx.gasPrice, tx.gasLimit, tx.signature, tx.version, time)
       track.setScheduleTx(scheduleTx.id, scheduleTx)
-      //TODO require
-      if(witness.isDefined){
-        val newWitness = witness.get.copy(voteCounts = witness.get.voteCounts - voteData.voterCount)
-        track.createWitness(newWitness)
-      }
+      require(witness.isDefined)
+      val newWitness = witness.get.copy(voteCounts = witness.get.voteCounts - voteData.voterCount)
+      track.createWitness(newWitness)
       track.getVote(tx.from).fold({})(
         vote =>{
           val newVote = vote.updateTargetCounter(voteData.candidate, -voteData.voterCount)
