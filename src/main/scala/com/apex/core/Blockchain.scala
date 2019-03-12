@@ -558,7 +558,6 @@ class Blockchain(chainSettings: ChainSettings,
     executor.init()
     executor.execute()
     executor.go()
-
     val summary = executor.finalization()
     val receipt = executor.getReceipt
 
