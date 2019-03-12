@@ -63,7 +63,13 @@ class RegisterContractTest extends BlockChainPrepare{
       Then.checkTx()
       And.checkAccount()
       val account = new UInt160(DataWord.of(333).getLast20Bytes)
-      When.makeWrongRegisterTransaction(account, account, account)(checkRegisterFailed)
+      val tx = new Transaction(TransactionType.Transfer, _acct1.publicKey.pubKeyHash, account,
+        FixedNumber.fromDecimal(0.1), 2, BinaryData.empty, FixedNumber.MinValue, 21000, BinaryData.empty, executeTime = 0)
+      tx.sign(_acct1)
+      assert(chain.addTransaction(tx))
+      When.makeWrongRegisterTransaction(account, account, account)(
+        checkRegisterFailed
+      )
     }
     finally {
       chain.close()
@@ -82,7 +88,7 @@ class RegisterContractTest extends BlockChainPrepare{
       When.makeRegisterTransaction()(checkRegisterSuccess)
       When.makeRegisterTransaction(nonce = 1){
         tx => {
-          assert(!chain.addTransaction(tx))
+          assert(chain.addTransaction(tx))
           val witness = chain.getWitness(_acct3.publicKey.pubKeyHash)
           assert(witness.isDefined)
           assert(witness.get.name == "register node1")
@@ -215,7 +221,7 @@ class RegisterContractTest extends BlockChainPrepare{
       When.makeWrongRegisterTransaction(_acct3.publicKey.pubKeyHash, _acct3.publicKey.pubKeyHash,_acct3.publicKey.pubKeyHash,
         OperationType.resisterCancel){
         tx => {
-          assert(!chain.addTransaction(tx))
+          assert(chain.addTransaction(tx))
           val witness = chain.getWitness(_acct3.publicKey.pubKeyHash)
           assert(witness.isEmpty)
         }
@@ -243,7 +249,6 @@ class RegisterContractTest extends BlockChainPrepare{
                                    registerWitnessAddr: UInt160,
                                    operationType: OperationType.Value = OperationType.register,
                                    nonce: Long =0) (f: Transaction => Unit){
-    println(txFromAccount.toString)
     val txData = RegisterData(registerAccount, WitnessInfo(registerWitnessAddr, false, "register node1"),operationType).toBytes
     val registerContractAddr = new UInt160(DataWord.of("0000000000000000000000000000000000000000000000000000000000000101").getLast20Bytes)
     val tx = new Transaction(TransactionType.Call, txFromAccount ,registerContractAddr, FixedNumber.Zero,
@@ -264,7 +269,7 @@ class RegisterContractTest extends BlockChainPrepare{
   }
 
   def checkRegisterFailed(tx: Transaction): Unit ={
-    assert(!chain.addTransaction(tx))
+    assert(chain.addTransaction(tx))
     val witness = chain.getWitness(_acct3.publicKey.pubKeyHash)
     assert(witness.isEmpty)
   }
