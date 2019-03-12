@@ -566,14 +566,7 @@ class Blockchain(chainSettings: ChainSettings,
         timeoutTx = Some(tx)
       applied = false
     }
-    else if (executor.getResult.isRunOutOfGas) {
-      applied = true
-    }
-    else if (!receipt.isSuccessful()) {
-      log.error(s"tx ${tx.id().shortString()} execute error: ${receipt.error}")
-      applied = false
-    }
-    else {
+    else if (receipt.isValid()) {
       applied = true
     }
     dataBase.setReceipt(tx.id(), receipt)

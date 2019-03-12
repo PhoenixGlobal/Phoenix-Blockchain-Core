@@ -25,7 +25,9 @@ case class TransactionReceipt(txId: UInt256,
                               status: Int,
                               error: String) extends com.apex.common.Serializable {
 
-  def isSuccessful(): Boolean = { error.isEmpty() }
+  def isValid(): Boolean = gasUsed > 0
+
+  def isSuccessful(): Boolean = error.isEmpty()
 
   override def serialize(os: DataOutputStream): Unit = {
     import com.apex.common.Serializable._
