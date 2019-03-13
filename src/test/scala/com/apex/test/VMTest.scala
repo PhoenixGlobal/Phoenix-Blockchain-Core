@@ -217,6 +217,57 @@ class VMTest {
     assert(DataWord.of(result2.getHReturn).value == 0x10)
   }
 
+  @Test
+  def testCREATE = {
+    val _ =
+        "contract A {\n" +
+        "    constructor() payable public {}\n" +
+        "}\n" +
+        "\n" +
+        "contract B {\n" +
+        "    function createA() public returns (A) {\n" +
+        "        return (new A).value(1)();\n" +
+        "    }\n" +
+        "}"
+
+    dataBase.addBalance(author, 1000)
+    dataBase.addBalance(caller, 1000)
+    println(s"author balance: ${dataBase.getBalance(author).get}")
+    println(s"caller balance: ${dataBase.getBalance(caller).get}")
+    println("-----------------------------------------")
+
+    val (contractB, result) = deploy(dataBase, author, BinaryData("608060405261013f806100136000396000f3fe6080604052600436106039576000357c01000000000000000000000000000000000000000000000000000000009004806355e4647614603e575b600080fd5b348015604957600080fd5b5060506092565b604051808273ffffffffffffffffffffffffffffffffffffffff1673ffffffffffffffffffffffffffffffffffffffff16815260200191505060405180910390f35b60006001609c60be565b6040518091039082f08015801560b6573d6000803e3d6000fd5b509050905090565b6040516046806100ce8339019056fe608060405260358060116000396000f3fe6080604052600080fdfea165627a7a7230582009670f2c71915aea1f9f4b413ef3f3a9e8a2e5705c7ee12447e6d79f530887900029a165627a7a72305820defaf630cfde09f05e55e329daf74aee9905bfda54844b60b6b4fd142db7f2300029"), 2)
+    assert(success(result))
+    assert(result.getHReturn.sameElements(BinaryData("6080604052600436106039576000357c01000000000000000000000000000000000000000000000000000000009004806355e4647614603e575b600080fd5b348015604957600080fd5b5060506092565b604051808273ffffffffffffffffffffffffffffffffffffffff1673ffffffffffffffffffffffffffffffffffffffff16815260200191505060405180910390f35b60006001609c60be565b6040518091039082f08015801560b6573d6000803e3d6000fd5b509050905090565b6040516046806100ce8339019056fe608060405260358060116000396000f3fe6080604052600080fdfea165627a7a7230582009670f2c71915aea1f9f4b413ef3f3a9e8a2e5705c7ee12447e6d79f530887900029a165627a7a72305820defaf630cfde09f05e55e329daf74aee9905bfda54844b60b6b4fd142db7f2300029")))
+    val callResult = call(dataBase, caller, contractB, result.getHReturn, Crypto.sha3("createA()".getBytes).take(4), 0, 1000000)
+    assert(success(callResult))
+    val contractA = DataWord.of(callResult.getHReturn).toUInt160
+    println(s"gas used: ${callResult.getGasUsed}")
+    println(s"author balance: ${dataBase.getBalance(author).get}")
+    println(s"caller balance: ${dataBase.getBalance(caller).get}")
+    println(s"contractB balance: ${dataBase.getBalance(contractB).get}")
+    println(s"contractA balance: ${dataBase.getBalance(contractB).get}")
+    println(s"author nonce: ${dataBase.getNonce(author)}")
+    println(s"caller nonce: ${dataBase.getNonce(caller)}")
+    println(s"contractB nonce: ${dataBase.getNonce(contractB)}")
+    println(s"contractA nonce: ${dataBase.getNonce(contractA)}")
+    val callResult2 = call(dataBase, caller, contractB, result.getHReturn, Crypto.sha3("createA()".getBytes).take(4), 0, 1000000)
+    assert(success(callResult2))
+    val contractA2 = DataWord.of(callResult2.getHReturn).toUInt160
+    println("------------------------------------------")
+    println(s"gas used: ${callResult.getGasUsed}")
+    println(s"author balance: ${dataBase.getBalance(author).get}")
+    println(s"caller balance: ${dataBase.getBalance(caller).get}")
+    println(s"contractB balance: ${dataBase.getBalance(contractB).get}")
+    println(s"contractA balance: ${dataBase.getBalance(contractA).get}")
+    println(s"contractA2 balance: ${dataBase.getBalance(contractA2).get}")
+    println(s"author nonce: ${dataBase.getNonce(author)}")
+    println(s"caller nonce: ${dataBase.getNonce(caller)}")
+    println(s"contractB nonce: ${dataBase.getNonce(contractB)}")
+    println(s"contractA nonce: ${dataBase.getNonce(contractA)}")
+    println(s"contractA2 nonce: ${dataBase.getNonce(contractA2)}")
+  }
+
   private def separate() = {
     println()
     println("****************")
@@ -563,7 +614,7 @@ class VMTest {
 
     // author deploy a contract and send it 500
     val abi = Abi.fromJson("[{\"constant\":false,\"inputs\":[{\"name\":\"_addr\",\"type\":\"address\"}],\"name\":\"destroy\",\"outputs\":[],\"payable\":false,\"stateMutability\":\"nonpayable\",\"type\":\"function\"}]")
-    val code ="608060405234801561001057600080fd5b5060c88061001f6000396000f300608060405260043610603e576000357c0100000000000000000000000000000000000000000000000000000000900463ffffffff168062f55d9d146043575b600080fd5b348015604e57600080fd5b506081600480360381019080803573ffffffffffffffffffffffffffffffffffffffff1690602001909291905050506083565b005b8073ffffffffffffffffffffffffffffffffffffffff16ff00a165627a7a723058208a4aff98295cf0b0c8782247310e4194905afe3f40213c93afeafb284b05584f0029"
+    val code = "608060405234801561001057600080fd5b5060c88061001f6000396000f300608060405260043610603e576000357c0100000000000000000000000000000000000000000000000000000000900463ffffffff168062f55d9d146043575b600080fd5b348015604e57600080fd5b506081600480360381019080803573ffffffffffffffffffffffffffffffffffffffff1690602001909291905050506083565b005b8073ffffffffffffffffffffffffffffffffffffffff16ff00a165627a7a723058208a4aff98295cf0b0c8782247310e4194905afe3f40213c93afeafb284b05584f0029"
 
     val call1 = abi.encode("destroy('11cee5dd2b22ebd96a42e4c9318d6bf050c9b3b7')")
     val (deployGasUsed1, callGasUsed1) = deployThenCall(code, call1, true)
@@ -583,7 +634,7 @@ class VMTest {
 
     // author deploy a contract and send it 500
     val abi = Abi.fromJson("[{\"constant\":false,\"inputs\":[{\"name\":\"_owner\",\"type\":\"address\"}],\"name\":\"createHolder\",\"outputs\":[],\"payable\":false,\"stateMutability\":\"nonpayable\",\"type\":\"function\"}]")
-    val code ="608060405234801561001057600080fd5b5060bf8061001f6000396000f300608060405260043610603f576000357c0100000000000000000000000000000000000000000000000000000000900463ffffffff16806351e8054c146044575b600080fd5b348015604f57600080fd5b506082600480360381019080803573ffffffffffffffffffffffffffffffffffffffff1690602001909291905050506084565b005b6000816020600080fb905050505600a165627a7a723058202095d0114e0e839a0e8c92f5ac449a4bd70450e01493fed4c94028c276bde78f0029"
+    val code = "608060405234801561001057600080fd5b5060bf8061001f6000396000f300608060405260043610603f576000357c0100000000000000000000000000000000000000000000000000000000900463ffffffff16806351e8054c146044575b600080fd5b348015604f57600080fd5b506082600480360381019080803573ffffffffffffffffffffffffffffffffffffffff1690602001909291905050506084565b005b6000816020600080fb905050505600a165627a7a723058202095d0114e0e839a0e8c92f5ac449a4bd70450e01493fed4c94028c276bde78f0029"
 
     val call1 = abi.encode("createHolder('11cee5dd2b22ebd96a42e4c9318d6bf050c9b3b7')")
     val (deployGasUsed1, callGasUsed1) = deployThenCall(code, call1, true)
@@ -595,12 +646,13 @@ class VMTest {
 
   }
 
-  private def deployThenCall(code: String, call: Array[Byte], newStep: Boolean):(BigInt, BigInt) = {
-    deployThenCall(Array(code),call,newStep)
+  private def deployThenCall(code: String, call: Array[Byte], newStep: Boolean): (BigInt, BigInt) = {
+    deployThenCall(Array(code), call, newStep)
   }
+
   private def deployThenCall(code: Array[String], call: Array[Byte], newStep: Boolean) = {
     println("|------begin deploy ------------------")
-    val (contract, result) = code.map(x=> {
+    val (contract, result) = code.map(x => {
       VMTest.newdeploy(dataBase, author, BinaryData(x), over = newStep)
 
     }).toSeq.head
@@ -677,7 +729,7 @@ object VMTest {
   }
 
   def newcall(dataBase: DataBase, caller: UInt160, contract: UInt160, code: Array[Byte],
-           signature: Array[Byte], value: Int = 0, gasLimit: Long = Int.MaxValue, over: Boolean) = {
+              signature: Array[Byte], value: Int = 0, gasLimit: Long = Int.MaxValue, over: Boolean) = {
     val tracking = dataBase.startTracking()
     if (value > 0) {
       tracking.transfer(caller, contract, value)

@@ -326,6 +326,12 @@ class Program(settings: ContractSettings,
       getResult.addCallCreate(programCode, Array.empty, getGas.getNoLeadZeroesData, value.getNoLeadZeroesData)
     }
 
+    // [3] UPDATE THE NONCE
+    // (THIS STAGE IS NOT REVERTED BY ANY EXCEPTION)
+    if (!byTestingSuite) {
+      getStorage.increaseNonce(senderAddress)
+    }
+
     val track = getStorage.startTracking
     val oldBalance = track.getBalance(newAddress)
     track.createAccount(newAddress)
