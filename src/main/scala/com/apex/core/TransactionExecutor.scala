@@ -58,14 +58,13 @@ class TransactionExecutor(val tx: Transaction,
     * set readyToExecute = true
     */
   def init(): Unit = {
-      basicTxCost = tx.transactionCost()
-      val txGasLimit = tx.gasLimit
-      if (txGasLimit < basicTxCost) {
-        execError(s"Not enough gas for transaction execution: Require: ${basicTxCost} Got: ${txGasLimit}")
-        //execError(String.format("Not enough gas for transaction execution: Require: %s Got: %s", basicTxCost, txGasLimit))
-        return
-      }
-    if(!isScheduleTx){
+    basicTxCost = tx.transactionCost()
+    if (tx.gasLimit < basicTxCost) {
+      execError(s"Not enough gas for transaction execution: Require: ${basicTxCost} Got: ${tx.gasLimit}")
+      //execError(String.format("Not enough gas for transaction execution: Require: %s Got: %s", basicTxCost, txGasLimit))
+      return
+    }
+    if (!isScheduleTx) {
       val reqNonce = track.getNonce(tx.sender())
       val txNonce = tx.nonce
       if (reqNonce != txNonce) {
@@ -73,26 +72,25 @@ class TransactionExecutor(val tx: Transaction,
         return
       }
     }
-      val txGasCost = tx.gasPrice * txGasLimit
-      val totalCost = tx.amount + txGasCost
-      val senderBalance = track.getBalance(tx.sender()).getOrElse(FixedNumber.Zero)
-      if (senderBalance.value < totalCost.value) {
-        execError(s"Not enough cash: Require: ${totalCost}, Sender cash ${senderBalance}")
-        return
-      }
-      readyToExecute = true
-      if (!isScheduleTx)
-        track.increaseNonce(tx.sender())
+    val txGasCost = tx.gasPrice * tx.gasLimit
+    val totalCost = tx.amount + txGasCost
+    val senderBalance = track.getBalance(tx.sender()).getOrElse(FixedNumber.Zero)
+    if (senderBalance.value < totalCost.value) {
+      execError(s"Not enough cash: Require: ${totalCost}, Sender cash ${senderBalance}")
+      return
+    }
+    readyToExecute = true
+    if (!isScheduleTx)
+      track.increaseNonce(tx.sender())
   }
 
   def execute(): Unit = {
     if (!readyToExecute) return
 
-    val txGasLimit = tx.gasLimit
-    val txGasCost = tx.gasPrice * txGasLimit
+    val txGasCost = tx.gasPrice * tx.gasLimit
     track.addBalance(tx.sender(), -txGasCost)
     if (TransactionExecutor.logger.isInfoEnabled)
-      TransactionExecutor.logger.info("Paying: txGasCost: [{}], gasPrice: [{}], gasLimit: [{}]", txGasCost, tx.gasPrice, txGasLimit)
+      TransactionExecutor.logger.info("Paying: txGasCost: [{}], gasPrice: [{}], gasLimit: [{}]", txGasCost, tx.gasPrice, tx.gasLimit)
 
     if (tx.isContractCreation)
       create()
@@ -184,7 +182,6 @@ class TransactionExecutor(val tx: Transaction,
       val programInvoke = createInvoker(Array.empty)
       this.vm = new VM(vmSettings, VMHook.EMPTY)
       this.program = new Program(vmSettings, tx.data, programInvoke, stopTime) //.withCommonConfig(commonConfig)
-
     }
     val endowment = tx.amount
     cacheTrack.transfer(tx.sender(), newContractAddress.get, endowment)
@@ -203,7 +200,6 @@ class TransactionExecutor(val tx: Transaction,
         if (tx.isContractCreation && !result.isRevert) {
           val returnDataGasValue = getLength(program.getResult.getHReturn) * GasCost.CREATE_DATA
           if (m_endGas < BigInt(returnDataGasValue)) { // Not enough gas to return contract code
-
             result.setHReturn(EMPTY_BYTE_ARRAY)
           }
           else { // Contract successfully created
@@ -234,7 +230,6 @@ class TransactionExecutor(val tx: Transaction,
         m_endGas = 0
         execError(e.getMessage)
     }
-
   }
 
   private def rollback(): Unit = {
@@ -273,7 +268,6 @@ class TransactionExecutor(val tx: Transaction,
     track.addBalance(coinbase, summary.getFee)
     //touchedAccounts.add(coinbase)
     TransactionExecutor.logger.info("Pay fees to miner: [{}], feesEarned: [{}]", coinbase.address, summary.getFee.longValue())
-
     summary
   }
 
