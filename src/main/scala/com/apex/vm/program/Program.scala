@@ -46,14 +46,7 @@ class Program(settings: ContractSettings,
               invoke: ProgramInvoke,
               stopTime: Long,
               vmHook: VMHook = VMHook.EMPTY, var over:Boolean = true) extends ApexLogging {
-  private final val MAX_STACKSIZE = 1024
-  /**
-    * This attribute defines the number of recursive calls allowed in the EVM
-    * Note: For the JVM to reach this level without a StackOverflow exception,
-    * ethereumj may need to be started with a JVM argument to increase
-    * the stack size. For example: -Xss10m
-    */
-  private final val MAX_DEPTH = 1024
+  import Program._
 
   private var listener: ProgramOutListener = _
   private var traceListener: ProgramTraceListener = new ProgramTraceListener(settings.vmTrace)
@@ -322,7 +315,9 @@ class Program(settings: ContractSettings,
     if (log.isInfoEnabled) log.info(s"creating a new contract inside contract run: [${senderAddress.toString}]")
 
     //  actual gas subtract
-    spendGas(getGas.longValue, "internal call")
+    val availableGas = getGas
+    val gasLimit = availableGas.sub(availableGas.div(DIVISOR))
+    spendGas(gasLimit.longValue, "internal call")
 
     //  [2] CREATE THE CONTRACT ADDRESS
     val contractAlreadyExists = getStorage.accountExists(newAddress)
@@ -351,7 +346,7 @@ class Program(settings: ContractSettings,
     var result: ProgramResult = ProgramResult.createEmpty
     val programInvoke = new ProgramInvokeImpl(
       DataWord.of(newAddress), getOriginAddress, getOwnerAddress,
-      DataWord.of(newBalance), getGas, getGasPrice, value, null,
+      DataWord.of(newBalance), getGasPrice, gasLimit, value, null,
       getPrevHash, getCoinbase, getTimestamp, getNumber,
       track, invoke.getOrigDataBase, invoke.getBlockStore, invoke.getChain,
       getCallDeep + 1, false, byTestingSuite)
@@ -397,7 +392,7 @@ class Program(settings: ContractSettings,
 
     if (result.getException == null) {
       // 5. REFUND THE REMAIN GAS
-      val refund = getGas.longValue - result.getGasUsed.toLong
+      val refund = gasLimit.longValue - result.getGasUsed.toLong
       if (refund > 0) {
         refundGas(refund, "remain gas from the internal call")
         if (log.isInfoEnabled) {
@@ -722,6 +717,16 @@ class Program(settings: ContractSettings,
 }
 
 object Program {
+  private final val MAX_STACKSIZE = 1024
+  /**
+    * This attribute defines the number of recursive calls allowed in the EVM
+    * Note: For the JVM to reach this level without a StackOverflow exception,
+    * ethereumj may need to be started with a JVM argument to increase
+    * the stack size. For example: -Xss10m
+    */
+  private final val MAX_DEPTH = 1024
+
+  private final val DIVISOR = DataWord.of(64)
 
   def notEnoughOpGas(op: OpCode.Value, opGas: DataWord, programGas: DataWord): OutOfGasException = {
     notEnoughOpGas(op, opGas.longValue, programGas.longValue)
