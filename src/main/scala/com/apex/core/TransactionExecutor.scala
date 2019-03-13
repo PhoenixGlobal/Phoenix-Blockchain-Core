@@ -27,7 +27,7 @@ class TransactionExecutor(val tx: Transaction,
                           val coinbase: UInt160,
                           val track: DataBase,
                           val stopTime: Long,
-                          val timeStamp: Long,
+                          val blockTime: Long,
                           val blockIndex: Long,
                           val chain: Blockchain,
                           val isScheduleTx: Boolean = false) {
@@ -103,7 +103,7 @@ class TransactionExecutor(val tx: Transaction,
   private def call(): Unit = {
     if (!readyToExecute) return
     val targetAddress = tx.toPubKeyHash
-    precompiledContract = PrecompiledContracts.getContractForAddress(DataWord.of(targetAddress.data), vmSettings, cacheTrack, tx, timeStamp)
+    precompiledContract = PrecompiledContracts.getContractForAddress(DataWord.of(targetAddress.data), vmSettings, cacheTrack, tx, blockTime)
     if (precompiledContract != null) {
       val requiredGas = precompiledContract.getGasForData(tx.data)
       val spendingGas = BigInt(requiredGas) + basicTxCost
@@ -158,7 +158,7 @@ class TransactionExecutor(val tx: Transaction,
       data,                     // msgData
       DataWord.ZERO,            // lastHash
       DataWord.of(coinbase),    // coinbase
-      DataWord.of(timeStamp),   // timestamp
+      DataWord.of(blockTime),   // timestamp
       DataWord.of(blockIndex),  // number
       cacheTrack,               // dataBase
       track,                    // origDataBase
