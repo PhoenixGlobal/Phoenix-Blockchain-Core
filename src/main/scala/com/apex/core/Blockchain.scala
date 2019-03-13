@@ -246,8 +246,10 @@ class Blockchain(chainSettings: ChainSettings,
       if (Instant.now.toEpochMilli < stopProcessTxTime) {
         if (applyTransaction(p._2, producer, stopProcessTxTime, blockTime, forkHead.block.height + 1))
           pendingState.txs.append(p._2)
-        else
+        else {
+          log.info(s"applyTransaction error, txid = ${p._2.id.toString}")
           badTxs.append(p._2)
+        }
       }
     })
     pendingState.txs.foreach(tx => unapplyTxs.remove(tx.id))
@@ -268,42 +270,33 @@ class Blockchain(chainSettings: ChainSettings,
   }
 
   def addTransaction(tx: Transaction): Boolean = {
-    //    val tx = if(oldTx.executeTime > 0) new Transaction(oldTx.txType,oldTx.from,oldTx.toPubKeyHash,oldTx.amount,
-    //    oldTx.nonce,oldTx.data,oldTx.gasPrice,oldTx.gasLimit,oldTx.signature,oldTx.version,
-    //      oldTx.executeTime + pendingState.blockTime) else oldTx
+    var added = false
 
     if (tx.txType == TransactionType.Miner || tx.txType == TransactionType.Refund || tx.txType == TransactionType.Schedule) {
-      false
+
     }
     else {
-      var added = false
-      if (tx.gasLimit > runtimeParas.txAcceptGasLimit) {
+      if (tx.gasLimit > runtimeParas.txAcceptGasLimit)
         log.info(s"tx: ${tx.id()}, set too heigh gas-limit, it should not above ${runtimeParas.txAcceptGasLimit}")
-        added = false
-      }
       else {
         if (isProducingBlock()) {
-          if (Instant.now.toEpochMilli > pendingState.stopProcessTxTime) {
+          if (Instant.now.toEpochMilli > pendingState.stopProcessTxTime)
             added = addTransactionToUnapplyTxs(tx)
-          }
-          else {
-            if (applyTransaction(tx,
-              pendingState.producerPrivKey.publicKey.pubKeyHash,
-              pendingState.stopProcessTxTime,
-              pendingState.blockTime,
-              pendingState.blockIndex)) {
-              pendingState.txs.append(tx)
-              added = true
-            }
+          else if (applyTransaction(tx, pendingState.producerPrivKey.publicKey.pubKeyHash,
+            pendingState.stopProcessTxTime, pendingState.blockTime, pendingState.blockIndex)) {
+            pendingState.txs.append(tx)
+            added = true
           }
         }
         else
           added = addTransactionToUnapplyTxs(tx)
       }
-      if (added)
-        notification.broadcast(AddTransactionNotify(tx))
-      added
     }
+    if (added)
+      notification.broadcast(AddTransactionNotify(tx))
+    else
+      log.info(s"addTransaction error, txid = ${tx.id.toString}")
+    added
   }
 
   def produceBlockFinalize(): Option[Block] = {
