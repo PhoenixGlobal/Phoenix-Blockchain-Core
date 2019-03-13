@@ -359,7 +359,7 @@ class Blockchain(chainSettings: ChainSettings,
       else
         log.error(s"block ${block.height} ${block.shortId} apply error")
       if (inserted) {
-        notification.broadcast(BlockAddedToHeadNotify(block))
+        notification.broadcast(BlockAddedToHeadNotify(blockSummary(block)))
         checkUpdateWitnessList(block)
         dataBase.commit()
       }
@@ -380,6 +380,15 @@ class Blockchain(chainSettings: ChainSettings,
       })
     }
     inserted
+  }
+
+  private def blockSummary(block: Block): BlockSummary = {
+    val summary = mutable.Map[UInt256, Option[TransactionReceipt]]()
+    block.transactions.foreach(tx => {
+      summary.put(tx.id, dataBase.getReceipt(tx.id))
+    })
+
+    new BlockSummary(block, summary)
   }
 
   private def getWitnessList(block: Block): WitnessList = {
@@ -533,20 +542,20 @@ class Blockchain(chainSettings: ChainSettings,
 
   private def applyContractTransaction(tx: Transaction, blockProducer: UInt160,
                                        stopTime: Long, timeStamp: Long, blockIndex: Long, originalTx: Transaction = null): Boolean = {
-    if(originalTx != null){
-      applyContractTransactionExecutor(originalTx, blockProducer, stopTime, timeStamp, blockIndex,true)
+    if (originalTx != null) {
+      applyContractTransactionExecutor(originalTx, blockProducer, stopTime, timeStamp, blockIndex, true)
       dataBase.deleteScheduleTx(tx.id())
       true
     }
-    else{
-      if(timeStamp >= tx.executeTime){
+    else {
+      if (timeStamp >= tx.executeTime) {
         applyContractTransactionExecutor(tx, blockProducer, stopTime, timeStamp, blockIndex)
       }
       else scheduleTxFirstExecute(tx, blockProducer, timeStamp, blockIndex)
     }
   }
 
-  private def applyContractTransactionExecutor(tx: Transaction, blockProducer: UInt160,stopTime: Long, timeStamp: Long,
+  private def applyContractTransactionExecutor(tx: Transaction, blockProducer: UInt160, stopTime: Long, timeStamp: Long,
                                                blockIndex: Long, isScheduleTx: Boolean = false) = {
     var applied = false
 
@@ -610,7 +619,7 @@ class Blockchain(chainSettings: ChainSettings,
         txValid
       }
       else {
-        scheduleTxFirstExecute(tx, blockProducer,timeStamp, blockIndex)
+        scheduleTxFirstExecute(tx, blockProducer, timeStamp, blockIndex)
       }
     }
   }
@@ -624,18 +633,18 @@ class Blockchain(chainSettings: ChainSettings,
       log.info(s"tx ${tx.id().shortString()} nonce ${tx.nonce} invalid, expect ${fromAccount.nextNonce}")
       txValid = false
     }
-    val scheduleTx = new Transaction(TransactionType.Schedule,  tx.from, tx.toPubKeyHash, tx.amount, tx.nonce, tx.toBytes,
+    val scheduleTx = new Transaction(TransactionType.Schedule, tx.from, tx.toPubKeyHash, tx.amount, tx.nonce, tx.toBytes,
       tx.gasPrice, tx.gasLimit, BinaryData.empty, tx.version, tx.executeTime)
-    val scheduleFee = FixedNumber(BigInt(GasCost.SSTORE)) * scheduleTx.toBytes.size  * tx.gasPrice *
-      ((tx.executeTime - timeStamp)/(1000 * 24 * 60 * 60) + 1) + FixedNumber(BigInt(GasCost.TRANSACTION)) * tx.gasPrice
+    val scheduleFee = FixedNumber(BigInt(GasCost.SSTORE)) * scheduleTx.toBytes.size * tx.gasPrice *
+      ((tx.executeTime - timeStamp) / (1000 * 24 * 60 * 60) + 1) + FixedNumber(BigInt(GasCost.TRANSACTION)) * tx.gasPrice
 
-    if(scheduleFee > fromAccount.balance) txValid = false
-    if(txValid){
+    if (scheduleFee > fromAccount.balance) txValid = false
+    if (txValid) {
       dataBase.transfer(tx.from, blockProducer, scheduleFee)
       dataBase.setScheduleTx(scheduleTx.id, scheduleTx)
       dataBase.increaseNonce(tx.from)
       dataBase.setReceipt(tx.id(), TransactionReceipt(tx.id(), tx.txType, tx.from, tx.toPubKeyHash,
-        blockIndex, tx.transactionCost() , BinaryData.empty, 0, ""))
+        blockIndex, tx.transactionCost(), BinaryData.empty, 0, ""))
     }
     txValid
   }
@@ -799,7 +808,7 @@ class Blockchain(chainSettings: ChainSettings,
       applyBlock(genesisBlock, false, false)
       blockBase.add(genesisBlock)
       forkBase.add(genesisBlock, dataBase.getCurrentWitnessList().get)
-      notification.broadcast(BlockAddedToHeadNotify(genesisBlock))
+      notification.broadcast(BlockAddedToHeadNotify(blockSummary(genesisBlock)))
     }
 
     updateWitnessLists()
@@ -873,7 +882,11 @@ class Blockchain(chainSettings: ChainSettings,
       from.foreach(item => applyBlock(item.block))
       SwitchResult(false, to(appliedCount))
     } else {
-      notification.broadcast(ForkSwitchNotify(from, to))
+      var fromBlocksSummary = Seq[BlockSummary]()
+      var toBlocksSummary = Seq[BlockSummary]()
+      from.foreach(item => fromBlocksSummary = fromBlocksSummary :+ blockSummary(item.block))
+      to.foreach(item => toBlocksSummary = toBlocksSummary :+ blockSummary(item.block))
+      notification.broadcast(ForkSwitchNotify(fromBlocksSummary, toBlocksSummary))
       SwitchResult(true)
     }
   }

@@ -60,8 +60,8 @@ class MongodbPlugin(settings: ApexSettings)
     }
     case ForkSwitchNotify(from, to) => {
       log.info("MongodbPlugin got ForkSwitchNotify")
-      from.foreach(item => removeBlock(item.block))
-      to.foreach(item => addBlock(item.block))
+      from.foreach(block => removeBlock(block))
+      to.foreach(block => addBlock(block))
     }
     case a: Any => {
       log.info(s"${sender().toString}, ${a.toString}")
@@ -72,7 +72,8 @@ class MongodbPlugin(settings: ApexSettings)
     txCol.find(equal("txHash", tx.id.toString)).results().size > 0
   }
 
-  private def removeBlock(block: Block) = {
+  private def removeBlock(blockSummary: BlockSummary) = {
+    val block = blockSummary.block
     log.info(s"MongodbPlugin remove block ${block.height()}  ${block.shortId()}")
     blockCol.deleteOne(equal("blockHash", block.id().toString)).results()
     block.transactions.foreach(tx => {
@@ -85,7 +86,8 @@ class MongodbPlugin(settings: ApexSettings)
     updateTps(block, false)
   }
 
-  private def addBlock(block: Block) = {
+  private def addBlock(blockSummary: BlockSummary) = {
+    val block = blockSummary.block
     log.info(s"MongodbPlugin add block ${block.height()}  ${block.shortId()}")
     val newBlock: Document = Document(
       "height" -> block.height(),
@@ -105,6 +107,13 @@ class MongodbPlugin(settings: ApexSettings)
 
     block.transactions.foreach(tx => {
       if (findTransaction(tx)) {
+        val summary = blockSummary.txReceiptsMap
+        val txReceipt = summary.getOrElse(tx.id(), None)
+        if (txReceipt.isDefined) {
+          val gasUsed = txReceipt.get.gasUsed
+          txCol.updateOne(equal("txHash", tx.id.toString), set("gasUsed", gasUsed.longValue())).results()
+          txCol.updateOne(equal("txHash", tx.id.toString), set("fee", (tx.gasPrice * gasUsed).toString)).results()
+        }
         txCol.updateOne(equal("txHash", tx.id.toString), set("refBlockHash", block.id.toString)).results()
         txCol.updateOne(equal("txHash", tx.id.toString), set("refBlockHeight", block.height)).results()
         txCol.updateOne(equal("txHash", tx.id.toString), set("refBlockTime", BsonDateTime(block.timeStamp()))).results()
@@ -151,8 +160,10 @@ class MongodbPlugin(settings: ApexSettings)
     var newTx: Document = Document(
       "txHash" -> tx.id.toString,
       "type" -> tx.txType.toString,
-      "from" -> { if (tx.txType == TransactionType.Miner) "" else tx.from.address },
-      "to" ->  tx.toAddress,
+      "from" -> {
+        if (tx.txType == TransactionType.Miner) "" else tx.from.address
+      },
+      "to" -> tx.toAddress,
       "amount" -> tx.amount.toString,
       "nonce" -> tx.nonce.toString,
       "data" -> tx.data.toString,
@@ -166,8 +177,8 @@ class MongodbPlugin(settings: ApexSettings)
 
     if (block.isDefined) {
       newTx += ("refBlockHash" -> block.get.id.toString,
-                "refBlockHeight" -> block.get.height,
-                "refBlockTime" -> BsonDateTime(block.get.timeStamp()))
+        "refBlockHeight" -> block.get.height,
+        "refBlockTime" -> BsonDateTime(block.get.timeStamp()))
       updateAccout(tx, block.get)
     }
     else {
