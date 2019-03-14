@@ -190,6 +190,79 @@ class VMOpTest2 {
     }
   }
 
+  @Test
+  def testBalance: Unit = {
+    val chain = createChain("testBLOCKHASH")
+    try {
+      val contractSrc = "pragma solidity ^0.5.2;\n\n\ncontract A {\n  function a() view public returns (uint r) {\n      return msg.sender.balance;\n    } \n}"
+      val res = SolidityCompiler.compile(contractSrc.getBytes, true, Seq(ABI, BIN, INTERFACE, METADATA))
+      val result = CompilationResult.parse(res.output)
+      val abiString = result.getContract("A").abi
+      val binString = result.getContract("A").bin
+
+      val nowTime = Instant.now.toEpochMilli - 90000
+      var blockTime = ProducerUtil.nextBlockTime(chain.getHeadTime(), nowTime, _produceInterval / 10, _produceInterval) //  chain.getHeadTime() + _consensusSettings.produceInterval
+      blockTime += _produceInterval
+      val producer = chain.getWitness(blockTime)
+      chain.startProduceBlock(_miners.findPrivKey(producer).get, blockTime, Long.MaxValue)
+
+      chain.produceBlockFinalize()
+
+      assert(chain.getHeight() == 1)
+      //val block1hash = chain.getBlock(1).get.id
+      //val block0hash = chain.getBlock(0).get.id
+
+      blockTime += _produceInterval
+      chain.startProduceBlock(_miners.findPrivKey(chain.getWitness(blockTime)).get, blockTime, Long.MaxValue)
+
+      val deployTx = new Transaction(TransactionType.Deploy, _acct1.publicKey.pubKeyHash,
+        UInt160.Zero, FixedNumber.Zero, 0, BinaryData(binString),
+        FixedNumber(1), 9000000L, BinaryData.empty)
+      assert(chain.addTransaction(deployTx))
+
+      val txData = Abi.fromJson(abiString).encode(s"a()")
+      val tx = new Transaction(TransactionType.Call, _acct1.publicKey.pubKeyHash,
+        UInt160.fromBytes(BinaryData("7f97e6f4f660e6c09b894f34edae3626bf44039a")), FixedNumber.Zero,
+        1, txData, FixedNumber(1), 9000000L, BinaryData.empty)
+      assert(chain.addTransaction(tx))
+      assert(chain.getReceipt(tx.id()).get.error == "")
+      assert(chain.getReceipt(tx.id()).get.status == 0)
+      assert(FixedNumber(DataWord.of(chain.getReceipt(tx.id()).get.output).value) == (FixedNumber.fromDecimal(123.12) - FixedNumber(9100195)))
+    }
+    finally {
+      chain.close()
+    }
+  }
+
+//  @Test  // BALANCE Op
+//  def testBALANCE: Unit = {
+//        val _ =
+//          "contract Purchase {\n\tfunction getBalance() constant public returns(uint){\n\t\treturn this.balance;\n\t} \n}"
+//
+//        val abi = Abi.fromJson("[{\"constant\":true,\"inputs\":[],\"name\":\"getBalance\",\"outputs\":[{\"name\":\"\",\"type\":\"uint256\"}],\"payable\":false,\"stateMutability\":\"view\",\"type\":\"function\"}]")
+//        val code = "6080604052348015600f57600080fd5b5060b78061001e6000396000f300608060405260043610603f576000357c0100000000000000000000000000000000000000000000000000000000900463ffffffff16806312065fe0146044575b600080fd5b348015604f57600080fd5b506056606c565b6040518082815260200191505060405180910390f35b60003073ffffffffffffffffffffffffffffffffffffffff16319050905600a165627a7a7230582086ab234bf457d6cac98fce110e5688da12a0ea23b98e67d9d4227592791fd9200029"
+//
+//        val call3 = abi.encode("getBalance()")
+//        dataBase.addBalance(caller, 1000)
+//
+//        println("(caller address.asString)" + caller.address)
+//        println("(authoer address.asString)" + PublicKey("022ac01a1ea9275241615ea6369c85b41e2016abc47485ec616c3c583f1b92a5c8").pubKeyHash.address)
+//        println(PublicKey("0345ffbf8dc9d8ff15785e2c228ac48d98d29b834c2e98fb8cfe6e71474d7f6322").pubKeyHash.address)
+//
+//        val (contract, result)= deploy(dataBase, caller, BinaryData(code))
+//        val getResult = call(dataBase,  caller, contract, result.getHReturn, call3)
+//
+//        val program = new Program(VMOpTest.vmSettings, BinaryData(code), invoker, Long.MaxValue)
+//
+//        val vm = new VM(VMOpTest.vmSettings, VMHook.EMPTY)
+//
+//        vm.step(program)
+//
+//        val item1 = program.stackPop
+//
+//        assert(getResult.getHReturn == DataWord.of(1000))
+//  }
+
   @Test    // SHL
   def testSHL(): Unit = {
     val chain = createChain("testSHL")

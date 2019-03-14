@@ -120,89 +120,85 @@ class RegisterContractTest extends BlockChainPrepare{
       sleepTo(blockTime)
       Then.checkTx(blockTime)
       And.checkAccount()
-//      When.makeRegisterTransaction()(checkRegisterSuccess)
-//      When.makeRegisterTransaction(OperationType.resisterCancel, 1){
-//        tx => {
-//          assert(chain.addTransaction(tx))
-//          val witness = chain.getWitness(_acct3.publicKey.pubKeyHash)
-//          assert(witness.isEmpty)
+      val acc2 = chain.getBalance(_acct2.publicKey.pubKeyHash).get
+      When.makeRegisterTransaction()(checkRegisterSuccess)
+      When.makeRegisterTransaction(OperationType.resisterCancel, 1){
+        tx => {
+          assert(chain.addTransaction(tx))
+          val witness = chain.getWitness(_acct3.publicKey.pubKeyHash)
+          assert(witness.isEmpty)
+
+          assert(chain.getScheduleTx().size == 2)
+          assert(chain.getBalance(_acct3.publicKey.pubKeyHash).get == FixedNumber.fromDecimal(2) - FixedNumber(49888))
+          assert(chain.getBalance(new UInt160(PrecompiledContracts.registerNodeAddr.getLast20Bytes)).get == FixedNumber.One)
+        }
+      }
+      val block1 = chain.produceBlockFinalize()
+      assert(block1.isDefined)
+      assert(block1.get.transactions.size == 8)
+      assert(chain.getBalance(_acct2.publicKey.pubKeyHash).get == (FixedNumber.fromDecimal(230.2) -FixedNumber(88200) - FixedNumber(42000)) )
+
+      assert(!chain.isProducingBlock())
+      assert(chain.getHeight() == 1)
+      assert(chain.getHeadTime() == blockTime)
+      println("chain.getHeadTime()" + blockTime)
+      assert(chain.head.id() == block1.get.id())
+
+//      val tx1 = makeTx(_acct3, _acct4, FixedNumber.fromDecimal(1), 2)
 //
-//          assert(chain.getScheduleTx().size == 2)
-//          assert(chain.getBalance(_acct3.publicKey.pubKeyHash).get == FixedNumber.fromDecimal(2) - FixedNumber(49888))
-//          assert(chain.getBalance(new UInt160(PrecompiledContracts.registerNodeAddr.getLast20Bytes)).get == FixedNumber.One)
-//        }
-//      }
-//      val block1 = chain.produceBlockFinalize()
-//      assert(block1.isDefined)
-//      assert(block1.get.transactions.size == 8)
-//      val acc2 = chain.getBalance(_acct2.publicKey.pubKeyHash).get
-//      println(f"account2: ${acc2.value}")
-//      val ss = (FixedNumber.fromDecimal(230.2) -FixedNumber(88200) - FixedNumber(42000))
-//      println(f"ss: ${ss.value}")
-//      assert(acc2 == ss)
-//      assert(chain.getBalance(_acct2.publicKey.pubKeyHash).get == (FixedNumber.fromDecimal(230.2) -FixedNumber(88200) - FixedNumber(42000)) )
+//      val block2 = makeBlock(chain, block1.get, Seq(tx1))
 //
-//      assert(!chain.isProducingBlock())
-//      assert(chain.getHeight() == 1)
-//      assert(chain.getHeadTime() == blockTime)
-//      println("chain.getHeadTime()" + blockTime)
-//      assert(chain.head.id() == block1.get.id())
+//      // test getTransaction()
+//      assert(block2.getTransaction(tx1.id).get.id == tx1.id)
 //
-////      val tx1 = makeTx(_acct3, _acct4, FixedNumber.fromDecimal(1), 2)
-////
-////      val block2 = makeBlock(chain, block1.get, Seq(tx1))
-////
-////      // test getTransaction()
-////      assert(block2.getTransaction(tx1.id).get.id == tx1.id)
-////
-////      println("call tryInsertBlock block2")
-////      assert(chain.tryInsertBlock(block2, true))
-////      println("block2 inserted")
-////
-////      assert(chain.getBalance(_acct4).get == FixedNumber.fromDecimal(3))
-////
-////      assert(chain.getBalance(_acct3).get == FixedNumber.fromDecimal(1))
+//      println("call tryInsertBlock block2")
+//      assert(chain.tryInsertBlock(block2, true))
+//      println("block2 inserted")
 //
-//      blockTime += _produceInterval
-//      startProduceBlock(chain, blockTime, Long.MaxValue)
-//      assert(chain.isProducingBlock())
+//      assert(chain.getBalance(_acct4).get == FixedNumber.fromDecimal(3))
 //
-//      sleepTo(blockTime)
-//      chain.addTransaction(makeTx(_acct2, _acct4, FixedNumber.fromDecimal(2), 3, executedTime = blockTime + 250))
-//
-//      val block2 = chain.produceBlockFinalize()
-//      assert(block2.isDefined)
-//      assert(block2.get.transactions.size == 2)
-//      val size = chain.getScheduleTx().size
-//      assert(chain.getScheduleTx().size == 3)
-//      assert(chain.getBalance(_acct2.publicKey.pubKeyHash).get == FixedNumber.fromDecimal(230.2) -FixedNumber(88200) - FixedNumber(42000) -FixedNumber(88200))
-//
-//      assert(!chain.isProducingBlock())
-//      assert(chain.getHeight() == 2)
-//      assert(chain.getHeadTime() == blockTime)
-//      assert(chain.head.id() == block2.get.id())
-//
-//      blockTime += _produceInterval
-//      startProduceBlock(chain, blockTime, Long.MaxValue)
-//      assert(chain.isProducingBlock())
-//
-//      sleepTo(blockTime)
-//
-//      println("chain.blockTime()" + blockTime)
-//
-//      val block3 = chain.produceBlockFinalize()
-//      assert(block3.isDefined)
-//      assert(block3.get.transactions.size == 4)
-//      assert(chain.getScheduleTx().size == 0)
-//
-//      assert(!chain.isProducingBlock())
-//      assert(chain.getHeight() == 3)
-//      assert(chain.getHeadTime() == blockTime)
-//      assert(chain.head.id() == block3.get.id())
-//
-//      assert(chain.getBalance(_acct3.publicKey.pubKeyHash).get == FixedNumber.fromDecimal(3) - FixedNumber(49888))
+//      assert(chain.getBalance(_acct3).get == FixedNumber.fromDecimal(1))
+
+      blockTime += _produceInterval
+      startProduceBlock(chain, blockTime, Long.MaxValue)
+      assert(chain.isProducingBlock())
+
+      sleepTo(blockTime)
+      chain.addTransaction(makeTx(_acct2, _acct4, FixedNumber.fromDecimal(2), 3, executedTime = blockTime + 250))
+
+      val block2 = chain.produceBlockFinalize()
+      assert(block2.isDefined)
+      assert(block2.get.transactions.size == 2)
+      assert(chain.getScheduleTx().size == 3)
+      val account2 = chain.getBalance(_acct2.publicKey.pubKeyHash).get
+     // assert(chain.getBalance(_acct2.publicKey.pubKeyHash).get == FixedNumber.fromDecimal(230.2) -FixedNumber(88200) - FixedNumber(42000) -FixedNumber(88200))
+
+      assert(!chain.isProducingBlock())
+      assert(chain.getHeight() == 2)
+      assert(chain.getHeadTime() == blockTime)
+      assert(chain.head.id() == block2.get.id())
+
+      blockTime += _produceInterval
+      startProduceBlock(chain, blockTime, Long.MaxValue)
+      assert(chain.isProducingBlock())
+
+      sleepTo(blockTime)
+
+      println("chain.blockTime()" + blockTime)
+
+      val block3 = chain.produceBlockFinalize()
+      assert(block3.isDefined)
+      assert(block3.get.transactions.size == 4)
+      assert(chain.getScheduleTx().size == 0)
+
+      assert(!chain.isProducingBlock())
+      assert(chain.getHeight() == 3)
+      assert(chain.getHeadTime() == blockTime)
+      assert(chain.head.id() == block3.get.id())
+
+      assert(chain.getBalance(_acct3.publicKey.pubKeyHash).get == FixedNumber.fromDecimal(3) - FixedNumber(49888))
 //      assert(chain.getBalance(_acct2.publicKey.pubKeyHash).get == FixedNumber.fromDecimal(226.2))
-//      assert(chain.getBalance(new UInt160(PrecompiledContracts.registerNodeAddr.getLast20Bytes)).get == FixedNumber.Zero)
+      assert(chain.getBalance(new UInt160(PrecompiledContracts.registerNodeAddr.getLast20Bytes)).get == FixedNumber.Zero)
     }
     finally {
       chain.close()

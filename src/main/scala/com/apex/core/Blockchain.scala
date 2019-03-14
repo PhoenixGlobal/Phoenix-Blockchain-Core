@@ -230,7 +230,6 @@ class Blockchain(chainSettings: ChainSettings,
     }
     val scheduleTxs = dataBase.getAllScheduleTx()
     if (scheduleTxs.nonEmpty) {
-      println("schedule size    " + scheduleTxs.size)
       scheduleTxs.foreach(scheduleTx => {
         //TODO scheduleTx.executeTime -> current time
         if (scheduleTx.executeTime <= stopProcessTxTime) {
