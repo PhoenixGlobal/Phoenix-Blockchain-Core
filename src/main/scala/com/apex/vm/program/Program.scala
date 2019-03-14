@@ -311,8 +311,7 @@ class Program(settings: ContractSettings, ops: Array[Byte], invoke: ProgramInvok
     if (log.isInfoEnabled) log.info(s"creating a new contract inside contract run: [${senderAddress.toString}]")
 
     //  actual gas subtract
-    val availableGas = getGas
-    val gasLimit = availableGas.sub(availableGas.div(DIVISOR))
+    val gasLimit = allButOne64th(getGas)
     spendGas(gasLimit.longValue, "internal call")
 
     //  [2] CREATE THE CONTRACT ADDRESS
@@ -622,7 +621,7 @@ class Program(settings: ContractSettings, ops: Array[Byte], invoke: ProgramInvok
           val isDelegate = op.callIsDelegate
           val callerAddress = if (isDelegate) getCallerAddress else getOwnerAddress
           val callValue = if (isDelegate) getCallValue else msg.endowment
-          val programInvoke = new ProgramInvokeImpl(DataWord.of(contextAddress), getOriginAddress, callerAddress, DataWord.of(contextBalance), msg.gas, getGasPrice, callValue, data, getPrevHash, getCoinbase, getTimestamp, getNumber, getGasLimit, track, invoke.getOrigDataBase, invoke.getChain, getCallDeep + 1, op.callIsStatic || isStaticCall, byTestingSuite)
+          val programInvoke = new ProgramInvokeImpl(DataWord.of(contextAddress), getOriginAddress, callerAddress, DataWord.of(contextBalance), getGasPrice, msg.gas, callValue, data, getPrevHash, getCoinbase, getTimestamp, getNumber, getGasLimit, track, invoke.getOrigDataBase, invoke.getChain, getCallDeep + 1, op.callIsStatic || isStaticCall, byTestingSuite)
           val program = new Program(settings, programCode, programInvoke, stopTime)
           val result = VM.play(settings, vmHook, program)
           getTrace.merge(program.getTrace)
@@ -719,6 +718,10 @@ object Program {
   private final val MAX_DEPTH = 1024
 
   private final val DIVISOR = DataWord.of(64)
+
+  def allButOne64th(availableGas: DataWord) = {
+    availableGas.sub(availableGas.div(DIVISOR))
+  }
 
   def notEnoughOpGas(op: OpCode.Value, opGas: DataWord, programGas: DataWord): OutOfGasException = {
     notEnoughOpGas(op, opGas.longValue, programGas.longValue)

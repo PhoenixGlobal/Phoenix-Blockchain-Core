@@ -1087,8 +1087,9 @@ object VM {
   }
 
   private def getCallGas(op: OpCode.Value, requestedGas: DataWord, availableGas: DataWord): DataWord = {
-    if (requestedGas.value > availableGas.value) {
-      throw Program.notEnoughOpGas(op, requestedGas, availableGas)
+    val maxAllowed = Program.allButOne64th(availableGas)
+    if (requestedGas.value > maxAllowed.value) {
+      maxAllowed
     } else {
       requestedGas
     }
