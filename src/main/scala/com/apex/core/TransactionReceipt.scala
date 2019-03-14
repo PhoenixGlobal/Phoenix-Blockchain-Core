@@ -20,7 +20,6 @@ case class TransactionReceipt(txId: UInt256,
                               to: UInt160,
                               blockIndex: Long,
                               gasUsed: BigInt,
-                              //totalGasUsed: BigInt,
                               output: BinaryData,
                               status: Int,
                               error: String) extends com.apex.common.Serializable {

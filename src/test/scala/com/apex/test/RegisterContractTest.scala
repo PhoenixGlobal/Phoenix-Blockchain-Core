@@ -120,7 +120,7 @@ class RegisterContractTest extends BlockChainPrepare{
       sleepTo(blockTime)
       Then.checkTx(blockTime)
       And.checkAccount()
-      val acc2 = chain.getBalance(_acct2.publicKey.pubKeyHash).get
+      val acc2 = chain.getBalance(_acct2).get
       When.makeRegisterTransaction()(checkRegisterSuccess)
       When.makeRegisterTransaction(OperationType.resisterCancel, 1){
         tx => {
@@ -129,14 +129,14 @@ class RegisterContractTest extends BlockChainPrepare{
           assert(witness.isEmpty)
 
           assert(chain.getScheduleTx().size == 2)
-          assert(chain.getBalance(_acct3.publicKey.pubKeyHash).get == FixedNumber.fromDecimal(2) - FixedNumber(49888))
+          assert(chain.getBalance(_acct3).get == FixedNumber.fromDecimal(2) - FixedNumber(49888))
           assert(chain.getBalance(new UInt160(PrecompiledContracts.registerNodeAddr.getLast20Bytes)).get == FixedNumber.One)
         }
       }
       val block1 = chain.produceBlockFinalize()
       assert(block1.isDefined)
       assert(block1.get.transactions.size == 8)
-      assert(chain.getBalance(_acct2.publicKey.pubKeyHash).get == (FixedNumber.fromDecimal(230.2) -FixedNumber(88200) - FixedNumber(42000)) )
+      assert(chain.getBalance(_acct2).get == (FixedNumber.fromDecimal(230.2) -FixedNumber(88200) - FixedNumber(42000)) )
 
       assert(!chain.isProducingBlock())
       assert(chain.getHeight() == 1)
@@ -170,8 +170,8 @@ class RegisterContractTest extends BlockChainPrepare{
       assert(block2.isDefined)
       assert(block2.get.transactions.size == 2)
       assert(chain.getScheduleTx().size == 3)
-      val account2 = chain.getBalance(_acct2.publicKey.pubKeyHash).get
-     // assert(chain.getBalance(_acct2.publicKey.pubKeyHash).get == FixedNumber.fromDecimal(230.2) -FixedNumber(88200) - FixedNumber(42000) -FixedNumber(88200))
+      val account2 = chain.getBalance(_acct2).get
+     // assert(chain.getBalance(_acct2).get == FixedNumber.fromDecimal(230.2) -FixedNumber(88200) - FixedNumber(42000) -FixedNumber(88200))
 
       assert(!chain.isProducingBlock())
       assert(chain.getHeight() == 2)
@@ -196,8 +196,8 @@ class RegisterContractTest extends BlockChainPrepare{
       assert(chain.getHeadTime() == blockTime)
       assert(chain.head.id() == block3.get.id())
 
-      assert(chain.getBalance(_acct3.publicKey.pubKeyHash).get == FixedNumber.fromDecimal(3) - FixedNumber(49888))
-//      assert(chain.getBalance(_acct2.publicKey.pubKeyHash).get == FixedNumber.fromDecimal(226.2))
+      assert(chain.getBalance(_acct3).get == FixedNumber.fromDecimal(3) - FixedNumber(49888))
+//      assert(chain.getBalance(_acct2).get == FixedNumber.fromDecimal(226.2))
       assert(chain.getBalance(new UInt160(PrecompiledContracts.registerNodeAddr.getLast20Bytes)).get == FixedNumber.Zero)
     }
     finally {
@@ -260,7 +260,7 @@ class RegisterContractTest extends BlockChainPrepare{
     assert(witness.isDefined)
     assert(witness.get.name == "register node1")
 //    val fixedNumber = FixedNumber(24912)
-    assert(chain.getBalance(_acct3.publicKey.pubKeyHash).get == (FixedNumber.fromDecimal(2) - FixedNumber(24912)))
+    assert(chain.getBalance(_acct3).get == (FixedNumber.fromDecimal(2) - FixedNumber(24912)))
     assert(chain.getBalance(new UInt160(PrecompiledContracts.registerNodeAddr.getLast20Bytes)).get == FixedNumber.One)
   }
 
@@ -282,9 +282,9 @@ class RegisterContractTest extends BlockChainPrepare{
   }
 
   def checkAccount(): Unit ={
-    assert(chain.getAccount(_acct3.publicKey.pubKeyHash).isDefined)
-    assert(chain.getBalance(_acct3.publicKey.pubKeyHash).get == FixedNumber.fromDecimal(3))
-    assert(chain.getBalance(_acct1.publicKey.pubKeyHash).get == (FixedNumber.fromDecimal(120.12) - FixedNumber(42000)))
+    assert(chain.getAccount(_acct3).isDefined)
+    assert(chain.getBalance(_acct3).get == FixedNumber.fromDecimal(3))
+    assert(chain.getBalance(_acct1).get == (FixedNumber.fromDecimal(120.12) - FixedNumber(42000)))
   }
 
 
