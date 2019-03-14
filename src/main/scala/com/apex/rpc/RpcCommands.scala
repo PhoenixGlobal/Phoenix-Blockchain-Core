@@ -89,6 +89,7 @@ object SendRawTransactionCmd {
 }
 
 case class GetBlockByHeightCmd(height: Int) extends RPCCommand
+
 //{
 //  def run(): JsValue = {
 //    val block = Blockchain.Current.getBlock(height)
@@ -178,7 +179,7 @@ object GetProducersCmd {
     ) map (GetProducersCmd.apply _)
 }
 
-case class ExecResult(succeed: Boolean = true,  status: Int = 200, message:String ="", result: String ="") extends RPCCommand
+case class ExecResult(var succeed: Boolean = true, var status: Int = 200, var message: String = "", var result: String = "") extends RPCCommand
 
 object ExecResult {
   implicit val resultWrites = new Writes[ExecResult] {

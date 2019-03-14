@@ -123,80 +123,61 @@ class Node(val settings: ApexSettings, config: Config)
     }
   }
 
-  private def resultString(execResult: ExecResult): String = {
-    Json.toJson(execResult).toString()
-  }
-
   private def processRPCCommand(cmd: RPCCommand) = {
-    try {
-      cmd match {
-        case GetBlockByIdCmd(id) => {
-          val res = Json.toJson(chain.getBlock(id).get).toString()
-          sender() ! resultString(new ExecResult(result = res))
+    cmd match {
+      case GetBlockByIdCmd(id) => {
+        sender() ! chain.getBlock(id)
+      }
+      case GetBlockByHeightCmd(height) => {
+        sender() ! chain.getBlock(height)
+      }
+      case GetBlockCountCmd() => {
+        sender() ! chain.getHeight()
+      }
+      case GetBlocksCmd() => {
+        val blockNum = chain.getHeight()
+        val blocks = ArrayBuffer.empty[Block]
+        for (i <- blockNum - 5 to blockNum) {
+          if (i >= 0)
+            blocks.append(chain.getBlock(i).get)
         }
-        case GetBlockByHeightCmd(height) => {
-          /*import Block.blockWrites*/
-          val res = Json.toJson(chain.getBlock(height).get).toString()
-          sender() ! resultString(new ExecResult(result = res))
-        }
-        case GetBlockCountCmd() => {
-          sender() ! resultString(new ExecResult(result = chain.getHeight().toString()))
-        }
-        case GetLatesBlockInfoCmd() => {
-          val res = Json.toJson(chain.getLatestHeader()).toString()
-          sender() ! resultString(new ExecResult(result = res))
-        }
-        case GetBlocksCmd() => {
-          val blockNum = chain.getHeight()
-          val blocks = ArrayBuffer.empty[Block]
-          for (i <- blockNum - 5 to blockNum) {
-            if (i >= 0)
-              blocks.append(chain.getBlock(i).get)
-          }
-          val res = Json.toJson(blocks).toString()
-          sender() ! resultString(new ExecResult(result = res))
-        }
-        case GetAccountCmd(address) => {
-          val res = Json.toJson(chain.getAccount(address)).toString()
-          sender() ! resultString(new ExecResult(result = res))
-        }
-        case SendRawTransactionCmd(tx) => {
-          var exec = false
+        sender() ! blocks
+      }
+      case GetLatesBlockInfoCmd() => {
+        sender() ! chain.getLatestHeader()
+      }
+      case GetAccountCmd(address) => {
+        sender() ! chain.getAccount(address)
+      }
+      case SendRawTransactionCmd(tx) => {
+        try {
           if (tx.verifySignature()) {
             peerHandlerManager ! InventoryMessage(new InventoryPayload(InventoryType.Tx, Seq(tx.id)))
             if (chain.addTransaction(tx))
-              exec = true
+              sender() ! true
+            else
+              sender() ! false
           }
-          sender() ! resultString(new ExecResult(result = exec.toString))
-        }
-        case GetContractByIdCmd(id) => {
-          val res = Json.toJson(chain.getReceipt(id)).toString()
-          sender() ! resultString(new ExecResult(result = res))
-        }
-        case SetGasLimitCmd(gasLimit) => {
-          sender() ! resultString(new ExecResult(result = chain.setGasLimit(gasLimit).toString()))
-        }
-        case GetGasLimitCmd() => {
-          sender() ! resultString(new ExecResult(result = chain.getGasLimit().toString))
-        }
-        case GetProducersCmd(listType) => {
-          val res = Json.toJson(chain.getProducers(listType)).toString()
-          sender() ! resultString(new ExecResult(result = res))
-        }
-        case GetProducerCmd(addr) => {
-          val res = Json.toJson(chain.getProducer(addr)).toString()
-          sender() ! resultString(new ExecResult(result = res))
-        }
-        case _ => {
-          // 返回404
-          sender() ! resultString(new ExecResult(false, 404, "can not found"))
+          else
+            sender() ! false
+        } catch {
+          case ex: Exception => sender() ! false
         }
       }
-    } catch {
-      case e: Exception => {
-        println(e.getMessage)
-        // 返回500
-        sender() ! resultString(new ExecResult(false, 500, e.getMessage))
+      case GetContractByIdCmd(id) => {
+        sender() ! chain.getReceipt(id)
+      }
+      case SetGasLimitCmd(gasLimit) => {
+        sender() ! chain.setGasLimit(gasLimit)
+      }
+      case GetGasLimitCmd() => {
+        sender() ! chain.getGasLimit()
+      }
+      case GetProducersCmd(listType) => {
+        sender() ! chain.getProducers(listType)
+      }
+      case GetProducerCmd(addr) => {
+        sender() ! chain.getProducer(addr)
       }
     }
   }
