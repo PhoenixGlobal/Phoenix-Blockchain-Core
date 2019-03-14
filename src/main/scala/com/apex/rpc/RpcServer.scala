@@ -55,7 +55,7 @@ object RpcServer extends ApexLogging {
                   .mapTo[Option[Block]]
                   .map( s =>
                     try{
-                      if (None == s) sussesRes("")
+                      if (None.equals(s)) sussesRes("")
                       else sussesRes(Block.blockWrites.writes(s.get).toString())
                     }catch {
                       case e: Exception => error500Res(e.getMessage)
@@ -69,7 +69,7 @@ object RpcServer extends ApexLogging {
                       .mapTo[Option[Block]]
                       .map( s =>
                         try{
-                          if (None == s) sussesRes("")
+                          if (None.equals(s)) sussesRes("")
                           else sussesRes(Block.blockWrites.writes(s.get).toString())
                         }catch {
                           case e: Exception => error500Res(e.getMessage)
@@ -91,7 +91,7 @@ object RpcServer extends ApexLogging {
             entity(as[String]) { _ =>
               val f = (nodeRef ? GetBlocksCmd()).mapTo[ArrayBuffer[Block]].map( s =>
                 try{
-                  if (None == s) sussesRes("")
+                  if (None.equals(s)) sussesRes("")
                   else sussesRes(Json.toJson(s).toString())
                 }catch {
                   case e: Exception => error500Res(e.getMessage)
@@ -109,7 +109,7 @@ object RpcServer extends ApexLogging {
                     .mapTo[Option[Account]]
                     .map( s =>
                       try{
-                        if (None == s) sussesRes("")
+                        if (None.equals(s)) sussesRes("")
                         else sussesRes(Account.accountWrites.writes(s.get).toString())
                       }catch {
                         case e: Exception => error500Res(e.getMessage)
@@ -133,7 +133,7 @@ object RpcServer extends ApexLogging {
                     .mapTo[Option[TransactionReceipt]]
                     .map( s =>
                       try{
-                        if (None == s) sussesRes("")
+                        if (None.equals(s)) sussesRes("")
                         else sussesRes(TransactionReceipt.TransactionReceiptWrites.writes(s.get).toString())
                       }catch {
                         case e: Exception => error500Res(e.getMessage)
@@ -156,7 +156,7 @@ object RpcServer extends ApexLogging {
                   log.info("send transaction: "+Json.toJson(cmd.value.rawTx).toString())
                   val f = (nodeRef ? cmd.value).mapTo[Boolean].map( s =>
                     try{
-                      if (None == s) sussesRes("")
+                      if (None.equals(s)) sussesRes("")
                       else sussesRes(s.toString())
                     }catch {
                       case e: Exception => error500Res(e.getMessage)
@@ -176,7 +176,7 @@ object RpcServer extends ApexLogging {
             entity(as[String]) { _ =>
               val f = (nodeRef ? GetBlockCountCmd()).mapTo[Long].map( s =>
                 try{
-                  if (None == s) sussesRes("")
+                  if (None.equals(s)) sussesRes("")
                   else sussesRes(s.toString())
                 }catch {
                   case e: Exception => error500Res(e.getMessage)
@@ -191,7 +191,7 @@ object RpcServer extends ApexLogging {
               val f = (nodeRef ? GetLatesBlockInfoCmd())
                 .mapTo[BlockHeader].map( s =>
                 try{
-                  if (None == s) sussesRes("")
+                  if (None.equals(s)) sussesRes("")
                   else sussesRes(BlockHeader.blockHeaderWrites.writes(s).toString())
                 }catch {
                   case e: Exception => error500Res(e.getMessage)
@@ -208,7 +208,7 @@ object RpcServer extends ApexLogging {
                 case cmd: JsSuccess[GetProducersCmd] => {
                   val f = (nodeRef ? cmd.get).mapTo[WitnessList].map( s =>
                     try{
-                      if (None == s) sussesRes("")
+                      if (None.equals(s)) sussesRes("")
                       else sussesRes(WitnessList.witnessListWrites.writes(s).toString())
                     }catch {
                       case e: Exception => error500Res(e.getMessage)
@@ -231,7 +231,7 @@ object RpcServer extends ApexLogging {
                     .mapTo[Option[WitnessInfo]]
                     .map( s =>
                       try{
-                        if (None == s) sussesRes("")
+                        if (None.equals(s)) sussesRes("")
                         else sussesRes(WitnessInfo.witnessInfoWrites.writes(s.get).toString())
                       }catch {
                         case e: Exception => error500Res(e.getMessage)
@@ -252,7 +252,7 @@ object RpcServer extends ApexLogging {
           entity(as[String]) { _ =>
             val f = (nodeRef ? GetGasLimitCmd()).mapTo[Long].map( s =>
               try{
-                if (None == s) sussesRes("")
+                if (None.equals(s)) sussesRes("")
                 else sussesRes(s.toString)
               }catch {
                 case e: Throwable => error500Res(e.getMessage)
@@ -268,7 +268,7 @@ object RpcServer extends ApexLogging {
                 case cmd: JsSuccess[SetGasLimitCmd] => {
                   val f = (nodeRef ? cmd.get).mapTo[Boolean].map( s =>
                     try{
-                      if (None == s) ExecResult.resultWrites.writes(new ExecResult()).toString()
+                      if (None.equals(s)) ExecResult.resultWrites.writes(new ExecResult()).toString()
                       else sussesRes(s.toString)
                     }catch {
                       case e: Throwable => error500Res(e.getMessage)
