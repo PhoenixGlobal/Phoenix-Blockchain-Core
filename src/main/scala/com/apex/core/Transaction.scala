@@ -122,7 +122,7 @@ object Transaction {
         "to" -> o.toAddress,
         "amount" -> o.amount.toString,
         "nonce" -> o.nonce.toString,
-        "data" -> o.data.toString,
+        /*"data" -> o.data.toString,*/
         "gasPrice" -> o.gasPrice.toString,
         "gasLimit" -> o.gasLimit.longValue(),
         "signature" -> o.signature.toString,
