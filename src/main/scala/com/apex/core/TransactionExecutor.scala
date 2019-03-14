@@ -145,7 +145,7 @@ class TransactionExecutor(val tx: Transaction,
   }
 
   private def createInvoker(data: Array[Byte]): ProgramInvoke = {
-    new ProgramInvokeImpl(DataWord.of(if (tx.isContractCreation()) tx.getContractAddress().get.data else tx.toPubKeyHash.data), DataWord.of(tx.sender().data), DataWord.of(tx.sender().data), DataWord.ZERO, DataWord.of(tx.gasPrice.value), DataWord.of(tx.gasLimit), DataWord.ZERO, data, DataWord.ZERO, DataWord.of(coinbase), DataWord.of(blockTime), DataWord.of(blockIndex), cacheTrack, track, chain)
+    new ProgramInvokeImpl(DataWord.of(if (tx.isContractCreation()) tx.getContractAddress().get.data else tx.toPubKeyHash.data), DataWord.of(tx.sender().data), DataWord.of(tx.sender().data), DataWord.ZERO, DataWord.of(tx.gasPrice.value), DataWord.of(tx.gasLimit), DataWord.ZERO, data, DataWord.ZERO, DataWord.of(coinbase), DataWord.of(blockTime), DataWord.of(blockIndex), DataWord.of(tx.gasLimit), cacheTrack, track, chain)
   }
 
   private def create(): Unit = {

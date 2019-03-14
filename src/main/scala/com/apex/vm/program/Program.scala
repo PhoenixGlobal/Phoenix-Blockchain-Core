@@ -41,11 +41,7 @@ import com.apex.vm.program.listener.{CompositeProgramListener, ProgramListenerAw
 import com.apex.vm.program.trace.{ProgramTrace, ProgramTraceListener}
 import org.apex.vm.{OpCache, OpCode}
 
-class Program(settings: ContractSettings,
-              ops: Array[Byte],
-              invoke: ProgramInvoke,
-              stopTime: Long,
-              vmHook: VMHook = VMHook.EMPTY, var over:Boolean = true) extends ApexLogging {
+class Program(settings: ContractSettings, ops: Array[Byte], invoke: ProgramInvoke, stopTime: Long, vmHook: VMHook = VMHook.EMPTY) extends ApexLogging {
   import Program._
 
   private var listener: ProgramOutListener = _
@@ -138,9 +134,9 @@ class Program(settings: ContractSettings,
 
   def getStack: Stack = stack
 
-  def getGasLong: Long = (invoke.getGasLimitLong - result.getGasUsed).longValue()
+  def getGasLong: Long = (invoke.getGasLong - result.getGasUsed).longValue()
 
-  def getGas: DataWord = DataWord.of(invoke.getGasLimitLong - result.getGasUsed)
+  def getGas: DataWord = DataWord.of(invoke.getGasLong - result.getGasUsed)
 
   def getPC: Int = pc
 
@@ -171,7 +167,7 @@ class Program(settings: ContractSettings,
 
   def getPrevHash: DataWord = invoke.getPrevHash
 
-  def getCoinbase: DataWord = invoke.getCoinbase
+  def getCoinbase: DataWord = invoke.getCoinBase
 
   def getTimestamp: DataWord = invoke.getTimestamp
 
@@ -179,7 +175,7 @@ class Program(settings: ContractSettings,
 
   //def getDifficulty: DataWord = invoke.getDifficulty
 
-  def getGasLimit: DataWord = invoke.getGaslimit
+  def getGasLimit: DataWord = invoke.getGasLimit
 
   def isStaticCall: Boolean = invoke.isStaticCall
 
@@ -350,7 +346,7 @@ class Program(settings: ContractSettings,
     val nonce = getStorage.getNonce(senderAddress).toBytes
     // create internal transaction
     var result: ProgramResult = ProgramResult.createEmpty
-    val programInvoke = new ProgramInvokeImpl(DataWord.of(newAddress), getOriginAddress, getOwnerAddress, DataWord.of(newBalance), getGasPrice, gasLimit, value, null, getPrevHash, getCoinbase, getTimestamp, getNumber, track, invoke.getOrigDataBase, invoke.getChain, getCallDeep + 1, false, byTestingSuite)
+    val programInvoke = new ProgramInvokeImpl(DataWord.of(newAddress), getOriginAddress, getOwnerAddress, DataWord.of(newBalance), getGasPrice, gasLimit, value, null, getPrevHash, getCoinbase, getTimestamp, getNumber, getGasLimit, track, invoke.getOrigDataBase, invoke.getChain, getCallDeep + 1, false, byTestingSuite)
 
     if (contractAlreadyExists) {
       result.setException(new BytecodeExecutionException(s"Trying to create a contract with existing contract address: ${newAddress.toString}"))
@@ -362,7 +358,7 @@ class Program(settings: ContractSettings,
     // 4. CREATE THE CONTRACT OUT OF RETURN
     val code = result.getHReturn
     val storageCost = code.length * GasCost.CREATE_DATA
-    val afterSpend = programInvoke.getGaslimit.longValue - storageCost - result.getGasUsed
+    val afterSpend = programInvoke.getGasLimit.longValue - storageCost - result.getGasUsed
     if (afterSpend < 0) {
       result.setException(Program.notEnoughSpendingGas("No gas to return just created contract", storageCost, programInvoke, result))
     } else if (code.length > settings.maxContractSize) {
@@ -626,7 +622,7 @@ class Program(settings: ContractSettings,
           val isDelegate = op.callIsDelegate
           val callerAddress = if (isDelegate) getCallerAddress else getOwnerAddress
           val callValue = if (isDelegate) getCallValue else msg.endowment
-          val programInvoke = new ProgramInvokeImpl(DataWord.of(contextAddress), getOriginAddress, callerAddress, DataWord.of(contextBalance), msg.gas, getGasPrice, callValue, data, getPrevHash, getCoinbase, getTimestamp, getNumber, track, invoke.getOrigDataBase, invoke.getChain, getCallDeep + 1, op.callIsStatic || isStaticCall, byTestingSuite)
+          val programInvoke = new ProgramInvokeImpl(DataWord.of(contextAddress), getOriginAddress, callerAddress, DataWord.of(contextBalance), msg.gas, getGasPrice, callValue, data, getPrevHash, getCoinbase, getTimestamp, getNumber, getGasLimit, track, invoke.getOrigDataBase, invoke.getChain, getCallDeep + 1, op.callIsStatic || isStaticCall, byTestingSuite)
           val program = new Program(settings, programCode, programInvoke, stopTime)
           val result = VM.play(settings, vmHook, program)
           getTrace.merge(program.getTrace)
@@ -738,7 +734,7 @@ object Program {
 
 
   def notEnoughSpendingGas(cause: String, gasValue: Long, invoke: ProgramInvoke, result: ProgramResult) = {
-    OutOfGasException(s"Not enough gas for '$cause' cause spending: invokeGas[${invoke.getGaslimit.longValue}], gas[$gasValue], usedGas[${result.getGasUsed}]")
+    OutOfGasException(s"Not enough gas for '$cause' cause spending: invokeGas[${invoke.getGasLimit.longValue}], gas[$gasValue], usedGas[${result.getGasUsed}]")
   }
 
   def gasOverflow(actualGas: BigInt, gasLimit: BigInt) = {
