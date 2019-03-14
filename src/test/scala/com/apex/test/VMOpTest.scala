@@ -37,23 +37,7 @@ class VMOpTest {
     "00000000000000000000000000000000000000000000000000000000000000A1" +
     "00000000000000000000000000000000000000000000000000000000000000B1"))
 
-  private def invoker(msgData: Array[Byte] = Array.empty): ProgramInvoke = new ProgramInvokeImpl(
-    DataWord.of(BinaryData("2341DE5527492BCB42EC68DFEDF0742A98EC3F1E")),
-    DataWord.of(caller),
-    DataWord.of(caller),
-    DataWord.of(10),
-    DataWord.of(30),
-    DataWord.of(900000),
-    DataWord.of(0),
-    msgData,
-    DataWord.ZERO,
-    DataWord.of(BinaryData("E559DE5527492BCB42EC68D07DF0742A98EC3F1E")),
-    DataWord.of(BinaryData("0000000000000000000000000000000000000123")),
-    DataWord.of(BinaryData("0000000000000000000000000000000000000111")),
-    null,
-    null,
-    null,
-    null)
+  private def invoker(msgData: Array[Byte] = Array.empty): ProgramInvoke = new ProgramInvokeImpl(DataWord.of(BinaryData("2341DE5527492BCB42EC68DFEDF0742A98EC3F1E")), DataWord.of(caller), DataWord.of(caller), DataWord.of(10), DataWord.of(30), DataWord.of(900000), DataWord.of(0), msgData, DataWord.ZERO, DataWord.of(BinaryData("E559DE5527492BCB42EC68D07DF0742A98EC3F1E")), DataWord.of(BinaryData("0000000000000000000000000000000000000123")), DataWord.of(BinaryData("0000000000000000000000000000000000000111")), null, null, null)
 
 
   @Test  // COINBASE Op
@@ -411,23 +395,7 @@ object VMOpTest {
 
   def createInvoker(tracking: DataBase, origin: DataBase, caller: UInt160, contract: UInt160,
                     data: Array[Byte], value: Int, gasLimit: Long): ProgramInvoke = {
-    new ProgramInvokeImpl(
-      DataWord.of(contract),
-      DataWord.of(caller),
-      DataWord.of(caller),
-      DataWord.ZERO,
-      DataWord.ZERO,
-      DataWord.of(gasLimit),
-      DataWord.of(value),
-      data,
-      DataWord.ZERO,
-      DataWord.ZERO,
-      DataWord.ZERO,
-      DataWord.ZERO,
-      tracking,
-      origin,
-      null,
-      null)
+    new ProgramInvokeImpl(DataWord.of(contract), DataWord.of(caller), DataWord.of(caller), DataWord.ZERO, DataWord.ZERO, DataWord.of(gasLimit), DataWord.of(value), data, DataWord.ZERO, DataWord.ZERO, DataWord.ZERO, DataWord.ZERO, tracking, origin, null)
   }
 
   def success(getResult: ProgramResult) = {

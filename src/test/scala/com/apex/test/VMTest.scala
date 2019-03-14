@@ -749,23 +749,7 @@ object VMTest {
 
   def createInvoker(tracking: DataBase, origin: DataBase, caller: UInt160, contract: UInt160,
                     data: Array[Byte], value: Int, gasLimit: Long): ProgramInvoke = {
-    new ProgramInvokeImpl(
-      DataWord.of(contract),
-      DataWord.of(caller),
-      DataWord.of(caller),
-      DataWord.ZERO,
-      DataWord.ZERO,
-      DataWord.of(gasLimit),
-      DataWord.of(value),
-      data,
-      DataWord.ZERO,
-      DataWord.ZERO,
-      DataWord.ZERO,
-      DataWord.ZERO,
-      tracking,
-      origin,
-      null,
-      null)
+    new ProgramInvokeImpl(DataWord.of(contract), DataWord.of(caller), DataWord.of(caller), DataWord.ZERO, DataWord.ZERO, DataWord.of(gasLimit), DataWord.of(value), data, DataWord.ZERO, DataWord.ZERO, DataWord.ZERO, DataWord.ZERO, tracking, origin, null)
   }
 
   def success(getResult: ProgramResult) = {

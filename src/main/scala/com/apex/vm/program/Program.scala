@@ -350,12 +350,7 @@ class Program(settings: ContractSettings,
     val nonce = getStorage.getNonce(senderAddress).toBytes
     // create internal transaction
     var result: ProgramResult = ProgramResult.createEmpty
-    val programInvoke = new ProgramInvokeImpl(
-      DataWord.of(newAddress), getOriginAddress, getOwnerAddress,
-      DataWord.of(newBalance), getGasPrice, gasLimit, value, null,
-      getPrevHash, getCoinbase, getTimestamp, getNumber,
-      track, invoke.getOrigDataBase, invoke.getBlockStore, invoke.getChain,
-      getCallDeep + 1, false, byTestingSuite)
+    val programInvoke = new ProgramInvokeImpl(DataWord.of(newAddress), getOriginAddress, getOwnerAddress, DataWord.of(newBalance), getGasPrice, gasLimit, value, null, getPrevHash, getCoinbase, getTimestamp, getNumber, track, invoke.getOrigDataBase, invoke.getChain, getCallDeep + 1, false, byTestingSuite)
 
     if (contractAlreadyExists) {
       result.setException(new BytecodeExecutionException(s"Trying to create a contract with existing contract address: ${newAddress.toString}"))
@@ -631,12 +626,7 @@ class Program(settings: ContractSettings,
           val isDelegate = op.callIsDelegate
           val callerAddress = if (isDelegate) getCallerAddress else getOwnerAddress
           val callValue = if (isDelegate) getCallValue else msg.endowment
-          val programInvoke = new ProgramInvokeImpl(
-            DataWord.of(contextAddress), getOriginAddress, callerAddress,
-            DataWord.of(contextBalance), msg.gas, getGasPrice, callValue,
-            data, getPrevHash, getCoinbase, getTimestamp, getNumber,
-            track, invoke.getOrigDataBase, invoke.getBlockStore, invoke.getChain,
-            getCallDeep + 1, op.callIsStatic || isStaticCall, byTestingSuite)
+          val programInvoke = new ProgramInvokeImpl(DataWord.of(contextAddress), getOriginAddress, callerAddress, DataWord.of(contextBalance), msg.gas, getGasPrice, callValue, data, getPrevHash, getCoinbase, getTimestamp, getNumber, track, invoke.getOrigDataBase, invoke.getChain, getCallDeep + 1, op.callIsStatic || isStaticCall, byTestingSuite)
           val program = new Program(settings, programCode, programInvoke, stopTime)
           val result = VM.play(settings, vmHook, program)
           getTrace.merge(program.getTrace)

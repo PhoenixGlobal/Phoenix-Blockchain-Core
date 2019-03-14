@@ -72,8 +72,6 @@ trait ProgramInvoke {
 
   def getOrigDataBase: DataBase
 
-  def getBlockStore: BlockBase
-
   def isStaticCall: Boolean
 
   def getChain: Blockchain
