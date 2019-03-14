@@ -948,8 +948,7 @@ class Blockchain(chainSettings: ChainSettings,
 }
 
 object TransactionProccessor extends ApexLogging {
-  def checkTransactionValid(tx: Transaction, dataBase: DataBase, blockTime: Long,
-                            scheduleFee: FixedNumber = FixedNumber.Zero) = {
+  def checkTransactionValid(tx: Transaction, dataBase: DataBase, blockTime: Long) = {
 
     var txValid = true
 
@@ -966,10 +965,6 @@ object TransactionProccessor extends ApexLogging {
       txFee = FixedNumber(BigInt(txGas)) * tx.gasPrice
       if (txGas > tx.gasLimit) {
         log.info(s"Not enough gas for transaction tx ${tx.id().shortString()}")
-        txValid = false
-      }
-      if (tx.executeTime < blockTime && tx.executeTime > 0 && scheduleFee > fromAccount.balance) {
-        log.info(s"Not enough basic gas for schedule transaction tx ${tx.id().shortString()}")
         txValid = false
       }
       if ((tx.amount + txFee) > fromAccount.balance) {
