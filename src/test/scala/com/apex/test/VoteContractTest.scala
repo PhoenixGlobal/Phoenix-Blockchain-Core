@@ -148,8 +148,8 @@ class VoteContractTest extends RegisterContractTest {
       When.makeVoteTransaction(nonce = 2, counter = FixedNumber.Ten)(tx => {
         assert(chain.addTransaction(tx))
         assert(chain.getVote(_acct1.publicKey.pubKeyHash).get.targetMap(_acct3.publicKey.pubKeyHash) == FixedNumber.Ten)
-        assert(chain.getBalance(_acct1.publicKey.pubKeyHash).get == FixedNumber.fromDecimal(BigDecimal("110.11999999999993514")))
-        assert(chain.getBalance(_acct1.publicKey.pubKeyHash).get == FixedNumber.fromDecimal(110.12) - FixedNumber(42000)- FixedNumber(22860))
+        assert(chain.getBalance(_acct1).get == FixedNumber.fromDecimal(BigDecimal("110.11999999999993514")))
+        assert(chain.getBalance(_acct1).get == FixedNumber.fromDecimal(110.12) - FixedNumber(42000)- FixedNumber(22860))
       })
       When.makeVoteTransaction(OperationType.resisterCancel,nonce = 3, counter = FixedNumber(FixedNumber.One.value * 20))(tx => {
         assert(chain.addTransaction(tx))
@@ -176,9 +176,9 @@ class VoteContractTest extends RegisterContractTest {
         val witness = chain.getWitness(_acct4.publicKey.pubKeyHash)
         assert(witness.isDefined)
         assert(witness.get.name == "node 2")
-        assert(chain.getBalance(_acct4.publicKey.pubKeyHash).get == FixedNumber.fromDecimal(BigDecimal("2.999999999999975504")))
-        val balance = chain.getBalance(_acct4.publicKey.pubKeyHash).get
-        assert(chain.getBalance(_acct4.publicKey.pubKeyHash).get == FixedNumber.fromDecimal(3) - FixedNumber(24496))
+        assert(chain.getBalance(_acct4).get == FixedNumber.fromDecimal(BigDecimal("2.999999999999975504")))
+        val balance = chain.getBalance(_acct4).get
+        assert(chain.getBalance(_acct4).get == FixedNumber.fromDecimal(3) - FixedNumber(24496))
       })
       When.makeVoteTransaction(nonce = 3, candidate = _acct4.publicKey.pubKeyHash)(tx => {
         assert(chain.addTransaction(tx))
@@ -215,18 +215,18 @@ class VoteContractTest extends RegisterContractTest {
       When.makeRegisterTransaction()(checkRegisterSuccess)
       When.makeVoteTransaction(nonce = 2, counter = FixedNumber.Ten)(tx => {
         assert(chain.addTransaction(tx))
-        println(chain.getBalance(_acct1.publicKey.pubKeyHash).get)
+        println(chain.getBalance(_acct1).get)
         assert(chain.getVote(_acct1.publicKey.pubKeyHash).get.targetMap(_acct3.publicKey.pubKeyHash) == FixedNumber.Ten)
-        assert(chain.getBalance(_acct1.publicKey.pubKeyHash).get == FixedNumber.fromDecimal(BigDecimal("110.119999999999935140")))
-        assert(chain.getBalance(_acct1.publicKey.pubKeyHash).get == FixedNumber.fromDecimal(110.12) - FixedNumber(42000) - FixedNumber(22860))
+        assert(chain.getBalance(_acct1).get == FixedNumber.fromDecimal(BigDecimal("110.119999999999935140")))
+        assert(chain.getBalance(_acct1).get == FixedNumber.fromDecimal(110.12) - FixedNumber(42000) - FixedNumber(22860))
         assert(chain.getBalance(new UInt160(PrecompiledContracts.voteAddr.getLast20Bytes)).get == FixedNumber.Ten)
       })
       When.makeVoteTransaction(OperationType.resisterCancel,nonce = 3, counter = FixedNumber.One)(tx => {
         assert(chain.addTransaction(tx))
         assert(chain.getVote(_acct1.publicKey.pubKeyHash).get.targetMap(_acct3.publicKey.pubKeyHash) == FixedNumber(FixedNumber.One.value * 9))
         assert(chain.getBalance(new UInt160(PrecompiledContracts.voteAddr.getLast20Bytes)).get == FixedNumber(FixedNumber.One.value * 10))
-        assert(chain.getBalance(_acct1.publicKey.pubKeyHash).get == FixedNumber.fromDecimal(BigDecimal("110.119999999999912220")))
-        assert(chain.getBalance(_acct1.publicKey.pubKeyHash).get == FixedNumber.fromDecimal(110.12)- FixedNumber(42000) - FixedNumber(22860) - FixedNumber(22920))
+        assert(chain.getBalance(_acct1).get == FixedNumber.fromDecimal(BigDecimal("110.119999999999912220")))
+        assert(chain.getBalance(_acct1).get == FixedNumber.fromDecimal(110.12)- FixedNumber(42000) - FixedNumber(22860) - FixedNumber(22920))
       })
 
       val block1 = chain.produceBlockFinalize()
@@ -269,8 +269,8 @@ class VoteContractTest extends RegisterContractTest {
       assert(chain.head.id() == block3.get.id())
 
       assert(chain.getBalance(new UInt160(PrecompiledContracts.voteAddr.getLast20Bytes)).get == FixedNumber(FixedNumber.One.value * 9))
-      assert(chain.getBalance(_acct1.publicKey.pubKeyHash).get == FixedNumber.fromDecimal(BigDecimal("111.119999999999912220")))
-      assert(chain.getBalance(_acct1.publicKey.pubKeyHash).get == FixedNumber.fromDecimal(111.12) - FixedNumber(42000) - FixedNumber(22860) - FixedNumber(22920))
+      assert(chain.getBalance(_acct1).get == FixedNumber.fromDecimal(BigDecimal("111.119999999999912220")))
+      assert(chain.getBalance(_acct1).get == FixedNumber.fromDecimal(111.12) - FixedNumber(42000) - FixedNumber(22860) - FixedNumber(22920))
     }
     finally {
       chain.close()
@@ -292,10 +292,10 @@ class VoteContractTest extends RegisterContractTest {
     val witness = chain.getWitness(_acct3.publicKey.pubKeyHash)
     assert(witness.isDefined)
     assert(witness.get.name == "register node1")
-    assert(chain.getBalance(_acct3.publicKey.pubKeyHash).get == FixedNumber.fromDecimal(BigDecimal("1.999999999999975088")))
-    val account = chain.getBalance(_acct1.publicKey.pubKeyHash).get
+    assert(chain.getBalance(_acct3).get == FixedNumber.fromDecimal(BigDecimal("1.999999999999975088")))
+    val account = chain.getBalance(_acct1).get
     assert(account == FixedNumber.fromDecimal(BigDecimal("119.119999999999935144")))
-    assert(chain.getBalance(_acct3.publicKey.pubKeyHash).get == (FixedNumber.fromDecimal(2) - FixedNumber(24912)))
+    assert(chain.getBalance(_acct3).get == (FixedNumber.fromDecimal(2) - FixedNumber(24912)))
 
     assert(account == (FixedNumber.fromDecimal(119.12) - FixedNumber(22856) - FixedNumber(42000)))
     assert(chain.getVote(_acct1.publicKey.pubKeyHash).get.targetMap.get(_acct3.publicKey.pubKeyHash).get == FixedNumber.One)

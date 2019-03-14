@@ -984,7 +984,7 @@ class BlockchainTest {
           assert(witness.isDefined)
           assert(witness.get.name == "register node1")
 
-          assert(chain.getBalance(_acct3.publicKey.pubKeyHash).get == FixedNumber.fromDecimal(BigDecimal("8.999999999999975088")))
+          assert(chain.getBalance(_acct3).get == FixedNumber.fromDecimal(BigDecimal("8.999999999999975088")))
           assert(chain.getBalance(new UInt160(PrecompiledContracts.registerNodeAddr.getLast20Bytes)).get == FixedNumber.One)
       }
       makeRegisterTransaction(OperationType.resisterCancel, 1) {
@@ -993,7 +993,7 @@ class BlockchainTest {
           val witness = chain.getWitness(_acct3.publicKey.pubKeyHash)
           assert(witness.isEmpty)
           assert(chain.getScheduleTx().size == 1)
-          assert(chain.getBalance(_acct3.publicKey.pubKeyHash).get == FixedNumber.fromDecimal(BigDecimal("8.999999999999950112")))
+          assert(chain.getBalance(_acct3).get == FixedNumber.fromDecimal(BigDecimal("8.999999999999950112")))
           assert(chain.getBalance(new UInt160(PrecompiledContracts.registerNodeAddr.getLast20Bytes)).get == FixedNumber.One)
         }
       }
