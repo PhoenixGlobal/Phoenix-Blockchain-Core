@@ -192,7 +192,7 @@ class VMOpTest2 {
 
   @Test
   def testBalance: Unit = {
-    val chain = createChain("testBLOCKHASH")
+    val chain = createChain("testBalance")
     try {
       val contractSrc = "pragma solidity ^0.5.2;\n\n\ncontract A {\n  function a() view public returns (uint r) {\n      return msg.sender.balance;\n    } \n}"
       val res = SolidityCompiler.compile(contractSrc.getBytes, true, Seq(ABI, BIN, INTERFACE, METADATA))
