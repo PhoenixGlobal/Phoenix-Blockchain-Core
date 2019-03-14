@@ -22,10 +22,9 @@ import com.apex.plugins.mongodb.MongodbPluginRef
 import com.apex.settings.ApexSettings
 import com.apex.utils.NetworkTimeProvider
 import com.typesafe.config.Config
-import play.api.libs.json.Json
-
 import scala.collection.mutable.ArrayBuffer
 import scala.concurrent.ExecutionContext
+import scala.util.Try
 
 trait NodeMessage
 
@@ -126,58 +125,86 @@ class Node(val settings: ApexSettings, config: Config)
   private def processRPCCommand(cmd: RPCCommand) = {
     cmd match {
       case GetBlockByIdCmd(id) => {
-        sender() ! chain.getBlock(id)
+        val block = Try {
+          chain.getBlock(id)
+        }
+        sender() ! block
       }
       case GetBlockByHeightCmd(height) => {
-        sender() ! chain.getBlock(height)
+        val block = Try {
+          chain.getBlock(height)
+        }
+        sender() ! block
       }
       case GetBlockCountCmd() => {
-        sender() ! chain.getHeight()
+        val blockHeight = Try {
+          chain.getHeight()
+        }
+        sender() ! blockHeight
       }
       case GetBlocksCmd() => {
-        val blockNum = chain.getHeight()
-        val blocks = ArrayBuffer.empty[Block]
-        for (i <- blockNum - 5 to blockNum) {
-          if (i >= 0)
-            blocks.append(chain.getBlock(i).get)
+        val blockList = Try {
+          val blockNum = chain.getHeight()
+          val blocks = ArrayBuffer.empty[Block]
+          for (i <- blockNum - 5 to blockNum) {
+            if (i >= 0)
+              blocks.append(chain.getBlock(i).get)
+          }
         }
-        sender() ! blocks
+        sender() ! blockList
       }
       case GetLatesBlockInfoCmd() => {
-        sender() ! chain.getLatestHeader()
+        val latestHeader = Try {
+          chain.getLatestHeader()
+        }
+        sender() ! latestHeader
       }
       case GetAccountCmd(address) => {
-        sender() ! chain.getAccount(address)
+        val account = Try {
+          chain.getAccount(address)
+        }
+        sender() ! account
       }
       case SendRawTransactionCmd(tx) => {
-        try {
+        val sendTx = Try {
           if (tx.verifySignature()) {
             peerHandlerManager ! InventoryMessage(new InventoryPayload(InventoryType.Tx, Seq(tx.id)))
-            if (chain.addTransaction(tx))
-              sender() ! true
-            else
-              sender() ! false
+            if (chain.addTransaction(tx)) true
+            else false
           }
-          else
-            sender() ! false
-        } catch {
-          case ex: Exception => sender() ! false
+          else false
         }
+        sender() ! sendTx
       }
       case GetContractByIdCmd(id) => {
-        sender() ! chain.getReceipt(id)
+        val receipt = Try {
+          chain.getReceipt(id)
+        }
+        sender() ! receipt
       }
       case SetGasLimitCmd(gasLimit) => {
-        sender() ! chain.setGasLimit(gasLimit)
+        val setGas = Try {
+          chain.setGasLimit(gasLimit)
+        }
+        sender() ! setGas
       }
       case GetGasLimitCmd() => {
-        sender() ! chain.getGasLimit()
+        val gasLimit = Try {
+          chain.getGasLimit()
+        }
+        sender() ! gasLimit
       }
       case GetProducersCmd(listType) => {
-        sender() ! chain.getProducers(listType)
+        val producers = Try {
+          chain.getProducers(listType)
+        }
+        sender() ! producers
       }
       case GetProducerCmd(addr) => {
-        sender() ! chain.getProducer(addr)
+        val producer = Try {
+          chain.getProducer(addr)
+        }
+        sender() ! producer
       }
     }
   }
@@ -265,7 +292,7 @@ class Node(val settings: ApexSettings, config: Config)
     } else {
       log.error(s"failed insert block #${msg.block.height}, ${msg.block.shortId} by ${msg.block.header.producer.address.substring(0, 7)} to db")
       if (!chain.containsBlock(msg.block.id)) {
-        // out of sync, or there are fork chains, try to get more blocks
+        // out of sync, or there are fork chains,  to get more blocks
         if (msg.block.height - chain.getHeight < 10) // do not send too many request during init sync
           sendGetBlocksMessage()
       }
