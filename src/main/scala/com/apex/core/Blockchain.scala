@@ -399,6 +399,7 @@ class Blockchain(chainSettings: ChainSettings,
       log.info("it's time to electe new producers")
       val currentWitness = mCurWitnessList.get
       val allWitnesses = dataBase.getAllWitness()
+      new WitnessList(allWitnesses.toArray, UInt256.Zero).logInfo("current all Witness")
       currentWitness.logInfo("setPreviousWitnessList")
       dataBase.setPreviousWitnessList(currentWitness)
       mPrevWitnessList = dataBase.getPreviousWitnessList()

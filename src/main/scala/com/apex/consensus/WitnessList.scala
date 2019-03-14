@@ -37,7 +37,7 @@ class WitnessList(val witnesses: Array[WitnessInfo],  // sorted by Location
   def logInfo(name: String) = {
     log.info(s"$name:")
     witnesses.foreach(w =>
-      log.info(s"  ${w.addr.address.substring(0, 7)} ${w.longitude} ${w.latitude} ${w.voteCounts}"))
+      log.info(s"  ${w.addr.address.substring(0, 7)}  ${w.voteCounts}  ${w.longitude}  ${w.latitude} "))
   }
 }
 
