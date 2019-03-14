@@ -13,7 +13,7 @@ package com.apex.vm.program.invoke
 import com.apex.core.{BlockBase, DataBase, Blockchain}
 import com.apex.vm.DataWord
 
-class ProgramInvokeImpl(address: DataWord, origin: DataWord, caller: DataWord, balance: DataWord, gasPrice: DataWord, gasLimit: DataWord, callValue: DataWord, msgData: Array[Byte], lastHash: DataWord, coinbase: DataWord, timestamp: DataWord, number: DataWord, dataBase: DataBase, origDataBase: DataBase, chain: Blockchain, callDeep: Int = 0, staticCall: Boolean = false, testingSuite: Boolean = false, byTx: Boolean = true) extends ProgramInvoke {
+class ProgramInvokeImpl(address: DataWord, origin: DataWord, caller: DataWord, balance: DataWord, gasPrice: DataWord, gas: DataWord, callValue: DataWord, msgData: Array[Byte], lastHash: DataWord, coinBase: DataWord, timestamp: DataWord, number: DataWord, gasLimit: DataWord, dataBase: DataBase, origDataBase: DataBase, chain: Blockchain, callDeep: Int = 0, staticCall: Boolean = false, testingSuite: Boolean = false, byTx: Boolean = true) extends ProgramInvoke {
 
   /** ***************/
   /** *  msg data ***/
@@ -37,15 +37,14 @@ class ProgramInvokeImpl(address: DataWord, origin: DataWord, caller: DataWord, b
 
   /*           GASPRICE op       */
   override def getMinGasPrice: DataWord = gasPrice
-  //
-  //  /*           GAS op       */
-  //  override def getGas: DataWord = gaslimit
 
-  /*           GASLIMIT op       */
-  override def getGasLimitLong: Long = gasLimit.longValueSafe
+  /*           GAS op       */
+  override def getGas: DataWord = gas
+
+  override def getGasLong: Long = gas.longValueSafe
 
   /*     GASLIMIT op    */
-  override def getGaslimit: DataWord = gasLimit
+  override def getGasLimit: DataWord = gasLimit
 
   /*          CALLVALUE op    */
   override def getCallValue: DataWord = callValue
@@ -103,7 +102,7 @@ class ProgramInvokeImpl(address: DataWord, origin: DataWord, caller: DataWord, b
   override def getPrevHash: DataWord = lastHash
 
   /*     COINBASE op    */
-  override def getCoinbase: DataWord = coinbase
+  override def getCoinBase: DataWord = coinBase
 
   /*     TIMESTAMP op    */
   override def getTimestamp: DataWord = timestamp
@@ -112,9 +111,7 @@ class ProgramInvokeImpl(address: DataWord, origin: DataWord, caller: DataWord, b
   override def getNumber: DataWord = number
 
   /*     DIFFICULTY op    */
-  //override def getDifficulty: DataWord = difficulty
-
-
+  override def getDifficulty: DataWord = DataWord.ZERO
 
   override def byTransaction: Boolean = byTx
 

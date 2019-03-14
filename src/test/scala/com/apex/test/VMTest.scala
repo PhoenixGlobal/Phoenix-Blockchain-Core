@@ -220,7 +220,7 @@ class VMTest {
   @Test
   def testCREATE = {
     val _ =
-        "contract A {\n" +
+      "contract A {\n" +
         "    constructor() payable public {}\n" +
         "}\n" +
         "\n" +
@@ -718,7 +718,7 @@ object VMTest {
     val contract = Crypto.calcNewAddr(author, BigInt(newNonce).toByteArray)
     if (value > 0) tracking.transfer(caller, contract, value)
     val invoker = createInvoker(tracking, dataBase, caller, contract, Array.empty, value, gasLimit)
-    val program = new Program(vmSettings, code, invoker, Long.MaxValue, over = over)
+    val program = new Program(vmSettings, code, invoker, Long.MaxValue)
     val result = VM.play(vmSettings, VMHook.EMPTY, program)
     if (success(result)) {
       tracking.commit()
@@ -736,7 +736,7 @@ object VMTest {
     }
 
     val invoker = createInvoker(tracking, dataBase, caller, contract, signature, value, gasLimit)
-    val program = new Program(vmSettings, code, invoker, Long.MaxValue, over = over)
+    val program = new Program(vmSettings, code, invoker, Long.MaxValue)
     val result = VM.play(vmSettings, VMHook.EMPTY, program)
     if (success(result)) {
       tracking.commit()
@@ -749,7 +749,7 @@ object VMTest {
 
   def createInvoker(tracking: DataBase, origin: DataBase, caller: UInt160, contract: UInt160,
                     data: Array[Byte], value: Int, gasLimit: Long): ProgramInvoke = {
-    new ProgramInvokeImpl(DataWord.of(contract), DataWord.of(caller), DataWord.of(caller), DataWord.ZERO, DataWord.ZERO, DataWord.of(gasLimit), DataWord.of(value), data, DataWord.ZERO, DataWord.ZERO, DataWord.ZERO, DataWord.ZERO, tracking, origin, null)
+    new ProgramInvokeImpl(DataWord.of(contract), DataWord.of(caller), DataWord.of(caller), DataWord.ZERO, DataWord.ZERO, DataWord.of(gasLimit), DataWord.of(value), data, DataWord.ZERO, DataWord.ZERO, DataWord.ZERO, DataWord.ZERO, DataWord.of(gasLimit), tracking, origin, null)
   }
 
   def success(getResult: ProgramResult) = {

@@ -35,12 +35,12 @@ class VMOpTest {
 
   private def invoker2(): ProgramInvoke = invoker(BinaryData(
     "00000000000000000000000000000000000000000000000000000000000000A1" +
-    "00000000000000000000000000000000000000000000000000000000000000B1"))
+      "00000000000000000000000000000000000000000000000000000000000000B1"))
 
-  private def invoker(msgData: Array[Byte] = Array.empty): ProgramInvoke = new ProgramInvokeImpl(DataWord.of(BinaryData("2341DE5527492BCB42EC68DFEDF0742A98EC3F1E")), DataWord.of(caller), DataWord.of(caller), DataWord.of(10), DataWord.of(30), DataWord.of(900000), DataWord.of(0), msgData, DataWord.ZERO, DataWord.of(BinaryData("E559DE5527492BCB42EC68D07DF0742A98EC3F1E")), DataWord.of(BinaryData("0000000000000000000000000000000000000123")), DataWord.of(BinaryData("0000000000000000000000000000000000000111")), null, null, null)
+  private def invoker(msgData: Array[Byte] = Array.empty): ProgramInvoke = new ProgramInvokeImpl(DataWord.of(BinaryData("2341DE5527492BCB42EC68DFEDF0742A98EC3F1E")), DataWord.of(caller), DataWord.of(caller), DataWord.of(10), DataWord.of(30), DataWord.of(900000), DataWord.of(0), msgData, DataWord.ZERO, DataWord.of(BinaryData("E559DE5527492BCB42EC68D07DF0742A98EC3F1E")), DataWord.of(BinaryData("0000000000000000000000000000000000000123")), DataWord.of(BinaryData("0000000000000000000000000000000000000111")), DataWord.of(1000000), null, null, null)
 
 
-  @Test  // COINBASE Op
+  @Test // COINBASE Op
   def test1: Unit = {
 
 
@@ -55,7 +55,7 @@ class VMOpTest {
     assert(item1 == DataWord.of(BinaryData("E559DE5527492BCB42EC68D07DF0742A98EC3F1E")))
   }
 
-  @Test  // GASPRICE Op
+  @Test // GASPRICE Op
   def testGASPRICE: Unit = {
 
 
@@ -70,7 +70,7 @@ class VMOpTest {
     assert(item1 == DataWord.of(BinaryData("000000000000000000000000000000000000001e")))
   }
 
-  @Test  // GAS Op
+  @Test // GAS Op
   def testGAS: Unit = {
 
 
@@ -85,7 +85,7 @@ class VMOpTest {
     assert(item1 == DataWord.of(BinaryData("00000000000000000000000000000000000dbb9e")))
   }
 
-  @Test  // TIMESTAMP Op
+  @Test // TIMESTAMP Op
   def testTimeStamp: Unit = {
 
     val program = new Program(VMOpTest.vmSettings, BinaryData("42"), invoker, Long.MaxValue)
@@ -99,7 +99,7 @@ class VMOpTest {
     assert(item1 == DataWord.of(BinaryData("0000000000000000000000000000000000000123")))
   }
 
-  @Test  // NUMBER Op
+  @Test // NUMBER Op
   def testNUMBER: Unit = {
     val program = new Program(VMOpTest.vmSettings, BinaryData("43"), invoker, Long.MaxValue)
 
@@ -112,7 +112,7 @@ class VMOpTest {
     assert(item1 == DataWord.of(BinaryData("0000000000000000000000000000000000000111")))
   }
 
-  @Test  // DIFFICULTY Op
+  @Test // DIFFICULTY Op
   def testDIFFICULTY: Unit = {
     val program = new Program(VMOpTest.vmSettings, BinaryData("44"), invoker, Long.MaxValue)
 
@@ -125,7 +125,7 @@ class VMOpTest {
     assert(item1 == DataWord.of(BinaryData("0000000000000000000000000000000000000000")))
   }
 
-  @Test  // GASLIMIT Op
+  @Test // GASLIMIT Op
   def testGASLIMIT: Unit = {
     val program = new Program(VMOpTest.vmSettings, BinaryData("45"), invoker, Long.MaxValue)
 
@@ -138,7 +138,7 @@ class VMOpTest {
     assert(item1 == DataWord.of(BinaryData("00000000000000000000000000000000000DBBA0")))
   }
 
-  @Test  // ADDRESS Op
+  @Test // ADDRESS Op
   def testADDRESS: Unit = {
     val program = new Program(VMOpTest.vmSettings, BinaryData("30"), invoker, Long.MaxValue)
 
@@ -151,7 +151,7 @@ class VMOpTest {
     assert(item1 == DataWord.of(BinaryData("2341DE5527492BCB42EC68DFEDF0742A98EC3F1E")))
   }
 
-  @Test  // MSIZE
+  @Test // MSIZE
   def testMSIZE_1: Unit = {
     val program = new Program(VMOpTest.vmSettings, BytecodeCompiler.compile("MSIZE"), invoker, Long.MaxValue)
     val vm = new VM(VMOpTest.vmSettings, VMHook.EMPTY)
@@ -160,7 +160,7 @@ class VMOpTest {
     assert(item1 == DataWord.of(BinaryData("0000000000000000000000000000000000000000000000000000000000000000")))
   }
 
-  @Test  // MSIZE
+  @Test // MSIZE
   def testMSIZE_2: Unit = {
     val program = new Program(VMOpTest.vmSettings, BytecodeCompiler.compile("PUSH1 0x20 PUSH1 0x30 MSTORE MSIZE"), invoker, Long.MaxValue)
     val vm = new VM(VMOpTest.vmSettings, VMHook.EMPTY)
@@ -172,7 +172,7 @@ class VMOpTest {
     assert(item1 == DataWord.of(BinaryData("0000000000000000000000000000000000000000000000000000000000000060")))
   }
 
-  @Test  // BYTE
+  @Test // BYTE
   def testBYTE_1: Unit = {
     val program = new Program(VMOpTest.vmSettings, BytecodeCompiler.compile("PUSH6 0xAABBCCDDEEFF PUSH1 0x1E BYTE"), invoker, Long.MaxValue)
     val vm = new VM(VMOpTest.vmSettings, VMHook.EMPTY)
@@ -183,7 +183,7 @@ class VMOpTest {
     assert(item1 == DataWord.of(BinaryData("00000000000000000000000000000000000000000000000000000000000000EE")))
   }
 
-  @Test  // BYTE
+  @Test // BYTE
   def testBYTE_2: Unit = {
     val program = new Program(VMOpTest.vmSettings, BytecodeCompiler.compile("PUSH6 0xAABBCCDDEEFF PUSH1 0x20 BYTE"), invoker, Long.MaxValue)
     val vm = new VM(VMOpTest.vmSettings, VMHook.EMPTY)
@@ -194,7 +194,7 @@ class VMOpTest {
     assert(item1 == DataWord.of(BinaryData("0000000000000000000000000000000000000000000000000000000000000000")))
   }
 
-  @Test  // BYTE
+  @Test // BYTE
   def testBYTE_3: Unit = {
     val program = new Program(VMOpTest.vmSettings, BytecodeCompiler.compile("PUSH6 0xAABBCCDDEE3A PUSH1 0x1F BYTE"), invoker, Long.MaxValue)
     val vm = new VM(VMOpTest.vmSettings, VMHook.EMPTY)
@@ -205,7 +205,7 @@ class VMOpTest {
     assert(item1 == DataWord.of(BinaryData("000000000000000000000000000000000000000000000000000000000000003A")))
   }
 
-  @Test(expected = classOf[vm.exceptions.StackTooSmallException])  // BYTE
+  @Test(expected = classOf[vm.exceptions.StackTooSmallException]) // BYTE
   def testBYTE_4: Unit = {
     val program = new Program(VMOpTest.vmSettings, BytecodeCompiler.compile("PUSH6 0xAABBCCDDEE3A BYTE"), invoker, Long.MaxValue)
     val vm = new VM(VMOpTest.vmSettings, VMHook.EMPTY)
@@ -218,7 +218,7 @@ class VMOpTest {
     }
   }
 
-  @Test  // PC
+  @Test // PC
   def testPC_1: Unit = {
     val program = new Program(VMOpTest.vmSettings, BytecodeCompiler.compile("PC"), invoker, Long.MaxValue)
     val vm = new VM(VMOpTest.vmSettings, VMHook.EMPTY)
@@ -227,7 +227,7 @@ class VMOpTest {
     assert(item1 == DataWord.of(BinaryData("0000000000000000000000000000000000000000000000000000000000000000")))
   }
 
-  @Test  // PC
+  @Test // PC
   def testPC_2: Unit = {
     val program = new Program(VMOpTest.vmSettings, BytecodeCompiler.compile("PUSH1 0x22 PUSH1 0xAA MSTORE PUSH1 0xAA NOT PC"), invoker, Long.MaxValue)
     val vm = new VM(VMOpTest.vmSettings, VMHook.EMPTY)
@@ -241,10 +241,9 @@ class VMOpTest {
     assert(item1 == DataWord.of(BinaryData("0000000000000000000000000000000000000000000000000000000000000008")))
   }
 
-  @Test  // CALLDATACOPY
+  @Test // CALLDATACOPY
   def testCALLDATACOPY_1: Unit = {
-    val program = new Program(VMOpTest.vmSettings, BinaryData("60206000600037"),
-      invoker2, Long.MaxValue)
+    val program = new Program(VMOpTest.vmSettings, BinaryData("60206000600037"), invoker2, Long.MaxValue)
     val vm = new VM(VMOpTest.vmSettings, VMHook.EMPTY)
     vm.step(program)
     vm.step(program)
@@ -253,10 +252,9 @@ class VMOpTest {
     assert(program.getMemory sameElements BinaryData("00000000000000000000000000000000000000000000000000000000000000A1"))
   }
 
-  @Test  // CALLDATACOPY
+  @Test // CALLDATACOPY
   def testCALLDATACOPY_2: Unit = {
-    val program = new Program(VMOpTest.vmSettings, BinaryData("60406000600037"),
-      invoker2, Long.MaxValue)
+    val program = new Program(VMOpTest.vmSettings, BinaryData("60406000600037"), invoker2, Long.MaxValue)
     val vm = new VM(VMOpTest.vmSettings, VMHook.EMPTY)
     vm.step(program)
     vm.step(program)
@@ -267,10 +265,9 @@ class VMOpTest {
         "00000000000000000000000000000000000000000000000000000000000000B1"))
   }
 
-  @Test  // CALLDATACOPY
+  @Test // CALLDATACOPY
   def testCALLDATACOPY_3: Unit = {
-    val program = new Program(VMOpTest.vmSettings, BinaryData("60406004600037"),
-      invoker2, Long.MaxValue)
+    val program = new Program(VMOpTest.vmSettings, BinaryData("60406004600037"), invoker2, Long.MaxValue)
     val vm = new VM(VMOpTest.vmSettings, VMHook.EMPTY)
     vm.step(program)
     vm.step(program)
@@ -279,13 +276,12 @@ class VMOpTest {
     assert(program.getMemory sameElements
       BinaryData(
         "000000000000000000000000000000000000000000000000000000A100000000" +
-        "000000000000000000000000000000000000000000000000000000B100000000"))
+          "000000000000000000000000000000000000000000000000000000B100000000"))
   }
 
-  @Test  // CALLDATACOPY
+  @Test // CALLDATACOPY
   def testCALLDATACOPY_4: Unit = {
-    val program = new Program(VMOpTest.vmSettings, BinaryData("60406000600437"),
-      invoker2, Long.MaxValue)
+    val program = new Program(VMOpTest.vmSettings, BinaryData("60406000600437"), invoker2, Long.MaxValue)
     val vm = new VM(VMOpTest.vmSettings, VMHook.EMPTY)
     vm.step(program)
     vm.step(program)
@@ -294,14 +290,13 @@ class VMOpTest {
     assert(program.getMemory sameElements
       BinaryData(
         "0000000000000000000000000000000000000000000000000000000000000000" +
-        "000000A100000000000000000000000000000000000000000000000000000000" +
-        "000000B100000000000000000000000000000000000000000000000000000000"))
+          "000000A100000000000000000000000000000000000000000000000000000000" +
+          "000000B100000000000000000000000000000000000000000000000000000000"))
   }
 
-  @Test  // CALLDATACOPY
+  @Test // CALLDATACOPY
   def testCALLDATACOPY_5: Unit = {
-    val program = new Program(VMOpTest.vmSettings, BinaryData("60406000600437"),
-      invoker2, Long.MaxValue)
+    val program = new Program(VMOpTest.vmSettings, BinaryData("60406000600437"), invoker2, Long.MaxValue)
     val vm = new VM(VMOpTest.vmSettings, VMHook.EMPTY)
     vm.step(program)
     vm.step(program)
@@ -310,14 +305,13 @@ class VMOpTest {
     assert(program.getMemory sameElements
       BinaryData(
         "0000000000000000000000000000000000000000000000000000000000000000" +
-        "000000A100000000000000000000000000000000000000000000000000000000" +
-        "000000B100000000000000000000000000000000000000000000000000000000"))
+          "000000A100000000000000000000000000000000000000000000000000000000" +
+          "000000B100000000000000000000000000000000000000000000000000000000"))
   }
 
-  @Test(expected = classOf[vm.exceptions.StackTooSmallException])  // CALLDATACOPY
+  @Test(expected = classOf[vm.exceptions.StackTooSmallException]) // CALLDATACOPY
   def testCALLDATACOPY_6: Unit = {
-    val program = new Program(VMOpTest.vmSettings, BinaryData("6040600037"),
-      invoker2, Long.MaxValue)
+    val program = new Program(VMOpTest.vmSettings, BinaryData("6040600037"), invoker2, Long.MaxValue)
     val vm = new VM(VMOpTest.vmSettings, VMHook.EMPTY)
     try {
       vm.step(program)
@@ -328,10 +322,9 @@ class VMOpTest {
     }
   }
 
-  @Test(expected = classOf[vm.exceptions.OutOfGasException])  // CALLDATACOPY
+  @Test(expected = classOf[vm.exceptions.OutOfGasException]) // CALLDATACOPY
   def testCALLDATACOPY_7: Unit = {
-    val program = new Program(VMOpTest.vmSettings, BinaryData("6020600073CC0929EB16730E7C14FEFC63006AC2D794C5795637"),
-      invoker2, Long.MaxValue)
+    val program = new Program(VMOpTest.vmSettings, BinaryData("6020600073CC0929EB16730E7C14FEFC63006AC2D794C5795637"), invoker2, Long.MaxValue)
     val vm = new VM(VMOpTest.vmSettings, VMHook.EMPTY)
     try {
       vm.step(program)
@@ -343,22 +336,18 @@ class VMOpTest {
     }
   }
 
-  @Test  // CODESIZE
+  @Test // CODESIZE
   def testCODESIZE_1: Unit = {
-    val program = new Program(VMOpTest.vmSettings,
-      BinaryData("385E60076000396000605f556014600054601e60205463abcddcba6040545b51602001600a5254516040016014525451606001601e5254516080016028525460a052546016604860003960166000f26000603f556103e75660005460005360200235"),
-      invoker, Long.MaxValue)
+    val program = new Program(VMOpTest.vmSettings, BinaryData("385E60076000396000605f556014600054601e60205463abcddcba6040545b51602001600a5254516040016014525451606001601e5254516080016028525460a052546016604860003960166000f26000603f556103e75660005460005360200235"), invoker, Long.MaxValue)
     val vm = new VM(VMOpTest.vmSettings, VMHook.EMPTY)
     vm.step(program)
     val item1 = program.stackPop
     assert(item1 == DataWord.of(BinaryData("0000000000000000000000000000000000000000000000000000000000000062")))
   }
 
-  @Test  // EXTCODESIZE  // todo: test is not testing EXTCODESIZE
+  @Test // EXTCODESIZE  // todo: test is not testing EXTCODESIZE
   def testEXTCODESIZE_1: Unit = {
-    val program = new Program(VMOpTest.vmSettings,
-      BinaryData("73471FD3AD3E9EEADEEC4608B92D16CE6B500704CC395E60076000396000605f556014600054601e60205463abcddcba6040545b51602001600a5254516040016014525451606001601e5254516080016028525460a052546016604860003960166000f26000603f556103e75660005460005360200235"),
-      invoker, Long.MaxValue)  // Push address on the stack and perform EXTCODECOPY
+    val program = new Program(VMOpTest.vmSettings, BinaryData("73471FD3AD3E9EEADEEC4608B92D16CE6B500704CC395E60076000396000605f556014600054601e60205463abcddcba6040545b51602001600a5254516040016014525451606001601e5254516080016028525460a052546016604860003960166000f26000603f556103e75660005460005360200235"), invoker, Long.MaxValue) // Push address on the stack and perform EXTCODECOPY
     val vm = new VM(VMOpTest.vmSettings, VMHook.EMPTY)
     vm.step(program)
     val item1 = program.stackPop
@@ -395,7 +384,7 @@ object VMOpTest {
 
   def createInvoker(tracking: DataBase, origin: DataBase, caller: UInt160, contract: UInt160,
                     data: Array[Byte], value: Int, gasLimit: Long): ProgramInvoke = {
-    new ProgramInvokeImpl(DataWord.of(contract), DataWord.of(caller), DataWord.of(caller), DataWord.ZERO, DataWord.ZERO, DataWord.of(gasLimit), DataWord.of(value), data, DataWord.ZERO, DataWord.ZERO, DataWord.ZERO, DataWord.ZERO, tracking, origin, null)
+    new ProgramInvokeImpl(DataWord.of(contract), DataWord.of(caller), DataWord.of(caller), DataWord.ZERO, DataWord.ZERO, DataWord.of(gasLimit), DataWord.of(value), data, DataWord.ZERO, DataWord.ZERO, DataWord.ZERO, DataWord.ZERO, DataWord.of(1000000), tracking, origin, null)
   }
 
   def success(getResult: ProgramResult) = {
