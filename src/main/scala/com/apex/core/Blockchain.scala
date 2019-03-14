@@ -366,9 +366,8 @@ class Blockchain(chainSettings: ChainSettings,
     if (inserted) {
       block.transactions.foreach(tx => {
         unapplyTxs.remove(tx.id)
-        if (timeoutTx.isDefined && timeoutTx.get.id() == tx.id()) {
+        if (timeoutTx.isDefined && timeoutTx.get.id() == tx.id())
           timeoutTx = None
-        }
       })
     }
     inserted
@@ -497,13 +496,15 @@ class Blockchain(chainSettings: ChainSettings,
     var txValid = false
     //if tx is a schedule tx and it is time to execute,or tx is a normal transfer or miner tx, start execute tx directly
     tx.txType match {
-      case TransactionType.Miner => txValid = applySendTransaction(tx, blockProducer, blockTime, blockIndex)
+      case TransactionType.Miner =>    txValid = applySendTransaction(tx, blockProducer, blockTime, blockIndex)
       case TransactionType.Transfer => txValid = applySendTransaction(tx, blockProducer, blockTime, blockIndex)
-      case TransactionType.Deploy => txValid = applyContractTransaction(tx, blockProducer, stopTime, blockTime, blockIndex)
-      case TransactionType.Call => txValid = applyContractTransaction(tx, blockProducer, stopTime, blockTime, blockIndex)
-      case TransactionType.Refund => txValid = applyRefundTransaction(tx, blockProducer, blockTime)
+      case TransactionType.Deploy =>   txValid = applyContractTransaction(tx, blockProducer, stopTime, blockTime, blockIndex)
+      case TransactionType.Call =>     txValid = applyContractTransaction(tx, blockProducer, stopTime, blockTime, blockIndex)
+      case TransactionType.Refund =>   txValid = applyRefundTransaction(tx, blockProducer, blockTime)
       case TransactionType.Schedule => txValid = applyScheduleTransaction(tx, blockProducer, stopTime, blockTime, blockIndex)
     }
+    if (!txValid)
+      log.info(s"applyTransaction fail, txid = ${tx.id.toString}  blockIndex = $blockIndex")
     txValid
   }
 
@@ -643,22 +644,22 @@ class Blockchain(chainSettings: ChainSettings,
   }
 
   private def verifyBlock(block: Block): Boolean = {
-    if (!verifyHeader(block.header))
-      false
+    var isValid = false
+    if (!verifyHeader(block.header)) {
+      log.error("verifyBlock error: verifyHeader fail")
+    }
     else if (block.transactions.size == 0) {
       log.error("verifyBlock error: block.transactions.size == 0")
-      false
     }
     else if (!block.merkleRoot().equals(block.header.merkleRoot)) {
       log.error("verifyBlock error: merkleRoot not equals")
-      false
     }
     else if (!verifyTxTypeAndSignature(block.transactions)) {
       log.error("verifyBlock error: verifyTxTypeAndSignature fail")
-      false
     }
     else
-      true
+      isValid = true
+    isValid
   }
 
   private def verifyTxTypeAndSignature(txs: Seq[Transaction]): Boolean = {
@@ -684,36 +685,32 @@ class Blockchain(chainSettings: ChainSettings,
   }
 
   private def verifyHeader(header: BlockHeader): Boolean = {
+    var isValid = false
     val prevBlock = forkBase.get(header.prevBlock)
     val now = Instant.now.toEpochMilli
     if (prevBlock.isEmpty) {
       log.error("verifyHeader error: prevBlock not found")
-      false
     }
     else if (header.timeStamp <= prevBlock.get.block.header.timeStamp) {
       log.error(s"verifyHeader error: timeStamp not valid  ${header.timeStamp}  ${prevBlock.get.block.header.timeStamp}")
-      false
     }
     else if (header.timeStamp - now > 2000) {
       log.error(s"verifyHeader error: timeStamp too far in future. now=$now timeStamp=${header.timeStamp}")
-      false
     }
     else if (header.index != prevBlock.get.block.height() + 1) {
       log.error(s"verifyHeader error: index error ${header.index} ${prevBlock.get.block.height()}")
-      false
     }
     else if (!isProducerValid(header.timeStamp, header.producer)) {
       log.error("verifyHeader error: producer not valid")
-      false
     }
     else if (!header.verifySig()) {
       log.error("verifyHeader error: verifySig fail")
-      false
     }
     else {
       // verify merkleRoot in verifyBlock()
-      true
+      isValid = true
     }
+    isValid
   }
 
   //  private def verifyRegisterNames(transactions: Seq[Transaction]): Boolean = {

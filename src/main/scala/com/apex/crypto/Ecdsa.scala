@@ -101,16 +101,14 @@ object Ecdsa {
     }
 
     def fromWIF(wif: String): Option[PrivateKey] = {
+      var privateKey: Option[PrivateKey] = None
       val decode = Base58Check.decode(wif).getOrElse(Array[Byte]())
       if (decode.length == 34) {
         // 1 bytes prefix + 32 bytes data + 1 byte 0x01 (+ 4 bytes checksum)
         if (decode(33) == 0x01.toByte)
-          Some(PrivateKey(decode.slice(1, 33)))
-        else
-          None
+          privateKey = Some(PrivateKey(decode.slice(1, 33)))
       }
-      else
-        None
+      privateKey
     }
 
     def deserialize(is: DataInputStream): PrivateKey = {
@@ -231,23 +229,19 @@ object Ecdsa {
   object PublicKeyHash {
     def toAddress(hash: Array[Byte]): String = {
       assert(hash.length == 20)
-
       // "0548" is for the "AP" prefix
       Base58Check.encode(BinaryData("0548"), hash)
     }
 
     def fromAddress(address: String): Option[UInt160] = {
+      var publicKeyHash: Option[UInt160] = None
       if (address.startsWith("AP") && address.length == 35) {
         val decode = Base58Check.decode(address).getOrElse(Array[Byte]())
-        if (decode.length == 22) {
-          // 2 bytes prefix + 20 bytes data (+ 4 bytes checksum)
-          Some(UInt160.fromBytes(decode.slice(2, 22)))
-        }
-        else
-          None
+        // 2 bytes prefix + 20 bytes data (+ 4 bytes checksum)
+        if (decode.length == 22)
+          publicKeyHash = Some(UInt160.fromBytes(decode.slice(2, 22)))
       }
-      else
-        None
+      publicKeyHash
     }
   }
 

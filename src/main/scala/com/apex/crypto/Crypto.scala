@@ -86,6 +86,7 @@ object Crypto {
   }
 
   def verifySignature(message: Array[Byte], signature: Array[Byte], signer: UInt160): Boolean = {
+    var verifyPass = false
     val messageHash = sha256(message)
     val (pub1, pub2) = Ecdsa.recoverPublicKey(signature, messageHash)
     if (Ecdsa.verifySignature(messageHash, signature, pub1) &&
@@ -93,12 +94,9 @@ object Crypto {
       val addr1 = pub1.pubKeyHash
       val addr2 = pub2.pubKeyHash
       if (addr1 == signer || addr2 == signer)
-        true
-      else
-        false
+        verifyPass = true
     }
-    else
-      false
+    verifyPass
   }
 
   def AesEncrypt(data: Array[Byte], key: Array[Byte], iv: Array[Byte]): Array[Byte] = {
