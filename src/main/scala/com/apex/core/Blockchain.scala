@@ -230,8 +230,7 @@ class Blockchain(chainSettings: ChainSettings,
     val scheduleTxs = dataBase.getAllScheduleTx()
     if (scheduleTxs.nonEmpty) {
       scheduleTxs.foreach(scheduleTx => {
-        //TODO scheduleTx.executeTime -> current time
-        if (scheduleTx.executeTime <= stopProcessTxTime) {
+        if (blockTime >= scheduleTx.executeTime && Instant.now.toEpochMilli < stopProcessTxTime) {
           println("schedule execute time is" + scheduleTx.executeTime + "block time   " + blockTime)
           if (applyTransaction(scheduleTx, producer, stopProcessTxTime, blockTime, forkHead.block.height + 1, true))
             pendingState.txs.append(scheduleTx)
@@ -411,7 +410,7 @@ class Blockchain(chainSettings: ChainSettings,
       })
 
       require(updatedCurrentWitness.size <= consensusSettings.witnessNum)
-      
+
       var newElectedWitnesses = mutable.Map.empty[UInt160, WitnessInfo]
       if (updatedCurrentWitness.size == consensusSettings.witnessNum)
         newElectedWitnesses = WitnessList.removeLeastVote(updatedCurrentWitness.toArray)
@@ -469,7 +468,7 @@ class Blockchain(chainSettings: ChainSettings,
     //if tx is a schedule tx and it is time to execute,or tx is a normal transfer or miner tx, start execute tx directly
     tx.txType match {
       case TransactionType.Miner =>    txValid = applyMinerTransaction(tx, blockProducer, blockIndex)
-      case TransactionType.Transfer => txValid = applySendTransaction(tx, blockProducer, stopTime, blockTime, blockIndex)
+      case TransactionType.Transfer => txValid = applyContractTransaction(tx, blockProducer, stopTime, blockTime, blockIndex)
       case TransactionType.Deploy =>   txValid = applyContractTransaction(tx, blockProducer, stopTime, blockTime, blockIndex)
       case TransactionType.Call =>     txValid = applyContractTransaction(tx, blockProducer, stopTime, blockTime, blockIndex)
       case TransactionType.Refund =>   txValid = applyRefundTransaction(tx, blockProducer, blockTime)
@@ -497,7 +496,7 @@ class Blockchain(chainSettings: ChainSettings,
     if (dataBase.getScheduleTx(tx.id()).isDefined && blockTime >= tx.executeTime) {
       val originalTx = Transaction.fromBytes(tx.data)
       originalTx.txType match {
-        case TransactionType.Transfer => txValid = applySendTransaction(tx, blockProducer, stopTime, blockTime, blockIndex, originalTx)
+        case TransactionType.Transfer => txValid = applyContractTransaction(tx, blockProducer, stopTime, blockTime, blockIndex, originalTx)
         case TransactionType.Deploy   => txValid = applyContractTransaction(tx, blockProducer, stopTime, blockTime, blockIndex, originalTx)
         case TransactionType.Call     => txValid = applyContractTransaction(tx, blockProducer, stopTime, blockTime, blockIndex, originalTx)
       }
@@ -509,27 +508,27 @@ class Blockchain(chainSettings: ChainSettings,
                                        stopTime: Long, blockTime: Long, blockIndex: Long,
                                        originalTx: Transaction = null): Boolean = {
     if (originalTx != null) {
-      applyContractTransactionExecutor(tx, blockProducer, stopTime, blockTime, blockIndex, Some(originalTx))
-      dataBase.deleteScheduleTx(tx.id())
-      true
+      if (applyContractTransactionExecutor(tx, blockProducer, stopTime, blockTime, blockIndex, Some(originalTx))) {
+        dataBase.deleteScheduleTx(tx.id())
+        true
+      }
+      else
+        false
     }
     else {
-      if (blockTime >= tx.executeTime) {
+      if (blockTime >= tx.executeTime)
         applyContractTransactionExecutor(tx, blockProducer, stopTime, blockTime, blockIndex)
-      }
-      else scheduleTxFirstExecute(tx, blockProducer, blockTime, blockIndex)
+      else
+        scheduleTxFirstExecute(tx, blockProducer, blockTime, blockIndex)
     }
   }
 
   private def applyContractTransactionExecutor(tx: Transaction, blockProducer: UInt160, stopTime: Long, blockTime: Long,
                                                blockIndex: Long, originalTx: Option[Transaction] = None) = {
     var applied = false
-
     val cacheTrack = dataBase.startTracking()
-
-    val executor = new TransactionExecutor(if (originalTx.isDefined) originalTx.get else tx,
-      blockProducer, cacheTrack, stopTime,
-      blockTime, blockIndex, this, originalTx.isDefined)
+    val executor = new TransactionExecutor(originalTx.getOrElse(tx), blockProducer,
+      cacheTrack, stopTime, blockTime, blockIndex, this, originalTx.isDefined)
 
     executor.init()
     executor.execute()
@@ -539,17 +538,21 @@ class Blockchain(chainSettings: ChainSettings,
 
     if (executor.getResult.isBlockTimeout) {
       log.error(s"tx ${tx.id.shortString()} executor time out")
-      if (isProducingBlock())
-        timeoutTx = Some(tx)  // TODO: originalTx???
+      if (isProducingBlock() && originalTx.isEmpty)
+        timeoutTx = Some(tx)
       applied = false
     }
-    else if (receipt.isValid()) {
+    else if (receipt.isValid())
       applied = true
-    }
+    else if (originalTx.isDefined)
+      applied = true
+
     if (applied) {
       cacheTrack.commit()
-      dataBase.setReceipt(tx.id(), receipt)
-      // TODO: originalTx receipt
+      if (originalTx.isDefined)
+        dataBase.setReceipt(tx.id(), TransactionReceipt(tx.id, receipt.txType, receipt.from, receipt.to, receipt.blockIndex, receipt.gasUsed, receipt.output, receipt.status, receipt.error))
+      else
+        dataBase.setReceipt(tx.id(), receipt)
     }
     applied
   }
@@ -563,34 +566,7 @@ class Blockchain(chainSettings: ChainSettings,
     true
   }
 
-  private def applySendTransaction(tx: Transaction, blockProducer: UInt160, stopTime: Long,
-                                   blockTime: Long, blockIndex: Long, originalTx: Transaction = null): Boolean = {
-    if (originalTx != null) {
-      //      val txFee = FixedNumber(BigInt(originalTx.transactionCost())) * tx.gasPrice
-      //      if (!((txFee + tx.amount) > dataBase.getAccount(tx.from).getOrElse(Account.newAccount(tx.from)).balance)) {
-      //        dataBase.transfer(tx.from, tx.toPubKeyHash, tx.amount)
-      //        if (txFee.value > 0) {
-      //          dataBase.transfer(tx.from, blockProducer, txFee)
-      //        }
-      //      }
-      //      dataBase.deleteScheduleTx(tx.id())
-      //      dataBase.setReceipt(tx.id(), TransactionReceipt(tx.id(), tx.txType, tx.from, tx.toPubKeyHash,
-      //        blockIndex, originalTx.transactionCost(), BinaryData.empty, 0, ""))
-      //      true
 
-      applyContractTransactionExecutor(tx, blockProducer, stopTime, blockTime, blockIndex, Some(originalTx))
-      dataBase.deleteScheduleTx(tx.id())
-      true
-    }
-    else {
-      if (blockTime >= tx.executeTime) {
-        applyContractTransactionExecutor(tx, blockProducer, stopTime, blockTime, blockIndex)
-      }
-      else {
-        scheduleTxFirstExecute(tx, blockProducer, blockTime, blockIndex)
-      }
-    }
-  }
 
   private def scheduleTxFirstExecute(tx: Transaction, blockProducer: UInt160,
                                      blockTime: Long, blockIndex: Long) = {
