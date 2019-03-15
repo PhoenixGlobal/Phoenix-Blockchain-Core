@@ -292,22 +292,6 @@ class TransactionExecutor(val tx: Transaction,
 
   def getGasUsed: BigInt = tx.gasLimit - m_endGas
 
-  private def extractData(data: Array[Byte]): Transaction = {
-    import com.apex.common.Serializable._
-    val bs = new ByteArrayInputStream(data)
-    val is = new DataInputStream(bs)
-    val version = is.readInt
-    val txType = TransactionType(is.readByte)
-    val from = UInt160.deserialize(is)
-    val toPubKeyHash = UInt160.deserialize(is)
-    val amount = FixedNumber.deserialize(is)
-    val nonce = is.readLong
-    val metaData = is.readByteArray()
-    val gasPrice = FixedNumber.deserialize(is)
-    val gasLimit = BigInt(is.readByteArray())
-    val executeTime = is.readLong()
-    new Transaction(txType, from, toPubKeyHash, amount, nonce, metaData, gasPrice, gasLimit, null, version, executeTime)
-  }
 }
 
 

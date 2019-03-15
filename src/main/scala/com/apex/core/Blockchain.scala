@@ -8,7 +8,6 @@ import com.apex.common.ApexLogging
 import com.apex.consensus.{ProducerUtil, Vote, WitnessInfo, WitnessList}
 import com.apex.consensus.{ProducerUtil, WitnessInfo, WitnessList}
 import com.apex.consensus.{ProducerUtil, WitnessInfo}
-import com.apex.core.TransactionProccessor.log
 import com.apex.crypto.Ecdsa.{PrivateKey, PublicKey, PublicKeyHash}
 import com.apex.crypto.{BinaryData, Crypto, FixedNumber, MerkleTree, UInt160, UInt256}
 import com.apex.settings.{ChainSettings, ConsensusSettings, RuntimeParas, Witness}
@@ -896,38 +895,5 @@ class Blockchain(chainSettings: ChainSettings,
       }
       case _ => null
     }
-  }
-}
-
-object TransactionProccessor extends ApexLogging {
-  def checkTransactionValid(tx: Transaction, dataBase: DataBase, blockTime: Long) = {
-
-    var txValid = true
-
-    val fromAccount = dataBase.getAccount(tx.from).getOrElse(Account.newAccount(tx.from))
-    val toAccount = dataBase.getAccount(tx.toPubKeyHash).getOrElse(Account.newAccount(tx.toPubKeyHash))
-
-    var txFee = FixedNumber.Zero
-    val txGas = tx.transactionCost()
-
-    if (tx.txType == TransactionType.Miner) {
-
-    }
-    else {
-      txFee = FixedNumber(BigInt(txGas)) * tx.gasPrice
-      if (txGas > tx.gasLimit) {
-        log.info(s"Not enough gas for transaction tx ${tx.id().shortString()}")
-        txValid = false
-      }
-      if ((tx.amount + txFee) > fromAccount.balance) {
-        log.info(s"Not enough balance for transaction tx ${tx.id().shortString()}")
-        txValid = false
-      }
-      else if (tx.nonce != fromAccount.nextNonce) {
-        log.info(s"tx ${tx.id().shortString()} nonce ${tx.nonce} invalid, expect ${fromAccount.nextNonce}")
-        txValid = false
-      }
-    }
-    (txValid, txFee, txGas)
   }
 }
