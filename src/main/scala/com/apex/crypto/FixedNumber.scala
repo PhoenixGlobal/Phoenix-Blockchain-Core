@@ -16,9 +16,8 @@ case class FixedNumber(value: BigInt = 0) extends Serializable {
   def isZero: Boolean = value == 0
 
   override def toString: String = {
-    val v = value / FixedNumber.One.value
-    var remain = value % FixedNumber.One.value + FixedNumber.One.value
-    v.toString + "." + remain.toString.drop(1)
+    val v1 = BigDecimal(value)./(BigDecimal(FixedNumber.One.value))
+    v1.bigDecimal.stripTrailingZeros.toPlainString()
   }
 
   def equals(that: FixedNumber): Boolean = this == that
@@ -73,6 +72,11 @@ object FixedNumber {
     FixedNumber(BigInt(is.readByteArray()))
   }
 
+  /**
+    *  from raw value CPX, 1 means one token, this is not same to FixedNumber(1)
+    * @param d
+    * @return
+    */
   def fromDecimal(d: BigDecimal): FixedNumber = {
     val value = d * BigDecimal(One.value)
     FixedNumber(value.toBigInt())

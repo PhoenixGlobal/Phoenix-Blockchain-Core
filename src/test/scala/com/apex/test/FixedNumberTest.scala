@@ -11,16 +11,16 @@ class FixedNumberTest extends Assert {
   @Test
   def testToString = {
     assert(new FixedNumber(1).toString   == "0.000000000000000001")
-    assert(new FixedNumber(10).toString  == "0.000000000000000010")
+    assert(new FixedNumber(10).toString  == "0.00000000000000001")
     assert(new FixedNumber(111).toString == "0.000000000000000111")
-    assert(new FixedNumber(1000000000000000000L).toString == "1.000000000000000000")
+    assert(new FixedNumber(1000000000000000000L).toString == "1")
     assert(new FixedNumber(1000000000000000001L).toString == "1.000000000000000001")
     assert(new FixedNumber(1000000000000000101L).toString == "1.000000000000000101")
-    assert(new FixedNumber(1000000000000000100L).toString == "1.000000000000000100")
-    assert(new FixedNumber(BigInt("12000000000000000100")).toString == "12.000000000000000100")
-    assert(new FixedNumber(BigInt("123000000000000000100")).toString == "123.000000000000000100")
-    assert(new FixedNumber(BigInt("12345678000000000000001100")).toString == "12345678.000000000000001100")
-    assert(new FixedNumber(BigInt("12345678912000000000000001100")).toString == "12345678912.000000000000001100")
+    assert(new FixedNumber(1000000000000000100L).toString == "1.0000000000000001")
+    assert(new FixedNumber(BigInt("12000000000000000100")).toString == "12.0000000000000001")
+    assert(new FixedNumber(BigInt("123000000000000000100")).toString == "123.0000000000000001")
+    assert(new FixedNumber(BigInt("12345678000000000000001100")).toString == "12345678.0000000000000011")
+    assert(new FixedNumber(BigInt("12345678912000000000000001100")).toString == "12345678912.0000000000000011")
   }
 
   @Test

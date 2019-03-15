@@ -98,6 +98,11 @@ class Blockchain(chainSettings: ChainSettings,
   private var mPrevWitnessList: Option[WitnessList] = None
   private var mPendingWitnessList: Option[WitnessList] = None
 
+  /**
+    * one day for millisecond
+    */
+  private val DAY: Long = 1000 * 24 * 60 * 60
+
   populate()
 
   private def buildGenesisBlock(): Block = {
@@ -468,11 +473,10 @@ class Blockchain(chainSettings: ChainSettings,
     var txValid = false
     //if tx is a schedule tx and it is time to execute,or tx is a normal transfer or miner tx, start execute tx directly
     tx.txType match {
-      case TransactionType.Miner =>    txValid = applyMinerTransaction(tx, blockProducer, blockIndex)
+      case TransactionType.Miner => txValid = applyMinerTransaction(tx, blockProducer, blockIndex)
       case TransactionType.Transfer => txValid = applySendTransaction(tx, blockProducer, stopTime, blockTime, blockIndex)
-      case TransactionType.Deploy =>   txValid = applyContractTransaction(tx, blockProducer, stopTime, blockTime, blockIndex)
-      case TransactionType.Call =>     txValid = applyContractTransaction(tx, blockProducer, stopTime, blockTime, blockIndex)
-      case TransactionType.Refund =>   txValid = applyRefundTransaction(tx, blockProducer, blockTime)
+      case TransactionType.Deploy | TransactionType.Call => txValid = applyContractTransaction(tx, blockProducer, stopTime, blockTime, blockIndex)
+      case TransactionType.Refund => txValid = applyRefundTransaction(tx, blockProducer, blockTime)
       case TransactionType.Schedule => txValid = applyScheduleTransaction(tx, blockProducer, stopTime, blockTime, blockIndex)
     }
     if (!txValid)
@@ -498,8 +502,7 @@ class Blockchain(chainSettings: ChainSettings,
       val originalTx = Transaction.fromBytes(tx.data)
       originalTx.txType match {
         case TransactionType.Transfer => txValid = applySendTransaction(tx, blockProducer, stopTime, blockTime, blockIndex, originalTx)
-        case TransactionType.Deploy   => txValid = applyContractTransaction(tx, blockProducer, stopTime, blockTime, blockIndex, originalTx)
-        case TransactionType.Call     => txValid = applyContractTransaction(tx, blockProducer, stopTime, blockTime, blockIndex, originalTx)
+        case TransactionType.Deploy | TransactionType.Call => txValid = applyContractTransaction(tx, blockProducer, stopTime, blockTime, blockIndex, originalTx)
       }
     }
     txValid
@@ -540,7 +543,7 @@ class Blockchain(chainSettings: ChainSettings,
     if (executor.getResult.isBlockTimeout) {
       log.error(s"tx ${tx.id.shortString()} executor time out")
       if (isProducingBlock())
-        timeoutTx = Some(tx)  // TODO: originalTx???
+        timeoutTx = Some(tx) // TODO: originalTx???
       applied = false
     }
     else if (receipt.isValid()) {
@@ -604,7 +607,7 @@ class Blockchain(chainSettings: ChainSettings,
     val scheduleTx = new Transaction(TransactionType.Schedule, tx.from, tx.toPubKeyHash, tx.amount, tx.nonce, tx.toBytes,
       tx.gasPrice, tx.gasLimit, BinaryData.empty, tx.version, tx.executeTime)
     val scheduleFee = FixedNumber(BigInt(GasCost.SSTORE)) * scheduleTx.toBytes.size * tx.gasPrice *
-      ((tx.executeTime - blockTime) / (1000 * 24 * 60 * 60) + 1) + FixedNumber(BigInt(GasCost.TRANSACTION)) * tx.gasPrice
+      ((tx.executeTime - blockTime) / DAY + 1) + FixedNumber(BigInt(GasCost.TRANSACTION)) * tx.gasPrice
 
     if (scheduleFee > fromAccount.balance) txValid = false
     if (txValid) {
