@@ -37,7 +37,6 @@ object RpcServer extends ApexLogging {
 
   private var bindingFuture: Future[Http.ServerBinding] = _
   private var secretBindingFuture: Future[Http.ServerBinding] = _
-  private val execResult: ExecResult = new ExecResult()
 
   def run(settings: ApexSettings, config: Config, nodeRef: ActorRef) = {
     system = ActorSystem("RPC", config)
@@ -308,31 +307,19 @@ object RpcServer extends ApexLogging {
   }
 
   def sussesRes(res: String): String = {
-    execResult.result = res
-    execResult.succeed = true
-    execResult.status = 200
-    execResult.message = ""
-    resultString(execResult)
+    resultString(new ExecResult(result = res))
   }
 
   def error500Res(message: String): String = {
-    execResult.result = ""
-    execResult.succeed = false
-    execResult.status = 500
-    execResult.message = message
-    resultString(execResult)
+    resultString(new ExecResult(false, 500, message))
   }
 
   def error400Res(): String = {
-    execResult.result = ""
-    execResult.succeed = false
-    execResult.status = 400
-    execResult.message = "Param check error"
-    resultString(execResult)
+    resultString(new ExecResult(false, 400, "Param check error"))
   }
 
   private def resultString(execResult: ExecResult): String = {
-    Json.toJson(execResult).toString()
+    ExecResult.resultWrites.writes(execResult).toString()
   }
 
   /*def completeFuture()*/
