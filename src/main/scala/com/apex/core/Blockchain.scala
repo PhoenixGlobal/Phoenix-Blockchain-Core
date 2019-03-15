@@ -856,7 +856,7 @@ class Blockchain(chainSettings: ChainSettings,
   def isLastBlockOfProducer(timeMs: Long): Boolean = {
     require(ProducerUtil.isTimeStampValid(timeMs, consensusSettings.produceInterval))
     val slot = timeMs / consensusSettings.produceInterval
-    var index = slot % (consensusSettings.witnessNum * consensusSettings.producerRepetitions)
+    val index = slot % (consensusSettings.witnessNum * consensusSettings.producerRepetitions)
     (index + 1) % consensusSettings.producerRepetitions == 0
   }
 

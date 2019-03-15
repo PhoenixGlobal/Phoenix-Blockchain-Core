@@ -129,9 +129,10 @@ object VoteContractExecutor {
       val scheduleTx = new Transaction(TransactionType.Refund, tx.toPubKeyHash, tx.from, voteData.voterCount, tx.nonce, tx.id.data,
         tx.gasPrice, tx.gasLimit, tx.signature, tx.version, time)
       track.setScheduleTx(scheduleTx.id, scheduleTx)
-      require(witness.isDefined)
-      val newWitness = witness.get.copy(voteCounts = witness.get.voteCounts - voteData.voterCount)
-      track.createWitness(newWitness)
+      if(witness.isDefined){
+        val newWitness = witness.get.copy(voteCounts = witness.get.voteCounts - voteData.voterCount)
+        track.createWitness(newWitness)
+      }
       track.getVote(tx.from).fold({})(
         vote =>{
           val newVote = vote.updateTargetCounter(voteData.candidate, -voteData.voterCount)
