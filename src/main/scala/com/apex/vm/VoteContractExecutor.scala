@@ -123,7 +123,7 @@ object VoteContractExecutor {
 
     private def cancelCounterFromWitness(track: DataBase, tx: Transaction, witness: Option[WitnessInfo],timeStamp: Long): Unit ={
       //TODO read from settings
-      val time = timeStamp + /*24 * 60 * 60 * 1000*/750
+      val time = timeStamp + 24 * 60 * 60 * 1000/*750*/
       //note: this scheduleTx from and to address are opposite to tx; amount is the register spend;
       // the tx hash exists in the data filed of scheduleTx
       val scheduleTx = new Transaction(TransactionType.Refund, tx.toPubKeyHash, tx.from, voteData.voterCount, tx.nonce, tx.id.data,
