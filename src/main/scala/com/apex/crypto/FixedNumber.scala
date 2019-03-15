@@ -65,6 +65,11 @@ object FixedNumber {
   final val Ten: FixedNumber = FixedNumber(One.value * 10)
   final val Zero: FixedNumber = FixedNumber(0)
 
+  final val P: FixedNumber = FixedNumber(1)
+  final val KP: FixedNumber = P * 1000
+  final val MP: FixedNumber = KP * 1000
+  final val GP: FixedNumber = MP * 1000
+
   implicit val serializer: DataInputStream => FixedNumber = deserialize
 
   def deserialize(is: DataInputStream): FixedNumber = {
@@ -73,7 +78,8 @@ object FixedNumber {
   }
 
   /**
-    *  from raw value CPX, 1 means one token, this is not same to FixedNumber(1)
+    * from raw value CPX, 1 means one token, this is not same to FixedNumber(1)
+    *
     * @param d
     * @return
     */
