@@ -22,7 +22,7 @@ apply plugin: 'com.github.johnrengelman.shadow'
 shadowJar {
     baseName = 'APEX-Blockchain-Core'
     classifier = null
-    version = '1.0-SNAPSHOT'
+    version = '0.9.1'
     transform(com.github.jengelman.gradle.plugins.shadow.transformers.AppendingTransformer) {
         resource = 'reference.conf'
     }
