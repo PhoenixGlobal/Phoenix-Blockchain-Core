@@ -103,7 +103,7 @@ object RegisterContractExecutor {
     }
 
     private def cancelRegisterWitness(track: DataBase, registerSpend: FixedNumber, tx: Transaction, timeStamp: Long) = {
-      val time = timeStamp + /*24 * 60 * 60 * 1000*/750/*60 * 1000 * 2*/
+      val time = timeStamp + 24 * 60 * 60 * 1000/*750/*60 * 1000 * 2*/*/
       //note: this scheduleTx from and to address are opposite to tx; amount is the register spend;
       // the tx hash exists in the data filed of scheduleTx
       val scheduleTx = new Transaction(TransactionType.Refund, tx.toPubKeyHash, tx.from,
