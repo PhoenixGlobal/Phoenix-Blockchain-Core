@@ -12,13 +12,13 @@ import akka.actor.{ActorRef, ActorSystem}
 import akka.http.scaladsl.Http
 import akka.http.scaladsl.model._
 import akka.http.scaladsl.server.Directives._
+import akka.http.scaladsl.server.ExceptionHandler
 import akka.pattern.ask
 import akka.stream.ActorMaterializer
 import akka.util.Timeout
 import com.apex.common.ApexLogging
 import com.apex.consensus.{WitnessInfo, WitnessList}
 import com.apex.core.{Account, Block, BlockHeader, TransactionReceipt}
-import com.apex.rpc.RpcServer.sussesRes
 import com.apex.settings.ApexSettings
 import com.typesafe.config.Config
 import play.api.libs.json._
@@ -37,6 +37,12 @@ object RpcServer extends ApexLogging {
 
   private var bindingFuture: Future[Http.ServerBinding] = _
   private var secretBindingFuture: Future[Http.ServerBinding] = _
+
+  implicit def myExceptionHandler: ExceptionHandler =
+    ExceptionHandler {
+      case e: Exception =>
+        complete(error500Res(e.getMessage))
+    }
 
   def run(settings: ApexSettings, config: Config, nodeRef: ActorRef) = {
     system = ActorSystem("RPC", config)
