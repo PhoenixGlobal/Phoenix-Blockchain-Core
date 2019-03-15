@@ -102,8 +102,7 @@ object RpcServer extends ApexLogging {
                 .map(s =>
                   s match {
                     case Success(blocks) => {
-                      if (None.equals(blocks)) sussesRes("")
-                      else sussesRes(Json.toJson(blocks).toString())
+                      sussesRes(Json.toJson(blocks).toString())
                     }
                     case Failure(e) => error500Res(e.getMessage)
                   }
