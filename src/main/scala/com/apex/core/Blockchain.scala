@@ -819,6 +819,7 @@ class Blockchain(chainSettings: ChainSettings,
   }
 
   def getGasLimit(): Long = {
+
     peerBase.getGasLimit().get.longValue()
   }
 
@@ -858,7 +859,7 @@ class Blockchain(chainSettings: ChainSettings,
     listType match {
       case "all" => {
         val witnessInfo = dataBase.getAllWitness()
-        return WitnessList.create(witnessInfo.toArray, UInt256.Zero)
+        WitnessList.create(witnessInfo.toArray, UInt256.Zero)
       }
       case "active" => {
         dataBase.getCurrentWitnessList().get
