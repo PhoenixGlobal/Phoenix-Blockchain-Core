@@ -23,7 +23,7 @@ import com.apex.storage.{Batch, Storage}
 
 import scala.collection.immutable.{Map => IMap}
 import scala.collection.mutable
-import scala.collection.mutable.{ListBuffer, Map, Seq, SortedMap}
+import scala.collection.mutable.{ArrayBuffer, ListBuffer, Map, Seq, SortedMap}
 
 // A map which every key can associate with multiple values
 // eg. k1 -> [v1]
@@ -448,29 +448,30 @@ class ForkBase(settings: ForkBaseSettings,
   // add a block
   def add(block: Block, curWitnessList: WitnessList): Boolean = {
     def makeItem(heights: IMap[UInt160, Long], master: Boolean) = {
+      require(heights.size == curWitnessList.witnesses.size)
       val lph = Map.empty[UInt160, Long]
-      var oldProducerHeight: Option[Long] = None
+      val deletedWitness = ArrayBuffer.empty[UInt160]
+      val newAddedWitness = ArrayBuffer.empty[UInt160]
       for (p <- heights) {
         if (curWitnessList.contains(p._1))
           lph.put(p._1, p._2)
-        else {
-          //only allow max ONE producer be replaced every time
-          require(oldProducerHeight.isEmpty)
-          oldProducerHeight = Some(p._2)
+        else
+          deletedWitness.append(p._1)
+      }
+      for (p <- curWitnessList.witnesses) {
+        if (!heights.contains(p.addr))
+          newAddedWitness.append(p.addr)
+      }
+      require(deletedWitness.size == newAddedWitness.size)
+      val deletedWitnessSorted = WitnessList.sortByAddr(deletedWitness.toArray)
+      val newAddedWitnessSorted = WitnessList.sortByAddr(newAddedWitness.toArray)
+      if (newAddedWitnessSorted.size > 0) {
+        for (i <- 0 to newAddedWitnessSorted.size - 1) {
+          lph.put(newAddedWitnessSorted(i), heights.get(deletedWitnessSorted(i)).get)
         }
       }
-      val producer = block.header.producer
-      //if (lph.contains(producer)) {
       if (block.height() > 0)
-        lph.put(producer, block.height)
-      //}
-      curWitnessList.witnesses.foreach(w => {
-        if (!lph.contains(w.addr)) {
-          require(oldProducerHeight.isDefined)
-          lph.put(w.addr, oldProducerHeight.get)
-          oldProducerHeight = None
-        }
-      })
+        lph.put(block.header.producer, block.height)
       require(lph.size == curWitnessList.witnesses.size)
       ForkItem(block, lph, master)
     }

@@ -73,6 +73,13 @@ object WitnessList {
     })
   }
 
+  def sortByAddr(witnesses: Array[UInt160]): Array[UInt160] = {
+    witnesses.sortWith((w1, w2) => {
+      require(!w1.equals(w2))
+      w1 > w2
+    })
+  }
+
   def getLeastVote(witnesses: Array[WitnessInfo]): WitnessInfo = {
     sortByVote(witnesses).last
   }

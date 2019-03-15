@@ -13,7 +13,26 @@ package com.apex.vm.program.invoke
 import com.apex.core.{BlockBase, DataBase, Blockchain}
 import com.apex.vm.DataWord
 
-class ProgramInvokeImpl(address: DataWord, origin: DataWord, caller: DataWord, balance: DataWord, gasPrice: DataWord, gas: DataWord, callValue: DataWord, msgData: Array[Byte], lastHash: DataWord, coinBase: DataWord, timestamp: DataWord, number: DataWord, gasLimit: DataWord, dataBase: DataBase, origDataBase: DataBase, chain: Blockchain, callDeep: Int = 0, staticCall: Boolean = false, testingSuite: Boolean = false, byTx: Boolean = true) extends ProgramInvoke {
+class ProgramInvokeImpl(address: DataWord,
+                        origin: DataWord,
+                        caller: DataWord,
+                        balance: DataWord,
+                        gasPrice: DataWord,
+                        gas: DataWord,
+                        callValue: DataWord,
+                        msgData: Array[Byte],
+                        lastHash: DataWord,
+                        coinBase: DataWord,
+                        timestamp: DataWord,
+                        number: DataWord,
+                        gasLimit: DataWord,
+                        dataBase: DataBase,
+                        origDataBase: DataBase,
+                        chain: Blockchain,
+                        callDeep: Int = 0,
+                        staticCall: Boolean = false,
+                        testingSuite: Boolean = false,
+                        byTx: Boolean = true) extends ProgramInvoke {
 
   /** ***************/
   /** *  msg data ***/
