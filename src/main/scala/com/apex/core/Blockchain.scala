@@ -566,8 +566,6 @@ class Blockchain(chainSettings: ChainSettings,
     true
   }
 
-
-
   private def scheduleTxFirstExecute(tx: Transaction, blockProducer: UInt160,
                                      blockTime: Long, blockIndex: Long) = {
     var txValid = true

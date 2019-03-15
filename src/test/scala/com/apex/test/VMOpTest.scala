@@ -37,12 +37,24 @@ class VMOpTest {
     "00000000000000000000000000000000000000000000000000000000000000A1" +
       "00000000000000000000000000000000000000000000000000000000000000B1"))
 
-  private def invoker(msgData: Array[Byte] = Array.empty): ProgramInvoke = new ProgramInvokeImpl(DataWord.of(BinaryData("2341DE5527492BCB42EC68DFEDF0742A98EC3F1E")), DataWord.of(caller), DataWord.of(caller), DataWord.of(10), DataWord.of(30), DataWord.of(900000), DataWord.of(0), msgData, DataWord.ZERO, DataWord.of(BinaryData("E559DE5527492BCB42EC68D07DF0742A98EC3F1E")), DataWord.of(BinaryData("0000000000000000000000000000000000000123")), DataWord.of(BinaryData("0000000000000000000000000000000000000111")), DataWord.of(1000000), null, null, null)
+  private def invoker(msgData: Array[Byte] = Array.empty): ProgramInvoke =
+    new ProgramInvokeImpl(DataWord.of(BinaryData("2341DE5527492BCB42EC68DFEDF0742A98EC3F1E")),
+      DataWord.of(caller),
+      DataWord.of(caller),
+      DataWord.of(10),
+      DataWord.of(30),
+      DataWord.of(900000),
+      DataWord.of(0),
+      msgData,
+      DataWord.ZERO,
+      DataWord.of(BinaryData("E559DE5527492BCB42EC68D07DF0742A98EC3F1E")),
+      DataWord.of(BinaryData("0000000000000000000000000000000000000123")),
+      DataWord.of(BinaryData("0000000000000000000000000000000000000111")),
+      DataWord.of(1000000), null, null, null)
 
 
   @Test // COINBASE Op
   def test1: Unit = {
-
 
     val program = new Program(VMOpTest.vmSettings, BinaryData("41"), invoker, Long.MaxValue)
 
@@ -58,7 +70,6 @@ class VMOpTest {
   @Test // GASPRICE Op
   def testGASPRICE: Unit = {
 
-
     val program = new Program(VMOpTest.vmSettings, BinaryData("3a"), invoker, Long.MaxValue)
 
     val vm = new VM(VMOpTest.vmSettings, VMHook.EMPTY)
@@ -72,7 +83,6 @@ class VMOpTest {
 
   @Test // GAS Op
   def testGAS: Unit = {
-
 
     val program = new Program(VMOpTest.vmSettings, BinaryData("5a"), invoker, Long.MaxValue)
 
@@ -135,7 +145,7 @@ class VMOpTest {
 
     val item1 = program.stackPop
 
-    assert(item1 == DataWord.of(BinaryData("00000000000000000000000000000000000DBBA0")))
+    assert(item1 == DataWord.of(BinaryData("00000000000000000000000000000000000F4240")))
   }
 
   @Test // ADDRESS Op
@@ -382,12 +392,4 @@ object VMOpTest {
   val contractAddress = Crypto.calcNewAddr(author, BigInt(1).toByteArray)
   val vmSettings = ContractSettings(0, false, Int.MaxValue)
 
-  def createInvoker(tracking: DataBase, origin: DataBase, caller: UInt160, contract: UInt160,
-                    data: Array[Byte], value: Int, gasLimit: Long): ProgramInvoke = {
-    new ProgramInvokeImpl(DataWord.of(contract), DataWord.of(caller), DataWord.of(caller), DataWord.ZERO, DataWord.ZERO, DataWord.of(gasLimit), DataWord.of(value), data, DataWord.ZERO, DataWord.ZERO, DataWord.ZERO, DataWord.ZERO, DataWord.of(1000000), tracking, origin, null)
-  }
-
-  def success(getResult: ProgramResult) = {
-    !getResult.isRevert && getResult.getException == null
-  }
 }
