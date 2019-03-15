@@ -409,15 +409,19 @@ class Blockchain(chainSettings: ChainSettings,
         val newInfo = allWitnessesMap.get(oldInfo.addr)
         if (newInfo.isDefined)
           updatedCurrentWitness.append(newInfo.get)
-        else // some producer have quit, but we still need keep it
-          updatedCurrentWitness.append(oldInfo.setVoteCounts(FixedNumber.Zero))
       })
 
-      val newElectedWitnesses = WitnessList.removeLeastVote(updatedCurrentWitness.toArray)
-      require(newElectedWitnesses.size == consensusSettings.witnessNum - 1)
+      require(updatedCurrentWitness.size <= consensusSettings.witnessNum)
+      
+      var newElectedWitnesses = mutable.Map.empty[UInt160, WitnessInfo]
+      if (updatedCurrentWitness.size == consensusSettings.witnessNum)
+        newElectedWitnesses = WitnessList.removeLeastVote(updatedCurrentWitness.toArray)
+      else
+        newElectedWitnesses = mutable.Map(updatedCurrentWitness.map(w => w.addr -> w).toMap.toSeq: _*)
+
+      require(newElectedWitnesses.size < consensusSettings.witnessNum)
 
       val allWitnessesSorted = WitnessList.sortByVote(allWitnesses.toArray)
-
       val allWitnessIterator = allWitnessesSorted.iterator
       while (allWitnessIterator.hasNext && newElectedWitnesses.size < consensusSettings.witnessNum) {
         val witness = allWitnessIterator.next()
