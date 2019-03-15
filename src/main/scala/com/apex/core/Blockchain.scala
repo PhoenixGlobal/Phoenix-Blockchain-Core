@@ -817,7 +817,11 @@ class Blockchain(chainSettings: ChainSettings,
   }
 
   def getGasLimit(): Long = {
-    peerBase.getGasLimit().get.longValue()
+    val gasPrice = peerBase.getGasLimit()
+    gasPrice match {
+      case Some(v) => v.longValue()
+      case None => runtimeParas.txAcceptGasLimit.longValue()
+    }
   }
 
   // "timeMs": time from 1970 in ms, should be divided evenly with no remainder by settings.produceInterval
