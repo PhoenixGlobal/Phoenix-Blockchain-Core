@@ -206,6 +206,12 @@ class Node(val settings: ApexSettings, config: Config)
         }
         sender() ! producer
       }
+      case GetVotesCmd(addr) => {
+        val votes = Try {
+          chain.getVote(addr)
+        }
+        sender() ! votes
+      }
     }
   }
 

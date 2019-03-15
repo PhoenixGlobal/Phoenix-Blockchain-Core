@@ -69,6 +69,7 @@ object FixedNumber {
   final val KP: FixedNumber = P * 1000
   final val MP: FixedNumber = KP * 1000
   final val GP: FixedNumber = MP * 1000
+  final val CPX: FixedNumber = One
 
   implicit val serializer: DataInputStream => FixedNumber = deserialize
 
