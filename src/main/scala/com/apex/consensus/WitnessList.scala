@@ -64,7 +64,7 @@ object WitnessList {
       require(!w1.addr.equals(w2.addr))
       if (w1.longitude == w2.longitude) {
         if (w1.latitude == w2.latitude)
-          w1.addr > w2.addr
+          w1.addr.address > w2.addr.address
         else
           w1.latitude > w2.latitude
       }
@@ -76,7 +76,7 @@ object WitnessList {
   def sortByAddr(witnesses: Array[UInt160]): Array[UInt160] = {
     witnesses.sortWith((w1, w2) => {
       require(!w1.equals(w2))
-      w1 > w2
+      w1.address > w2.address
     })
   }
 
