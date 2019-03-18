@@ -53,7 +53,7 @@ object WitnessList {
     witnesses.sortWith((w1, w2) => {
       require(!w1.addr.equals(w2.addr))
       if (w1.voteCounts.value == w2.voteCounts.value)
-        w1.addr > w2.addr
+        w1.addr.address > w2.addr.address
       else
         w1.voteCounts.value > w2.voteCounts.value
     })

@@ -376,7 +376,7 @@ class Blockchain(chainSettings: ChainSettings,
       mCurWitnessList.get
     else
       mPrevWitnessList.get
-    // TODO: mPendingWitnessList
+    // will not get mPendingWitnessList
   }
 
   private def checkUpdateWitnessList(curblock: Block) = {

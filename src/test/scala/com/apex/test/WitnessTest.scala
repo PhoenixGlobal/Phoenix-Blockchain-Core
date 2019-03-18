@@ -12,10 +12,11 @@ import java.io.{ByteArrayInputStream, ByteArrayOutputStream, DataInputStream, Da
 
 import com.apex.consensus._
 import com.apex.core.Block.deserialize
-import com.apex.crypto.{FixedNumber, UInt160, UInt256}
+import com.apex.crypto.{Crypto, FixedNumber, UInt160, UInt256}
 import org.junit.Test
 
 import scala.collection.mutable
+import scala.collection.mutable.ArrayBuffer
 
 @Test
 class WitnessTest {
@@ -276,6 +277,16 @@ class WitnessTest {
     assert(sorted(6).name == "w3")  //
     assert(sorted(7).name == "w2")  //
     assert(sorted(8).name == "w1")  //
+  }
+
+  @Test
+  def testSortByVote2 = {
+    val wits = ArrayBuffer.empty[WitnessInfo]
+    for (i <- 0 to 99) {
+      wits.append(new WitnessInfo(UInt160.fromBytes(Crypto.randomBytes(20))))
+    }
+    val sorted = WitnessList.sortByVote(wits.toArray)
+    sorted.foreach(w => println(w.addr.address))
   }
 
 //  @Test
