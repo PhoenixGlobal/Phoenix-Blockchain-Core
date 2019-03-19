@@ -30,7 +30,7 @@ case class Vote(voter: UInt160,
   def updateTargetCounter(addr: UInt160, counter: FixedNumber): Vote ={
     if(targetMap.get(addr).isEmpty && counter.value < 0) return this
     val oldCounter = targetMap.getOrElse(addr, FixedNumber.Zero)
-    if(oldCounter + counter > 0) targetMap.update(addr, oldCounter + counter)
+    if(oldCounter + counter >= FixedNumber.Zero) targetMap.update(addr, oldCounter + counter)
     this
   }
 
@@ -52,7 +52,7 @@ object Vote {
     override def writes(o: Vote): JsValue = {
       Json.obj(
         "voter" -> o.voter.toString,
-        "target" -> o.targetMap.map(t => t._1.address + t._2.value.toString()),
+        "target" -> o.targetMap.map(t => t._1.address + t._2.toString()),
         "version" -> o.version
       )
     }

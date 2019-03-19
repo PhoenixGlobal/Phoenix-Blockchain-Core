@@ -26,8 +26,7 @@ object VoteContractExecutor {
     //when vote a witness, the counter must be larger than 0
     def isVoterRequestValid(): VoteContractContext ={
       errorDetected{
-        if(voteData.operationType == OperationType.register &&
-          (voteData.voterCount.value <= 0)){
+        if(voteData.voterCount.value <= 0){
           setResult(false, ("the counter you vote a witness must be larger than 0").getBytes)
         }
       }
