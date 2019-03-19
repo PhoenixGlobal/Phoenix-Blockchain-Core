@@ -52,7 +52,7 @@ object Vote {
     override def writes(o: Vote): JsValue = {
       Json.obj(
         "voter" -> o.voter.toString,
-        "target" -> o.targetMap.map(t => t._1.address + t._2.toString()),
+        "target" -> o.targetMap.map(t => t._1.address +" - "+ t._2.toString()),
         "version" -> o.version
       )
     }
