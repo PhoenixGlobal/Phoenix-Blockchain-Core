@@ -28,7 +28,7 @@ class DataBase(settings: DataBaseSettings, db: Storage.lowLevelRaw, tracking: Tr
   private val contractStore = new ContractStore(tracking, settings.cacheSize)
   private val contractStateStore = new ContractStateStore(tracking, settings.cacheSize)
   private val nameToAccountStore = new NameToAccountStore(tracking, settings.cacheSize)
-  private val scheduleTxStore = new TransactionStore(tracking, settings.cacheSize)
+  private val scheduleTxStore = new ScheduleTxStore(tracking, settings.cacheSize)
 
   private val voteStore = new VoteStore(tracking, settings.cacheSize)
   private val witnessInfoStore = new WitnessInfoStore(tracking)

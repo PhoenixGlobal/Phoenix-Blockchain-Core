@@ -24,9 +24,9 @@ class HeaderStore(db: Storage.raw, capacity: Int)
     with UInt256Key
     with BlockHeaderValue
 
-class TransactionStore(db: Storage.raw, capacity: Int)
+class ScheduleTxStore(db: Storage.raw, capacity: Int)
   extends StoreBase[UInt256, Transaction](db, capacity)
-    with TxPrefix
+    with ScheduleTxPrefix
     with UInt256Key
     with TransactionValue
 
@@ -203,7 +203,7 @@ trait HeaderPrefix extends DataPrefix {
   override val dataType: DataType.Value = DataType.BlockHeader
 }
 
-trait TxPrefix extends DataPrefix {
+trait ScheduleTxPrefix extends DataPrefix {
   override val dataType: DataType.Value = DataType.scheduleTransaction
 }
 
