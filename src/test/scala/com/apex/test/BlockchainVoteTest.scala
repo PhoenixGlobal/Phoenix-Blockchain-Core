@@ -90,7 +90,7 @@ class BlockchainVoteTest {
     PublicKey("0246f896de22582786884d7d7ae27ef00cc8fed167bcdb8c305fbbc3dd9cca696c").pubKeyHash)
   //Some(new PrivateKey(BinaryData("9456beec947b368eda4be03f6c306703d9b2eda49f661285944b4e1f07ae18f3"))))
 
-  val _acct1 = Ecdsa.PrivateKey.fromWIF("KzxPrzMcoE5hYU3e9XTRS51dvo68waSBYm5tkSfyWpURhS6wW5VZ").get  // !!!
+  val _acct1 = Ecdsa.PrivateKey.fromWIF("Kwc9JZvAs6iy1pPuqrKa9nfDNJtat82wryP6nUFj9nSfNHFjQxfd").get  // !!!
   val _acct2 = Ecdsa.PrivateKey.fromWIF("L32JpLopG2hWjEMSCkAjS1nUnPixVrDTPqFAGYbddQrtUjRfkjEP").get
   val _acct3 = Ecdsa.PrivateKey.fromWIF("KyUTLv2BeP9SJD6Sa8aHBVmuRkgw9eThjNGJDE4PySEgf2TvCQCn").get
   val _acct4 = Ecdsa.PrivateKey.fromWIF("L33Uh9L35pSoEqBPP43U6rQcD2xMpJ7F4b3QMjUMAL6HZhxUqEGq").get
@@ -391,6 +391,8 @@ class BlockchainVoteTest {
       val block5 = makeBlock(chain, block4, Seq.empty)
       assert(chain.tryInsertBlock(block5))
       println("block5 inserted")
+
+      println("_acct1 is " + _acct1.publicKey.pubKeyHash.address)
 
       assert(!chain.getProducers("pending").contains(_acct1.publicKey.pubKeyHash))
 
