@@ -132,6 +132,11 @@ class MongodbPlugin(settings: ApexSettings)
       accountCol.updateOne(equal("address", tx.from.address), set("timeStamp", BsonDateTime(block.timeStamp())), option).results()
     }
     accountCol.updateOne(equal("address", tx.toAddress()), set("timeStamp", BsonDateTime(block.timeStamp())), option).results()
+
+    if (tx.txType == TransactionType.Miner && block.height() > 0) {
+      accountCol.updateOne(equal("address", tx.toAddress()), inc("blockCount", 1), option).results()
+    }
+
   }
 
   private def updateTps(block: Block, isIncrease: Boolean) = {
