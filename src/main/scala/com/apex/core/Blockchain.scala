@@ -4,15 +4,16 @@ import java.time.Instant
 
 import com.apex.common.ApexLogging
 import com.apex.consensus.Vote
-import com.apex.consensus.{WitnessList}
+import com.apex.consensus.WitnessList
 import com.apex.consensus.{ProducerUtil, WitnessInfo}
 import com.apex.crypto.Ecdsa.{PrivateKey, PublicKeyHash}
 import com.apex.crypto.{BinaryData, Crypto, FixedNumber, MerkleTree, UInt160, UInt256}
 import com.apex.settings.{ChainSettings, ConsensusSettings, RuntimeParas}
-import com.apex.vm.{GasCost}
+import com.apex.vm.GasCost
+import play.api.libs.json.{JsValue, Json, Writes}
 
-import scala.collection.{mutable}
-import scala.collection.mutable.{ArrayBuffer}
+import scala.collection.mutable
+import scala.collection.mutable.ArrayBuffer
 
 case class ChainInfo(id: String)
 
@@ -37,6 +38,15 @@ class PendingState {
 }
 
 case class AddTxResult(added: Boolean, result: String)
+
+object AddTxResult {
+  implicit val resultWrites = new Writes[AddTxResult] {
+    override def writes(o: AddTxResult): JsValue = Json.obj(
+      "added" -> o.added,
+      "result" -> o.result
+    )
+  }
+}
 
 class Blockchain(chainSettings: ChainSettings,
                  consensusSettings: ConsensusSettings,

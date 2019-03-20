@@ -169,10 +169,10 @@ class Node(val settings: ApexSettings, config: Config)
         val sendTx = Try {
           if (tx.verifySignature()) {
             peerHandlerManager ! InventoryMessage(new InventoryPayload(InventoryType.Tx, Seq(tx.id)))
-            if (chain.addTransaction(tx)) true
-            else false
+            chain.addTransactionEx(tx)
           }
-          else false
+          else
+            AddTxResult(false, "verify signature unsuccess")
         }
         sender() ! sendTx
       }

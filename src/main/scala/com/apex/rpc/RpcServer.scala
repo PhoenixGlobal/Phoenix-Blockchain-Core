@@ -17,7 +17,7 @@ import akka.stream.ActorMaterializer
 import akka.util.Timeout
 import com.apex.common.ApexLogging
 import com.apex.consensus.{Vote, WitnessInfo, WitnessList}
-import com.apex.core.{Account, Block, BlockHeader, TransactionReceipt}
+import com.apex.core._
 import com.apex.rpc.RpcServer.sussesRes
 import com.apex.settings.ApexSettings
 import com.typesafe.config.Config
@@ -171,10 +171,10 @@ object RpcServer extends ApexLogging {
                 case cmd: JsSuccess[SendRawTransactionCmd] => {
                   log.info("send transaction: " + Json.toJson(cmd.value.rawTx).toString())
                   val f = (nodeRef ? cmd.value)
-                    .mapTo[Try[Boolean]]
+                    .mapTo[Try[AddTxResult]]
                     .map(s =>
                       s match {
-                        case Success(sendTx) => sussesRes(sendTx.toString())
+                        case Success(sendTx) => sussesRes(AddTxResult.resultWrites.writes(sendTx).toString())
                         case Failure(e) => error500Res(e.getMessage)
                       })
                   complete(f)
