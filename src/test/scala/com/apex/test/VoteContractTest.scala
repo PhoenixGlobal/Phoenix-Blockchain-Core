@@ -176,9 +176,9 @@ class VoteContractTest extends RegisterContractTest {
         val witness = chain.getWitness(_acct4.publicKey.pubKeyHash)
         assert(witness.isDefined)
         assert(witness.get.name == "node 2")
-        assert(chain.getBalance(_acct4).get == FixedNumber.fromDecimal(BigDecimal("2.999999999999975504")))
+        assert(chain.getBalance(_acct4).get == FixedNumber.fromDecimal(BigDecimal("2.999999999999975436")))
         val balance = chain.getBalance(_acct4).get
-        assert(chain.getBalance(_acct4).get == FixedNumber.fromDecimal(3) - FixedNumber(24496))
+        assert(chain.getBalance(_acct4).get == FixedNumber.fromDecimal(3) - FixedNumber(24564))
       })
       When.makeVoteTransaction(nonce = 3, candidate = _acct4.publicKey.pubKeyHash)(tx => {
         assert(chain.addTransaction(tx))
@@ -292,10 +292,10 @@ class VoteContractTest extends RegisterContractTest {
     val witness = chain.getWitness(_acct3.publicKey.pubKeyHash)
     assert(witness.isDefined)
     assert(witness.get.name == "register node1")
-    assert(chain.getBalance(_acct3).get == FixedNumber.fromDecimal(BigDecimal("1.999999999999975088")))
+    assert(chain.getBalance(_acct3).get == FixedNumber.fromDecimal(BigDecimal("1.999999999999975020")))
     val account = chain.getBalance(_acct1).get
     assert(account == FixedNumber.fromDecimal(BigDecimal("119.119999999999935144")))
-    assert(chain.getBalance(_acct3).get == (FixedNumber.fromDecimal(2) - FixedNumber(24912)))
+    assert(chain.getBalance(_acct3).get == (FixedNumber.fromDecimal(2) - FixedNumber(24980)))
 
     assert(account == (FixedNumber.fromDecimal(119.12) - FixedNumber(22856) - FixedNumber(42000)))
     assert(chain.getVote(_acct1.publicKey.pubKeyHash).get.targetMap.get(_acct3.publicKey.pubKeyHash).get == FixedNumber.One)

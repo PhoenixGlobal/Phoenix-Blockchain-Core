@@ -680,6 +680,16 @@ abstract class StateStore[V ](db: Storage.raw) {
     db.get(prefixBytes).map(valConverter.fromBytes)
   }
 
+  def getLists(prefix: Array[Byte]) = {
+    //val lowLevelDB = db.asInstanceOf[Storage.raw]
+    //lowLevelDB.scan(prefix).map(records => valConverter.fromBytes(records.getValue))
+    getListFromBackStore(prefix)
+  }
+
+  protected def getListFromBackStore(prefix: Array[Byte]): ArrayBuffer[V] = {
+    db.scan(prefix).map(records => valConverter.fromBytes(records))
+  }
+
   def set(value: V, batch: Batch = null): Boolean = {
     db.set(prefixBytes, valConverter.toBytes(value), batch)
   }
