@@ -236,10 +236,8 @@ class Blockchain(chainSettings: ChainSettings,
       if (Instant.now.toEpochMilli < stopProcessTxTime) {
         if (applyTransaction(p._2, producer, stopProcessTxTime, blockTime, forkHead.block.height + 1).added)
           pendingState.txs.append(p._2)
-        else {
-          log.info(s"applyTransaction error, txid = ${p._2.id.toString}")
+        else
           badTxs.append(p._2)
-        }
       }
     })
     pendingState.txs.foreach(tx => unapplyTxs.remove(tx.id))
@@ -265,11 +263,13 @@ class Blockchain(chainSettings: ChainSettings,
     var result = AddTxResult(false, "error")
 
     if (tx.txType == TransactionType.Miner || tx.txType == TransactionType.Refund || tx.txType == TransactionType.Schedule) {
-
+      result = AddTxResult(false, "tx type invalid")
     }
     else {
-      if (tx.gasLimit > runtimeParas.txAcceptGasLimit)
+      if (tx.gasLimit > runtimeParas.txAcceptGasLimit) {
         log.info(s"tx: ${tx.id()}, set too heigh gas-limit, it should not above ${runtimeParas.txAcceptGasLimit}")
+        result = AddTxResult(false, s"set too heigh gas-limit, it should not above ${runtimeParas.txAcceptGasLimit}")
+      }
       else {
         if (isProducingBlock()) {
           if (Instant.now.toEpochMilli > pendingState.stopProcessTxTime)
@@ -288,7 +288,7 @@ class Blockchain(chainSettings: ChainSettings,
     if (result.added)
       notification.broadcast(AddTransactionNotify(tx))
     else
-      log.info(s"addTransaction error, txid = ${tx.id.toString}")
+      log.info(s"addTransaction error, txid=${tx.id.toString}  ${result.result}")
     result
   }
 
@@ -538,6 +538,8 @@ class Blockchain(chainSettings: ChainSettings,
       applied = AddTxResult(true, "success")
     else if (originalTx.isDefined)
       applied = AddTxResult(true, "success")
+    else
+      applied = AddTxResult(false, "TransactionExecutor error")
 
     if (applied.added) {
       cacheTrack.commit()
@@ -554,24 +556,24 @@ class Blockchain(chainSettings: ChainSettings,
     dataBase.increaseNonce(tx.from)
     dataBase.setReceipt(tx.id(), TransactionReceipt(tx.id(), tx.txType, tx.from, blockProducer,
       blockIndex, 0, BinaryData.empty, 0, ""))
-    AddTxResult(true, "ok")
+    AddTxResult(true, "success")
   }
 
   private def scheduleTxFirstExecute(tx: Transaction, blockProducer: UInt160,
                                      blockTime: Long, blockIndex: Long): AddTxResult = {
-    var txValid = AddTxResult(true, "ok")
+    var txValid = AddTxResult(true, "success")
 
     val fromAccount = dataBase.getAccount(tx.from).getOrElse(Account.newAccount(tx.from))
     if (tx.nonce != fromAccount.nextNonce) {
       log.info(s"tx ${tx.id().shortString()} nonce ${tx.nonce} invalid, expect ${fromAccount.nextNonce}")
-      txValid = AddTxResult(false, s"tx ${tx.id().shortString()} nonce ${tx.nonce} invalid, expect ${fromAccount.nextNonce}")
+      txValid = AddTxResult(false, s"nonce ${tx.nonce} invalid, expect ${fromAccount.nextNonce}")
     }
     val scheduleTx = new Transaction(TransactionType.Schedule, tx.from, tx.toPubKeyHash, tx.amount, tx.nonce, tx.toBytes,
       tx.gasPrice, tx.gasLimit, BinaryData.empty, tx.version, tx.executeTime)
     val scheduleFee = FixedNumber(BigInt(GasCost.SSTORE)) * scheduleTx.toBytes.size * tx.gasPrice *
       ((tx.executeTime - blockTime) / DAY + 1) + FixedNumber(BigInt(GasCost.TRANSACTION)) * tx.gasPrice
 
-    if (scheduleFee > fromAccount.balance) txValid = AddTxResult(false, "scheduleFee not enough")
+    if (scheduleFee > fromAccount.balance) txValid = AddTxResult(false, "schedule fee not enough")
     if (txValid.added) {
       dataBase.transfer(tx.from, blockProducer, scheduleFee)
       dataBase.setScheduleTx(scheduleTx.id, scheduleTx)
