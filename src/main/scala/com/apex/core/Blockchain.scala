@@ -675,6 +675,10 @@ class Blockchain(chainSettings: ChainSettings,
     dataBase.getWitness(address)
   }
 
+  def setWitness(witnessInfo: WitnessInfo){
+    dataBase.createWitness(witnessInfo)
+  }
+
   def getScheduleTx(): ArrayBuffer[Transaction] = {
     dataBase.getAllScheduleTx()
   }

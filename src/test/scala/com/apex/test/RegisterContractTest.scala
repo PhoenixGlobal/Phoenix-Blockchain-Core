@@ -36,6 +36,26 @@ class RegisterContractTest extends BlockChainPrepare{
     }
   }
 
+  @Test
+  def testRegisterFailIfWitnessUnregisteredInDb(){
+    try {
+      val baseDir = "RegisterContractTest/testRegisterFailIfWitnessUnregisteredInDb"
+      Given.createChain(baseDir){}
+      When.produceBlock()
+      Then.checkTx()
+      And.checkAccount()
+      When.makeRegisterTransaction()(checkRegisterSuccess)
+      val witness = chain.getWitness(_acct3.publicKey.pubKeyHash).get.copy(register = false)
+      chain.setWitness(witness)
+      When.makeRegisterTransaction(OperationType.resisterCancel, 1){
+        tx => {
+          assert(chain.addTransaction(tx))}}
+    }
+    finally {
+      chain.close()
+    }
+  }
+
   //register address must be same as transaction from address
   @Test
   def testRegisterAccountNotEqualTxFromAccount(){
