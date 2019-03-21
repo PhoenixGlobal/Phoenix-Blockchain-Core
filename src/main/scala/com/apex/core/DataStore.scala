@@ -119,10 +119,16 @@ class PendingWitnessStore(db: Storage.raw)
     with PendingWitnessStatePrefix
     with WitnessListValue
 
-class WitnessInfoStore(db: Storage.raw)
-  extends StateStore[WitnessMap](db)
-    with AllWitnessMapStatePrefix
-    with WitnessMapValue
+//class WitnessInfoStore(db: Storage.raw)
+//  extends StateStore[WitnessMap](db)
+//    with AllWitnessMapStatePrefix
+//    with WitnessMapValue
+
+class WitnessInfoStore(db: Storage.raw, capacity: Int)
+  extends StoreBase[UInt160, WitnessInfo](db, capacity)
+    with WitnessInfoPrefix
+    with UInt160Key
+    with WitnessInfoValue
 
 object StoreType extends Enumeration {
   val Data = Value(0x00)
@@ -143,6 +149,7 @@ object DataType extends Enumeration {
 //  val Peer = Value(0x09)
   val Votes = Value(0x0a)
   val scheduleTransaction = Value(0x0b)
+  val WitnessInfo = Value(0x0c)
 }
 
 object IndexType extends Enumeration {
@@ -265,9 +272,11 @@ trait PendingWitnessStatePrefix extends StatePrefix {
   override val stateType: StateType.Value = StateType.PendingWitnessState
 }
 
-trait AllWitnessMapStatePrefix extends StatePrefix {
-  override val stateType: StateType.Value = StateType.AllWitnessMapState
+trait WitnessInfoPrefix extends DataPrefix {
+  override val dataType: DataType.Value = DataType.WitnessInfo
 }
+
+
 
 trait Converter[A] {
   def toBytes(key: A): Array[Byte] = {
@@ -402,6 +411,10 @@ trait WitnessListValue extends ValueConverterProvider[WitnessList] {
 
 trait WitnessMapValue extends ValueConverterProvider[WitnessMap] {
   override val valConverter: Converter[WitnessMap] = new SerializableConverter(WitnessMap.deserialize)
+}
+
+trait WitnessInfoValue extends ValueConverterProvider[WitnessInfo] {
+  override val valConverter: Converter[WitnessInfo] = new SerializableConverter(WitnessInfo.deserialize)
 }
 
 class IntConverter extends Converter[Int] {

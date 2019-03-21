@@ -31,7 +31,7 @@ class DataBase(settings: DataBaseSettings, db: Storage.lowLevelRaw, tracking: Tr
   private val scheduleTxStore = new ScheduleTxStore(tracking, settings.cacheSize)
 
   private val voteStore = new VoteStore(tracking, settings.cacheSize)
-  private val witnessInfoStore = new WitnessInfoStore(tracking)
+  private val witnessInfoStore = new WitnessInfoStore(tracking, settings.cacheSize)
 
   private val previousWitnessStore = new PreviousWitnessStore(tracking)
   private val currentWitnessStore = new CurrentWitnessStore(tracking)
@@ -166,23 +166,19 @@ class DataBase(settings: DataBaseSettings, db: Storage.lowLevelRaw, tracking: Tr
   }
 
   def getAllWitness(): ArrayBuffer[WitnessInfo] = {
-    witnessInfoStore.get().get.getAll()
+    witnessInfoStore.getLists(Array(StoreType.Data.id.toByte, DataType.WitnessInfo.id.toByte))
   }
 
   def getWitness(address: UInt160): Option[WitnessInfo] = {
-    witnessInfoStore.get().get.get(address)
+    witnessInfoStore.get(address)
   }
 
   def createWitness(witness: WitnessInfo) = {
-    val all = witnessInfoStore.get().getOrElse(new WitnessMap(mutable.Map.empty))
-    all.set(witness)
-    witnessInfoStore.set(all)
+    witnessInfoStore.set(witness.addr, witness)
   }
 
   def deleteWitness(address: UInt160): Unit = {
-    val all = witnessInfoStore.get().getOrElse(new WitnessMap(mutable.Map.empty))
-    all.delete(address)
-    witnessInfoStore.set(all)
+    witnessInfoStore.delete(address)
   }
 
   def getVote(address: UInt160): Option[Vote] = {

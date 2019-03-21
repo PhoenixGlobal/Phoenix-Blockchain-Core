@@ -266,10 +266,17 @@ class BlockchainVoteTest {
 
       assert(chain.getProducers("all").witnesses.size == 5)
 
+      val currentWitness = chain.getProducers("active").witnesses
+      assert(currentWitness.length == 4)
+
       assert(chain.getProducers("all").contains(_acct1.publicKey.pubKeyHash))
 
       val block3 = makeBlock(chain, block2, Seq(createVoteTransaction(_acct2, _acct1, OperationType.register, FixedNumber.One, 0)))
       assert(chain.tryInsertBlock(block3))
+//
+//      val newAcct1Witness = chain.getWitness(_acct1.publicKey.pubKeyHash).get.copy(register = false)
+//      chain.setWitness(newAcct1Witness)
+//      chain.updateWitnessList(block1)
 
       println("block3 inserted")
 
@@ -304,19 +311,32 @@ class BlockchainVoteTest {
       println("block9 inserted")
       assert(chain.getProducers("active").contains(_acct1.publicKey.pubKeyHash))
 
+
+
+
+
       val block10 = makeBlock(chain, block9, Seq.empty)
       assert(chain.tryInsertBlock(block10))
       println("block10 inserted")
+      assert(chain.getProducers("active").contains(_acct1.publicKey.pubKeyHash))
 
       val block11 = makeBlock(chain, block10, Seq.empty)
       assert(chain.tryInsertBlock(block11))
 
       println("block11 inserted")
+      assert(chain.getProducers("active").contains(_acct1.publicKey.pubKeyHash))
 
       val block12 = makeBlock(chain, block11, Seq.empty)
       assert(chain.tryInsertBlock(block12))
 
       println("block12 inserted")
+      assert(chain.getProducers("active").contains(_acct1.publicKey.pubKeyHash))
+
+      val block13 = makeBlock(chain, block12, Seq.empty)
+      assert(chain.tryInsertBlock(block13))
+
+      println("block13 inserted")
+      assert(chain.getProducers("active").contains(_acct1.publicKey.pubKeyHash))
 
       //test getBlock()
       assert(chain.getBlock(0).get.height() == 0)
@@ -325,12 +345,12 @@ class BlockchainVoteTest {
       assert(chain.getBlock(3).get.id == block3.id)
       assert(chain.getBlock(11).get.id == block11.id)
       assert(chain.getBlock(11).get.id != block12.id)
-      assert(chain.getBlock(13) == None)
+      //assert(chain.getBlock(13) == None)
 
       // getHeader()
       assert(chain.getHeader(1).get.id == block1.id)
       assert(chain.getHeader(11).get.id == block11.id)
-      assert(chain.getHeader(13) == None)
+      //assert(chain.getHeader(13) == None)
       assert(chain.getHeader(block1.id).get.id == block1.id)
       assert(chain.getHeader(block11.id).get.id == block11.id)
 
