@@ -190,7 +190,6 @@ class BlockchainVoteTest {
       BlockBaseSettings(s"$baseDir/block", false, 0, DBType.LevelDB),
       DataBaseSettings(s"$baseDir/data", false, 0, DBType.LevelDB),
       ForkBaseSettings(s"$baseDir/fork", false, 0, DBType.LevelDB),
-      PeerBaseSettings(s"$baseDir/peer", false, 0, DBType.LevelDB),
       _minerAward,
       GenesisSettings(Instant.EPOCH,
         "7a93d447bffe6d89e690f529a3a0bdff8ff6169172458e04849ef1d4eafd7f86",
