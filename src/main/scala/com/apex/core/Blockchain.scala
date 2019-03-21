@@ -289,7 +289,7 @@ class Blockchain(chainSettings: ChainSettings,
     if (result.added)
       notification.broadcast(AddTransactionNotify(tx))
     else
-      log.info(s"addTransaction error, txid=${tx.id.toString}  ${result.result}")
+      log.error(s"addTransaction error, txid=${tx.id.toString}  ${result.result}")
     result
   }
 
@@ -697,7 +697,7 @@ class Blockchain(chainSettings: ChainSettings,
     def initGenesisWitness() = {
       val witnesses = ArrayBuffer.empty[WitnessInfo]
       consensusSettings.initialWitness.foreach(w => {
-        val initWitness = new WitnessInfo(w.pubkeyHash, true)
+        val initWitness = new WitnessInfo(w.pubkeyHash, true, w.name)
         witnesses.append(initWitness)
         dataBase.createWitness(initWitness)
       })
