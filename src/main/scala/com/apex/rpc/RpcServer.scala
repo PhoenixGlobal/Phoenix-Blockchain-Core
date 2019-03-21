@@ -44,7 +44,6 @@ object RpcServer extends ApexLogging {
     system.registerOnTermination(log.info("rpc terminated"))
 
     val rpcSettings = settings.rpc
-    val secretRPCSettings = settings.secretRpc
     val route =
       path("getblock") {
         post {
