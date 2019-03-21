@@ -182,18 +182,6 @@ class Node(val settings: ApexSettings, config: Config)
         }
         sender() ! receipt
       }
-      case SetGasLimitCmd(gasLimit) => {
-        val setGas = Try {
-          chain.setGasLimit(gasLimit)
-        }
-        sender() ! setGas
-      }
-      case GetGasLimitCmd() => {
-        val gasLimit = Try {
-          chain.getGasLimit()
-        }
-        sender() ! gasLimit
-      }
       case GetProducersCmd(listType) => {
         val producers = Try {
           chain.getProducers(listType)

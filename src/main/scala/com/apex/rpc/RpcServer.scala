@@ -36,7 +36,6 @@ object RpcServer extends ApexLogging {
   private implicit var dispatcher: ExecutionContextExecutor = _
 
   private var bindingFuture: Future[Http.ServerBinding] = _
-  private var secretBindingFuture: Future[Http.ServerBinding] = _
 
   def run(settings: ApexSettings, config: Config, nodeRef: ActorRef) = {
     system = ActorSystem("RPC", config)
@@ -289,45 +288,7 @@ object RpcServer extends ApexLogging {
           }
         }
 
-    val secretRoute =
-      path("getGasLimit") {
-        post {
-          entity(as[String]) { _ =>
-            val f = (nodeRef ? GetGasLimitCmd())
-              .mapTo[Try[Long]]
-              .map(s =>
-                s match {
-                  case Success(gasLimit) => sussesRes(gasLimit.toString())
-                  case Failure(e) => error500Res(e.getMessage)
-                })
-            complete(f)
-          }
-        }
-      } ~
-        path("setGasLimit") {
-          post {
-            entity(as[String]) { data =>
-              Json.parse(data).validate[SetGasLimitCmd] match {
-                case cmd: JsSuccess[SetGasLimitCmd] => {
-                  val f = (nodeRef ? cmd.get)
-                    .mapTo[Try[Boolean]]
-                    .map(s =>
-                      s match {
-                        case Success(gasLimit) => sussesRes(gasLimit.toString())
-                        case Failure(e) => error500Res(e.getMessage)
-                      })
-                  complete(f)
-                }
-                case _: JsError => {
-                  complete(HttpEntity(ContentTypes.`application/json`, error400Res))
-                }
-              }
-            }
-          }
-        }
-
     bindingFuture = Http().bindAndHandle(route, rpcSettings.host, rpcSettings.port)
-    secretBindingFuture = Http().bindAndHandle(secretRoute, secretRPCSettings.host, secretRPCSettings.port)
     //    println(s"Server online at http://${rpcSettings.host}:${rpcSettings.port}/\n")
     //  StdIn.readLine() // let it run until user presses return
   }

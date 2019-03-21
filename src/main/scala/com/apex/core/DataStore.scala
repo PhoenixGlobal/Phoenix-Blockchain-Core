@@ -84,12 +84,6 @@ class ForkItemStore(db: Storage.raw, capacity: Int)
     with UInt256Key
     with ForkItemValue
 
-class PeerStore(db: Storage.raw, capacity: Int)
-  extends StoreBase[String, BigInt](db, capacity)
-    with PeerPrefix
-    with StringKey
-    with BigIntValue
-
 class HeadBlockStore(db: Storage.raw)
   extends StateStore[BlockHeader](db)
     with HeadBlockStatePrefix
@@ -146,7 +140,7 @@ object DataType extends Enumeration {
   val Contract = Value(0x06)
   val ContractState = Value(0x07)
   val Receipt = Value(0x08)
-  val Peer = Value(0x09)
+//  val Peer = Value(0x09)
   val Votes = Value(0x0a)
   val scheduleTransaction = Value(0x0b)
 }
@@ -183,10 +177,6 @@ trait IndexPrefix extends Prefix {
   val storeType = StoreType.Index
   val indexType: IndexType.Value
   override lazy val prefixBytes: Array[Byte] = Array(storeType.id.toByte, indexType.id.toByte)
-}
-
-trait PeerPrefix extends DataPrefix {
-  override val dataType: DataType.Value = DataType.Peer
 }
 
 trait StatePrefix extends Prefix {
@@ -346,10 +336,6 @@ trait ByteArrayValue extends ValueConverterProvider[Array[Byte]] {
   override val valConverter: Converter[Array[Byte]] = new ByteArrayConverter
 }
 
-trait BigIntValue extends ValueConverterProvider[BigInt] {
-  override val valConverter: Converter[BigInt] = new BigIntConverter
-}
-
 trait UInt160Value extends ValueConverterProvider[UInt160] {
   override val valConverter: Converter[UInt160] = new SerializableConverter(UInt160.deserialize)
 }
@@ -427,17 +413,6 @@ class IntConverter extends Converter[Int] {
   override def serializer(key: Int, os: DataOutputStream): Unit = {
     import com.apex.common.Serializable._
     os.writeVarInt(key)
-  }
-}
-class BigIntConverter extends Converter[BigInt] {
-  override def deserializer(is: DataInputStream): BigInt = {
-    import com.apex.common.Serializable._
-    BigInt(is.readByteArray)
-  }
-
-  override def serializer(key: BigInt, os: DataOutputStream): Unit = {
-    import com.apex.common.Serializable._
-    os.writeByteArray(key.toByteArray)
   }
 }
 

@@ -57,21 +57,6 @@ object GetAccountCmd {
     ) map (GetAccountCmd.apply _)
 }
 
-case class SetGasLimitCmd(gasLimit: BigInt) extends RPCCommand
-
-object SetGasLimitCmd {
-  implicit val testWrites = new Writes[SetGasLimitCmd] {
-    override def writes(o: SetGasLimitCmd): JsValue = Json.obj(
-      "gasLimit" -> o.gasLimit.longValue()
-    )
-  }
-  implicit val testReads: Reads[SetGasLimitCmd] = (
-    (__ \ "gasLimit").read[String](Validators.amountValidator).map(c => BigInt.apply(c))
-    ) map (SetGasLimitCmd.apply _)
-}
-
-case class GetGasLimitCmd() extends RPCCommand
-
 case class SendRawTransactionCmd(rawTx: Transaction) extends RPCCommand
 
 object SendRawTransactionCmd {

@@ -73,14 +73,6 @@ class Blockchain(chainSettings: ChainSettings,
     onConfirmed,
     onSwitch)
 
-  log.info("creating PeerBase")
-
-  private val peerBase = new PeerBase(chainSettings.peerBase)
-  val dbGasLimit = peerBase.getGasLimit()
-  if (dbGasLimit != null && dbGasLimit != None) {
-    runtimeParas.setAcceptGasLimit(dbGasLimit.get.longValue())
-  }
-
   log.info("creating Genesis Block")
 
   private val minerCoinFrom = UInt160.Zero
@@ -128,7 +120,6 @@ class Blockchain(chainSettings: ChainSettings,
     blockBase.close()
     dataBase.close()
     forkBase.close()
-    peerBase.close()
     log.info("blockchain closed")
   }
 
@@ -806,24 +797,6 @@ class Blockchain(chainSettings: ChainSettings,
       to.foreach(item => toBlocksSummary = toBlocksSummary :+ blockSummary(item.block))
       notification.broadcast(ForkSwitchNotify(fromBlocksSummary, toBlocksSummary))
       SwitchResult(true)
-    }
-  }
-
-  def setGasLimit(gasLimit: BigInt): Boolean = {
-    try {
-      peerBase.setGasLimit(gasLimit)
-      runtimeParas.setAcceptGasLimit(gasLimit.longValue())
-      true
-    } catch {
-      case e: Throwable => false
-    }
-  }
-
-  def getGasLimit(): Long = {
-    val gasPrice = peerBase.getGasLimit()
-    gasPrice match {
-      case Some(v) => v.longValue()
-      case None => runtimeParas.txAcceptGasLimit.longValue()
     }
   }
 
