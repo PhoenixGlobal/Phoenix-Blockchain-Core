@@ -146,8 +146,8 @@ class MongodbPlugin(settings: ApexSettings)
     val tenSec: Long = 10000
     val oneHour: Long = 3600000
 
-    val time10s: Long = block.header.timeStamp / tenSec * tenSec
-    val timeHour: Long = block.header.timeStamp / oneHour * oneHour
+    val time10s: Long = block.timeStamp / tenSec * tenSec
+    val timeHour: Long = block.timeStamp / oneHour * oneHour
 
     if (isIncrease)
       tpsHourCol.updateOne(equal("timeStamp", BsonDateTime(timeHour)), inc("txs", block.transactions.size), option).results()

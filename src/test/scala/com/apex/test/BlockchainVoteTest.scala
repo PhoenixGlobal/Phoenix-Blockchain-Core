@@ -128,7 +128,7 @@ class BlockchainVoteTest {
                         preBlock: Block,
                         txs: Seq[Transaction],
                         award: Double = _minerAward): Block = {
-    val blockTime = preBlock.header.timeStamp + _consensusSettings.produceInterval
+    val blockTime = preBlock.timeStamp + _consensusSettings.produceInterval
     val miner = chain.getWitness(blockTime)
 
     val minerTx = new Transaction(TransactionType.Miner, minerCoinFrom,
@@ -157,7 +157,7 @@ class BlockchainVoteTest {
   private def makeBlockByTime(chain: Blockchain, preBlock: Block,
                               //txs: Seq[Transaction],
                               blockTime: Long): Block = {
-    //val blockTime = preBlock.header.timeStamp + _consensusSettings.produceInterval
+    //val blockTime = preBlock.timeStamp + _consensusSettings.produceInterval
     val miner = chain.getWitness(blockTime)
 
     val minerTx = new Transaction(TransactionType.Miner, minerCoinFrom,
@@ -593,7 +593,7 @@ class BlockchainVoteTest {
   }
 
   //  def tryInsertBlock(chain: Blockchain, block: Block): Boolean = {
-  //    sleepTo(block.header.timeStamp)
+  //    sleepTo(block.timeStamp)
   //    chain.tryInsertBlock(block, true)
   //  }
 

@@ -37,6 +37,24 @@ class PendingState {
   }
 }
 
+case class TxEntry(tx: Transaction,
+                   firstSeenTime: Long = 0) extends Ordered[TxEntry] {
+  override def compare(that: TxEntry): Int = {
+    var ret = 1
+    if (tx.id == that.tx.id)
+      ret = 0
+    else if (tx.from == that.tx.from) {
+      if (tx.nonce < that.tx.nonce)
+        ret = -1
+    }
+    else if (tx.gasPrice > that.tx.gasPrice)
+      ret = -1
+    else if (firstSeenTime < that.firstSeenTime) // currently not used
+      ret = -1
+    ret
+  }
+}
+
 case class AddTxResult(added: Boolean, result: String)
 
 object AddTxResult {
@@ -82,6 +100,8 @@ class Blockchain(chainSettings: ChainSettings,
   private val genesisBlock: Block = buildGenesisBlock()
 
   private val unapplyTxs = mutable.LinkedHashMap.empty[UInt256, Transaction]
+
+  private val unapplyTxsSorted = mutable.SortedSet.empty[TxEntry]
 
   private var timeoutTx: Option[Transaction] = None
 
@@ -144,7 +164,7 @@ class Blockchain(chainSettings: ChainSettings,
   def getConfirmedHeight(): Long = getConfirmedHeader.index
 
   def headTimeSinceGenesis(): Long = {
-    getLatestHeader.timeStamp - genesisBlock.header.timeStamp
+    getLatestHeader.timeStamp - genesisBlock.timeStamp
   }
 
   def getHeader(id: UInt256): Option[BlockHeader] = {
@@ -233,12 +253,15 @@ class Blockchain(chainSettings: ChainSettings,
     }
     val badTxs = ArrayBuffer.empty[Transaction]
 
-    unapplyTxs.foreach(p => {
+    // unapplyTxsSortedSet only need updated here
+    unapplyTxsSorted.clear()
+    unapplyTxs.foreach(p => unapplyTxsSorted.add(TxEntry(p._2))) // todo: improve: use quick sort
+    unapplyTxsSorted.foreach(p => {
       if (Instant.now.toEpochMilli < stopProcessTxTime) {
-        if (applyTransaction(p._2, producer, stopProcessTxTime, blockTime, forkHead.block.height + 1).added)
-          pendingState.txs.append(p._2)
+        if (applyTransaction(p.tx, producer, stopProcessTxTime, blockTime, forkHead.block.height + 1).added)
+          pendingState.txs.append(p.tx)
         else
-          badTxs.append(p._2)
+          badTxs.append(p.tx)
       }
     })
     pendingState.txs.foreach(tx => unapplyTxs.remove(tx.id))
@@ -494,7 +517,7 @@ class Blockchain(chainSettings: ChainSettings,
         dataBase.startSession()
 
       for (tx <- block.transactions if applied) {
-        applied = applyTransaction(tx, block.producer, Long.MaxValue, block.header.timeStamp, block.height()).added
+        applied = applyTransaction(tx, block.producer, Long.MaxValue, block.timeStamp, block.height()).added
       }
 
       if (enableSession && !applied)
@@ -683,8 +706,8 @@ class Blockchain(chainSettings: ChainSettings,
     if (prevBlock.isEmpty) {
       log.error("verifyHeader error: prevBlock not found")
     }
-    else if (header.timeStamp <= prevBlock.get.block.header.timeStamp) {
-      log.error(s"verifyHeader error: timeStamp not valid  ${header.timeStamp}  ${prevBlock.get.block.header.timeStamp}")
+    else if (header.timeStamp <= prevBlock.get.block.timeStamp) {
+      log.error(s"verifyHeader error: timeStamp not valid  ${header.timeStamp}  ${prevBlock.get.block.timeStamp}")
     }
     else if (header.timeStamp - now > 2000) {
       log.error(s"verifyHeader error: timeStamp too far in future. now=$now timeStamp=${header.timeStamp}")

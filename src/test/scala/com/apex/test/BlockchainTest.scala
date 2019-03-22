@@ -128,7 +128,7 @@ class BlockchainTest {
                         preBlock: Block,
                         txs: Seq[Transaction],
                         award: Double = _minerAward): Block = {
-    val blockTime = preBlock.header.timeStamp + _consensusSettings.produceInterval
+    val blockTime = preBlock.timeStamp + _consensusSettings.produceInterval
     val miner = chain.getWitness(blockTime)
 
     val minerTx = new Transaction(TransactionType.Miner, minerCoinFrom,
@@ -152,7 +152,7 @@ class BlockchainTest {
   private def makeBlockByTime(chain: Blockchain, preBlock: Block,
                               //txs: Seq[Transaction],
                               blockTime: Long): Block = {
-    //val blockTime = preBlock.header.timeStamp + _consensusSettings.produceInterval
+    //val blockTime = preBlock.timeStamp + _consensusSettings.produceInterval
     val miner = chain.getWitness(blockTime)
 
     val minerTx = new Transaction(TransactionType.Miner, minerCoinFrom,
@@ -295,7 +295,7 @@ class BlockchainTest {
       assert(chain.getBalance(_acct3).get == FixedNumber.fromDecimal(BigDecimal("8.999999999999958000")))
 
       val block22 = makeBlock(chain, block1.get, Seq.empty[Transaction])
-      sleepTo(block22.header.timeStamp)
+      sleepTo(block22.timeStamp)
       assert(chain.tryInsertBlock(block22, true))
 
       assert(chain.getBalance(_acct3).get == FixedNumber.fromDecimal(BigDecimal("8.999999999999958000")))
@@ -304,7 +304,7 @@ class BlockchainTest {
       assert(chain.getLatestHeader().id() == block2.id())
 
       val block33 = makeBlock(chain, block22, Seq.empty[Transaction])
-      sleepTo(block33.header.timeStamp)
+      sleepTo(block33.timeStamp)
       assert(chain.tryInsertBlock(block33, true))
 
       assert(chain.head.id() == block33.id())
@@ -314,7 +314,7 @@ class BlockchainTest {
       assert(chain.getBalance(_acct4).isEmpty)
 
       //      val block332 = makeBlock(chain, block22, Seq.empty[Transaction])
-      //      sleepTo(block332.header.timeStamp)
+      //      sleepTo(block332.timeStamp)
       //      assert(chain.tryInsertBlock(block332, true))
       //
       //      assert(chain.head.id() == block332.id())
@@ -444,7 +444,7 @@ class BlockchainTest {
       val block1 = chain.produceBlockFinalize()
       assert(block1.isDefined)
 
-      val time1 = block1.get.header.timeStamp // A
+      val time1 = block1.get.timeStamp // A
       val time2 = time1 + _consensusSettings.produceInterval // B
       val time3 = time2 + _consensusSettings.produceInterval // C
       val time4 = time3 + _consensusSettings.produceInterval // D
@@ -556,7 +556,7 @@ class BlockchainTest {
       val block1 = chain.produceBlockFinalize()
       assert(block1.isDefined)
 
-      val time1 = block1.get.header.timeStamp // A
+      val time1 = block1.get.timeStamp // A
       val time2 = time1 + _consensusSettings.produceInterval // B
       val time3 = time2 + _consensusSettings.produceInterval // C
       val time4 = time3 + _consensusSettings.produceInterval // D
@@ -627,7 +627,7 @@ class BlockchainTest {
   }
 
   def tryInsertBlock(chain: Blockchain, block: Block): Boolean = {
-    sleepTo(block.header.timeStamp)
+    sleepTo(block.timeStamp)
     chain.tryInsertBlock(block, true)
   }
 
