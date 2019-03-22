@@ -3,7 +3,7 @@ package com.apex.core
 import java.io.{ByteArrayInputStream, DataInputStream, DataOutputStream}
 
 import com.apex.common.Serializable
-import com.apex.crypto.{MerkleTree, UInt256}
+import com.apex.crypto.{MerkleTree, UInt160, UInt256}
 import play.api.libs.json.{JsValue, Json, Writes}
 
 import scala.util.Try
@@ -11,6 +11,8 @@ import scala.util.Try
 class Block(val header: BlockHeader,
             val transactions: Seq[Transaction]) extends Serializable {
   private val txMp: Map[UInt256, Transaction] = transactions.map(tx => tx.id -> tx).toMap
+
+  def producer(): UInt160 = header.producer
 
   def id(): UInt256 = {
     header.id

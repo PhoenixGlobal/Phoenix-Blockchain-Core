@@ -310,7 +310,7 @@ class Blockchain(chainSettings: ChainSettings,
       pendingState.txs.clear()
       pendingState.isProducingBlock = false
       if (tryInsertBlock(block, false)) {
-        log.info(s"block #${block.height} ${block.shortId} produced by ${block.header.producer.address.substring(0, 7)} ${block.header.timeString()}")
+        log.info(s"block #${block.height} ${block.shortId} produced by ${block.producer.shortAddr} ${block.header.timeString()}")
         notification.broadcast(NewBlockProducedNotify(block))
         Some(block)
       } else {
@@ -334,7 +334,10 @@ class Blockchain(chainSettings: ChainSettings,
     if (isProducingBlock())
       stopProduceBlock()
 
-    if (forkBase.head.get.block.id.equals(block.prev())) {
+    if (forkBase.head.get.block.id.equals(block.id)) {
+      inserted = false // same as head
+    }
+    else if (forkBase.head.get.block.id.equals(block.prev())) {
       if (doApply == false) { // check first !
         require(forkBase.add(block, getWitnessList(block)))
         inserted = true
@@ -356,7 +359,7 @@ class Blockchain(chainSettings: ChainSettings,
       if (forkBase.add(block, getWitnessList(block)) && forkBase.contains(block.id))
         inserted = true
       else
-        log.debug(s"fail add block ${block.height} ${block.shortId} to minor fork chain")
+        log.error(s"fail add block ${block.height} ${block.shortId} to minor fork chain")
     }
     if (inserted) {
       block.transactions.foreach(tx => {
@@ -385,7 +388,7 @@ class Blockchain(chainSettings: ChainSettings,
     // will not get mPendingWitnessList
   }
 
-private def checkUpdateWitnessList(curblock: Block) = {
+  private def checkUpdateWitnessList(curblock: Block) = {
     val pendingWitnessList = mPendingWitnessList.get
     if (blockIsConfirmed(pendingWitnessList.generateInBlock) &&
       isLastBlockOfProducer(curblock.timeStamp()) &&

@@ -471,7 +471,7 @@ class ForkBase(settings: ForkBaseSettings,
         }
       }
       if (block.height() > 0)
-        lph.put(block.header.producer, block.height)
+        lph.put(block.producer, block.height)
       require(lph.size == curWitnessList.witnesses.size)
       ForkItem(block, lph, master)
     }

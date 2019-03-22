@@ -18,6 +18,8 @@ class UInt160(data: Array[Byte]) extends UIntBase(UInt160.Size, data) with Order
   override def compare(that: UInt160): Int = UIntBase.compare(this, that)
 
   def address: String = PublicKeyHash.toAddress(data)
+
+  def shortAddr: String = address.substring(0, 7)
 }
 
 object UInt160 {
