@@ -332,12 +332,6 @@ class BlockchainVoteTest {
       println("block12 inserted")
       assert(chain.getProducers("active").contains(_acct1.publicKey.pubKeyHash))
 
-      val block13 = makeBlock(chain, block12, Seq.empty)
-      assert(chain.tryInsertBlock(block13))
-
-      println("block13 inserted")
-      assert(chain.getProducers("active").contains(_acct1.publicKey.pubKeyHash))
-
       //test getBlock()
       assert(chain.getBlock(0).get.height() == 0)
       assert(chain.getBlock(1).get.id == block1.id)
