@@ -280,10 +280,15 @@ class Node(val settings: ApexSettings, config: Config)
 
   private def processBlockMessage(msg: BlockMessage) = {
     log.debug(s"received a block #${msg.block.height} (${msg.block.shortId})")
-    if (chain.tryInsertBlock(msg.block, true)) {
+    if (msg.block.height() >= chain.getConfirmedHeight()) {
+      // minor fork chain, do nothing, should disconnect peer
+      log.info(s"received minor fork block, do nothing, ${msg.block.height} ${msg.block.shortId} by ${msg.block.producer.shortAddr}")
+    }
+    else if (chain.tryInsertBlock(msg.block, true)) {
       peerHandlerManager ! InventoryMessage(new InventoryPayload(InventoryType.Block, Seq(msg.block.id())))
       log.info(s"success insert block #${msg.block.height} ${msg.block.shortId} by ${msg.block.producer.shortAddr} ")
-    } else {
+    }
+    else {
       log.error(s"failed insert block #${msg.block.height}, ${msg.block.shortId} by ${msg.block.producer.shortAddr} to db")
       if (!chain.containsBlock(msg.block.id)) {
         // out of sync, or there are fork chains,  to get more blocks
@@ -294,17 +299,24 @@ class Node(val settings: ApexSettings, config: Config)
   }
 
   private def processBlocksMessage(msg: BlocksMessage) = {
+    var isMinorForkChain = false
     log.info(s"received ${msg.blocks.blocks.size} blocks, first is ${msg.blocks.blocks.head.height} ${msg.blocks.blocks.head.shortId}")
     msg.blocks.blocks.foreach(block => {
-      if (chain.tryInsertBlock(block, true)) {
+      if (block.height() >= chain.getConfirmedHeight()) {
+        // minor fork chain, do nothing, should disconnect peer
+        isMinorForkChain = true
+        log.info(s"received minor fork block, do nothing, ${block.height} ${block.shortId} by ${block.producer.shortAddr}")
+      }
+      else if (chain.tryInsertBlock(block, true)) {
         log.info(s"success insert block #${block.height} (${block.shortId}) by ${block.producer.shortAddr}")
         // no need to send INV during sync
         //peerHandlerManager ! InventoryMessage(new Inventory(InventoryType.Block, Seq(block.id())))
-      } else {
+      }
+      else {
         log.debug(s"failed insert block #${block.height}, (${block.shortId}) by ${block.producer.shortAddr} to db")
       }
     })
-    if (msg.blocks.blocks.size > 1)
+    if (msg.blocks.blocks.size > 1 && isMinorForkChain == false) // continue get more following blocks
       sender() ! GetBlocksMessage(new GetBlocksPayload(Seq(msg.blocks.blocks.last.id), UInt256.Zero)).pack
   }
 

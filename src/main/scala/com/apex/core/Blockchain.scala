@@ -139,9 +139,9 @@ class Blockchain(chainSettings: ChainSettings,
     forkBase.head.map(_.block.header).getOrElse(genesisBlock.header)
   }
 
-  def getConfirmedHeader(): Option[BlockHeader] = {
-    blockBase.head()
-  }
+  def getConfirmedHeader(): BlockHeader = blockBase.head().get
+
+  def getConfirmedHeight(): Long = getConfirmedHeader.index
 
   def headTimeSinceGenesis(): Long = {
     getLatestHeader.timeStamp - genesisBlock.header.timeStamp
@@ -494,7 +494,7 @@ class Blockchain(chainSettings: ChainSettings,
         dataBase.startSession()
 
       for (tx <- block.transactions if applied) {
-        applied = applyTransaction(tx, block.header.producer, Long.MaxValue, block.header.timeStamp, block.height()).added
+        applied = applyTransaction(tx, block.producer, Long.MaxValue, block.header.timeStamp, block.height()).added
       }
 
       if (enableSession && !applied)

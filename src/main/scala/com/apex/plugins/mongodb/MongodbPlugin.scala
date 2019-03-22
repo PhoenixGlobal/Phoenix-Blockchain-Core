@@ -94,7 +94,7 @@ class MongodbPlugin(settings: ApexSettings)
       "blockHash" -> block.id().toString,
       "timeStamp" -> BsonDateTime(block.timeStamp()),
       "prevBlock" -> block.prev().toString,
-      "producer" -> block.header.producer.address,
+      "producer" -> block.producer.address,
       "producerSig" -> block.header.producerSig.toString,
       "version" -> block.header.version,
       "merkleRoot" -> block.header.merkleRoot.toString,

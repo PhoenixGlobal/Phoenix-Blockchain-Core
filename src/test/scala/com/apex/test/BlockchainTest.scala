@@ -476,12 +476,12 @@ class BlockchainTest {
       val block4 = makeBlockByTime(chain, block3, time5)
       assert(chain.tryInsertBlock(block4, true)) // a
 
-      assert(chain.getConfirmedHeader().get.id() == block1.get.id())
+      assert(chain.getConfirmedHeader().id() == block1.get.id())
 
       val block5 = makeBlockByTime(chain, block4, time6)
       assert(chain.tryInsertBlock(block5, true)) // b
 
-      assert(chain.getConfirmedHeader().get.id() == block2.id())
+      assert(chain.getConfirmedHeader().id() == block2.id())
       assert(chain.getHeight() == 5)
       assert(chain.getLatestHeader().id() == block5.id())
 
@@ -505,13 +505,13 @@ class BlockchainTest {
       assert(chain.tryInsertBlock(block7, true))
 
       assert(chain.getLatestHeader().id() == block7.id())
-      assert(chain.getConfirmedHeader().get.id() == block3.id())
+      assert(chain.getConfirmedHeader().id() == block3.id())
 
       val block8 = makeBlockByTime(chain, block7, time11) // c
       assert(chain.tryInsertBlock(block8, true))
 
       assert(chain.getHeight() == 8)
-      assert(chain.getConfirmedHeader().get.id() == block3.id())
+      assert(chain.getConfirmedHeader().id() == block3.id())
 
       val block9 = makeBlockByTime(chain, block8, time13) // a
       assert(chain.tryInsertBlock(block9, true))
@@ -519,12 +519,12 @@ class BlockchainTest {
       val block10 = makeBlockByTime(chain, block9, time14) // b
       assert(chain.tryInsertBlock(block10, true))
 
-      assert(chain.getConfirmedHeader().get.id() == block7.id())
+      assert(chain.getConfirmedHeader().id() == block7.id())
 
       val block11 = makeBlockByTime(chain, block10, time15) // c
       assert(chain.tryInsertBlock(block11, true))
 
-      assert(chain.getConfirmedHeader().get.id() == block8.id())
+      assert(chain.getConfirmedHeader().id() == block8.id())
 
       assert(chain.getHeight() == 11)
 
@@ -588,21 +588,21 @@ class BlockchainTest {
       val block9999 = makeBlockByTime(chain, block3, time5)
       assert(chain.tryInsertBlock(block9999, true)) // a
 
-      assert(chain.getConfirmedHeader().get.id() == block1.get.id())
+      assert(chain.getConfirmedHeader().id() == block1.get.id())
       assert(chain.getHeight() == 4)
       assert(chain.getLatestHeader().id() == block9999.id())
 
       val block4 = makeBlockByTime(chain, block3, time4)
       assert(chain.tryInsertBlock(block4, true)) // d
 
-      assert(chain.getConfirmedHeader().get.id() == block1.get.id())
+      assert(chain.getConfirmedHeader().id() == block1.get.id())
       assert(chain.getHeight() == 4)
       assert(chain.getLatestHeader().id() == block9999.id())
 
       val block5 = makeBlockByTime(chain, block4, time7)
       assert(chain.tryInsertBlock(block5, true)) // c
 
-      assert(chain.getConfirmedHeader().get.id() == block1.get.id())
+      assert(chain.getConfirmedHeader().id() == block1.get.id())
       assert(chain.getHeight() == 5)
       assert(chain.getLatestHeader().id() == block5.id())
 
@@ -610,14 +610,14 @@ class BlockchainTest {
       val block6 = makeBlockByTime(chain, block5, time8)
       assert(chain.tryInsertBlock(block6, true)) // d
 
-      assert(chain.getConfirmedHeader().get.id() == block1.get.id())
+      assert(chain.getConfirmedHeader().id() == block1.get.id())
       assert(chain.getHeight() == 6)
       assert(chain.getLatestHeader().id() == block6.id())
 
       val block7 = makeBlockByTime(chain, block6, time9)
       assert(chain.tryInsertBlock(block7, true)) // a
 
-      assert(chain.getConfirmedHeader().get.id() == block4.id())
+      assert(chain.getConfirmedHeader().id() == block4.id())
       assert(chain.getHeight() == 7)
       assert(chain.getLatestHeader().id() == block7.id())
     }

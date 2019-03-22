@@ -123,7 +123,6 @@ case class ConsensusSettings(produceInterval: Int,
     initialWitness.foreach(w => {
       os.writeBytes(w.name)
       os.writeBytes(w.pubkeyHash.toString)
-      // do not include privkey
     })
     hash256(bs.toByteArray)
   }
