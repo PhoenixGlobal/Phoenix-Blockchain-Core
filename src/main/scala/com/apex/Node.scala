@@ -280,7 +280,7 @@ class Node(val settings: ApexSettings, config: Config)
 
   private def processBlockMessage(msg: BlockMessage) = {
     log.debug(s"received a block #${msg.block.height} (${msg.block.shortId})")
-    if (msg.block.height() >= chain.getConfirmedHeight()) {
+    if (msg.block.height() <= chain.getConfirmedHeight()) {
       // minor fork chain, do nothing, should disconnect peer
       log.info(s"received minor fork block, do nothing, ${msg.block.height} ${msg.block.shortId} by ${msg.block.producer.shortAddr}")
     }
@@ -302,7 +302,7 @@ class Node(val settings: ApexSettings, config: Config)
     var isMinorForkChain = false
     log.info(s"received ${msg.blocks.blocks.size} blocks, first is ${msg.blocks.blocks.head.height} ${msg.blocks.blocks.head.shortId}")
     msg.blocks.blocks.foreach(block => {
-      if (block.height() >= chain.getConfirmedHeight()) {
+      if (block.height() <= chain.getConfirmedHeight()) {
         // minor fork chain, do nothing, should disconnect peer
         isMinorForkChain = true
         log.info(s"received minor fork block, do nothing, ${block.height} ${block.shortId} by ${block.producer.shortAddr}")
