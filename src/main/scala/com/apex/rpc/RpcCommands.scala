@@ -44,6 +44,8 @@ object GetBlockCountResult {
 
 case class GetLatesBlockInfoCmd() extends RPCCommand
 
+case class GetAverageCmd() extends RPCCommand
+
 case class GetAccountCmd(address: UInt160) extends RPCCommand
 
 object GetAccountCmd {

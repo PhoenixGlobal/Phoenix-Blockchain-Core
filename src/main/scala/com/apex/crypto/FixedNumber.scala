@@ -44,6 +44,8 @@ case class FixedNumber(value: BigInt = 0) extends Serializable {
 
   def *(that: BigInt): FixedNumber = FixedNumber(value * that)
 
+  def /(that: BigInt): FixedNumber = FixedNumber(value / that)
+
   def >(that: FixedNumber): Boolean = value > that.value
 
   def >(that: BigInt): Boolean = value > that

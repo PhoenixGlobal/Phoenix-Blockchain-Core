@@ -17,8 +17,8 @@ import com.apex.crypto.UInt256
 import com.apex.network._
 import com.apex.network.peer.PeerHandlerManager.ReceivableMessages.ReceivedPeers
 import com.apex.network.peer.PeerHandlerManagerRef
-import com.apex.rpc.{ExecResult, _}
-import com.apex.plugins.mongodb.MongodbPluginRef
+import com.apex.rpc.{_}
+import com.apex.plugins.mongodb.{GasPricePluginRef, MongodbPluginRef}
 import com.apex.settings.ApexSettings
 import com.apex.utils.NetworkTimeProvider
 import com.typesafe.config.Config
@@ -84,8 +84,13 @@ class Node(val settings: ApexSettings, config: Config)
   if (settings.miner.privKeys.size > 0) {
     val producer = ProducerRef(settings)
   }
+
   if (settings.rpc.enabled) {
-    RpcServer.run(settings, config, self)
+    if (settings.plugins.mongodb.enabled) {
+      val gasPricePlugin = GasPricePluginRef(settings)
+      notification.register(gasPricePlugin)
+      RpcServer.run(settings, config, self, gasPricePlugin)
+    }else RpcServer.run(settings, config, self, null)
   }
 
   override def receive: Receive = {

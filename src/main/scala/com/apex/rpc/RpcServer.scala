@@ -37,7 +37,8 @@ object RpcServer extends ApexLogging {
 
   private var bindingFuture: Future[Http.ServerBinding] = _
 
-  def run(settings: ApexSettings, config: Config, nodeRef: ActorRef) = {
+  def run(settings: ApexSettings, config: Config, nodeRef: ActorRef, gasPricePlugin: ActorRef) = {
+
     system = ActorSystem("RPC", config)
     materializer = ActorMaterializer()
     dispatcher = getDispatcher("apex.actor.rpc-dispatcher")
@@ -283,6 +284,16 @@ object RpcServer extends ApexLogging {
                   complete(HttpEntity(ContentTypes.`application/json`, error400Res()))
                 }
               }
+            }
+          }
+        } ~
+        path("getAverageGasPrice") {
+          post {
+            entity(as[String]) { _ =>
+              val f = (gasPricePlugin ? GetAverageCmd)
+                .mapTo[String]
+                .map(s => sussesRes(s))
+              complete(f)
             }
           }
         }
