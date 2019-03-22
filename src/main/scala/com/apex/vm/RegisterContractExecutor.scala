@@ -1,8 +1,9 @@
 package com.apex.vm
 
-import com.apex.consensus.RegisterData
+import com.apex.consensus.{RegisterData, WitnessInfo}
 import com.apex.core.{DataBase, OperationType, Transaction, TransactionType}
 import com.apex.crypto.{FixedNumber, UInt160}
+import com.apex.settings.Witness
 
 object RegisterContractExecutor {
   import OperationChecker._
@@ -13,6 +14,7 @@ object RegisterContractExecutor {
             .isNotGenesisWitness()
             .isAccountBalanceEnough(track, registerSpend)
             .isRegisterWitnessExist(track)
+            .isUnRegisterWitnessExistInDb(track)
             .isCancelWitnessNotExist(track)
             .isCancelWitnessGenesis(track)
             .processReq(track, registerSpend, tx, timeStamp)
@@ -59,8 +61,19 @@ object RegisterContractExecutor {
     def isRegisterWitnessExist(track: DataBase): RegisterContractContext = {
       errorDetected {
         val witness = track.getWitness(registerData.registerAccount)
-        if (witness.isDefined && registerData.operationType == OperationType.register) {
-          setResult(false, ("register witness has already exist").getBytes)
+        if (witness.isDefined && registerData.operationType == OperationType.register && witness.get.register) {
+          setResult(false, ("register witness has already be registered").getBytes)
+        }
+      }
+      this
+    }
+
+    //if a witness exists in witness db, it cannot be registered later.
+    def isUnRegisterWitnessExistInDb(track: DataBase): RegisterContractContext = {
+      errorDetected {
+        val witness = track.getWitness(registerData.registerAccount)
+        if (witness.isDefined && registerData.operationType == OperationType.resisterCancel && !witness.get.register) {
+          setResult(false, ("the witness you unregister has already be unregistered in db").getBytes)
         }
       }
       this
@@ -109,14 +122,17 @@ object RegisterContractExecutor {
       val scheduleTx = new Transaction(TransactionType.Refund, tx.toPubKeyHash, tx.from,
         FixedNumber(registerSpend.value), tx.nonce, tx.id.data, tx.gasPrice, tx.gasLimit, tx.signature, tx.version, time)
       track.setScheduleTx(scheduleTx.id, scheduleTx)
+      val updatedWitness = registerData.registerInfo.copy(register = false)
+      track.createWitness(updatedWitness)
       //RegisterFeeScheduleActor(track, registerData, registerSpend)
-      track.deleteWitness(registerData.registerAccount)
+      //track.deleteWitness(registerData.registerAccount)
     }
 
     private def registerWitness(track: DataBase, registerSpend: FixedNumber) = {
       track.addBalance(registerData.registerAccount, -registerSpend.value)
       track.addBalance(new UInt160(PrecompiledContracts.registerNodeAddr.getLast20Bytes), registerSpend.value)
-      track.createWitness(registerData.registerInfo)
+      val witnessInfo = registerData.registerInfo.copy(register = true)
+      track.createWitness(witnessInfo)
     }
 
     def returnResult(): (Boolean, Array[Byte]) = {

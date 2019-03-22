@@ -9,7 +9,9 @@ import java.time.Instant
 
 import com.apex.consensus.{ProducerUtil, VoteData}
 import com.apex.core.{OperationType, Transaction, TransactionType}
+import com.apex.crypto.Ecdsa.PrivateKey
 import com.apex.crypto.{BinaryData, FixedNumber, UInt160}
+import com.apex.settings.MinerSettings
 import com.apex.vm.{DataWord, PrecompiledContracts}
 import org.bouncycastle.math.ec.FixedPointUtil
 import org.junit.{AfterClass, Test}
@@ -30,6 +32,51 @@ class VoteContractTest extends RegisterContractTest {
       And.checkAccount()
       When.makeRegisterTransaction()(checkRegisterSuccess)
       When.makeVoteTransaction(nonce = 2)(checkVoteSuccess)
+    }
+    finally {
+      chain.close()
+    }
+  }
+
+  @Test
+  def testVoteFailWhenWitnessUnregisteredInDb():Unit = {
+    try {
+      val baseDir = "VoteContractTest/testVoteFailWhenWitnessUnregisteredInDb"
+      Given.createChain(baseDir){}
+      When.produceBlock()
+      Then.checkTx()
+      And.checkAccount()
+      When.makeRegisterTransaction()(checkRegisterSuccess)
+      When.makeVoteTransaction(nonce = 2)(checkVoteSuccess)
+      val witness = chain.getWitness(_acct3.publicKey.pubKeyHash).get.copy(register = false)
+      chain.setWitness(witness)
+      When.When.makeVoteTransaction(nonce = 3){
+        tx => {
+          assert(chain.addTransaction(tx))}}
+    }
+    finally {
+      chain.close()
+    }
+  }
+
+  @Test
+  def testCancelVoteSuccessWhenWitnessUnregisteredInDb():Unit = {
+    try {
+      val baseDir = "VoteContractTest/testCancelVoteSuccessWhenWitnessUnregisteredInDb"
+      Given.createChain(baseDir){}
+      When.produceBlock()
+      Then.checkTx()
+      And.checkAccount()
+      When.makeRegisterTransaction()(checkRegisterSuccess)
+      When.makeVoteTransaction(nonce = 2)(checkVoteSuccess)
+      val witness = chain.getWitness(_acct3.publicKey.pubKeyHash).get.copy(register = false)
+      chain.setWitness(witness)
+      When.When.makeVoteTransaction(OperationType.register, nonce = 3, counter = FixedNumber.fromDecimal(0.5)){
+        tx => {
+          assert(chain.addTransaction(tx))
+          chain.getVote(_acct1.publicKey.pubKeyHash).get.targetMap(_acct3.publicKey.pubKeyHash) == FixedNumber.fromDecimal(0.5)
+          chain.getWitness(_acct3.publicKey.pubKeyHash).get.voteCounts == FixedNumber.fromDecimal(0.5)
+        }}
     }
     finally {
       chain.close()
@@ -176,9 +223,9 @@ class VoteContractTest extends RegisterContractTest {
         val witness = chain.getWitness(_acct4.publicKey.pubKeyHash)
         assert(witness.isDefined)
         assert(witness.get.name == "node 2")
-        assert(chain.getBalance(_acct4).get == FixedNumber.fromDecimal(BigDecimal("2.999999999999975504")))
+        assert(chain.getBalance(_acct4).get == FixedNumber.fromDecimal(BigDecimal("2.999999999999975436")))
         val balance = chain.getBalance(_acct4).get
-        assert(chain.getBalance(_acct4).get == FixedNumber.fromDecimal(3) - FixedNumber(24496))
+        assert(chain.getBalance(_acct4).get == FixedNumber.fromDecimal(3) - FixedNumber(24564))
       })
       When.makeVoteTransaction(nonce = 3, candidate = _acct4.publicKey.pubKeyHash)(tx => {
         assert(chain.addTransaction(tx))
@@ -192,6 +239,41 @@ class VoteContractTest extends RegisterContractTest {
       chain.close()
     }
   }
+
+//  //vote two target respectively success
+//  @Test
+//  def testVoteTwoTargetSuccess2():Unit = {
+//    try {
+//      val baseDir = "VoteContractTest/testVoteTwoTargetSuccess2"
+//      Given.createChain(baseDir){
+//        assert(chain.getProducers("active").witnesses.size == 4)
+//      }
+//      When.produceBlock()
+//      Then.checkTx()
+//      And.checkAccount()
+//      When.makeRegisterTransaction()(checkRegisterSuccess)
+//      When.makeVoteTransaction(nonce = 2)(checkVoteSuccess)
+//      When.makeRegisterTransaction(account = _acct4.publicKey.pubKeyHash, name = "node 2")(tx => {
+//        assert(chain.addTransaction(tx))
+//        val witness = chain.getWitness(_acct4.publicKey.pubKeyHash)
+//        assert(witness.isDefined)
+//        assert(witness.get.name == "node 2")
+//        assert(chain.getBalance(_acct4).get == FixedNumber.fromDecimal(BigDecimal("2.999999999999975436")))
+//        val balance = chain.getBalance(_acct4).get
+//        assert(chain.getBalance(_acct4).get == FixedNumber.fromDecimal(3) - FixedNumber(24564))
+//      })
+//      When.makeVoteTransaction(nonce = 3, candidate = _acct4.publicKey.pubKeyHash)(tx => {
+//        assert(chain.addTransaction(tx))
+//        assert(chain.getVote(_acct1.publicKey.pubKeyHash).get
+//          .targetMap.sameElements(scala.collection.mutable.Map(_acct3.publicKey.pubKeyHash -> FixedNumber.One,
+//          _acct4.publicKey.pubKeyHash -> FixedNumber.One)))
+//        assert(chain.getBalance(new UInt160(PrecompiledContracts.voteAddr.getLast20Bytes)).get == FixedNumber(FixedNumber.One.value * 2))
+//      })
+//    }
+//    finally {
+//      chain.close()
+//    }
+//  }
 
   //vote a target to witness list and cancel it successfully
   @Test
@@ -292,14 +374,19 @@ class VoteContractTest extends RegisterContractTest {
     val witness = chain.getWitness(_acct3.publicKey.pubKeyHash)
     assert(witness.isDefined)
     assert(witness.get.name == "register node1")
-    assert(chain.getBalance(_acct3).get == FixedNumber.fromDecimal(BigDecimal("1.999999999999975088")))
+    assert(chain.getBalance(_acct3).get == FixedNumber.fromDecimal(BigDecimal("1.999999999999975020")))
     val account = chain.getBalance(_acct1).get
     assert(account == FixedNumber.fromDecimal(BigDecimal("119.119999999999935144")))
-    assert(chain.getBalance(_acct3).get == (FixedNumber.fromDecimal(2) - FixedNumber(24912)))
+    assert(chain.getBalance(_acct3).get == (FixedNumber.fromDecimal(2) - FixedNumber(24980)))
 
     assert(account == (FixedNumber.fromDecimal(119.12) - FixedNumber(22856) - FixedNumber(42000)))
     assert(chain.getVote(_acct1.publicKey.pubKeyHash).get.targetMap.get(_acct3.publicKey.pubKeyHash).get == FixedNumber.One)
     assert(chain.getBalance(new UInt160(PrecompiledContracts.voteAddr.getLast20Bytes)).get == FixedNumber.One)
+
+    val currentWitness = chain.getProducers("active").witnesses
+    assert(currentWitness.length == 4)
+//    assert(chain.getProducers("all").witnesses.length == 6)
+    //assert(currentWitness.contains())
   }
 
 

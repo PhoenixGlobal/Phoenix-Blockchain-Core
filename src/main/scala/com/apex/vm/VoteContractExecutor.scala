@@ -13,6 +13,7 @@ object VoteContractExecutor {
     voteData.isVoterRequestValid()
       .isAccountBalanceEnough(track, tx)
       .isVoteWitnessExist(track)
+      .isVoteWitnessExistAndRegistered(track)
       .isCancelWitnessExistInVoterTargetMap(track, tx)
       .isVoterExist(track, tx)
       .voterCancelWitnessCounterInvalid(track, tx)
@@ -51,6 +52,17 @@ object VoteContractExecutor {
         val witness = track.getWitness(voteData.candidate)
         if(witness.isEmpty && voteData.operationType == OperationType.register){
           setResult(false, ("vote target must be in witness list").getBytes)
+        }
+      }
+      this
+    }
+
+    //check voter target exists in witness db and register field is true
+    def isVoteWitnessExistAndRegistered(track: DataBase): VoteContractContext = {
+      errorDetected{
+        val witness = track.getWitness(voteData.candidate)
+        if(witness.isDefined && voteData.operationType == OperationType.register && !witness.get.register){
+          setResult(false, ("voter target exists in witness db but is unregistered so can not be vote").getBytes)
         }
       }
       this

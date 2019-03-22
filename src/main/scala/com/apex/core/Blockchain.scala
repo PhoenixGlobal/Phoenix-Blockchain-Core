@@ -385,7 +385,7 @@ class Blockchain(chainSettings: ChainSettings,
     // will not get mPendingWitnessList
   }
 
-  private def checkUpdateWitnessList(curblock: Block) = {
+private def checkUpdateWitnessList(curblock: Block) = {
     val pendingWitnessList = mPendingWitnessList.get
     if (blockIsConfirmed(pendingWitnessList.generateInBlock) &&
       isLastBlockOfProducer(curblock.timeStamp()) &&
@@ -393,7 +393,7 @@ class Blockchain(chainSettings: ChainSettings,
 
       log.info(s"block ${curblock.height()} applied, it's time to electe new producers")
       val currentWitness = mCurWitnessList.get
-      val allWitnesses = dataBase.getAllWitness()
+      val allWitnesses = dataBase.getAllWitness().filter(_.register)
       new WitnessList(allWitnesses.toArray, UInt256.Zero).logInfo("current all Witness")
       currentWitness.logInfo("setPreviousWitnessList")
       dataBase.setPreviousWitnessList(currentWitness)
@@ -434,6 +434,53 @@ class Blockchain(chainSettings: ChainSettings,
       mCurWitnessList = dataBase.getCurrentWitnessList()
       mPendingWitnessList = dataBase.getPendingWitnessList()
     }
+  }
+
+  def updateWitnessList(curblock: Block): Unit ={
+    val pendingWitnessList = mPendingWitnessList.get
+
+    log.info("it's time to electe new producers")
+    val currentWitness = mCurWitnessList.get
+    val allWitnesses = dataBase.getAllWitness().filter(_.register)
+    new WitnessList(allWitnesses.toArray, UInt256.Zero).logInfo("current all Witness")
+    currentWitness.logInfo("setPreviousWitnessList")
+    dataBase.setPreviousWitnessList(currentWitness)
+    mPrevWitnessList = dataBase.getPreviousWitnessList()
+    //      val allWitnessesMap: Map[UInt160, WitnessInfo] = allWitnesses.map(w => w.addr -> w).toMap
+    val updatedCurrentWitness = ArrayBuffer.empty[WitnessInfo]
+    currentWitness.witnesses.foreach(oldInfo => {
+      val newInfo = allWitnesses.find(_.addr == oldInfo.addr)
+      if (newInfo.isDefined)
+        updatedCurrentWitness.append(newInfo.get)
+    })
+
+    require(updatedCurrentWitness.size <= consensusSettings.witnessNum)
+
+    var newElectedWitnesses = mutable.Map.empty[UInt160, WitnessInfo]
+    if (updatedCurrentWitness.size == consensusSettings.witnessNum)
+      newElectedWitnesses = WitnessList.removeLeastVote(updatedCurrentWitness.toArray)
+    else
+      newElectedWitnesses = mutable.Map(updatedCurrentWitness.map(w => w.addr -> w).toMap.toSeq: _*)
+
+    require(newElectedWitnesses.size < consensusSettings.witnessNum)
+
+    val allWitnessesSorted = WitnessList.sortByVote(allWitnesses.toArray)
+    val allWitnessIterator = allWitnessesSorted.iterator
+    while (allWitnessIterator.hasNext && newElectedWitnesses.size < consensusSettings.witnessNum) {
+      val witness = allWitnessIterator.next()
+      if (!newElectedWitnesses.contains(witness.addr))
+        newElectedWitnesses.update(witness.addr, witness)
+    }
+    require(newElectedWitnesses.size == consensusSettings.witnessNum)
+
+    pendingWitnessList.logInfo("setCurrentWitnessList")
+    dataBase.setCurrentWitnessList(pendingWitnessList)
+    val newPending = WitnessList.create(newElectedWitnesses.toArray.map(_._2), curblock.id)
+    newPending.logInfo("setPendingWitnessList")
+    dataBase.setPendingWitnessList(newPending)
+
+    mCurWitnessList = dataBase.getCurrentWitnessList()
+    mPendingWitnessList = dataBase.getPendingWitnessList()
   }
 
   private def applyBlock(block: Block, verify: Boolean = true, enableSession: Boolean = true): Boolean = {
@@ -675,6 +722,10 @@ class Blockchain(chainSettings: ChainSettings,
     dataBase.getWitness(address)
   }
 
+  def setWitness(witnessInfo: WitnessInfo){
+    dataBase.createWitness(witnessInfo)
+  }
+
   def getScheduleTx(): ArrayBuffer[Transaction] = {
     dataBase.getAllScheduleTx()
   }
@@ -701,7 +752,7 @@ class Blockchain(chainSettings: ChainSettings,
         witnesses.append(initWitness)
         dataBase.createWitness(initWitness)
       })
-      require(dataBase.getAllWitness().size == consensusSettings.witnessNum)
+      require(dataBase.getAllWitness().count(_.register) == consensusSettings.witnessNum)
       val witnessList = WitnessList.create(witnesses.toArray, genesisBlock.id())
       require(witnessList.witnesses.size == consensusSettings.witnessNum)
       dataBase.setPreviousWitnessList(witnessList)

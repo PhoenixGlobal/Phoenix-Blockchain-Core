@@ -87,7 +87,7 @@ object WitnessList {
   def removeLeastVote(witnesses: Array[WitnessInfo]): mutable.Map[UInt160, WitnessInfo] = {
     val newWitnesses = mutable.Map.empty[UInt160, WitnessInfo]
     val sorted = sortByVote(witnesses)
-    for (i <- 0 to sorted.size - 2) {
+    for (i <- 0 to sorted.length - 2) {
       val w = sorted(i)
       newWitnesses.update(w.addr, w)
     }

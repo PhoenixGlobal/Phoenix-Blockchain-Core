@@ -36,6 +36,26 @@ class RegisterContractTest extends BlockChainPrepare{
     }
   }
 
+  @Test
+  def testRegisterFailIfWitnessUnregisteredInDb(){
+    try {
+      val baseDir = "RegisterContractTest/testRegisterFailIfWitnessUnregisteredInDb"
+      Given.createChain(baseDir){}
+      When.produceBlock()
+      Then.checkTx()
+      And.checkAccount()
+      When.makeRegisterTransaction()(checkRegisterSuccess)
+      val witness = chain.getWitness(_acct3.publicKey.pubKeyHash).get.copy(register = false)
+      chain.setWitness(witness)
+      When.makeRegisterTransaction(OperationType.resisterCancel, 1){
+        tx => {
+          assert(chain.addTransaction(tx))}}
+    }
+    finally {
+      chain.close()
+    }
+  }
+
   //register address must be same as transaction from address
   @Test
   def testRegisterAccountNotEqualTxFromAccount(){
@@ -126,10 +146,11 @@ class RegisterContractTest extends BlockChainPrepare{
         tx => {
           assert(chain.addTransaction(tx))
           val witness = chain.getWitness(_acct3.publicKey.pubKeyHash)
-          assert(witness.isEmpty)
+          assert(witness.isDefined)
+          assert(!witness.get.register)
 
           assert(chain.getScheduleTx().size == 2)
-          assert(chain.getBalance(_acct3).get == FixedNumber.fromDecimal(2) - FixedNumber(49888))
+          assert(chain.getBalance(_acct3).get == FixedNumber.fromDecimal(2) - FixedNumber(50024))
           assert(chain.getBalance(new UInt160(PrecompiledContracts.registerNodeAddr.getLast20Bytes)).get == FixedNumber.One)
         }
       }
@@ -260,7 +281,7 @@ class RegisterContractTest extends BlockChainPrepare{
     assert(witness.isDefined)
     assert(witness.get.name == "register node1")
 //    val fixedNumber = FixedNumber(24912)
-    assert(chain.getBalance(_acct3).get == (FixedNumber.fromDecimal(2) - FixedNumber(24912)))
+    assert(chain.getBalance(_acct3).get == (FixedNumber.fromDecimal(2) - FixedNumber(24980)))
     assert(chain.getBalance(new UInt160(PrecompiledContracts.registerNodeAddr.getLast20Bytes)).get == FixedNumber.One)
   }
 
