@@ -37,24 +37,6 @@ class PendingState {
   }
 }
 
-case class TxEntry(tx: Transaction,
-                   firstSeenTime: Long = 0) extends Ordered[TxEntry] {
-  override def compare(that: TxEntry): Int = {
-    var ret = 1
-    if (tx.id == that.tx.id)
-      ret = 0
-    else if (tx.from == that.tx.from) {
-      if (tx.nonce < that.tx.nonce)
-        ret = -1
-    }
-    else if (tx.gasPrice > that.tx.gasPrice)
-      ret = -1
-    else if (firstSeenTime < that.firstSeenTime) // currently not used
-      ret = -1
-    ret
-  }
-}
-
 case class AddTxResult(added: Boolean, result: String)
 
 object AddTxResult {
@@ -99,9 +81,7 @@ class Blockchain(chainSettings: ChainSettings,
 
   private val genesisBlock: Block = buildGenesisBlock()
 
-  private val unapplyTxs = mutable.LinkedHashMap.empty[UInt256, Transaction]
-
-  private val unapplyTxsSorted = mutable.SortedSet.empty[TxEntry]
+  private val txPool = new TransactionPool()
 
   private var timeoutTx: Option[Transaction] = None
 
@@ -206,7 +186,7 @@ class Blockchain(chainSettings: ChainSettings,
   }
 
   def getTransactionFromMempool(txid: UInt256): Option[Transaction] = {
-    pendingState.txs.find(tx => tx.id().equals(txid)).orElse(unapplyTxs.get(txid))
+    pendingState.txs.find(tx => tx.id().equals(txid)).orElse(txPool.get(txid))
   }
 
   def getTransactionFromPendingTxs(txid: UInt256): Option[Transaction] = {
@@ -214,7 +194,7 @@ class Blockchain(chainSettings: ChainSettings,
   }
 
   def getTransactionFromUnapplyTxs(txid: UInt256): Option[Transaction] = {
-    unapplyTxs.get(txid)
+    txPool.get(txid)
   }
 
   def startProduceBlock(producerPrivKey: PrivateKey, blockTime: Long, stopProcessTxTime: Long): Unit = {
@@ -254,9 +234,9 @@ class Blockchain(chainSettings: ChainSettings,
     val badTxs = ArrayBuffer.empty[Transaction]
 
     // unapplyTxsSortedSet only need updated here
-    unapplyTxsSorted.clear()
-    unapplyTxs.foreach(p => unapplyTxsSorted.add(TxEntry(p._2))) // todo: improve: use quick sort
-    unapplyTxsSorted.foreach(p => {
+    txPool.unapplyTxsSorted.clear()
+    txPool.unapplyTxsMap.foreach(p => txPool.unapplyTxsSorted.add(TxEntry(p._2))) // todo: improve: use quick sort
+    txPool.unapplyTxsSorted.foreach(p => {
       if (Instant.now.toEpochMilli < stopProcessTxTime) {
         if (applyTransaction(p.tx, producer, stopProcessTxTime, blockTime, forkHead.block.height + 1).added)
           pendingState.txs.append(p.tx)
@@ -264,8 +244,8 @@ class Blockchain(chainSettings: ChainSettings,
           badTxs.append(p.tx)
       }
     })
-    pendingState.txs.foreach(tx => unapplyTxs.remove(tx.id))
-    badTxs.foreach(tx => unapplyTxs.remove(tx.id))
+    pendingState.txs.foreach(tx => txPool.remove(tx))
+    badTxs.foreach(tx => txPool.remove(tx))
   }
 
   def isProducingBlock(): Boolean = {
@@ -273,8 +253,8 @@ class Blockchain(chainSettings: ChainSettings,
   }
 
   private def addTransactionToUnapplyTxs(tx: Transaction): AddTxResult = {
-    if (!unapplyTxs.contains(tx.id)) {
-      unapplyTxs += (tx.id -> tx)
+    if (!txPool.contains(tx)) {
+      txPool.add(tx)
       AddTxResult(true, "added to mempool, pending process")
     }
     else
@@ -345,7 +325,7 @@ class Blockchain(chainSettings: ChainSettings,
   private def stopProduceBlock() = {
     pendingState.txs.foreach(tx => {
       if (tx.txType != TransactionType.Miner)
-        unapplyTxs += (tx.id -> tx)
+        txPool.add(tx)
     })
     pendingState.txs.clear()
     pendingState.isProducingBlock = false
@@ -386,7 +366,7 @@ class Blockchain(chainSettings: ChainSettings,
     }
     if (inserted) {
       block.transactions.foreach(tx => {
-        unapplyTxs.remove(tx.id)
+        txPool.remove(tx)
         if (timeoutTx.isDefined && timeoutTx.get.id() == tx.id())
           timeoutTx = None
       })
