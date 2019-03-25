@@ -40,7 +40,10 @@ class TransactionPool {
   }
 
   def add(tx: Transaction) = {
-    unapplyTxsMap += (tx.id -> tx)
+    if (!contains(tx)) {
+      unapplyTxsMap += (tx.id -> tx)
+      unapplyTxsSorted.add(TxEntry(tx))
+    }
   }
 
   def contains(tx: Transaction): Boolean = {
@@ -48,7 +51,10 @@ class TransactionPool {
   }
 
   def remove(tx: Transaction) = {
-    unapplyTxsMap.remove(tx.id)
+    if (contains(tx)) {
+      unapplyTxsMap.remove(tx.id)
+      unapplyTxsSorted.remove(TxEntry(tx))
+    }
   }
 
 }

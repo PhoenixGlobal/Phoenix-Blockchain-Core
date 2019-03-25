@@ -66,9 +66,11 @@ class TransactionExecutor(val tx: Transaction,
     }
     if (!isScheduleTx) {
       val reqNonce = track.getNonce(tx.sender())
-      val txNonce = tx.nonce
-      if (reqNonce != txNonce) {
-        execError(s"Invalid nonce: required: $reqNonce , tx.nonce: $txNonce")
+      if (reqNonce != tx.nonce) {
+        if (tx.nonce > reqNonce)
+          execError(s"Invalid nonce: nonce too big, required: $reqNonce, tx.nonce: ${tx.nonce}")
+        else
+          execError(s"Invalid nonce: required: $reqNonce, tx.nonce: ${tx.nonce}")
         return
       }
     }

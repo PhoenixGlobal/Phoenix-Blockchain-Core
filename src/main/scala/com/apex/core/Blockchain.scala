@@ -233,14 +233,12 @@ class Blockchain(chainSettings: ChainSettings,
     }
     val badTxs = ArrayBuffer.empty[Transaction]
 
-    // unapplyTxsSortedSet only need updated here
-    txPool.unapplyTxsSorted.clear()
-    txPool.unapplyTxsMap.foreach(p => txPool.unapplyTxsSorted.add(TxEntry(p._2))) // todo: improve: use quick sort
     txPool.unapplyTxsSorted.foreach(p => {
       if (Instant.now.toEpochMilli < stopProcessTxTime) {
-        if (applyTransaction(p.tx, producer, stopProcessTxTime, blockTime, forkHead.block.height + 1).added)
+        val applyResult = applyTransaction(p.tx, producer, stopProcessTxTime, blockTime, forkHead.block.height + 1)
+        if (applyResult.added)
           pendingState.txs.append(p.tx)
-        else
+        else if (!applyResult.result.contains("nonce too big"))
           badTxs.append(p.tx)
       }
     })
@@ -283,6 +281,8 @@ class Blockchain(chainSettings: ChainSettings,
               pendingState.stopProcessTxTime, pendingState.blockTime, pendingState.blockIndex)
             if (result.added)
               pendingState.txs.append(tx)
+            else if (result.result.contains("nonce too big"))
+              result = addTransactionToUnapplyTxs(tx)
           }
         }
         else
@@ -593,7 +593,7 @@ class Blockchain(chainSettings: ChainSettings,
     else if (originalTx.isDefined)
       applied = AddTxResult(true, "success")
     else
-      applied = AddTxResult(false, "TransactionExecutor error")
+      applied = AddTxResult(false, s"executor error: ${receipt.error}")
 
     if (applied.added) {
       cacheTrack.commit()
