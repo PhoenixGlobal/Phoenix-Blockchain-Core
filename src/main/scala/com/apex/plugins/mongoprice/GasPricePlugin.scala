@@ -29,9 +29,7 @@ class GasPricePlugin(settings: ApexSettings)
     case GetAverageCmd =>{
       sender() ! averageValue.toString
     }
-    case a: Any => {
-      log.info(s"${sender().toString}, ${a.toString}")
-    }
+    case a: Any => {}
   }
 
   def calculateAverage(): Unit ={
