@@ -173,8 +173,10 @@ class Node(val settings: ApexSettings, config: Config)
       case SendRawTransactionCmd(tx) => {
         val sendTx = Try {
           if (tx.verifySignature()) {
-            peerHandlerManager ! InventoryMessage(new InventoryPayload(InventoryType.Tx, Seq(tx.id)))
-            chain.addTransactionEx(tx)
+            val addResult = chain.addTransactionEx(tx)
+            if (addResult.added)
+              broadcastInvMsg(new InventoryPayload(InventoryType.Tx, Seq(tx.id)))
+            addResult
           }
           else
             AddTxResult(false, "verify signature unsuccess")
@@ -290,7 +292,7 @@ class Node(val settings: ApexSettings, config: Config)
       log.info(s"received minor fork block, do nothing, ${msg.block.height} ${msg.block.shortId} by ${msg.block.producer.shortAddr}")
     }
     else if (chain.tryInsertBlock(msg.block, true)) {
-      peerHandlerManager ! InventoryMessage(new InventoryPayload(InventoryType.Block, Seq(msg.block.id())))
+      broadcastInvMsg(new InventoryPayload(InventoryType.Block, Seq(msg.block.id)))
       log.info(s"success insert block #${msg.block.height} ${msg.block.shortId} by ${msg.block.producer.shortAddr} ")
     }
     else {
@@ -315,7 +317,6 @@ class Node(val settings: ApexSettings, config: Config)
       else if (chain.tryInsertBlock(block, true)) {
         log.info(s"success insert block #${block.height} (${block.shortId}) by ${block.producer.shortAddr}")
         // no need to send INV during sync
-        //peerHandlerManager ! InventoryMessage(new Inventory(InventoryType.Block, Seq(block.id())))
       }
       else {
         log.debug(s"failed insert block #${block.height}, (${block.shortId}) by ${block.producer.shortAddr} to db")
@@ -327,12 +328,14 @@ class Node(val settings: ApexSettings, config: Config)
 
   private def processTransactionsMessage(msg: TransactionsMessage) = {
     log.debug(s"received ${msg.txs.txs.size} transactions from network")
-    //producer ! ReceivedNewTransactions(txsPayload.txs)
+    val newTxs = ArrayBuffer.empty[UInt256]
     msg.txs.txs.foreach(tx => {
       if (tx.verifySignature())
-        chain.addTransaction(tx)
+        if (chain.addTransaction(tx))
+          newTxs.append(tx.id)
     })
-    // TODO: for the new txs broadcast INV
+    // for the new txs broadcast INV
+    broadcastInvMsg(new InventoryPayload(InventoryType.Tx, newTxs))
   }
 
   private def processInventoryMessage(msg: InventoryMessage) = {
@@ -354,9 +357,12 @@ class Node(val settings: ApexSettings, config: Config)
       }
     }
     else if (inv.invType == InventoryType.Tx) {
-      // val newTxs = ArrayBuffer.empty[UInt256]
-      // TODO: only request the txs that we don't have
-      sender() ! GetDataMessage(new InventoryPayload(InventoryType.Tx, inv.hashs)).pack
+      val newTxs = ArrayBuffer.empty[UInt256]
+      inv.hashs.foreach(h => {
+        if (chain.getTransactionFromMempool(h).isEmpty)
+          newTxs.append(h)
+      })
+      sender() ! GetDataMessage(new InventoryPayload(InventoryType.Tx, newTxs)).pack
     }
   }
 
@@ -413,6 +419,11 @@ class Node(val settings: ApexSettings, config: Config)
     blockLocatorHashes.append(chain.getHeader(0).get.id)
     log.info(s"send GetBlocksMessage. Current status: ${chain.getHeight()} ${chain.getLatestHeader().shortId}")
     sender() ! GetBlocksMessage(new GetBlocksPayload(blockLocatorHashes, UInt256.Zero)).pack
+  }
+
+  private def broadcastInvMsg(invPayload: InventoryPayload) = {
+    // broadcast to all connected peers
+    peerHandlerManager ! InventoryMessage(invPayload)
   }
 }
 
