@@ -155,6 +155,7 @@ class Node(val settings: ApexSettings, config: Config)
             if (i >= 0)
               blocks.append(chain.getBlock(i).get)
           }
+          blocks
         }
         sender() ! blockList
       }
