@@ -176,6 +176,8 @@ class Node(val settings: ApexSettings, config: Config)
             val addResult = chain.addTransactionEx(tx)
             if (addResult.added)
               broadcastInvMsg(new InventoryPayload(InventoryType.Tx, Seq(tx.id)))
+            else
+              log.error(s"SendRawTransactionCmd addTransaction error, txid=${tx.id.toString}  ${addResult.result}")
             addResult
           }
           else
@@ -330,9 +332,13 @@ class Node(val settings: ApexSettings, config: Config)
     log.debug(s"received ${msg.txs.txs.size} transactions from network")
     val newTxs = ArrayBuffer.empty[UInt256]
     msg.txs.txs.foreach(tx => {
-      if (tx.verifySignature())
-        if (chain.addTransaction(tx))
+      if (tx.verifySignature()) {
+        val addResult = chain.addTransactionEx(tx)
+        if (addResult.added)
           newTxs.append(tx.id)
+        else
+          log.error(s"processTransactionsMessage addTransaction error, txid=${tx.id.toString} ${addResult.result}")
+      }
     })
     // for the new txs broadcast INV
     broadcastInvMsg(new InventoryPayload(InventoryType.Tx, newTxs))
