@@ -16,7 +16,7 @@ class GasPricePlugin(settings: ApexSettings)
   private var averageValue:FixedNumber = FixedNumber.Zero
 
   override def postStop(): Unit = {
-    log.info("mongodb plugin stopped")
+    log.info("gasPrice plugin stopped")
     super.postStop()
   }
 
