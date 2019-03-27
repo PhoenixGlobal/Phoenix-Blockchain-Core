@@ -16,6 +16,7 @@ object Storage {
   def open(dbType: DBType.Value, path: String): lowLevelRaw = {
     dbType match {
       case DBType.LevelDB => LevelDbStorage.open(path)
+      case DBType.RocksDB => RocksDBStorage.open(path)
       case _ => throw new NotImplementedError
     }
   }
