@@ -326,7 +326,8 @@ class Node(val settings: ApexSettings, config: Config)
         log.debug(s"failed insert block #${block.height}, (${block.shortId}) by ${block.producer.shortAddr} to db")
       }
     })
-    if (msg.blocks.blocks.size > 1 && isMinorForkChain == false) // continue get more following blocks
+    // continue get more following blocks
+    if (msg.blocks.blocks.size > 1 && isMinorForkChain == false)
       sender() ! GetBlocksMessage(new GetBlocksPayload(Seq(msg.blocks.blocks.last.id), UInt256.Zero)).pack
   }
 
@@ -412,10 +413,11 @@ class Node(val settings: ApexSettings, config: Config)
 
   private def sendGetBlocksMessage() = {
     var index = chain.getHeight()
+    val confirmedHeight = chain.getConfirmedHeight()
     var step = 1
     var count = 0
     val blockLocatorHashes = ArrayBuffer.empty[UInt256]
-    while (index > 0) {
+    while (index > confirmedHeight) {
       blockLocatorHashes.append(chain.getHeader(index).get.id)
       count += 1
       if (count > 10)
@@ -424,7 +426,7 @@ class Node(val settings: ApexSettings, config: Config)
         step = 7200
       index -= step
     }
-    blockLocatorHashes.append(chain.getHeader(0).get.id)
+    blockLocatorHashes.append(chain.getHeader(confirmedHeight).get.id)
     log.info(s"send GetBlocksMessage. Current status: ${chain.getHeight()} ${chain.getLatestHeader().shortId}")
     sender() ! GetBlocksMessage(new GetBlocksPayload(blockLocatorHashes, UInt256.Zero)).pack
   }
