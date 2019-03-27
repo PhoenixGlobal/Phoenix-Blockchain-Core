@@ -17,7 +17,7 @@ import java.time.Instant
 import com.apex.core.{Block, BlockHeader}
 import com.apex.crypto.Ecdsa.{PrivateKey, PublicKey}
 import com.apex.crypto.{BinaryData, Crypto, UInt160, UInt256}
-import com.apex.storage.LevelDbStorage
+import com.apex.storage.{LevelDbStorage, RocksDBStorage}
 
 import scala.collection.mutable.Map
 import scala.reflect.io.Directory
@@ -70,6 +70,57 @@ object DbManager {
   def clearUp(testClass: String) = {
     dbManagers.get(testClass).foreach(_.cleanUp)
     dbManagers.remove(testClass)
+  }
+}
+
+class RocksDbManager(testClass: String) {
+  private final val rocksDbs = Map.empty[String, RocksDBStorage]
+
+  def openDB(dir: String): RocksDBStorage = {
+    if (!rocksDbs.contains(dir)) {
+      val db = RocksDBStorage.open(s"$testClass/$dir")
+      rocksDbs.put(dir, db)
+    }
+    rocksDbs(dir)
+  }
+
+  def cleanUp: Unit = {
+    rocksDbs.values.foreach(_.close())
+    deleteDir(testClass)
+  }
+
+  private def deleteDir(dir: String): Unit = {
+    try {
+      Directory(dir).deleteRecursively()
+    } catch {
+      case e: Throwable => println(e.getMessage)
+    }
+  }
+}
+
+object RocksDbManager {
+  private final val rocksDbManagers = Map.empty[String, RocksDbManager]
+
+  def open(testClass: String, dir: String): RocksDBStorage = {
+    if (!rocksDbManagers.contains(testClass)) {
+      val dbMgr = new RocksDbManager(testClass)
+      rocksDbManagers.put(testClass, dbMgr)
+    }
+    rocksDbManagers(testClass).openDB(dir)
+  }
+
+  def close(testClass: String, dir: String) = {
+    rocksDbManagers.get(testClass).foreach(dbMgr => {
+      if (dbMgr.rocksDbs.contains(dir)) {
+        dbMgr.rocksDbs(dir).close()
+        dbMgr.rocksDbs.remove(dir)
+      }
+    })
+  }
+
+  def clearUp(testClass: String) = {
+    rocksDbManagers.get(testClass).foreach(_.cleanUp)
+    rocksDbManagers.remove(testClass)
   }
 }
 

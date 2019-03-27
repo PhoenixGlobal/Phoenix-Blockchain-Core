@@ -38,7 +38,7 @@ class RocksDBStorage(db: RocksDB) extends LowLevelStorage[Array[Byte], Array[Byt
     }
   }
 
-  override def set(key: Array[Byte], value: Array[Byte], batch: Batch): Boolean = {
+  override def set(key: Array[Byte], value: Array[Byte], batch: Batch = null): Boolean = {
     if(batch == null) {
       db.put(key, value)
       true
@@ -66,11 +66,12 @@ class RocksDBStorage(db: RocksDB) extends LowLevelStorage[Array[Byte], Array[Byt
     }
   }
 
-  override def delete(key: Array[Byte], batch: Batch): Boolean = {
+  override def delete(key: Array[Byte], batch: Batch = null): Boolean = {
     val writeOpt = new WriteOptions()
     val writeBatch =  new WriteBatch()
     if(batch == null){
       writeBatch.remove(key)
+      db.write(writeOpt, writeBatch)
       true
     }
     else {
