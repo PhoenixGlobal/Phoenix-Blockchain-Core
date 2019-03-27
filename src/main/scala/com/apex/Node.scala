@@ -319,7 +319,8 @@ class Node(val settings: ApexSettings, config: Config)
       }
       else if (chain.tryInsertBlock(block, true)) {
         log.info(s"success insert block #${block.height} (${block.shortId}) by ${block.producer.shortAddr}")
-        // no need to send INV during sync
+        if (msg.blocks.blocks.size == 1) // no need to send INV during sync
+          broadcastInvMsg(new InventoryPayload(InventoryType.Block, Seq(block.id)))
       }
       else {
         log.debug(s"failed insert block #${block.height}, (${block.shortId}) by ${block.producer.shortAddr} to db")
