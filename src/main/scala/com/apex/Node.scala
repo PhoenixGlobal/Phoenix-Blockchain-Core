@@ -360,7 +360,7 @@ class Node(val settings: ApexSettings, config: Config)
         sender() ! GetDataMessage(new InventoryPayload(InventoryType.Block, newBlocks)).pack
       }
       else if (inv.hashs.size >= hashCountMax) {
-        log.info("all the block hashs in the inv are not new, request more")
+        log.info(s"all the block hashs in the inv are not new, request more, last hash is ${inv.hashs.last.shortString()} block #${chain.getBlock(inv.hashs.last).get.height()}")
         sender() ! GetBlocksMessage(new GetBlocksPayload(Seq(inv.hashs.last), UInt256.Zero)).pack
       }
     }
