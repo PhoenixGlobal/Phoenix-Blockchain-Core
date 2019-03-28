@@ -253,10 +253,10 @@ class Node(val settings: ApexSettings, config: Config)
   }
 
   private def processGetBlocksMessage(msg: GetBlocksMessage) = {
-    def findLatestHash(hashs: Seq[UInt256]): UInt256 = {
+    def findLatestHash(hashs: Seq[UInt256]): (UInt256, Boolean) = {
       var index = 0
       var found = false
-      var latest = chain.getHeader(0).get.id
+      var latest = UInt256.Zero
       while (index < hashs.size && found == false) {
         if (chain.containsBlock(hashs(index))) {
           latest = hashs(index)
@@ -264,26 +264,28 @@ class Node(val settings: ApexSettings, config: Config)
         }
         index += 1
       }
-      latest
+      (latest, found)
     }
     //log.info(s"receive GetBlocksMessage  ${msg.blockHashs.hashStart(0).shortString}")
     if (msg.blockHashs.hashStart(0).equals(UInt256.Zero)) {
       sender() ! InventoryMessage(new InventoryPayload(InventoryType.Block, Seq(chain.getLatestHeader.id))).pack()
     }
     else {
-      val hash = findLatestHash(msg.blockHashs.hashStart)
-      val hashs = ArrayBuffer.empty[UInt256]
-      //val hashCountMax = 10
-      var hashCount = 1
-      hashs.append(hash)
-      var next = chain.getNextBlockId(hash)
-      while (next.isDefined && hashCount < hashCountMax) {
-        hashCount += 1
-        hashs.append(next.get)
-        next = chain.getNextBlockId(next.get)
+      val (hash, found) = findLatestHash(msg.blockHashs.hashStart)
+      if (found) {
+        val hashs = ArrayBuffer.empty[UInt256]
+        //val hashCountMax = 10
+        var hashCount = 1
+        hashs.append(hash)
+        var next = chain.getNextBlockId(hash)
+        while (next.isDefined && hashCount < hashCountMax) {
+          hashCount += 1
+          hashs.append(next.get)
+          next = chain.getNextBlockId(next.get)
+        }
+        //log.info(s"send InventoryMessage, block hash count = ${hashs.size}")
+        sender() ! InventoryMessage(new InventoryPayload(InventoryType.Block, hashs)).pack()
       }
-      //log.info(s"send InventoryMessage, block hash count = ${hashs.size}")
-      sender() ! InventoryMessage(new InventoryPayload(InventoryType.Block, hashs)).pack()
     }
   }
 
