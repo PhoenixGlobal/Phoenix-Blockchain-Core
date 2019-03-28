@@ -181,8 +181,7 @@ class Node(val settings: ApexSettings, config: Config)
               log.error(s"SendRawTransactionCmd addTransaction error, txid=${tx.id.toString}  ${addResult.result}")
             addResult
           }
-          else
-            AddTxResult(false, "verify signature unsuccess")
+          else SignatureFail
         }
         sender() ! sendTx
       }
