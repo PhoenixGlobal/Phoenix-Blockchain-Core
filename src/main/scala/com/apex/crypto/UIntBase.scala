@@ -30,7 +30,7 @@ abstract class UIntBase(val size: Int, val data: Array[Byte]) extends Serializab
   override def toString: String = Hex.toHexString(data)
 
   def shortString(): String = {
-    toString.substring(0, 7)
+    toString.substring(0, 8)
   }
 
   override def serialize(os: DataOutputStream): Unit = os.write(data)

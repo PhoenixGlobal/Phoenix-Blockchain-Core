@@ -19,7 +19,7 @@ class UInt160(data: Array[Byte]) extends UIntBase(UInt160.Size, data) with Order
 
   def address: String = PublicKeyHash.toAddress(data)
 
-  def shortAddr: String = address.substring(0, 7)
+  def shortAddr: String = address.substring(0, 8)
 }
 
 object UInt160 {

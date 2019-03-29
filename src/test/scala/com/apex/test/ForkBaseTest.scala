@@ -307,7 +307,7 @@ object ForkBaseTest {
 
   def open(dir: String, onSwitch: SwitchCallback = null): ForkBase = {
     def forkStr(title: String, fork: Seq[ForkItem]): String = {
-      s"  $title: ${fork.map(blk => s"${blk.block.height}(${blk.block.id.toString.substring(0, 6)})").mkString(" <- ")}"
+      s"  $title: ${fork.map(blk => s"${blk.block.height}(${blk.block.shortId()})").mkString(" <- ")}"
     }
 
     var switchCallback: SwitchCallback = null

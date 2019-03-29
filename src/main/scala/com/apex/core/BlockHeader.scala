@@ -31,7 +31,7 @@ class BlockHeader(val index: Long,
   }
 
   def shortId(): String = {
-    id.toString.substring(0, 7)
+    id.toString.substring(0, 8)
   }
 
   override def hashCode(): Int = {
