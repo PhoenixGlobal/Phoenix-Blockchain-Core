@@ -246,8 +246,6 @@ class BlockchainTest {
       assert(!chain.addTransaction(makeTx(_acct1, _acct5, FixedNumber.fromDecimal(123.13), 0)))
       // not enough coin
       assert(!chain.addTransaction(makeTx(_acct3, _acct5, FixedNumber.fromDecimal(1), 0)))
-      // wrong nonce
-      assert(!chain.addTransaction(makeTx(_acct1, _acct5, FixedNumber.fromDecimal(123), 1)))
 
       //wrong txType
       assert(!chain.addTransaction(makeTx(_acct1, _acct5, FixedNumber.fromDecimal(1), 0, txType = TransactionType.Miner)))

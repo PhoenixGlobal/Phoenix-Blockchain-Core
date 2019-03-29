@@ -293,7 +293,7 @@ class RegisterContractTest extends BlockChainPrepare{
 
   def checkTx(executeTime: Long = 0): Unit ={
     val sheduleTime = if (executeTime ==0) blockTimeForSchedule + 750 else executeTime+ 750
-    assert(!chain.addTransaction(makeTx(_acct1, _acct3, FixedNumber.fromDecimal(123), 1)))
+    //assert(!chain.addTransaction(makeTx(_acct1, _acct3, FixedNumber.fromDecimal(123), 1)))
     assert(chain.addTransaction(makeTx(_acct1, _acct3, FixedNumber.fromDecimal(1), 0)))
     assert(!chain.addTransaction(makeTx(_acct1, _acct3, FixedNumber.fromDecimal(2), 0)))
     assert(chain.addTransaction(makeTx(_acct1, _acct3, FixedNumber.fromDecimal(2), 1)))

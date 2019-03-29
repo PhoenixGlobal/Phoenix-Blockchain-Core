@@ -312,8 +312,8 @@ class Blockchain(chainSettings: ChainSettings,
 
             result match {
               case AddTxSucceed => pendingState.txs.append(tx)
-              case NonceTooBig(expected, actual) =>
-              case _ => result = addTransactionToUnapplyTxs(tx)
+              case NonceTooBig(expected, actual) => result = addTransactionToUnapplyTxs(tx)
+              case _ =>
             }
           }
         }
