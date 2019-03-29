@@ -9,7 +9,6 @@ import com.apex.crypto.Ecdsa.{PrivateKey, PublicKeyHash}
 import com.apex.crypto.{BinaryData, Crypto, FixedNumber, MerkleTree, UInt160, UInt256}
 import com.apex.settings.{ChainSettings, ConsensusSettings, RuntimeParas}
 import com.apex.vm.GasCost
-import play.api.libs.json.{JsValue, Json, Writes}
 import scala.collection.mutable
 import scala.collection.mutable.ArrayBuffer
 
@@ -224,7 +223,7 @@ class Blockchain(chainSettings: ChainSettings,
         val applyResult = applyTransaction(p.tx, producer, stopProcessTxTime, blockTime, forkHead.block.height + 1)
         applyResult match {
           case AddTxSucceed => pendingState.txs.append(p.tx)
-          case NonceTooBig(expected, actual)=>
+          case InvalidNonce(expected, actual)  if actual > expected =>
           case _ => badTxs.append(p.tx)
         }
       }
@@ -268,7 +267,7 @@ class Blockchain(chainSettings: ChainSettings,
 
             result match {
               case AddTxSucceed => pendingState.txs.append(tx)
-              case NonceTooBig(expected, actual) => result = addTransactionToUnapplyTxs(tx)
+              case InvalidNonce(expected, actual)  if actual > expected  => result = addTransactionToUnapplyTxs(tx)
               case _ =>
             }
           }
@@ -580,7 +579,7 @@ class Blockchain(chainSettings: ChainSettings,
       applied = AddTxSucceed
     else
       executor.executorResult match {
-        case NonceTooBig(expected, actual) => applied = NonceTooBig(expected, actual)
+        case InvalidNonce(expected, actual) => applied = InvalidNonce(expected, actual)
         case _ => applied = ExecuteError(receipt.error)
       }
 

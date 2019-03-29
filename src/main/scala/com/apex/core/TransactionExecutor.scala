@@ -70,7 +70,7 @@ class TransactionExecutor(val tx: Transaction,
       if (reqNonce != tx.nonce) {
         if (tx.nonce > reqNonce) {
           execError(s"Invalid nonce: nonce too big, required: $reqNonce, tx.nonce: ${tx.nonce}")
-          executorResult = NonceTooBig(reqNonce, tx.nonce)
+          executorResult = InvalidNonce(reqNonce, tx.nonce)
         }
         else
           execError(s"Invalid nonce: required: $reqNonce, tx.nonce: ${tx.nonce}")

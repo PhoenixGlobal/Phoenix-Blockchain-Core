@@ -17,8 +17,8 @@ object AddTxResult {
 case class InvalidNonce(expected: Long, actual: Long) extends
   AddTxResult(false, s"Invalid nonce, expected：$expected but actual：$actual")
 
-case class NonceTooBig(reqNonce: Long, txNonce: Long) extends
-  AddTxResult(false, s"Invalid nonce: nonce too big, required: $reqNonce, tx.nonce: $txNonce")
+/*case class NonceTooBig(reqNonce: Long, txNonce: Long) extends
+  AddTxResult(false, s"Invalid nonce: nonce too big, required: $reqNonce, tx.nonce: $txNonce")*/
 
 case class HeighGasLimit(txAcceptGasLimit: Long) extends
   AddTxResult(false, s"Set too heigh gas-limit, it should not above ${txAcceptGasLimit}")
