@@ -90,7 +90,7 @@ class Node(val settings: ApexSettings, config: Config)
       val gasPricePlugin = GasPricePluginRef(settings)
       notification.register(gasPricePlugin)
       RpcServer.run(settings, config, self, gasPricePlugin)
-    }else RpcServer.run(settings, config, self, null)
+    } else RpcServer.run(settings, config, self, null)
   }
 
   override def receive: Receive = {
@@ -179,7 +179,8 @@ class Node(val settings: ApexSettings, config: Config)
               broadcastInvMsg(new InventoryPayload(InventoryType.Tx, Seq(tx.id)))
             else
               log.error(s"SendRawTransactionCmd addTransaction error, txid=${tx.id.toString}  ${addResult.result}")
-            addResult
+
+            new AddTxResult(addResult.added, addResult.result, tx.id().toString)
           }
           else SignatureFail
         }
