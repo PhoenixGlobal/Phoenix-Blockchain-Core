@@ -603,7 +603,7 @@ class Blockchain(chainSettings: ChainSettings,
 
   private def scheduleTxFirstExecute(tx: Transaction, blockProducer: UInt160,
                                      blockTime: Long, blockIndex: Long): AddTxResult = {
-    var txValid = new AddTxResult(true, "success")
+    var txValid: AddTxResult = AddTxSucceed
 
     val fromAccount = dataBase.getAccount(tx.from).getOrElse(Account.newAccount(tx.from))
     if (tx.nonce != fromAccount.nextNonce) {
