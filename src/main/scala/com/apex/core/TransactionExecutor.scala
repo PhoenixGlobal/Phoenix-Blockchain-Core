@@ -37,6 +37,7 @@ class TransactionExecutor(val tx: Transaction,
   private val cacheTrack = track.startTracking
   private var readyToExecute = false
   private var execError: String = ""
+  var executorResult: AddTxResult = AddTxSucceed
   private var receipt: TransactionReceipt = null
   private var result = new ProgramResult
   private var vm: VM = null
@@ -67,8 +68,10 @@ class TransactionExecutor(val tx: Transaction,
     if (!isScheduleTx) {
       val reqNonce = track.getNonce(tx.sender())
       if (reqNonce != tx.nonce) {
-        if (tx.nonce > reqNonce)
+        if (tx.nonce > reqNonce) {
           execError(s"Invalid nonce: nonce too big, required: $reqNonce, tx.nonce: ${tx.nonce}")
+          executorResult = NonceTooBig(reqNonce, tx.nonce)
+        }
         else
           execError(s"Invalid nonce: required: $reqNonce, tx.nonce: ${tx.nonce}")
         return

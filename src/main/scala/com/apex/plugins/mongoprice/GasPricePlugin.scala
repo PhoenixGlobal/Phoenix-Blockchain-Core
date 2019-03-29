@@ -8,6 +8,7 @@ import com.apex.rpc.GetAverageCmd
 import com.apex.settings.ApexSettings
 import scala.collection.mutable
 import scala.concurrent.ExecutionContext
+import scala.util.Try
 
 class GasPricePlugin(settings: ApexSettings)
                    (implicit ec: ExecutionContext) extends Actor with ApexLogging {
@@ -27,7 +28,12 @@ class GasPricePlugin(settings: ApexSettings)
       calculateAverage()
     }
     case GetAverageCmd =>{
-      sender() ! averageValue.toString
+
+      val average = Try {
+        if (averageValue != null) averageValue.toString
+        else FixedNumber.Zero.toString
+      }
+      sender() ! average
     }
     case a: Any => {}
   }

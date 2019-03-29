@@ -46,33 +46,36 @@ object AddTxResult {
 }
 
 case class InvalidNonce(expected: Long, actual: Long) extends
-  AddTxResult(false, s"invalid nonce, expected：$expected but actual：$actual")
+  AddTxResult(false, s"Invalid nonce, expected：$expected but actual：$actual")
+
+case class NonceTooBig(reqNonce: Long, txNonce: Long) extends
+  AddTxResult(false, s"Invalid nonce: nonce too big, required: $reqNonce, tx.nonce: $txNonce")
 
 case class HeighGasLimit(txAcceptGasLimit: Long) extends
-  AddTxResult(false, s"set too heigh gas-limit, it should not above ${txAcceptGasLimit}")
+  AddTxResult(false, s"Set too heigh gas-limit, it should not above ${txAcceptGasLimit}")
 
 case class ExecuteError(error: String) extends
-  AddTxResult(false, s"executor error: ${error}")
+  AddTxResult(false, s"Executor error: ${error}")
 
-object AddTxSucceed extends AddTxResult(true, "succeed")
+object AddTxSucceed extends AddTxResult(true, "Succeed")
 
-object AddTxError extends AddTxResult(false, "error")
+object AddTxError extends AddTxResult(false, "Error")
 
-object SignatureFail extends AddTxResult(false, "verify signature unsuccess")
+object SignatureFail extends AddTxResult(false, "Verify signature unsuccess")
 
-object RefundTxError extends AddTxResult(false, "applyRefundTransaction error")
+object RefundTxError extends AddTxResult(false, "ApplyRefundTransaction error")
 
-object InvalidType extends AddTxResult(false, "tx type invalid")
+object InvalidType extends AddTxResult(false, "Tx type invalid")
 
-object Added extends AddTxResult(true, "added to mempool, pending process")
+object Added extends AddTxResult(true, "Added to mempool, pending process")
 
-object SameTx extends AddTxResult(false, "same tx already exist in mempool")
+object SameTx extends AddTxResult(false, "Same tx already exist in mempool")
 
-object ScheduleFee extends AddTxResult(false, "schedule fee not enough")
+object ScheduleFeeNotEnough extends AddTxResult(false, "Schedule fee not enough")
 
-object ExecuteTxTimeout extends AddTxResult(false, "execute transaction Timeout")
+object ExecuteTxTimeout extends AddTxResult(false, "Execute transaction Timeout")
 
-object ExecutorTimeout extends AddTxResult(false, "executor time out")
+object ExecutorTimeout extends AddTxResult(false, "Executor time out")
 
 
 class Blockchain(chainSettings: ChainSettings,
@@ -265,8 +268,8 @@ class Blockchain(chainSettings: ChainSettings,
         val applyResult = applyTransaction(p.tx, producer, stopProcessTxTime, blockTime, forkHead.block.height + 1)
         applyResult match {
           case AddTxSucceed => pendingState.txs.append(p.tx)
-          case InvalidNonce(expected, actual) if actual > expected =>
-            badTxs.append(p.tx)
+          case NonceTooBig(expected, actual)=>
+          case _ => badTxs.append(p.tx)
         }
       }
     })
@@ -309,8 +312,8 @@ class Blockchain(chainSettings: ChainSettings,
 
             result match {
               case AddTxSucceed => pendingState.txs.append(tx)
-              case InvalidNonce(expected, actual) if actual > expected =>
-                result = addTransactionToUnapplyTxs(tx)
+              case NonceTooBig(expected, actual) =>
+              case _ => result = addTransactionToUnapplyTxs(tx)
             }
           }
         }
@@ -620,7 +623,10 @@ class Blockchain(chainSettings: ChainSettings,
     else if (originalTx.isDefined)
       applied = AddTxSucceed
     else
-      applied = ExecuteError(receipt.error)
+      executor.executorResult match {
+        case InvalidNonce(expected, actual) => applied = InvalidNonce(expected, actual)
+        case _ => applied = ExecuteError(receipt.error)
+      }
 
     if (applied.added) {
       cacheTrack.commit()
@@ -654,7 +660,7 @@ class Blockchain(chainSettings: ChainSettings,
     val scheduleFee = FixedNumber(BigInt(GasCost.SSTORE)) * scheduleTx.toBytes.size * tx.gasPrice *
       ((tx.executeTime - blockTime) / DAY + 1) + FixedNumber(BigInt(GasCost.TRANSACTION)) * tx.gasPrice
 
-    if (scheduleFee > fromAccount.balance) txValid = ScheduleFee
+    if (scheduleFee > fromAccount.balance) txValid = ScheduleFeeNotEnough
     if (txValid.added) {
       dataBase.transfer(tx.from, blockProducer, scheduleFee)
       dataBase.setScheduleTx(scheduleTx.id, scheduleTx)

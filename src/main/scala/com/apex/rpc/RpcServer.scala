@@ -291,8 +291,11 @@ object RpcServer extends ApexLogging {
           post {
             entity(as[String]) { _ =>
               val f = (gasPricePlugin ? GetAverageCmd)
-                .mapTo[String]
-                .map(s => sussesRes(s))
+                .mapTo[Try[String]]
+                .map(s => s match {
+                  case Success(average) => sussesRes(average)
+                  case Failure(e) => error500Res(e.getMessage)
+                })
               complete(f)
             }
           }
