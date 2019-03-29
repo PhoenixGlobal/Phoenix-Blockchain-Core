@@ -624,7 +624,7 @@ class Blockchain(chainSettings: ChainSettings,
       applied = AddTxSucceed
     else
       executor.executorResult match {
-        case InvalidNonce(expected, actual) => applied = InvalidNonce(expected, actual)
+        case NonceTooBig(expected, actual) => applied = NonceTooBig(expected, actual)
         case _ => applied = ExecuteError(receipt.error)
       }
 
