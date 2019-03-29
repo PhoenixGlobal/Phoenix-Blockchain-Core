@@ -22,9 +22,9 @@ import org.rocksdb._
 import scala.collection.mutable.{ArrayBuffer, ListBuffer}
 import scala.util.Try
 
-class RocksDBStorage(db: RocksDB) extends LowLevelStorage[Array[Byte], Array[Byte]] with ApexLogging {
+class RocksDBStorage(val db: RocksDB) extends LowLevelStorage[Array[Byte], Array[Byte]] with ApexLogging {
 
-  private lazy val sessionMgr = new RocksDBSessionManager(db)
+  private lazy val sessionMgr = new RocksDBSessionManagerWrapper(db)
 
   private val actions = ListBuffer.empty[() => Unit]
 
@@ -385,7 +385,7 @@ class RocksDBRollbackSession(db: RocksDB, val prefix: Array[Byte], val revision:
   }
 }
 
-class RocksDBSessionManager(db: RocksDB) {
+class RocksDBSessionManagerWrapper(db: RocksDB) {
   private val prefix = Array(StoreType.Data.id.toByte, DataType.Session.id.toByte)
 
   private val sessions = ListBuffer.empty[RocksDBRollbackSession]

@@ -13,7 +13,7 @@ import scala.collection.mutable.{ArrayBuffer, ListBuffer, Map}
 import scala.util.Try
 
 // KV Store implementation, use LevelDB as low level store
-class LevelDbStorage(private val db: DB) extends LowLevelStorage[Array[Byte], Array[Byte]] with ApexLogging {
+class LevelDbStorage(val db: DB) extends LowLevelStorage[Array[Byte], Array[Byte]] with ApexLogging {
   private lazy val sessionMgr = new SessionManager(db)
 
   private val actions = ListBuffer.empty[() => Unit]
@@ -301,6 +301,7 @@ class SessionItem(val insert: Map[ByteArray, Array[Byte]] = Map.empty[ByteArray,
 
 // base KV Store session
 class Session {
+
   def onSet(key: Array[Byte], value: Array[Byte], batch: Batch): Batch = {
     val newBatch = originOrNew(batch)
     newBatch.put(key, value)

@@ -50,7 +50,7 @@ class VoteContractTest extends RegisterContractTest {
       When.makeVoteTransaction(nonce = 2)(checkVoteSuccess)
       val witness = chain.getWitness(_acct3.publicKey.pubKeyHash).get.copy(register = false)
       chain.setWitness(witness)
-      When.When.makeVoteTransaction(nonce = 3){
+      When.makeVoteTransaction(nonce = 3){
         tx => {
           assert(chain.addTransaction(tx))}}
     }
