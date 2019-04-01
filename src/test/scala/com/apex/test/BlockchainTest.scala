@@ -379,6 +379,77 @@ class BlockchainTest {
   }
 
   @Test
+  def testNonce(): Unit = {
+    val chain = createChain("testNonce")
+    try {
+      assert(chain.getHeight() == 0)
+      assert(chain.getBalance(_acct1).get == FixedNumber.fromDecimal(123.12))
+      assert(chain.getBalance(_acct2).get == FixedNumber.fromDecimal(234.2))
+
+      var nowTime = Instant.now.toEpochMilli - 90000
+      var blockTime = ProducerUtil.nextBlockTime(chain.getHeadTime(), nowTime, _produceInterval / 10, _produceInterval) //  chain.getHeadTime() + _consensusSettings.produceInterval
+      sleepTo(blockTime)
+      blockTime += _produceInterval
+
+      assert(!chain.isProducingBlock())
+
+      assert(chain.addTransaction(makeTx(_acct1, _acct5, FixedNumber.fromDecimal(1), 0)))
+      assert(chain.addTransaction(makeTx(_acct1, _acct5, FixedNumber.fromDecimal(1), 1)))
+      assert(chain.addTransaction(makeTx(_acct1, _acct5, FixedNumber.fromDecimal(1), 2)))
+      assert(chain.addTransaction(makeTx(_acct1, _acct5, FixedNumber.fromDecimal(1), 3)))
+      assert(chain.addTransaction(makeTx(_acct1, _acct5, FixedNumber.fromDecimal(1), 4)))
+      assert(chain.addTransaction(makeTx(_acct1, _acct5, FixedNumber.fromDecimal(1), 5)))
+      assert(chain.addTransaction(makeTx(_acct1, _acct5, FixedNumber.fromDecimal(1), 6)))
+      assert(chain.addTransaction(makeTx(_acct1, _acct5, FixedNumber.fromDecimal(1), 7)))
+      assert(chain.addTransaction(makeTx(_acct1, _acct5, FixedNumber.fromDecimal(1), 8)))
+      assert(chain.addTransaction(makeTx(_acct1, _acct5, FixedNumber.fromDecimal(1), 9)))
+      assert(chain.addTransaction(makeTx(_acct1, _acct5, FixedNumber.fromDecimal(1), 10)))
+      assert(chain.addTransaction(makeTx(_acct1, _acct5, FixedNumber.fromDecimal(1), 11)))
+
+      startProduceBlock(chain, blockTime, Long.MaxValue)
+
+      assert(chain.isProducingBlock())
+
+      assert(chain.addTransaction(makeTx(_acct1, _acct5, FixedNumber.fromDecimal(1), 12)))
+      assert(chain.addTransaction(makeTx(_acct1, _acct5, FixedNumber.fromDecimal(1), 13)))
+      assert(!chain.addTransaction(makeTx(_acct1, _acct5, FixedNumber.fromDecimal(1), 13)))
+      assert(!chain.addTransaction(makeTx(_acct1, _acct5, FixedNumber.fromDecimal(1), 12)))
+
+      // nonce too big
+      assert(chain.addTransaction(makeTx(_acct1, _acct5, FixedNumber.fromDecimal(1), 17)))
+      assert(chain.addTransaction(makeTx(_acct1, _acct5, FixedNumber.fromDecimal(1), 16)))
+      assert(chain.addTransaction(makeTx(_acct1, _acct5, FixedNumber.fromDecimal(1), 15)))
+
+      val block1 = chain.produceBlockFinalize()
+      assert(block1.isDefined)
+      assert(!chain.isProducingBlock())
+      assert(chain.getHeight() == 1)
+      assert(chain.getHeadTime() == blockTime)
+      assert(chain.head.id() == block1.get.id())
+      assert(chain.getBalance(_acct1).get == FixedNumber.fromDecimal(BigDecimal("109.119999999999706000")))
+      assert(block1.get.transactions.size == 15) //  14 + 1
+
+
+      blockTime += _produceInterval
+      startProduceBlock(chain, blockTime, Long.MaxValue)
+      val block2 = chain.produceBlockFinalize()
+      assert(block2.get.transactions.size == 1)
+
+      assert(chain.addTransaction(makeTx(_acct1, _acct5, FixedNumber.fromDecimal(1), 14)))
+
+      blockTime += _produceInterval
+      startProduceBlock(chain, blockTime, Long.MaxValue)
+      val block3 = chain.produceBlockFinalize()
+      assert(block3.get.transactions.size == 5)   // 14  15  16  17
+      assert(chain.getAccount(_acct1).get.nextNonce == 18)
+
+    }
+    finally {
+      chain.close()
+    }
+  }
+
+  @Test
   def testGas(): Unit = {
     val chain = createChain("testGas")
     try {
