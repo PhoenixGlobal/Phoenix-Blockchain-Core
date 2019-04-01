@@ -435,53 +435,6 @@ class Blockchain(chainSettings: ChainSettings,
     }
   }
 
-  def updateWitnessList(curblock: Block): Unit = {
-    val pendingWitnessList = mPendingWitnessList.get
-
-    log.info("it's time to electe new producers")
-    val currentWitness = mCurWitnessList.get
-    val allWitnesses = dataBase.getAllWitness().filter(_.register)
-    new WitnessList(allWitnesses.toArray, UInt256.Zero).logInfo("current all Witness")
-    currentWitness.logInfo("setPreviousWitnessList")
-    dataBase.setPreviousWitnessList(currentWitness)
-    mPrevWitnessList = dataBase.getPreviousWitnessList()
-    //      val allWitnessesMap: Map[UInt160, WitnessInfo] = allWitnesses.map(w => w.addr -> w).toMap
-    val updatedCurrentWitness = ArrayBuffer.empty[WitnessInfo]
-    currentWitness.witnesses.foreach(oldInfo => {
-      val newInfo = allWitnesses.find(_.addr == oldInfo.addr)
-      if (newInfo.isDefined)
-        updatedCurrentWitness.append(newInfo.get)
-    })
-
-    require(updatedCurrentWitness.size <= consensusSettings.witnessNum)
-
-    var newElectedWitnesses = mutable.Map.empty[UInt160, WitnessInfo]
-    if (updatedCurrentWitness.size == consensusSettings.witnessNum)
-      newElectedWitnesses = WitnessList.removeLeastVote(updatedCurrentWitness.toArray)
-    else
-      newElectedWitnesses = mutable.Map(updatedCurrentWitness.map(w => w.addr -> w).toMap.toSeq: _*)
-
-    require(newElectedWitnesses.size < consensusSettings.witnessNum)
-
-    val allWitnessesSorted = WitnessList.sortByVote(allWitnesses.toArray)
-    val allWitnessIterator = allWitnessesSorted.iterator
-    while (allWitnessIterator.hasNext && newElectedWitnesses.size < consensusSettings.witnessNum) {
-      val witness = allWitnessIterator.next()
-      if (!newElectedWitnesses.contains(witness.addr))
-        newElectedWitnesses.update(witness.addr, witness)
-    }
-    require(newElectedWitnesses.size == consensusSettings.witnessNum)
-
-    pendingWitnessList.logInfo("setCurrentWitnessList")
-    dataBase.setCurrentWitnessList(pendingWitnessList)
-    val newPending = WitnessList.create(newElectedWitnesses.toArray.map(_._2), curblock.id)
-    newPending.logInfo("setPendingWitnessList")
-    dataBase.setPendingWitnessList(newPending)
-
-    mCurWitnessList = dataBase.getCurrentWitnessList()
-    mPendingWitnessList = dataBase.getPendingWitnessList()
-  }
-
   private def applyBlock(block: Block, verify: Boolean = true, enableSession: Boolean = true): Boolean = {
     var applied = true
 
