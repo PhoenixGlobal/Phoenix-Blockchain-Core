@@ -223,7 +223,7 @@ class Blockchain(chainSettings: ChainSettings,
         val applyResult = applyTransaction(p.tx, producer, stopProcessTxTime, blockTime, forkHead.block.height + 1)
         applyResult match {
           case AddTxSucceed => pendingState.txs.append(p.tx)
-          case InvalidNonce(expected, actual)  if actual > expected =>
+          case InvalidNonce(expected, actual) if actual > expected =>
           case _ => badTxs.append(p.tx)
         }
       }
@@ -244,18 +244,26 @@ class Blockchain(chainSettings: ChainSettings,
     else SameTx
   }
 
+  def validateTransaction(tx: Transaction): AddTxResult = {
+    var result: AddTxResult = new AddTxResult(true, "")
+
+    if (tx.gasLimit > runtimeParas.txAcceptGasLimit) {
+      log.info(s"tx: ${tx.id()}, set too heigh gas-limit, it should not above ${runtimeParas.txAcceptGasLimit}")
+      result = HeighGasLimit(runtimeParas.txAcceptGasLimit)
+    } else if (dataBase.getNonce(tx.sender()) > tx.nonce) {
+      result = new AddTxResult(false, "too small nonce value")
+    }
+    result
+  }
+
   def addTransaction(tx: Transaction): Boolean = addTransactionEx(tx).added
 
   def addTransactionEx(tx: Transaction): AddTxResult = {
-    var result = new AddTxResult(false, "error")
+    var result = validateTransaction(tx)
 
-    if (tx.txType == TransactionType.Miner || tx.txType == TransactionType.Refund || tx.txType == TransactionType.Schedule) {
-      result = InvalidType
-    }
-    else {
-      if (tx.gasLimit > runtimeParas.txAcceptGasLimit) {
-        log.info(s"tx: ${tx.id()}, set too heigh gas-limit, it should not above ${runtimeParas.txAcceptGasLimit}")
-        result = HeighGasLimit(runtimeParas.txAcceptGasLimit)
+    if (result.added) {
+      if (tx.txType == TransactionType.Miner || tx.txType == TransactionType.Refund || tx.txType == TransactionType.Schedule) {
+        result = InvalidType
       }
       else {
         if (isProducingBlock()) {
@@ -267,7 +275,7 @@ class Blockchain(chainSettings: ChainSettings,
 
             result match {
               case AddTxSucceed => pendingState.txs.append(tx)
-              case InvalidNonce(expected, actual)  if actual > expected  => result = addTransactionToUnapplyTxs(tx)
+              case InvalidNonce(expected, actual) if actual > expected => result = addTransactionToUnapplyTxs(tx)
               case _ =>
             }
           }
@@ -276,9 +284,7 @@ class Blockchain(chainSettings: ChainSettings,
           result = addTransactionToUnapplyTxs(tx)
       }
     }
-    if (result.added)
-      notification.broadcast(AddTransactionNotify(tx))
-    else
+    if (!result.added)
       log.error(s"addTransaction error, txid=${tx.id.toString}  ${result.result}")
     result
   }
