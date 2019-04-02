@@ -29,6 +29,7 @@ class DbManager(testClass: String) {
     if (!dbs.contains(dir)) {
       val db = LevelDbStorage.open(s"$testClass/$dir")
       dbs.put(dir, db)
+      println(s"$testClass/$dir")
     }
     dbs(dir)
   }
@@ -78,6 +79,7 @@ class RocksDbManager(testClass: String) {
 
   def openDB(dir: String): RocksDBStorage = {
     if (!rocksDbs.contains(dir)) {
+      println(s"$testClass/$dir")
       val db = RocksDBStorage.open(s"$testClass/$dir")
       rocksDbs.put(dir, db)
     }

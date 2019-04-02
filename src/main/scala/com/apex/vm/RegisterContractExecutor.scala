@@ -131,9 +131,16 @@ object RegisterContractExecutor {
     private def registerWitness(track: DataBase, registerSpend: FixedNumber) = {
       track.addBalance(registerData.registerAccount, -registerSpend.value)
       track.addBalance(new UInt160(PrecompiledContracts.registerNodeAddr.getLast20Bytes), registerSpend.value)
-      val witnessInfo = registerData.registerInfo.copy(register = true)
-      track.createWitness(witnessInfo)
+      if(track.getWitness(registerData.registerInfo.addr).isDefined){
+        val witnessInfo = track.getWitness(registerData.registerInfo.addr).get.copy(register = true)
+        track.createWitness(witnessInfo)
+      }
+      else {
+        val witnessInfo = registerData.registerInfo.copy(register = true)
+        track.createWitness(witnessInfo)
+      }
     }
+
 
     def returnResult(): (Boolean, Array[Byte]) = {
       result = OperationChecker.returnResult()
