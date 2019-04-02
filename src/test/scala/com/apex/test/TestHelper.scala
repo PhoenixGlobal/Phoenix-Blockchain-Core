@@ -12,6 +12,7 @@ package com.apex.test
 
 
 import java.io.{ByteArrayInputStream, ByteArrayOutputStream, DataInputStream, DataOutputStream}
+import java.nio.file.{Files, Path, Paths}
 import java.time.Instant
 
 import com.apex.core.{Block, BlockHeader}
@@ -79,7 +80,8 @@ class RocksDbManager(testClass: String) {
 
   def openDB(dir: String): RocksDBStorage = {
     if (!rocksDbs.contains(dir)) {
-      println(s"$testClass/$dir")
+      val path = Paths.get(testClass, dir)
+      if (!Files.isSymbolicLink(path.getParent)) Files.createDirectories(path.getParent)
       val db = RocksDBStorage.open(s"$testClass/$dir")
       rocksDbs.put(dir, db)
     }

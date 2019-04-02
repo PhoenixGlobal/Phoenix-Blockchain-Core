@@ -39,11 +39,12 @@ class RocksDBStorage(val db: RocksDB) extends LowLevelStorage[Array[Byte], Array
   }
 
   override def set(key: Array[Byte], value: Array[Byte], batch: Batch = null): Boolean = {
-    if(batch == null) {
-      db.put(key, value)
+    val newBatch = sessionMgr.beginSet(key, value, batch)
+    if (newBatch != batch) {
+      applyBatch(newBatch)
+    } else {
       true
     }
-    else applyBatch(batch)
   }
 
   private def applyBatch(batch: Batch): Boolean = {
@@ -67,28 +68,11 @@ class RocksDBStorage(val db: RocksDB) extends LowLevelStorage[Array[Byte], Array
   }
 
   override def delete(key: Array[Byte], batch: Batch = null): Boolean = {
-    val writeOpt = new WriteOptions()
-    val writeBatch =  new WriteBatch()
-    if(batch == null){
-      writeBatch.remove(key)
-      db.write(writeOpt, writeBatch)
+    val newBatch = sessionMgr.beginDelete(key, batch)
+    if (newBatch != batch) {
+      applyBatch(newBatch)
+    } else {
       true
-    }
-    else {
-      try{
-        batch.ops.foreach(op => if(op.isInstanceOf[DeleteOperationItem]){
-          writeBatch.remove(op.asInstanceOf[DeleteOperationItem].key)
-        })
-        db.write(writeOpt, writeBatch)
-        true
-      }
-      catch {
-        case e:Throwable => log.error("apply batch failed", e)
-          false
-      }
-      finally {
-        writeBatch.close()
-      }
     }
 
   }
