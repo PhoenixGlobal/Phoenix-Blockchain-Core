@@ -201,6 +201,10 @@ class LevelDBWriteBatch(val batch: WriteBatch) extends LowLevelWriteBatch {
   override def close(): Unit = {
     batch.close()
   }
+
+  override def put(sessionId: Array[Byte], item: Array[Byte]): Unit = {
+    batch.put(sessionId, item)
+  }
 }
 
 // LevelDBStorage iterator
@@ -220,6 +224,14 @@ class LevelDBIterator(it: DBIterator) extends LowLevelDBIterator {
   // whether has next element
   override def hasNext(): Boolean = {
     it.hasNext
+  }
+
+  override def peekNext(): Option[Entry[Array[Byte], Array[Byte]]] = {
+    Some(it.peekNext())
+  }
+
+  override def close(): Unit = {
+    it.close()
   }
 }
 
@@ -249,6 +261,14 @@ class LevelDB(db: DB) extends LowLevelDB {
     } finally {
       update.close()
     }
+  }
+
+  override def createWriteBatch(): LowLevelWriteBatch = {
+    new LevelDBWriteBatch(db.createWriteBatch())
+  }
+
+  override def write(batch: LowLevelWriteBatch): Unit = {
+    db.write(batch.asInstanceOf[LevelDBWriteBatch].batch)
   }
 }
 

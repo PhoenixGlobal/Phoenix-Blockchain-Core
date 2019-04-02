@@ -85,6 +85,10 @@ trait LowLevelDBIterator {
   def next(): (Array[Byte], Array[Byte])
 
   def hasNext(): Boolean
+
+  def peekNext(): Option[Entry[Array[Byte], Array[Byte]]]
+
+  def close(): Unit
 }
 
 // low level db batch adapter
@@ -94,6 +98,9 @@ trait LowLevelWriteBatch {
   def delete(key: Array[Byte]): Unit
 
   def close(): Unit
+
+  def put(sessionId: Array[Byte], item: Array[Byte]): Unit
+
 }
 
 // low level db adapter
@@ -107,6 +114,10 @@ trait LowLevelDB {
   def iterator(): LowLevelDBIterator
 
   def batchWrite(action: LowLevelWriteBatch => Unit)
+
+  def createWriteBatch(): LowLevelWriteBatch
+
+  def write(batch: LowLevelWriteBatch): Unit
 }
 
 trait BatchItem

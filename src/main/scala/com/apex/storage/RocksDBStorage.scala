@@ -14,7 +14,6 @@ import java.util
 import java.util.Map
 import java.util.Map.Entry
 
-import cats.instances.byte
 import com.apex.common.ApexLogging
 import com.apex.core.{DataType, StoreType}
 import org.rocksdb._
@@ -212,6 +211,10 @@ class RocksDBWriteBatch(val batch: WriteBatch) extends LowLevelWriteBatch {
   override def close(): Unit = {
     batch.close()
   }
+
+  override def put(sessionId: Array[Byte], item: Array[Byte]): Unit = {
+    batch.put(sessionId, item)
+  }
 }
 
 class RocksDBIterator(it: RocksIterator) extends LowLevelDBIterator {
@@ -227,6 +230,24 @@ class RocksDBIterator(it: RocksIterator) extends LowLevelDBIterator {
 
   override def hasNext(): Boolean = {
     it.isValid
+  }
+
+  override def peekNext(): Option[Entry[Array[Byte], Array[Byte]]] = {
+    val m = new util.HashMap[Array[Byte], Array[Byte]]()
+    if(it.isValid){
+      m.put(it.key(), it.value())
+      val r: util.Iterator[Map.Entry[Array[Byte], Array[Byte]]] = m.entrySet().iterator()
+      if(r.hasNext){
+        val entry: Map.Entry[Array[Byte], Array[Byte]] = r.next()
+        Some(entry)
+      }
+      else None
+    }
+    else None
+  }
+
+  override def close(): Unit = {
+    it.close()
   }
 }
 
@@ -255,6 +276,14 @@ class RocksDatabase(db: RocksDB) extends LowLevelDB {
     } finally {
       update.close()
     }
+  }
+
+  override def createWriteBatch(): LowLevelWriteBatch = {
+    new RocksDBWriteBatch(new WriteBatch)
+  }
+
+  override def write(batch: LowLevelWriteBatch): Unit = {
+    db.write(new WriteOptions, batch.asInstanceOf[RocksDBWriteBatch].batch)
   }
 }
 
