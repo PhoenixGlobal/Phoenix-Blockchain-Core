@@ -148,6 +148,10 @@ trait LowLevelDB {
   def write(batch: LowLevelWriteBatch): Unit
 
   def close(): Unit
+
+  def addToBatch(): LowLevelWriteBatch
+
+  def writeBatchToDB(batch: Batch):Boolean
 }
 
 trait BatchItem

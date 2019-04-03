@@ -240,7 +240,7 @@ class LevelDBIterator(it: DBIterator) extends LowLevelDBIterator {
 }
 
 // adapter class for low level db
-class LevelDB(db: DB) extends LowLevelDB {
+class LevelDB(db: DB) extends LowLevelDB with ApexLogging {
   override def get(key: Array[Byte]): Array[Byte] = {
     db.get(key)
   }
@@ -277,6 +277,27 @@ class LevelDB(db: DB) extends LowLevelDB {
 
   override def close(): Unit = {
     db.close()
+  }
+
+  override def addToBatch(): LowLevelWriteBatch = ???
+
+  override def writeBatchToDB(batch: Batch): Boolean = {
+    val update = db.createWriteBatch()
+    try {
+      batch.ops.foreach(_ match {
+        case PutOperationItem(k, v) => update.put(k, v)
+        case DeleteOperationItem(k) => update.delete(k)
+      })
+      db.write(update)
+      true
+    } catch {
+      case e: Throwable => {
+        log.error("apply batch failed", e)
+        false
+      }
+    } finally {
+      update.close()
+    }
   }
 }
 

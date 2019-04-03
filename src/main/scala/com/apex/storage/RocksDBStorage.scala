@@ -255,7 +255,7 @@ class RocksDBIterator(it: RocksIterator) extends LowLevelDBIterator {
   }
 }
 
-class RocksDatabase(db: RocksDB) extends LowLevelDB {
+class RocksDatabase(db: RocksDB) extends LowLevelDB with ApexLogging {
   override def get(key: Array[Byte]): Array[Byte] = {
     db.get(key)
   }
@@ -292,6 +292,27 @@ class RocksDatabase(db: RocksDB) extends LowLevelDB {
 
   override def close(): Unit = {
     db.close()
+  }
+
+  override def addToBatch(): LowLevelWriteBatch = ???
+
+  override def writeBatchToDB(batch: Batch): Boolean = {
+    val update = new WriteBatch
+    try {
+      batch.ops.foreach(_ match {
+        case PutOperationItem(k, v) => update.put(k, v)
+        case DeleteOperationItem(k) => update.remove(k)
+      })
+      db.write(new WriteOptions, update)
+      true
+    } catch {
+      case e: Throwable => {
+        log.error("apply batch failed", e)
+        false
+      }
+    } finally {
+      update.close()
+    }
   }
 }
 
