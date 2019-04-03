@@ -99,8 +99,6 @@ trait LowLevelWriteBatch {
 
   def close(): Unit
 
-  def put(sessionId: Array[Byte], item: Array[Byte]): Unit
-
 }
 
 // low level db adapter

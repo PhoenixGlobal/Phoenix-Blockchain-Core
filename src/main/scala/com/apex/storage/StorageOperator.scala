@@ -83,7 +83,7 @@ class SessionManagerTemp(db: LowLevelDB) {
   // start a new session
   def newSession(): Session = {
     val session = new RollbackSessionTemp(db, prefix, _revision)
-    session.init(batch => batch.put(prefix, BigInt(_revision + 1).toByteArray))
+    session.init(batch => batch.set(prefix, BigInt(_revision + 1).toByteArray))
     sessions.append(session)
     _revision += 1
     session
@@ -167,7 +167,7 @@ class RollbackSessionTemp(db: LowLevelDB, val prefix: Array[Byte], val revision:
 
     val batch = db.createWriteBatch()
     try {
-      batch.put(sessionId, item.toBytes)
+      batch.set(sessionId, item.toBytes)
       action(batch)
       db.write(batch)
     } finally {
@@ -190,9 +190,9 @@ class RollbackSessionTemp(db: LowLevelDB, val prefix: Array[Byte], val revision:
     val batch = db.createWriteBatch()
     try {
       item.insert.foreach(p => batch.delete(p._1.bytes))
-      item.update.foreach(p => batch.put(p._1.bytes, p._2))
-      item.delete.foreach(p => batch.put(p._1.bytes, p._2))
-      batch.put(prefix, BigInt(revision).toByteArray)
+      item.update.foreach(p => batch.set(p._1.bytes, p._2))
+      item.delete.foreach(p => batch.set(p._1.bytes, p._2))
+      batch.set(prefix, BigInt(revision).toByteArray)
       batch.delete(sessionId)
       db.write(batch)
     } finally {

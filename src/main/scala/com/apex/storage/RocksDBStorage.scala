@@ -211,10 +211,6 @@ class RocksDBWriteBatch(val batch: WriteBatch) extends LowLevelWriteBatch {
   override def close(): Unit = {
     batch.close()
   }
-
-  override def put(sessionId: Array[Byte], item: Array[Byte]): Unit = {
-    batch.put(sessionId, item)
-  }
 }
 
 class RocksDBIterator(it: RocksIterator) extends LowLevelDBIterator {

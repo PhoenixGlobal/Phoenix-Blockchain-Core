@@ -201,10 +201,6 @@ class LevelDBWriteBatch(val batch: WriteBatch) extends LowLevelWriteBatch {
   override def close(): Unit = {
     batch.close()
   }
-
-  override def put(sessionId: Array[Byte], item: Array[Byte]): Unit = {
-    batch.put(sessionId, item)
-  }
 }
 
 // LevelDBStorage iterator
