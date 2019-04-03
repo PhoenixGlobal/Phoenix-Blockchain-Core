@@ -406,9 +406,12 @@ class BlockchainTest {
       assert(chain.addTransaction(makeTx(_acct1, _acct5, FixedNumber.fromDecimal(1), 10)))
       assert(chain.addTransaction(makeTx(_acct1, _acct5, FixedNumber.fromDecimal(1), 11)))
 
+      assert(chain.txPoolTxNumber == 12)
+
       startProduceBlock(chain, blockTime, Long.MaxValue)
 
       assert(chain.isProducingBlock())
+      assert(chain.txPoolTxNumber == 0)
 
       assert(chain.addTransaction(makeTx(_acct1, _acct5, FixedNumber.fromDecimal(1), 12)))
       assert(chain.addTransaction(makeTx(_acct1, _acct5, FixedNumber.fromDecimal(1), 13)))
@@ -419,6 +422,8 @@ class BlockchainTest {
       assert(chain.addTransaction(makeTx(_acct1, _acct5, FixedNumber.fromDecimal(1), 17)))
       assert(chain.addTransaction(makeTx(_acct1, _acct5, FixedNumber.fromDecimal(1), 16)))
       assert(chain.addTransaction(makeTx(_acct1, _acct5, FixedNumber.fromDecimal(1), 15)))
+
+      assert(chain.txPoolTxNumber == 3)
 
       val block1 = chain.produceBlockFinalize()
       assert(block1.isDefined)
@@ -435,6 +440,8 @@ class BlockchainTest {
       val block2 = chain.produceBlockFinalize()
       assert(block2.get.transactions.size == 1)
 
+      assert(chain.txPoolTxNumber == 3)
+
       assert(chain.addTransaction(makeTx(_acct1, _acct5, FixedNumber.fromDecimal(1), 14)))
 
       blockTime += _produceInterval
@@ -442,6 +449,8 @@ class BlockchainTest {
       val block3 = chain.produceBlockFinalize()
       assert(block3.get.transactions.size == 5)   // 14  15  16  17
       assert(chain.getAccount(_acct1).get.nextNonce == 18)
+
+      assert(chain.txPoolTxNumber == 0)
 
     }
     finally {

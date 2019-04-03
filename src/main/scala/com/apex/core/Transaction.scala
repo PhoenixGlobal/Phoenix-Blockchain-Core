@@ -108,6 +108,16 @@ class Transaction(val txType: TransactionType.Value,
       Crypto.verifySignature(dataForSigning(), signature, from)
   }
 
+  def size: Int = {
+    val bs = new ByteArrayOutputStream()
+    val os = new DataOutputStream(bs)
+    serialize(os)
+    bs.toByteArray.size
+  }
+
+  def approximateSize: Int = {
+    data.size + 79
+  }
 }
 
 object Transaction {

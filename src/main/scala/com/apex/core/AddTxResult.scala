@@ -38,6 +38,8 @@ object InvalidType extends AddTxResult(false, "Tx type invalid")
 
 object Added extends AddTxResult(true, "Added to mempool, pending process")
 
+object MempoolFull extends AddTxResult(false, "Mempool full")
+
 object SameTx extends AddTxResult(false, "Same tx already exist in mempool")
 
 object ScheduleFeeNotEnough extends AddTxResult(false, "Schedule fee not enough")

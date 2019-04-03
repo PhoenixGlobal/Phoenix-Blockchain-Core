@@ -14,6 +14,23 @@ import org.junit.Test
 
 @Test
 class TransactionTest {
+
+  @Test
+  def testSize = {
+    val tx = new Transaction(TransactionType.Transfer,
+      Ecdsa.PublicKey(BinaryData("0345ffbf8dc9d8ff15785e2c228ac48d98d29b834c2e98fb8cfe6e71474d7f6322")).pubKeyHash,
+      Ecdsa.PublicKeyHash.fromAddress("APGMmPKLYdtTNhiEkDGU6De8gNCk3bTsME9").get,
+      FixedNumber.Ten,
+      1,
+      BinaryData("1234"),
+      FixedNumber(567),
+      789,
+      BinaryData.empty, 2, 3)
+
+    assert(tx.size == 81)
+    assert(tx.approximateSize == 81)
+  }
+
   @Test
   def testSerialize = {
 

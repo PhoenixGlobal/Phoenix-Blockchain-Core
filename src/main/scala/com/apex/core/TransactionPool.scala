@@ -8,8 +8,12 @@
 
 package com.apex.core
 
+import java.time.Instant
+
 import com.apex.crypto.UInt256
+
 import scala.collection.mutable
+import scala.collection.mutable.ArrayBuffer
 
 case class TxEntry(tx: Transaction,
                    firstSeenTime: Long = 0) extends Ordered[TxEntry] {
@@ -32,18 +36,24 @@ case class TxEntry(tx: Transaction,
 class TransactionPool {
 
   val unapplyTxsMap = mutable.LinkedHashMap.empty[UInt256, Transaction]
-
   val unapplyTxsSorted = mutable.SortedSet.empty[TxEntry]
+
+  var txTotalSize: Long = 0
+  val txTotalSizeLimit: Long = 10000000000L // 10 MB
+  val maxKeepTime: Long = 600000 // 10 min
 
   def get(txid: UInt256): Option[Transaction] = {
     unapplyTxsMap.get(txid)
   }
 
   def add(tx: Transaction) = {
-    if (!contains(tx)) {
+    if (!contains(tx) && txTotalSize + tx.approximateSize <= txTotalSizeLimit) {
       unapplyTxsMap += (tx.id -> tx)
-      unapplyTxsSorted.add(TxEntry(tx))
+      unapplyTxsSorted.add(TxEntry(tx, Instant.now.toEpochMilli))
+      txTotalSize += tx.approximateSize
+      true
     }
+    else false
   }
 
   def contains(tx: Transaction): Boolean = {
@@ -54,7 +64,17 @@ class TransactionPool {
     if (contains(tx)) {
       unapplyTxsMap.remove(tx.id)
       unapplyTxsSorted.remove(TxEntry(tx))
+      txTotalSize -= tx.approximateSize
     }
+  }
+
+  def txNumber: Int = unapplyTxsSorted.size
+
+  def checkRemoveTimeoutTxs = {
+    val nowTime = Instant.now.toEpochMilli
+    val badTxs = ArrayBuffer.empty[Transaction]
+    unapplyTxsSorted.foreach(p => if (nowTime - p.firstSeenTime > maxKeepTime) badTxs.append(p.tx))
+    badTxs.foreach(tx => remove(tx))
   }
 
 }

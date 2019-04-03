@@ -182,6 +182,8 @@ class Blockchain(chainSettings: ChainSettings,
     txPool.get(txid)
   }
 
+  def txPoolTxNumber: Int = txPool.txNumber
+
   def startProduceBlock(producerPrivKey: PrivateKey, blockTime: Long, stopProcessTxTime: Long): Unit = {
     require(!isProducingBlock())
     val producer = producerPrivKey.publicKey.pubKeyHash
@@ -238,8 +240,10 @@ class Blockchain(chainSettings: ChainSettings,
 
   private def addTransactionToUnapplyTxs(tx: Transaction): AddTxResult = {
     if (!txPool.contains(tx)) {
-      txPool.add(tx)
-      Added
+      if (txPool.add(tx))
+        Added
+      else
+        MempoolFull
     }
     else SameTx
   }
@@ -358,6 +362,7 @@ class Blockchain(chainSettings: ChainSettings,
         log.error(s"fail add block ${block.height} ${block.shortId} to minor fork chain")
     }
     if (inserted) {
+      txPool.checkRemoveTimeoutTxs
       block.transactions.foreach(tx => {
         txPool.remove(tx)
         if (timeoutTx.isDefined && timeoutTx.get.id() == tx.id())
