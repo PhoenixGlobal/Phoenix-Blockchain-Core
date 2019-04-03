@@ -245,6 +245,14 @@ class RocksDBIterator(it: RocksIterator) extends LowLevelDBIterator {
   override def close(): Unit = {
     it.close()
   }
+
+  override def seekToLast(): Unit = {
+    it.seekToLast()
+  }
+
+  override def seekToFirst(): Unit = {
+    it.seekToFirst()
+  }
 }
 
 class RocksDatabase(db: RocksDB) extends LowLevelDB {
@@ -280,6 +288,10 @@ class RocksDatabase(db: RocksDB) extends LowLevelDB {
 
   override def write(batch: LowLevelWriteBatch): Unit = {
     db.write(new WriteOptions, batch.asInstanceOf[RocksDBWriteBatch].batch)
+  }
+
+  override def close(): Unit = {
+    db.close()
   }
 }
 

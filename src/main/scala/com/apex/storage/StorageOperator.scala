@@ -1,37 +1,221 @@
 package com.apex.storage
 
+import java.io.File
+import java.util.Map.Entry
+
+import com.apex.common.ApexLogging
 import com.apex.core.{DataType, StoreType}
-import org.iq80.leveldb.{DB, DBIterator, WriteBatch}
+import com.apex.settings.DBType
+import org.fusesource.leveldbjni.JniDBFactory.factory
+import org.iq80.leveldb.Options
+import org.rocksdb.{Options, RocksDB}
 
-import scala.collection.mutable.ListBuffer
+import scala.collection.mutable.{ArrayBuffer, ListBuffer}
+import scala.util.Try
 
-class StorageOperator(val db: LowLevelDB)/* extends LowLevelStorage[Array[Byte], Array[Byte]] */{
+class StorageOperator(val db: LowLevelDB) extends LowLevelStorage[Array[Byte], Array[Byte]] with ApexLogging{
 
   private lazy val sessionMgr = new SessionManagerTemp(db)
 
   private val actions = ListBuffer.empty[() => Unit]
 
-  def get(key: Array[Byte]): Unit ={
-    db.get(key)
+  // register callback function executed on rollback
+  def onRollback(action: () => Unit): Unit = {
+    actions.append(action)
   }
 
-  def set(key: Array[Byte], value: Array[Byte]): Unit ={
-    db.set(key, value)
+  // get value the key associated with
+  override def get(key: Array[Byte]): Option[Array[Byte]] = {
+    val value = db.get(key)
+    Option(value)
   }
 
-  def delete(key: Array[Byte]): Unit = {
-    db.delete(key)
+  // add a new key/value pair if key not exist or overwrite value the key associated with
+  override def set(key: Array[Byte], value: Array[Byte], batch: Batch = null): Boolean = {
+    val newBatch = sessionMgr.beginSet(key, value, batch)
+    if (newBatch != batch) {
+      applyBatch(newBatch)
+    } else {
+      true
+    }
   }
 
-  def iterator(): LowLevelDBIterator = {
-    db.iterator()
+  // delete the key and associated value
+  override def delete(key: Array[Byte], batch: Batch = null): Boolean = {
+    val newBatch = sessionMgr.beginDelete(key, batch)
+    if (newBatch != batch) {
+      applyBatch(newBatch)
+    } else {
+      true
+    }
+  }
+
+  override def batchWrite(action: Batch => Unit): Boolean = {
+    val batch = new Batch
+    action(batch)
+    applyBatch(batch)
+  }
+
+  override def last(): Option[Entry[Array[Byte], Array[Byte]]] = {
+    val it = db.iterator()
+    try {
+      it.seekToLast()
+      if (it.hasNext()) {
+        it.peekNext()
+      } else {
+        None
+      }
+    } finally {
+      it.close()
+    }
+  }
+
+  // apply func to all key/value pairs
+  override def scan(func: (Array[Byte], Array[Byte]) => Unit): Unit = {
+    seekThenApply(
+      it => it.seekToFirst(),
+      entry => {
+        func(entry.getKey, entry.getValue)
+        true
+      })
+  }
+
+  private def seekThenApply(seekAction: LowLevelDBIterator => Unit, func: Entry[Array[Byte], Array[Byte]] => Boolean): Unit = {
+    val iterator = db.iterator
+    try {
+      seekAction(iterator)
+      while (iterator.hasNext && func(iterator.peekNext().get)) {
+        iterator.next
+      }
+    } catch {
+      case e: Throwable => log.error("seek", e)
+    } finally {
+      iterator.close()
+    }
+  }
+
+  def scan(prefix: Array[Byte]): ArrayBuffer[Array[Byte]] = {
+    val records = ArrayBuffer.empty[Array[Byte]]
+    val iterator = db.iterator
+    iterator.seek(prefix)
+    while (iterator.hasNext) {
+      val entry = iterator.peekNext().get
+      if (entry.getKey.length >= prefix.length
+        && prefix.sameElements(entry.getKey.take(prefix.length))){
+        records.append(entry.getValue)
+      }
+      iterator.next
+    }
+    records
+  }
+
+  // apply func to all key/value pairs which key is start with prefix
+  override def find(prefix: Array[Byte], func: (Array[Byte], Array[Byte]) => Unit): Unit = {
+    seekThenApply(
+      it => it.seek(prefix),
+      entry => {
+        if (entry.getKey.length < prefix.length
+          || !prefix.sameElements(entry.getKey.take(prefix.length))) {
+          false
+        } else {
+          func(entry.getKey, entry.getValue)
+          true
+        }
+      })
+  }
+
+  // start a new session
+  override def newSession(): Unit = {
+    sessionMgr.newSession()
+  }
+
+  // commit all operations in sessions whose revision is equal to or larger than the specified revision
+  override def commit(revision: Long): Unit = {
+    sessionMgr.commit(revision)
+  }
+
+  // commit all operations in the latest session
+  override def commit(): Unit = {
+    sessionMgr.commit()
+  }
+
+  // undo all operations in the latest session
+  override def rollBack(): Unit = {
+    actions.foreach(action => Try(action()))
+    sessionMgr.rollBack()
+  }
+
+  // close this KV Store
+  override def close(): Unit = {
+    db.close()
+  }
+
+  // return latest revision
+  override def revision(): Long = {
+    sessionMgr.revision()
+  }
+
+  // return all uncommitted session revisions
+  override def uncommitted(): Seq[Long] = {
+    sessionMgr.revisions()
   }
 
   def batchWrite(action: LowLevelWriteBatch => Unit): Unit ={
     db.batchWrite(action)
   }
 
+  private def applyBatch(batch: Batch): Boolean = {
+    val update = db.createWriteBatch()
+    try {
+      batch.ops.foreach(_ match {
+        case PutOperationItem(k, v) => update.set(k, v)
+        case DeleteOperationItem(k) => update.delete(k)
+      })
+      db.write(update)
+      true
+    } catch {
+      case e: Throwable => {
+        log.error("apply batch failed", e)
+        false
+      }
+    } finally {
+      update.close()
+    }
+  }
+
 }
+
+//object StorageOperator {
+//  type raw = Storage[Array[Byte], Array[Byte]]
+//
+//  type lowLevelRaw = LowLevelStorageTemp[Array[Byte], Array[Byte]]
+//
+//  def open(dbType: DBType.Value, path: String): LowLevelDB = {
+//    dbType match {
+//      case DBType.LevelDB => openLevelDb(path)
+//      case DBType.RocksDB => openRocksDb(path)
+//      case _ => throw new NotImplementedError
+//    }
+//  }
+//
+//  def openLevelDb(path: String, createIfMissing: Boolean = true): LowLevelDB = {
+//    import org.iq80.leveldb.Options
+//      val options = new Options
+//      options.createIfMissing(createIfMissing)
+//      val db = factory.open(new File(path), options)
+//      new LevelDB(db)
+//  }
+//
+//  RocksDB.loadLibrary()
+//
+//  def openRocksDb(path: String, createIfMissing: Boolean = true): LowLevelDB = {
+//    import org.rocksdb.Options
+//    val options = new Options
+//    options.setCreateIfMissing(createIfMissing)
+//    val db = RocksDB.open(options, path)
+//    new RocksDatabase(db)
+//  }
+//}
 
 class SessionManagerTemp(db: LowLevelDB) {
   private val prefix = Array(StoreType.Data.id.toByte, DataType.Session.id.toByte)
@@ -255,5 +439,31 @@ class RollbackSessionTemp(db: LowLevelDB, val prefix: Array[Byte], val revision:
       newBatch.put(sessionId, item.toBytes)
     }
     newBatch
+  }
+}
+
+object StorageOperator{
+    def open(dbType: DBType.Value, path: String): LowLevelDB = {
+      dbType match {
+        case DBType.LevelDB => StorageOperator.open(dbType,path)
+        case DBType.RocksDB => StorageOperator.open(dbType,path)
+        case _ => throw new NotImplementedError
+      }
+    }
+
+  def openRocksDB(path: String, createIfMissing: Boolean = true): StorageOperator = {
+    import org.rocksdb.Options
+    val options = new Options
+    options.setCreateIfMissing(createIfMissing)
+    val db = RocksDB.open(options, path)
+    new StorageOperator(new RocksDatabase(db))
+  }
+
+  def openLevelDB(path: String, createIfMissing: Boolean = true): StorageOperator = {
+    import org.iq80.leveldb.Options
+    val options = new Options
+    options.createIfMissing(createIfMissing)
+    val db = factory.open(new File(path), options)
+    new StorageOperator(new LevelDB(db))
   }
 }

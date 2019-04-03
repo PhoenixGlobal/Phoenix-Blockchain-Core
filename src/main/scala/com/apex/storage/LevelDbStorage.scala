@@ -229,6 +229,14 @@ class LevelDBIterator(it: DBIterator) extends LowLevelDBIterator {
   override def close(): Unit = {
     it.close()
   }
+
+  override def seekToLast(): Unit = {
+    it.seekToLast()
+  }
+
+  override def seekToFirst(): Unit = {
+    it.seekToFirst()
+  }
 }
 
 // adapter class for low level db
@@ -265,6 +273,10 @@ class LevelDB(db: DB) extends LowLevelDB {
 
   override def write(batch: LowLevelWriteBatch): Unit = {
     db.write(batch.asInstanceOf[LevelDBWriteBatch].batch)
+  }
+
+  override def close(): Unit = {
+    db.close()
   }
 }
 

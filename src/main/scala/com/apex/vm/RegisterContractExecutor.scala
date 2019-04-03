@@ -122,7 +122,7 @@ object RegisterContractExecutor {
       val scheduleTx = new Transaction(TransactionType.Refund, tx.toPubKeyHash, tx.from,
         FixedNumber(registerSpend.value), tx.nonce, tx.id.data, tx.gasPrice, tx.gasLimit, tx.signature, tx.version, time)
       track.setScheduleTx(scheduleTx.id, scheduleTx)
-      val updatedWitness = registerData.registerInfo.copy(register = false)
+      val updatedWitness = track.getWitness(registerData.registerInfo.addr).get.copy(register = false)
       track.createWitness(updatedWitness)
       //RegisterFeeScheduleActor(track, registerData, registerSpend)
       //track.deleteWitness(registerData.registerAccount)
