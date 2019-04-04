@@ -64,7 +64,7 @@ trait LowLevelStorage[Key, Value] extends Storage[Key, Value] {
   def batchWrite(action: Batch => Unit): Boolean
 
   // return last element
-  def last(): Option[Entry[Array[Byte], Array[Byte]]]
+  def last(): (Array[Byte], Array[Byte])
 
   // apply func to all key/value pairs
   def scan(func: (Key, Value) => Unit): Unit
@@ -82,24 +82,6 @@ trait LowLevelStorage[Key, Value] extends Storage[Key, Value] {
 
   def onRollback(action: () => Unit): Unit
 }
-//
-//object LowLevelStorageTemp {
-//  type raw = Storage[Array[Byte], Array[Byte]]
-//
-////  type lowLevelRaw = LowLevelStorageTemp[Array[Byte], Array[Byte]]
-//
-//  def open(dbType: DBType.Value, path: String): LowLevelDB = {
-//    dbType match {
-//      case DBType.LevelDB => StorageOperator.open(dbType,path)
-//      case DBType.RocksDB => StorageOperator.open(dbType,path)
-//      case _ => throw new NotImplementedError
-//    }
-//  }
-//}
-//
-//class LowLevelStorageTemp(val db: LowLevelDB) extends LowLevelStorage[Array[Byte], Array[Byte]]{
-//
-//}
 
 // low level db iterator adapter
 trait LowLevelDBIterator {
@@ -108,8 +90,6 @@ trait LowLevelDBIterator {
   def next(): (Array[Byte], Array[Byte])
 
   def hasNext(): Boolean
-
-  def peekNext(): Option[Entry[Array[Byte], Array[Byte]]]
 
   def close(): Unit
 

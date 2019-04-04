@@ -149,7 +149,7 @@ class LevelDBStorageTest {
   @Test
   def testLastEmpty(): Unit = {
     val storage = LowLevelDbManager.open(testClass, "testLastEmpty")
-    assert(storage.last().isEmpty)
+    assert(storage.last()._1 == null)
   }
 
   @Test
@@ -159,9 +159,9 @@ class LevelDBStorageTest {
       storage.set(BigInt(i).toByteArray, s"test$i".getBytes)
     }
 
-    val last = storage.last.get
-    assert(BigInt(last.getKey).toInt == 10)
-    assert(new String(last.getValue).equals("test10"))
+    val last = storage.last
+    assert(BigInt(last._1).toInt == 10)
+    assert(new String(last._2).equals("test10"))
   }
 
 //  @Test

@@ -53,8 +53,8 @@ class PersistentStack[A <: Serializable](db: LevelDbStorage)
 
   private def init() = {
     val last = db.last()
-    if (!last.isEmpty) {
-      topIdx = BigInt(last.get.getKey).toInt + 1
+    if (last._1 != null) {
+      topIdx = BigInt(last._1).toInt + 1
     }
   }
 

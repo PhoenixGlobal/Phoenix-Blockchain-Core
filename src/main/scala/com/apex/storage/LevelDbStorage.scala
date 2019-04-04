@@ -61,14 +61,15 @@ class LevelDbStorage(val db: DB) extends LowLevelStorage[Array[Byte], Array[Byte
   }
 
   // return last element
-  override def last(): Option[Entry[Array[Byte], Array[Byte]]] = {
+  override def last(): (Array[Byte], Array[Byte]) = {
     val it = db.iterator()
     try {
       it.seekToLast()
       if (it.hasNext) {
-        Some(it.peekNext())
+        val entry = it.next
+        (entry.getKey, entry.getValue)
       } else {
-        None
+        (null, null)
       }
     } finally {
       it.close()
@@ -220,10 +221,6 @@ class LevelDBIterator(it: DBIterator) extends LowLevelDBIterator {
   // whether has next element
   override def hasNext(): Boolean = {
     it.hasNext
-  }
-
-  override def peekNext(): Option[Entry[Array[Byte], Array[Byte]]] = {
-    Some(it.peekNext())
   }
 
   override def close(): Unit = {

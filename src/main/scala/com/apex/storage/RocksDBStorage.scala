@@ -82,21 +82,21 @@ class RocksDBStorage(val db: RocksDB) extends LowLevelStorage[Array[Byte], Array
     applyBatch(batch)
   }
 
-  override def last(): Option[Map.Entry[Array[Byte], Array[Byte]]] = {
-    val m = new util.HashMap[Array[Byte], Array[Byte]]()
-    val iterator = db.newIterator()
-    iterator.seekToLast()
-
-    if(iterator.isValid){
-      m.put(iterator.key(), iterator.value())
-      val r: util.Iterator[Map.Entry[Array[Byte], Array[Byte]]] = m.entrySet().iterator()
-      if(r.hasNext){
-        val entry: Map.Entry[Array[Byte], Array[Byte]] = r.next()
-        Some(entry)
+  override def last(): (Array[Byte], Array[Byte]) = {
+    val it = db.newIterator()
+    try{
+      it.seekToLast()
+      if(it.isValid){
+        val cur = (it.key(), it.value())
+        it.next()
+        cur
       }
-      else None
+      else
+        (null, null)
     }
-    else None
+    finally {
+      it.close()
+    }
   }
 
   override def scan(func: (Array[Byte], Array[Byte]) => Unit): Unit = {
@@ -226,20 +226,6 @@ class RocksDBIterator(it: RocksIterator) extends LowLevelDBIterator {
 
   override def hasNext(): Boolean = {
     it.isValid
-  }
-
-  override def peekNext(): Option[Entry[Array[Byte], Array[Byte]]] = {
-    val m = new util.HashMap[Array[Byte], Array[Byte]]()
-    if(it.isValid){
-      m.put(it.key(), it.value())
-      val r: util.Iterator[Map.Entry[Array[Byte], Array[Byte]]] = m.entrySet().iterator()
-      if(r.hasNext){
-        val entry: Map.Entry[Array[Byte], Array[Byte]] = r.next()
-        Some(entry)
-      }
-      else None
-    }
-    else None
   }
 
   override def close(): Unit = {

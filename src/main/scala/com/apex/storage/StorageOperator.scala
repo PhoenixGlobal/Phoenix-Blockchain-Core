@@ -57,14 +57,15 @@ class StorageOperator(val db: LowLevelDB) extends LowLevelStorage[Array[Byte], A
     applyBatch(batch)
   }
 
-  override def last(): Option[Entry[Array[Byte], Array[Byte]]] = {
+
+  override def last(): (Array[Byte], Array[Byte]) = {
     val it = db.iterator()
     try {
       it.seekToLast()
       if (it.hasNext()) {
-        it.peekNext()
+        it.next()
       } else {
-        None
+        (null, null)
       }
     } finally {
       it.close()
@@ -75,18 +76,17 @@ class StorageOperator(val db: LowLevelDB) extends LowLevelStorage[Array[Byte], A
   override def scan(func: (Array[Byte], Array[Byte]) => Unit): Unit = {
     seekThenApply(
       it => it.seekToFirst(),
-      entry => {
-        func(entry.getKey, entry.getValue)
+      keyAndValue => {
+        func(keyAndValue._1, keyAndValue._2)
         true
       })
   }
 
-  private def seekThenApply(seekAction: LowLevelDBIterator => Unit, func: Entry[Array[Byte], Array[Byte]] => Boolean): Unit = {
+  private def seekThenApply(seekAction: LowLevelDBIterator => Unit, func: ((Array[Byte], Array[Byte])) => Boolean): Unit = {
     val iterator = db.iterator
     try {
       seekAction(iterator)
-      while (iterator.hasNext && func(iterator.peekNext().get)) {
-        iterator.next
+      while (iterator.hasNext && func(iterator.next())) {
       }
     } catch {
       case e: Throwable => log.error("seek", e)
@@ -100,12 +100,10 @@ class StorageOperator(val db: LowLevelDB) extends LowLevelStorage[Array[Byte], A
     val iterator = db.iterator
     iterator.seek(prefix)
     while (iterator.hasNext) {
-      val entry = iterator.peekNext().get
-      if (entry.getKey.length >= prefix.length
-        && prefix.sameElements(entry.getKey.take(prefix.length))){
-        records.append(entry.getValue)
+      val entry = iterator.next()
+      if (entry._1.startsWith(prefix)){
+        records.append(entry._2)
       }
-      iterator.next
     }
     records
   }
@@ -114,12 +112,11 @@ class StorageOperator(val db: LowLevelDB) extends LowLevelStorage[Array[Byte], A
   override def find(prefix: Array[Byte], func: (Array[Byte], Array[Byte]) => Unit): Unit = {
     seekThenApply(
       it => it.seek(prefix),
-      entry => {
-        if (entry.getKey.length < prefix.length
-          || !prefix.sameElements(entry.getKey.take(prefix.length))) {
+      keyAndValue => {
+        if (!keyAndValue._1.startsWith(prefix)) {
           false
         } else {
-          func(entry.getKey, entry.getValue)
+          func(keyAndValue._1, keyAndValue._2)
           true
         }
       })
@@ -161,9 +158,27 @@ class StorageOperator(val db: LowLevelDB) extends LowLevelStorage[Array[Byte], A
     sessionMgr.revisions()
   }
 
-//  def batchWrite(action: LowLevelWriteBatch => Unit): Unit ={
-//    db.batchWrite(action)
-//  }
+  def createWriteBatch(): LowLevelWriteBatch = {
+    db.createWriteBatch()
+  }
+
+  def updateBatchToDB(updateBatch: LowLevelWriteBatch, batch: Batch): Boolean = {
+    try {
+      batch.ops.foreach(_ match {
+        case PutOperationItem(k, v) => updateBatch.set(k, v)
+        case DeleteOperationItem(k) => updateBatch.delete(k)
+      })
+      db.write(updateBatch)
+      true
+    } catch {
+      case e: Throwable => {
+        log.error("apply batch failed", e)
+        false
+      }
+    } finally {
+      updateBatch.close()
+    }
+  }
 
   private def applyBatch(batch: Batch): Boolean = {
     val update = db.createWriteBatch()
@@ -278,11 +293,10 @@ class SessionManagerTemp(db: LowLevelDB) {
   private def init(): Unit = {
     def reloadRevision(iterator: LowLevelDBIterator) = {
       if (iterator.hasNext) {
-        val kv = iterator.peekNext().get
-        if (kv.getKey.startsWith(prefix)) {
-          require(kv.getKey.sameElements(prefix))
-          _revision = BigInt(kv.getValue).toLong
-          iterator.next
+        val (key, value) = iterator.next()
+        if (key.startsWith(prefix)) {
+          require(key.sameElements(prefix))
+          _revision = BigInt(value).toLong
           true
         } else {
           false
@@ -298,15 +312,14 @@ class SessionManagerTemp(db: LowLevelDB) {
       var eof = false
       val temp = ListBuffer.empty[RollbackSessionTemp]
       while (!eof && iterator.hasNext) {
-        val kv = iterator.peekNext().get
-        val key = kv.getKey
+        val kv = iterator.next()
+        val key = kv._1
         if (key.startsWith(prefix)) {
-          val value = kv.getValue
+          val value = kv._2
           val revision = BigInt(key.drop(prefix.length)).toLong
           val session = new RollbackSessionTemp(db, prefix, revision)
           session.init(value)
           temp.append(session)
-          iterator.next
         } else {
           eof = true
         }
@@ -315,7 +328,7 @@ class SessionManagerTemp(db: LowLevelDB) {
       temp
     }
 
-    val iterator = db.iterator
+    val iterator = db.iterator()
 
     try {
       iterator.seek(prefix)
