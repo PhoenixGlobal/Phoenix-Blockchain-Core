@@ -95,15 +95,8 @@ class DataBase(settings: DataBaseSettings, db: Storage.lowLevelRaw, tracking: Tr
 
   // transfer values
   def transfer(from: UInt160, to: UInt160, value: FixedNumber): Unit = {
-    val fromAcct = getAccount(from)
-      .getOrElse(Account.newAccount(from))
-      .addBalance(-value)
-    val toAcct = getAccount(to)
-      .getOrElse(Account.newAccount(to))
-      .addBalance(value)
-
-    accountStore.set(from, fromAcct)
-    accountStore.set(to, toAcct)
+    addBalance(from,-value)
+    addBalance(to,value)
   }
 
   // transfer values
