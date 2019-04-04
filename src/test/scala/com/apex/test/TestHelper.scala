@@ -18,7 +18,8 @@ import java.time.Instant
 import com.apex.core.{Block, BlockHeader}
 import com.apex.crypto.Ecdsa.{PrivateKey, PublicKey}
 import com.apex.crypto.{BinaryData, Crypto, UInt160, UInt256}
-import com.apex.storage.{LevelDbStorage, RocksDBStorage}
+import com.apex.settings.DBType
+import com.apex.storage.{LevelDbStorage, RocksDBStorage, StorageOperator}
 
 import scala.collection.mutable.Map
 import scala.reflect.io.Directory
@@ -125,6 +126,60 @@ object RocksDbManager {
   def clearUp(testClass: String) = {
     rocksDbManagers.get(testClass).foreach(_.cleanUp)
     rocksDbManagers.remove(testClass)
+  }
+}
+
+class LowLevelDbManager(testClass: String) {
+  private final val dbs = Map.empty[String, StorageOperator]
+
+  def openDB(dbType: DBType.Value, dir: String): StorageOperator = {
+    if (!dbs.contains(dir)) {
+      val path = Paths.get(testClass, dir)
+      if (!Files.isSymbolicLink(path.getParent)) Files.createDirectories(path.getParent)
+      val db = StorageOperator.open(dbType,s"$testClass/$dir")
+      dbs.put(dir, db)
+      println(s"$testClass/$dir")
+    }
+    dbs(dir)
+  }
+
+  def cleanUp: Unit = {
+    dbs.values.foreach(_.close())
+    deleteDir(testClass)
+  }
+
+  private def deleteDir(dir: String): Unit = {
+    try {
+      Directory(dir).deleteRecursively()
+    } catch {
+      case e: Throwable => println(e.getMessage)
+    }
+  }
+}
+
+object LowLevelDbManager {
+  private final val dbManagers = Map.empty[String, LowLevelDbManager]
+
+  def open(testClass: String, dir: String, dbType: DBType.Value = DBType.LevelDB ): StorageOperator = {
+    if (!dbManagers.contains(testClass)) {
+      val dbMgr = new LowLevelDbManager(testClass)
+      dbManagers.put(testClass, dbMgr)
+    }
+    dbManagers(testClass).openDB(dbType,dir)
+  }
+
+  def close(testClass: String, dir: String) = {
+    dbManagers.get(testClass).foreach(dbMgr => {
+      if (dbMgr.dbs.contains(dir)) {
+        dbMgr.dbs(dir).close()
+        dbMgr.dbs.remove(dir)
+      }
+    })
+  }
+
+  def clearUp(testClass: String) = {
+    dbManagers.get(testClass).foreach(_.cleanUp)
+    dbManagers.remove(testClass)
   }
 }
 

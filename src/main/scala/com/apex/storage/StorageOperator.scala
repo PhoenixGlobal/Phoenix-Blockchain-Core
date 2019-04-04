@@ -382,6 +382,7 @@ class RollbackSessionTemp(db: LowLevelDB, val prefix: Array[Byte], val revision:
     } finally {
       batch.close()
     }
+
   }
 
   override def onSet(key: Array[Byte], v: Array[Byte], batch: Batch): Batch = {
@@ -443,10 +444,10 @@ class RollbackSessionTemp(db: LowLevelDB, val prefix: Array[Byte], val revision:
 }
 
 object StorageOperator{
-    def open(dbType: DBType.Value, path: String): LowLevelDB = {
+    def open(dbType: DBType.Value, path: String): StorageOperator = {
       dbType match {
-        case DBType.LevelDB => StorageOperator.open(dbType,path)
-        case DBType.RocksDB => StorageOperator.open(dbType,path)
+        case DBType.LevelDB => openRocksDB(path)
+        case DBType.RocksDB => openLevelDB(path)
         case _ => throw new NotImplementedError
       }
     }

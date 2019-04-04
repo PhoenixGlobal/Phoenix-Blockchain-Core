@@ -8,6 +8,7 @@
 
 package com.apex.test
 
+import com.apex.settings.DBType
 import org.junit.{AfterClass, Test}
 
 import scala.reflect.io.Directory
@@ -18,7 +19,7 @@ class RocksDBStorageTest {
 
   @Test
   def testSet() = {
-    val storage = RocksDbManager.open(testClass, "testSet")
+    val storage = LowLevelDbManager.open(testClass, "testSet", DBType.RocksDB)
     assert(storage.set("testSet".getBytes, "testSetValue".getBytes))
   }
 
@@ -26,7 +27,7 @@ class RocksDBStorageTest {
   def testGet() = {
     val key = "testGet".getBytes
     val valueString = "testGetValue"
-    val storage = RocksDbManager.open(testClass, "testGet")
+    val storage = LowLevelDbManager.open(testClass, "testGet", DBType.RocksDB)
     assert(storage.set(key, valueString.getBytes))
     val value = storage.get(key)
     assert(value.exists(v => new String(v).equals(valueString)))
@@ -37,7 +38,7 @@ class RocksDBStorageTest {
     val key = "testUpdate".getBytes
     val valueString = "testUpdateValue"
     val newValueString = "testUpdateValueNew"
-    val storage = RocksDbManager.open(testClass, "testUpdate")
+    val storage = LowLevelDbManager.open(testClass, "testUpdate", DBType.RocksDB)
     assert(true == storage.set(key, valueString.getBytes))
     val value = storage.get(key)
     assert(value.isDefined)
@@ -50,7 +51,7 @@ class RocksDBStorageTest {
 
   @Test
   def testGetKeyNotExists() = {
-    val storage = RocksDbManager.open(testClass, "testGetKeyNotExists")
+    val storage = LowLevelDbManager.open(testClass, "testGetKeyNotExists", DBType.RocksDB)
     val value = storage.get("testNotExistKey".getBytes)
     assert(value.isEmpty)
   }
@@ -59,7 +60,7 @@ class RocksDBStorageTest {
   def testDelete() = {
     val key = "testDelete".getBytes
     val value = "testDeleteValue".getBytes
-    val storage = RocksDbManager.open(testClass, "testDelete")
+    val storage = LowLevelDbManager.open(testClass, "testDelete", DBType.RocksDB)
     assert(true == storage.set(key, value))
     assert(storage.get(key).isDefined)
     storage.delete(key)
@@ -68,7 +69,7 @@ class RocksDBStorageTest {
 
   @Test
   def testScan() = {
-    val storage = RocksDbManager.open(testClass, "testScan")
+    val storage = LowLevelDbManager.open(testClass, "testScan", DBType.RocksDB)
     var pairs = collection.mutable.Seq.empty[(String, String)]
     for (i <- 1 to 10) {
       val key = s"key$i"
@@ -89,7 +90,7 @@ class RocksDBStorageTest {
 
   @Test
   def testFind() = {
-    val storage = RocksDbManager.open(testClass, "testFind")
+    val storage = LowLevelDbManager.open(testClass, "testFind", DBType.RocksDB)
     val seqArr = Array(
       collection.mutable.Seq.empty[(String, String)],
       collection.mutable.Seq.empty[(String, String)]
@@ -118,8 +119,8 @@ class RocksDBStorageTest {
 
   @Test
   def testScanPrefix() = {
-    DbManager.clearUp("RocksDBStorageTest")
-    val storage = RocksDbManager.open(testClass, "testScanPrefix")
+    LowLevelDbManager.clearUp("RocksDBStorageTest")
+    val storage = LowLevelDbManager.open(testClass, "testScanPrefix", DBType.RocksDB)
     val seqArr = Array(
       collection.mutable.Seq.empty[(String, String)],
       collection.mutable.Seq.empty[(String, String)]
@@ -144,13 +145,13 @@ class RocksDBStorageTest {
 
   @Test
   def testLastEmpty(): Unit = {
-    val storage = RocksDbManager.open(testClass, "testLastEmpty")
+    val storage = LowLevelDbManager.open(testClass, "testLastEmpty", DBType.RocksDB)
     assert(storage.last().isEmpty)
   }
 
   @Test
   def testLast(): Unit = {
-    val storage = RocksDbManager.open(testClass, "testLast")
+    val storage = LowLevelDbManager.open(testClass, "testLast", DBType.RocksDB)
     for (i <- 0 to 10) {
       storage.set(BigInt(i).toByteArray, s"test$i".getBytes)
     }
@@ -275,7 +276,7 @@ object RocksDBStorageTest {
   @AfterClass
   def cleanUp: Unit = {
     Directory("RocksDBStorageTest").deleteRecursively()
-    RocksDbManager.clearUp("RocksDBStorageTest")
+    LowLevelDbManager.clearUp("RocksDBStorageTest")
   }
 }
 

@@ -10,6 +10,7 @@ package com.apex.test
 
 import java.util.Map.Entry
 
+import com.apex.settings.DBType
 import org.junit.{AfterClass, Test}
 
 import scala.collection.mutable.ArrayBuffer
@@ -21,7 +22,7 @@ class LevelDBStorageTest {
 
   @Test
   def testSet() = {
-    val storage = DbManager.open(testClass, "testSet")
+    val storage = LowLevelDbManager.open(testClass, "testSet")
     assert(storage.set("testSet".getBytes, "testSetValue".getBytes))
   }
 
@@ -29,7 +30,7 @@ class LevelDBStorageTest {
   def testGet() = {
     val key = "testGet".getBytes
     val valueString = "testGetValue"
-    val storage = DbManager.open(testClass, "testGet")
+    val storage = LowLevelDbManager.open(testClass, "testGet")
     assert(storage.set(key, valueString.getBytes))
     val value = storage.get(key)
     assert(value.exists(v => new String(v).equals(valueString)))
@@ -40,7 +41,7 @@ class LevelDBStorageTest {
     val key = "testUpdate".getBytes
     val valueString = "testUpdateValue"
     val newValueString = "testUpdateValueNew"
-    val storage = DbManager.open(testClass, "testUpdate")
+    val storage = LowLevelDbManager.open(testClass, "testUpdate")
     assert(true == storage.set(key, valueString.getBytes))
     val value = storage.get(key)
     assert(value.isDefined)
@@ -53,7 +54,7 @@ class LevelDBStorageTest {
 
   @Test
   def testGetKeyNotExists() = {
-    val storage = DbManager.open(testClass, "testGetKeyNotExists")
+    val storage = LowLevelDbManager.open(testClass, "testGetKeyNotExists")
     val value = storage.get("testNotExistKey".getBytes)
     assert(value.isEmpty)
   }
@@ -62,7 +63,7 @@ class LevelDBStorageTest {
   def testDelete() = {
     val key = "testDelete".getBytes
     val value = "testDeleteValue".getBytes
-    val storage = DbManager.open(testClass, "testDelete")
+    val storage = LowLevelDbManager.open(testClass, "testDelete")
     assert(true == storage.set(key, value))
     assert(storage.get(key).isDefined)
     storage.delete(key)
@@ -71,7 +72,7 @@ class LevelDBStorageTest {
 
   @Test
   def testScan() = {
-    val storage = DbManager.open(testClass, "testScan")
+    val storage = LowLevelDbManager.open(testClass, "testScan")
     var pairs = collection.mutable.Seq.empty[(String, String)]
     for (i <- 1 to 10) {
       val key = s"key$i"
@@ -92,7 +93,7 @@ class LevelDBStorageTest {
 
   @Test
   def testFind() = {
-    val storage = DbManager.open(testClass, "testFind")
+    val storage = LowLevelDbManager.open(testClass, "testFind")
     val seqArr = Array(
       collection.mutable.Seq.empty[(String, String)],
       collection.mutable.Seq.empty[(String, String)]
@@ -121,8 +122,8 @@ class LevelDBStorageTest {
 
   @Test
   def testScanPrefix() = {
-    DbManager.clearUp("LevelDBStorageTest")
-    val storage = DbManager.open(testClass, "testScanPrefix")
+    LowLevelDbManager.clearUp("LevelDBStorageTest")
+    val storage = LowLevelDbManager.open(testClass, "testScanPrefix")
     val seqArr = Array(
       collection.mutable.Seq.empty[(String, String)],
       collection.mutable.Seq.empty[(String, String)]
@@ -147,13 +148,13 @@ class LevelDBStorageTest {
 
   @Test
   def testLastEmpty(): Unit = {
-    val storage = DbManager.open(testClass, "testLastEmpty")
+    val storage = LowLevelDbManager.open(testClass, "testLastEmpty")
     assert(storage.last().isEmpty)
   }
 
   @Test
   def testLast(): Unit = {
-    val storage = DbManager.open(testClass, "testLast")
+    val storage = LowLevelDbManager.open(testClass, "testLast")
     for (i <- 0 to 10) {
       storage.set(BigInt(i).toByteArray, s"test$i".getBytes)
     }
@@ -276,6 +277,6 @@ object LevelDBStorageTest {
   @AfterClass
   def cleanUp: Unit = {
     Directory("LevelDBStorageTest").deleteRecursively()
-    DbManager.clearUp("LevelDBStorageTest")
+    LowLevelDbManager.clearUp("LevelDBStorageTest")
   }
 }

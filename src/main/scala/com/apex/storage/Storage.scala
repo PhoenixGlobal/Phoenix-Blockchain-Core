@@ -13,7 +13,7 @@ object Storage {
 
   type lowLevelRaw = LowLevelStorage[Array[Byte], Array[Byte]]
 
-    def openTemp(dbType: DBType.Value, path: String): LowLevelDB = {
+    def openTemp(dbType: DBType.Value, path: String): StorageOperator = {
       dbType match {
         case DBType.LevelDB => StorageOperator.open(dbType,path)
         case DBType.RocksDB => StorageOperator.open(dbType,path)
