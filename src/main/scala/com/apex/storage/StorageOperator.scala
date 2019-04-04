@@ -1,6 +1,7 @@
 package com.apex.storage
 
 import java.io.File
+import java.nio.file.{Files, Paths}
 import java.util.Map.Entry
 
 import com.apex.common.ApexLogging
@@ -160,9 +161,9 @@ class StorageOperator(val db: LowLevelDB) extends LowLevelStorage[Array[Byte], A
     sessionMgr.revisions()
   }
 
-  def batchWrite(action: LowLevelWriteBatch => Unit): Unit ={
-    db.batchWrite(action)
-  }
+//  def batchWrite(action: LowLevelWriteBatch => Unit): Unit ={
+//    db.batchWrite(action)
+//  }
 
   private def applyBatch(batch: Batch): Boolean = {
     val update = db.createWriteBatch()
@@ -446,8 +447,8 @@ class RollbackSessionTemp(db: LowLevelDB, val prefix: Array[Byte], val revision:
 object StorageOperator{
     def open(dbType: DBType.Value, path: String): StorageOperator = {
       dbType match {
-        case DBType.LevelDB => openRocksDB(path)
-        case DBType.RocksDB => openLevelDB(path)
+        case DBType.LevelDB => openLevelDB(path)
+        case DBType.RocksDB => openRocksDB(path)
         case _ => throw new NotImplementedError
       }
     }
@@ -456,6 +457,11 @@ object StorageOperator{
     import org.rocksdb.Options
     val options = new Options
     options.setCreateIfMissing(createIfMissing)
+    val dir = Paths.get(path)
+    if(dir.getNameCount > 1){
+      println(dir.getParent.toString)
+      if (!Files.isSymbolicLink(dir.getParent)) Files.createDirectories(dir.getParent)
+    }
     val db = RocksDB.open(options, path)
     new StorageOperator(new RocksDatabase(db))
   }

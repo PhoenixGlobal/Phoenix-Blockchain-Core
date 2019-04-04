@@ -380,7 +380,7 @@ class ForkBase(settings: ForkBaseSettings,
                //witnesses: Array[Witness],
                onConfirmed: Block => Unit,
                onSwitch: (Seq[ForkItem], Seq[ForkItem], SwitchState) => SwitchResult) extends ApexLogging {
-  private val db = Storage.open(settings.dbType, settings.dir)
+  private val db = Storage.openTemp(settings.dbType, settings.dir)
   private val forkStore = new ForkItemStore(db, settings.cacheSize)
   private val switchStateStore = new SwitchStateStore(db)
 

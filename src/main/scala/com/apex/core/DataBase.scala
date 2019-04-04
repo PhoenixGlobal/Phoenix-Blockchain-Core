@@ -42,7 +42,7 @@ class DataBase(settings: DataBaseSettings, db: Storage.lowLevelRaw, tracking: Tr
   }
 
   def this(settings: DataBaseSettings) = {
-    this(settings, Storage.open(settings.dbType, settings.dir))
+    this(settings, Storage.openTemp(settings.dbType, settings.dir))
   }
 
   //  def nameExists(name: String): Boolean = {

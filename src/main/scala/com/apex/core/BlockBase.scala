@@ -15,7 +15,7 @@ import com.apex.settings.BlockBaseSettings
 import com.apex.storage.Storage
 
 class BlockBase(settings: BlockBaseSettings) {
-  private val db = Storage.open(settings.dbType, settings.dir)
+  private val db = Storage.openTemp(settings.dbType, settings.dir)
 
   private val blockStore = new BlockStore(db, settings.cacheSize)
   private val heightStore = new HeightStore(db, settings.cacheSize)
