@@ -241,21 +241,21 @@ class Blockchain(chainSettings: ChainSettings,
   private def addTransactionToUnapplyTxs(tx: Transaction): AddTxResult = {
     if (!txPool.contains(tx)) {
       if (txPool.add(tx))
-        Added
+        AddedToMempool
       else
         MempoolFull
     }
     else SameTx
   }
 
-  def validateTransaction(tx: Transaction): AddTxResult = {
+  private def validateTransaction(tx: Transaction): AddTxResult = {
     var result: AddTxResult = new AddTxResult(true, "")
 
     if (tx.gasLimit > runtimeParas.txAcceptGasLimit) {
       log.info(s"tx: ${tx.id()}, set too heigh gas-limit, it should not above ${runtimeParas.txAcceptGasLimit}")
       result = HeighGasLimit(runtimeParas.txAcceptGasLimit)
     } else if (dataBase.getNonce(tx.sender()) > tx.nonce) {
-      result = new AddTxResult(false, "too small nonce value")
+      result = InvalidNonce(dataBase.getNonce(tx.sender()), tx.nonce)
     }
     result
   }

@@ -17,9 +17,6 @@ object AddTxResult {
 case class InvalidNonce(expected: Long, actual: Long) extends
   AddTxResult(false, s"Invalid nonce, expected：$expected but actual：$actual")
 
-/*case class NonceTooBig(reqNonce: Long, txNonce: Long) extends
-  AddTxResult(false, s"Invalid nonce: nonce too big, required: $reqNonce, tx.nonce: $txNonce")*/
-
 case class HeighGasLimit(txAcceptGasLimit: Long) extends
   AddTxResult(false, s"Set too heigh gas-limit, it should not above ${txAcceptGasLimit}")
 
@@ -36,7 +33,7 @@ object RefundTxError extends AddTxResult(false, "ApplyRefundTransaction error")
 
 object InvalidType extends AddTxResult(false, "Tx type invalid")
 
-object Added extends AddTxResult(true, "Added to mempool, pending process")
+object AddedToMempool extends AddTxResult(true, "Added to mempool, pending process")
 
 object MempoolFull extends AddTxResult(false, "Mempool full")
 

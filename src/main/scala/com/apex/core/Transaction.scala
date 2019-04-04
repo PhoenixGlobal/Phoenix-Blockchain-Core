@@ -68,12 +68,12 @@ class Transaction(val txType: TransactionType.Value,
   override def serialize(os: DataOutputStream): Unit = {
     import com.apex.common.Serializable._
 
-    serializeForSign(os)
+    serializeWithoutSignature(os)
 
     os.writeByteArray(signature)
   }
 
-  def serializeForSign(os: DataOutputStream) = {
+  private def serializeWithoutSignature(os: DataOutputStream) = {
     import com.apex.common.Serializable._
     os.writeInt(version)
     os.writeByte(txType.toByte)
@@ -93,7 +93,7 @@ class Transaction(val txType: TransactionType.Value,
   def dataForSigning(): Array[Byte] = {
     val bs = new ByteArrayOutputStream()
     val os = new DataOutputStream(bs)
-    serializeForSign(os)
+    serializeWithoutSignature(os)
     bs.toByteArray
   }
 
