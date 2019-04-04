@@ -205,23 +205,34 @@ class BlockchainTest {
   @Test
   def testIsLastBlockOfProducer(): Unit = {
     def doTestIsLastBlockOfProducer(chain: Blockchain): Unit = {
-      var nowTime = Instant.now.toEpochMilli
-      var blockTime = ProducerUtil.nextBlockTime(chain.getHeadTime(), nowTime, _produceInterval / 10, _produceInterval)
-      for (i <- 0 to 50) {
-        blockTime += _produceInterval
-        if (chain.getWitness(blockTime).equals(chain.getWitness(blockTime + _produceInterval))) {
-          //println("dd")
-          assert(!chain.isLastBlockOfProducer(blockTime))
-        }
-        else {
-          //println("dddddd")
-          assert(chain.isLastBlockOfProducer(blockTime))
+      try{
+
+        var nowTime = Instant.now.toEpochMilli
+        var blockTime = ProducerUtil.nextBlockTime(chain.getHeadTime(), nowTime, _produceInterval / 10, _produceInterval)
+        for (i <- 0 to 50) {
+          blockTime += _produceInterval
+          if (chain.getWitness(blockTime).equals(chain.getWitness(blockTime + _produceInterval))) {
+            //println("dd")
+            assert(!chain.isLastBlockOfProducer(blockTime))
+          }
+          else {
+            //println("dddddd")
+            assert(chain.isLastBlockOfProducer(blockTime))
+          }
         }
       }
-    }
 
-    doTestIsLastBlockOfProducer(createChain("testIsLastBlockOfProducer", _consensusSettings))
-    doTestIsLastBlockOfProducer(createChain("testIsLastBlockOfProducer2", _consensusSettings2))
+      catch {
+        case e: Exception => e.printStackTrace()
+      }
+
+      finally {
+        chain.close()
+      }
+    }
+      doTestIsLastBlockOfProducer(createChain("testIsLastBlockOfProducer", _consensusSettings))
+      doTestIsLastBlockOfProducer(createChain("testIsLastBlockOfProducer2", _consensusSettings2))
+
   }
 
   @Test
