@@ -99,7 +99,11 @@ class PeerDatabaseImpl(filename: String) extends PeerDatabase with ApexLogging {
 
   override def isEmpty(): Boolean = whitelistPersistence.isEmpty
 
-  override def remove(address: InetSocketAddress): Boolean = whitelistPersistence.remove(address.getAddress.getHostAddress).nonEmpty
+  override def remove(address: InetSocketAddress): Boolean = {
+    log.info("remove peer:"+ address)
+    whitelistPersistence.remove(address.getAddress.getHostAddress).nonEmpty
+  }
+
 
   //从whitelist里随机选出number个peer
   override def selectPeersByRandom(number: Long): Seq[NodeInfo] = {

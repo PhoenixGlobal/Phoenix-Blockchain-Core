@@ -68,7 +68,8 @@ class PeerHandlerManager(settings: NetworkSettings, timeProvider: NetworkTimePro
     case AddOrUpdatePeer(peer, nodeInfo) =>
       peerDatabase.addOrUpdateKnownPeer(peer.getAddress.getHostAddress, nodeInfo)
       peerUpdated = true
-
+    case RemovePeer(peerInfo)=>
+      peerDatabase.remove(peerInfo)
   }
 
   private def apiInterface: Receive = {
@@ -257,6 +258,8 @@ object PeerHandlerManager {
     case class AddToBlacklist(remote: InetSocketAddress)
 
     case class AddOrUpdatePeer(address: InetSocketAddress, nodeInfo: NodeInfo)
+
+    case class RemovePeer(address: InetSocketAddress)
 
     case object GetConnectedPeers
 
