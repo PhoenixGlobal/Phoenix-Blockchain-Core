@@ -162,19 +162,23 @@ class StorageOperator(val db: LowLevelDB) extends LowLevelStorage[Array[Byte], A
     db.createWriteBatch()
   }
 
-  def write(updateBatch: LowLevelWriteBatch): Unit ={
-    try{
+  def updateBatchToDB(updateBatch: LowLevelWriteBatch, batch: Batch): Boolean = {
+    try {
+      batch.ops.foreach(_ match {
+        case PutOperationItem(k, v) => updateBatch.set(k, v)
+        case DeleteOperationItem(k) => updateBatch.delete(k)
+      })
       db.write(updateBatch)
-    }
-    catch {
-      case e: Exception => e.printStackTrace()
-    }
-    finally {
+      true
+    } catch {
+      case e: Throwable => {
+        log.error("apply batch failed", e)
+        false
+      }
+    } finally {
       updateBatch.close()
     }
-
   }
-
 
   private def applyBatch(batch: Batch): Boolean = {
     val update = db.createWriteBatch()
