@@ -28,11 +28,11 @@ class BlockBase(settings: BlockBaseSettings) {
   def add(block: Block): Unit = {
     require(head.forall(_.id.equals(block.prev)))
 
-    db.batchWrite(batch => {
-      blockStore.set(block.id, block, batch)
-      heightStore.set(block.height, block.id, batch)
-      headBlockStore.set(block.header, batch)
-    })
+    val updateBatch = db.createWriteBatch()
+      updateBatch.set(blockStore.genKey(block.id), block.toBytes)
+      updateBatch.set(heightStore.genKey(block.height), block.id.toBytes)
+      updateBatch.set(headBlockStore.prefixBytes, block.header.toBytes)
+      db.write(updateBatch)
   }
 
   def getBlock(id: UInt256): Option[Block] = {

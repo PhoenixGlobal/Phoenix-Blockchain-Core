@@ -750,7 +750,7 @@ abstract class StoreBase[K, V](val db: Storage.raw, cacheCapacity: Int) {
     })
   }
 
-  protected def genKey(key: K): Array[Byte] = {
+  def genKey(key: K): Array[Byte] = {
     prefixBytes ++ keyConverter.toBytes(key)
   }
 
