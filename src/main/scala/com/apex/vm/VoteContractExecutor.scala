@@ -123,7 +123,7 @@ object VoteContractExecutor {
       track.addBalance(tx.from, -voteData.voterCount)
       track.addBalance(new UInt160(PrecompiledContracts.voteAddr.getLast20Bytes), voteData.voterCount)
       val newWitness = witness.copy(voteCounts = witness.voteCounts + voteData.voterCount)
-      track.createWitness(newWitness)
+      track.setWitness(newWitness)
       track.getVote(tx.from).fold(track.createVote(tx.from, Vote(tx.from,
         scala.collection.mutable.Map[UInt160, FixedNumber](voteData.candidate -> voteData.voterCount))))(
         vote =>{
@@ -142,7 +142,7 @@ object VoteContractExecutor {
       track.setScheduleTx(scheduleTx.id, scheduleTx)
       if(witness.isDefined){
         val newWitness = witness.get.copy(voteCounts = witness.get.voteCounts - voteData.voterCount)
-        track.createWitness(newWitness)
+        track.setWitness(newWitness)
       }
       track.getVote(tx.from).fold({})(
         vote =>{

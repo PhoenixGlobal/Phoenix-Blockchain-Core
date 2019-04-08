@@ -681,7 +681,7 @@ class Blockchain(chainSettings: ChainSettings,
   }
 
   def setWitness(witnessInfo: WitnessInfo) {
-    dataBase.createWitness(witnessInfo)
+    dataBase.setWitness(witnessInfo)
   }
 
   def getScheduleTx(): ArrayBuffer[Transaction] = {
@@ -708,7 +708,7 @@ class Blockchain(chainSettings: ChainSettings,
       consensusSettings.initialWitness.foreach(w => {
         val initWitness = new WitnessInfo(w.pubkeyHash, true, w.name)
         witnesses.append(initWitness)
-        dataBase.createWitness(initWitness)
+        dataBase.setWitness(initWitness)
       })
       require(dataBase.getAllWitness().count(_.register) == consensusSettings.witnessNum)
       val witnessList = WitnessList.create(witnesses.toArray, genesisBlock.id())

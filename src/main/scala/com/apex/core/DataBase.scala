@@ -166,7 +166,7 @@ class DataBase(settings: DataBaseSettings, db: Storage.lowLevelRaw, tracking: Tr
     witnessInfoStore.get(address)
   }
 
-  def createWitness(witness: WitnessInfo) = {
+  def setWitness(witness: WitnessInfo) = {
     witnessInfoStore.set(witness.addr, witness)
   }
 

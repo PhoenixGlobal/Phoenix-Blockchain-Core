@@ -123,7 +123,7 @@ object RegisterContractExecutor {
         FixedNumber(registerSpend.value), tx.nonce, tx.id.data, tx.gasPrice, tx.gasLimit, tx.signature, tx.version, time)
       track.setScheduleTx(scheduleTx.id, scheduleTx)
       val updatedWitness = track.getWitness(registerData.registerInfo.addr).get.copy(register = false)
-      track.createWitness(updatedWitness)
+      track.setWitness(updatedWitness)
       //RegisterFeeScheduleActor(track, registerData, registerSpend)
       //track.deleteWitness(registerData.registerAccount)
     }
@@ -133,11 +133,11 @@ object RegisterContractExecutor {
       track.addBalance(new UInt160(PrecompiledContracts.registerNodeAddr.getLast20Bytes), registerSpend.value)
       if(track.getWitness(registerData.registerInfo.addr).isDefined){
         val witnessInfo = track.getWitness(registerData.registerInfo.addr).get.copy(register = true)
-        track.createWitness(witnessInfo)
+        track.setWitness(witnessInfo)
       }
       else {
         val witnessInfo = registerData.registerInfo.copy(register = true)
-        track.createWitness(witnessInfo)
+        track.setWitness(witnessInfo)
       }
     }
 
