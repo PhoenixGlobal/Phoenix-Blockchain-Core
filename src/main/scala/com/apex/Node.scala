@@ -67,7 +67,7 @@ class Node(val settings: ApexSettings, config: Config)
 
   private val notification = Notification()
 
-  private val timeProvider = new NetworkTimeProvider(settings.ntp)
+  private val timeProvider = new NetworkTimeProvider()
 
   if (settings.plugins.mongodb.enabled) {
     val mongodbPlugin = MongodbPluginRef(settings)

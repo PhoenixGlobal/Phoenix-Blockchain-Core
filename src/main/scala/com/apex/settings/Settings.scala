@@ -52,7 +52,6 @@ case class NetworkTimeProviderSettings(server: String, updateEvery: FiniteDurati
 
 
 case class ApexSettings(network: NetworkSettings,
-                        ntp: NetworkTimeProviderSettings,
                         chain: ChainSettings,
                         rpc: RPCSettings,
                         consensus: ConsensusSettings,
