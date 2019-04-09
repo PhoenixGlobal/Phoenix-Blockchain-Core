@@ -18,7 +18,8 @@ import com.apex.network._
 import com.apex.network.peer.PeerHandlerManager.ReceivableMessages.ReceivedPeers
 import com.apex.network.peer.PeerHandlerManagerRef
 import com.apex.rpc.{_}
-import com.apex.plugins.mongodb.{GasPricePluginRef, MongodbPluginRef}
+import com.apex.plugins.mongodb.MongodbPluginRef
+import com.apex.plugins.gasprice.GasPricePluginRef
 import com.apex.settings.ApexSettings
 import com.apex.utils.NetworkTimeProvider
 import com.typesafe.config.Config

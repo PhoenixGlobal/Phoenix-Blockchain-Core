@@ -1,4 +1,4 @@
-package com.apex.plugins.mongodb
+package com.apex.plugins.gasprice
 
 import akka.actor.{Actor, ActorContext, ActorRef, Props}
 import com.apex.common.ApexLogging
