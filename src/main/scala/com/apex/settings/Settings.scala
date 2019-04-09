@@ -85,11 +85,13 @@ case class ChainSettings(blockBase: BlockBaseSettings,
                          minerAward: Double,
                          genesis: GenesisSettings)
 
-case class PluginsSettings(mongodb: MongodbSettings)
+case class PluginsSettings(mongodb: MongodbSettings,
+                           gasprice: GaspriceSettings)
 
 case class RuntimeParas(stopProcessTxTimeSlot: Int, txAcceptGasLimit: Long)
 
 case class MongodbSettings(enabled: Boolean, uri: String)
+case class GaspriceSettings(enabled: Boolean)
 
 case class MinerSettings(privKeys: Array[PrivateKey]) {
 

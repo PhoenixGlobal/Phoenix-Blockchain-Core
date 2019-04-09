@@ -86,11 +86,13 @@ class Node(val settings: ApexSettings, config: Config)
   }
 
   if (settings.rpc.enabled) {
-    if (settings.plugins.mongodb.enabled) {
+    if (settings.plugins.gasprice.enabled) {
       val gasPricePlugin = GasPricePluginRef(settings)
       notification.register(gasPricePlugin)
       RpcServer.run(settings, config, self, gasPricePlugin)
-    } else RpcServer.run(settings, config, self, null)
+    }
+    else
+      RpcServer.run(settings, config, self, null)
   }
 
   override def receive: Receive = {
