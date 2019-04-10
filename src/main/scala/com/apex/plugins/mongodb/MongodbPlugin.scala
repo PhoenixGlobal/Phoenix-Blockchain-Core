@@ -5,34 +5,31 @@ import java.time.Instant
 import akka.actor.{Actor, ActorContext, ActorRef, Props}
 import com.apex.common.ApexLogging
 import com.apex.core._
-
-import scala.collection.immutable.IndexedSeq
+import com.apex.crypto.FixedNumber
 import org.mongodb.scala._
-import org.mongodb.scala.model.Aggregates._
 import org.mongodb.scala.model.Filters._
-import org.mongodb.scala.model.Projections._
 import org.mongodb.scala.model.Sorts._
 import org.mongodb.scala.model.Updates._
 import org.mongodb.scala.model._
 import org.mongodb.scala.bson.BsonDateTime
 import com.apex.plugins.mongodb.Helpers._
+import com.apex.rpc.GetAverageCmd
 import com.apex.settings.ApexSettings
-import play.api.libs.json.Json
 
+import scala.collection.mutable
 import scala.concurrent.ExecutionContext
 
 class MongodbPlugin(settings: ApexSettings)
                    (implicit ec: ExecutionContext) extends Actor with ApexLogging {
 
   private val mongoClient: MongoClient = MongoClient(settings.plugins.mongodb.uri)
-
   private val database: MongoDatabase = mongoClient.getDatabase("apex")
-
   private val blockCol: MongoCollection[Document] = database.getCollection("block")
   private val txCol: MongoCollection[Document] = database.getCollection("transaction")
   private val accountCol: MongoCollection[Document] = database.getCollection("account")
   private val tpsHourCol: MongoCollection[Document] = database.getCollection("tps_hour")
   private val tpsTenSecCol: MongoCollection[Document] = database.getCollection("tps_tensec")
+  private val gasPriceCol: MongoCollection[Document] = database.getCollection("gasprice")
 
   init()
 
@@ -42,11 +39,9 @@ class MongodbPlugin(settings: ApexSettings)
   }
 
   override def receive: Receive = {
-    case NewBlockProducedNotify(block) => {
-
-    }
-    case BlockAddedToHeadNotify(block) => {
-      addBlock(block)
+    case NewBlockProducedNotify(block) => {}
+    case BlockAddedToHeadNotify(blockSummary) => {
+      addBlock(blockSummary)
     }
     case BlockConfirmedNotify(block) => {
       blockCol.updateOne(equal("blockHash", block.id.toString), set("confirmed", true)).results()
@@ -63,10 +58,20 @@ class MongodbPlugin(settings: ApexSettings)
       from.foreach(block => removeBlock(block))
       to.foreach(block => addBlock(block))
     }
+    case UpdateAverageGasPrice(averageGasPrice) => {
+      updateGasPrice(averageGasPrice)
+    }
     case a: Any => {
       log.info(s"${sender().toString}, ${a.toString}")
     }
   }
+
+  def updateGasPrice(gasPrice: String): Unit = {
+    val option = UpdateOptions()
+    option.upsert(true)
+    gasPriceCol.updateOne(equal("average_gp", "average_gp"), set("average_gp", gasPrice), option).results()
+  }
+
 
   private def findTransaction(tx: Transaction): Boolean = {
     txCol.find(equal("txHash", tx.id.toString)).results().size > 0
@@ -74,7 +79,7 @@ class MongodbPlugin(settings: ApexSettings)
 
   private def removeBlock(blockSummary: BlockSummary) = {
     val block = blockSummary.block
-    log.info(s"MongodbPlugin remove block ${block.height()}  ${block.shortId()}")
+    log.info(s"MongodbPlugin remove block ${block.height()} , ${block.shortId()}")
     blockCol.deleteOne(equal("blockHash", block.id().toString)).results()
     block.transactions.foreach(tx => {
       //txCol.updateOne(equal("txHash", tx.id.toString), set("refBlockHash", "")).results()
@@ -88,7 +93,11 @@ class MongodbPlugin(settings: ApexSettings)
 
   private def addBlock(blockSummary: BlockSummary) = {
     val block = blockSummary.block
-    log.info(s"MongodbPlugin add block ${block.height()}  ${block.shortId()}")
+    log.info(s"MongodbPlugin add block ${
+      block.height()
+    }  ${
+      block.shortId()
+    }")
     val newBlock: Document = Document(
       "height" -> block.height(),
       "blockHash" -> block.id().toString,
@@ -149,16 +158,13 @@ class MongodbPlugin(settings: ApexSettings)
     val time10s: Long = block.timeStamp / tenSec * tenSec
     val timeHour: Long = block.timeStamp / oneHour * oneHour
 
-    if (isIncrease)
+    if (isIncrease) {
       tpsHourCol.updateOne(equal("timeStamp", BsonDateTime(timeHour)), inc("txs", block.transactions.size), option).results()
-    else
-      tpsHourCol.updateOne(equal("timeStamp", BsonDateTime(timeHour)), inc("txs", -block.transactions.size), option).results()
-
-    if (isIncrease)
       tpsTenSecCol.updateOne(equal("timeStamp", BsonDateTime(time10s)), inc("txs", block.transactions.size), option).results()
-    else
+    } else {
+      tpsHourCol.updateOne(equal("timeStamp", BsonDateTime(timeHour)), inc("txs", -block.transactions.size), option).results()
       tpsTenSecCol.updateOne(equal("timeStamp", BsonDateTime(time10s)), inc("txs", -block.transactions.size), option).results()
-
+    }
   }
 
   private def addTransaction(tx: Transaction, block: Option[Block]) = {
@@ -217,7 +223,9 @@ class MongodbPlugin(settings: ApexSettings)
     }
     catch {
       case e: Throwable => {
-        log.error(s"init mongo error: ${e.getMessage}")
+        log.error(s"init mongo error: ${
+          e.getMessage
+        }")
       }
     }
   }

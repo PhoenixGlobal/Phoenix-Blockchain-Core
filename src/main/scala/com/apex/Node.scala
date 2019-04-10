@@ -11,18 +11,19 @@ package com.apex
 import akka.actor.{Actor, ActorRef, ActorSystem, Props}
 import akka.dispatch.{PriorityGenerator, UnboundedStablePriorityMailbox}
 import com.apex.common.ApexLogging
-import com.apex.consensus._
+import com.apex.consensus.ProducerRef
 import com.apex.core._
 import com.apex.crypto.UInt256
 import com.apex.network._
 import com.apex.network.peer.PeerHandlerManager.ReceivableMessages.ReceivedPeers
 import com.apex.network.peer.PeerHandlerManagerRef
-import com.apex.rpc.{_}
+import com.apex.rpc._
 import com.apex.plugins.mongodb.MongodbPluginRef
 import com.apex.plugins.gasprice.GasPricePluginRef
 import com.apex.settings.ApexSettings
 import com.apex.utils.NetworkTimeProvider
 import com.typesafe.config.Config
+
 import scala.collection.mutable.ArrayBuffer
 import scala.concurrent.ExecutionContext
 import scala.util.Try
@@ -69,12 +70,16 @@ class Node(val settings: ApexSettings, config: Config)
   private val notification = Notification()
 
   private val timeProvider = new NetworkTimeProvider()
+  private var mongodbPlugin: Option[ActorRef] = None
 
   if (settings.plugins.mongodb.enabled) {
-    val mongodbPlugin = MongodbPluginRef(settings)
-    notification.register(mongodbPlugin)
+    mongodbPlugin = Some(MongodbPluginRef(settings))
+    notification.register(mongodbPlugin.get)
   }
 
+  if (settings.miner.privKeys.size > 0) {
+    val producer = ProducerRef(settings)
+  }
   private val chain = new Blockchain(settings.chain, settings.consensus, settings.runtimeParas, notification)
 
   private val peerHandlerManager = PeerHandlerManagerRef(settings.network, timeProvider)
@@ -82,18 +87,10 @@ class Node(val settings: ApexSettings, config: Config)
 
   private val networkManager = NetworkManagerRef(settings.network, chain.getChainInfo, timeProvider, peerHandlerManager)
 
-  if (settings.miner.privKeys.size > 0) {
-    val producer = ProducerRef(settings)
-  }
-
   if (settings.rpc.enabled) {
-    if (settings.plugins.gasprice.enabled) {
-      val gasPricePlugin = GasPricePluginRef(settings)
-      notification.register(gasPricePlugin)
-      RpcServer.run(settings, config, self, gasPricePlugin)
-    }
-    else
-      RpcServer.run(settings, config, self, null)
+    val gasPricePlugin = GasPricePluginRef(settings, mongodbPlugin)
+    notification.register(gasPricePlugin)
+    RpcServer.run(settings, config, self, gasPricePlugin)
   }
 
   override def receive: Receive = {
