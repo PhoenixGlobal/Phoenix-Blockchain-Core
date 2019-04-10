@@ -20,6 +20,10 @@ import scala.concurrent.ExecutionContext
 object MainEntry extends ApexLogging {
 
   def main(args: Array[String]): Unit = {
+    Thread.setDefaultUncaughtExceptionHandler((t, e) => {
+      log.error(s"Thread [${t.getId}], there is an unhandled exception", e)
+    })
+
     val (settings, config) = getApexSettings(args)
     log.debug(s"genesis: ${settings.chain.genesis.timeStamp.toEpochMilli}, now: ${java.time.Instant.now.toEpochMilli}")
 
