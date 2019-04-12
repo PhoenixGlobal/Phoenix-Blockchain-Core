@@ -227,18 +227,21 @@ object Ecdsa {
   implicit def publickey2bin(pub: PublicKey): BinaryData = pub.toBin
 
   object PublicKeyHash {
+
+    private val prefixString = "AP"
+    private val prefixBin = BinaryData("0548") // "0548" is for the "AP" prefix
+
     def toAddress(hash: Array[Byte]): String = {
       assert(hash.length == 20)
-      // "0548" is for the "AP" prefix
-      Base58Check.encode(BinaryData("0548"), hash)
+      Base58Check.encode(prefixBin, hash)
     }
 
     def fromAddress(address: String): Option[UInt160] = {
       var publicKeyHash: Option[UInt160] = None
-      if (address.startsWith("AP") && address.length == 35) {
+      if (address.startsWith(prefixString) && address.length == 35) {
         val decode = Base58Check.decode(address).getOrElse(Array[Byte]())
         // 2 bytes prefix + 20 bytes data (+ 4 bytes checksum)
-        if (decode.length == 22)
+        if (decode.length == 22 && BinaryData(decode.slice(0, 2)) == prefixBin)
           publicKeyHash = Some(UInt160.fromBytes(decode.slice(2, 22)))
       }
       publicKeyHash
