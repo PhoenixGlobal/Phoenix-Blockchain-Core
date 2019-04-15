@@ -288,8 +288,12 @@ class Blockchain(chainSettings: ChainSettings,
           result = addTransactionToUnapplyTxs(tx)
       }
     }
-    if (!result.added)
+    if (result.added) {
+      notification.broadcast(AddTransactionNotify(tx))
+    } else {
       log.error(s"addTransaction error, txid=${tx.id.toString}  ${result.result}")
+    }
+
     result
   }
 

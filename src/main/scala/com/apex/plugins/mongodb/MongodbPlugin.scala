@@ -5,7 +5,6 @@ import java.time.Instant
 import akka.actor.{Actor, ActorContext, ActorRef, Props}
 import com.apex.common.ApexLogging
 import com.apex.core._
-import com.apex.crypto.FixedNumber
 import org.mongodb.scala._
 import org.mongodb.scala.model.Filters._
 import org.mongodb.scala.model.Sorts._
@@ -13,10 +12,7 @@ import org.mongodb.scala.model.Updates._
 import org.mongodb.scala.model._
 import org.mongodb.scala.bson.BsonDateTime
 import com.apex.plugins.mongodb.Helpers._
-import com.apex.rpc.GetAverageCmd
 import com.apex.settings.ApexSettings
-
-import scala.collection.mutable
 import scala.concurrent.ExecutionContext
 
 class MongodbPlugin(settings: ApexSettings)
@@ -52,6 +48,9 @@ class MongodbPlugin(settings: ApexSettings)
     case AddTransactionNotify(tx) => {
       if (findTransaction(tx) == false)
         addTransaction(tx, None)
+    }
+    case DeleteTransactionNotify(tx) => {
+      deleteTransaction(tx)     //remove transaction from txpool
     }
     case ForkSwitchNotify(from, to) => {
       log.info("MongodbPlugin got ForkSwitchNotify")
@@ -91,6 +90,10 @@ class MongodbPlugin(settings: ApexSettings)
     updateTps(block, false)
   }
 
+  private def deleteTransaction(tx: Transaction): Unit = {
+    txCol.deleteOne(equal("txHash", tx.id.toString)).results()
+  }
+
   private def addBlock(blockSummary: BlockSummary) = {
     val block = blockSummary.block
     log.info(s"MongodbPlugin add block ${
@@ -114,23 +117,28 @@ class MongodbPlugin(settings: ApexSettings)
 
     blockCol.insertOne(newBlock).results()
 
+    val summary = blockSummary.txReceiptsMap
     block.transactions.foreach(tx => {
       if (findTransaction(tx)) {
-        val summary = blockSummary.txReceiptsMap
         val txReceipt = summary.getOrElse(tx.id(), None)
         if (txReceipt.isDefined) {
           val gasUsed = txReceipt.get.gasUsed
           txCol.updateOne(equal("txHash", tx.id.toString), set("gasUsed", gasUsed.longValue())).results()
           txCol.updateOne(equal("txHash", tx.id.toString), set("fee", (tx.gasPrice * gasUsed).toString)).results()
+
+          val status = if (txReceipt.get.error.isEmpty) "Success" else "Fail"
+          txCol.updateOne(equal("txHash", tx.id.toString), set("status", status)).results()
         }
         txCol.updateOne(equal("txHash", tx.id.toString), set("refBlockHash", block.id.toString)).results()
         txCol.updateOne(equal("txHash", tx.id.toString), set("refBlockHeight", block.height)).results()
         txCol.updateOne(equal("txHash", tx.id.toString), set("refBlockTime", BsonDateTime(block.timeStamp()))).results()
-        updateAccout(tx, block)
       }
       else
-        addTransaction(tx, Some(block))
+        addTransaction(tx, Some(blockSummary))
+
+      updateAccout(tx, block)
     })
+
     updateTps(block, true)
   }
 
@@ -167,7 +175,7 @@ class MongodbPlugin(settings: ApexSettings)
     }
   }
 
-  private def addTransaction(tx: Transaction, block: Option[Block]) = {
+  private def addTransaction(tx: Transaction, blockSummary: Option[BlockSummary]) = {
     var newTx: Document = Document(
       "txHash" -> tx.id.toString,
       "type" -> tx.txType.toString,
@@ -186,19 +194,34 @@ class MongodbPlugin(settings: ApexSettings)
       "createdAt" -> BsonDateTime(Instant.now.toEpochMilli),
       "confirmed" -> false)
 
-    if (block.isDefined) {
-      newTx += ("refBlockHash" -> block.get.id.toString,
-        "refBlockHeight" -> block.get.height,
-        "refBlockTime" -> BsonDateTime(block.get.timeStamp()))
-      updateAccout(tx, block.get)
+    var status = "Pending"
+    if (blockSummary.isDefined) {
+      val receiptMap = blockSummary.get.txReceiptsMap;
+      val txReceipt = receiptMap.getOrElse(tx.id(), None)
+
+      if (txReceipt.isDefined) {
+        val gasUsed = txReceipt.get.gasUsed
+        status = if (txReceipt.get.error.isEmpty) "Success" else "Fail"
+        newTx += ("gasUsed" -> gasUsed.longValue(),
+          "fee" -> (tx.gasPrice * gasUsed).toString)
+      }
+      val block = blockSummary.get.block
+      newTx += ("refBlockHash" -> block.id.toString,
+        "refBlockHeight" -> block.height,
+        "refBlockTime" -> BsonDateTime(block.timeStamp()))
+      updateAccout(tx, block)
     }
     else {
-      newTx += ("refBlockHeight" -> Int.MaxValue)
+      newTx += ("refBlockHeight" -> -1)
     }
+
+    newTx += ("status" -> status)
     txCol.insertOne(newTx).results()
   }
 
-  private def init() = {
+  private def init()
+
+  = {
     log.info("init mongo")
 
     try {
