@@ -42,6 +42,14 @@ class AddressTest {
 
   @Test
   def testAddressToHash = {
+
+    assert(Ecdsa.PublicKeyHash.fromAddress("AP1xWDozWvuVah1W86DKtcWzdw1LLHreMGX").isDefined)
+    assert(Ecdsa.PublicKeyHash.fromAddress("APBC5XmSaD4vooWo3FNho1wGAUyBQo3WCTQ").isDefined)
+    assert(Ecdsa.PublicKeyHash.fromAddress("APRJ7CvHoe5xTWSeD7dfD6eGRZWbGomzDi4").isDefined)
+
+    // not 0548 prefix
+    assert(Ecdsa.PublicKeyHash.fromAddress("APRJ7CvHoe5xTWSeD7dfD6eGRZWbGwz1inp").isEmpty)
+
     val hash = Ecdsa.PublicKeyHash.fromAddress("APBC5XmSaD4vooWo3FNho1wGAUyBQo3WCTQ").get
 
     assert(hash.data sameElements BinaryData("654a5851e9372b87810a8e60cdd2e7cfd80b6e31"))
