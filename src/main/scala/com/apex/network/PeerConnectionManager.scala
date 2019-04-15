@@ -12,6 +12,7 @@ import com.apex.core.{Blockchain, ChainInfo}
 import com.apex.settings.NetworkSettings
 import com.apex.utils.{NetworkTimeProvider, Version}
 import com.apex.network.PeerConnectionManager.{AwaitingHandshake, WorkingCycle}
+import com.apex.network.peer.PeerHandlerManager.ReceivableMessages.AddToBlacklist
 
 import scala.collection.mutable.ArrayBuffer
 import scala.concurrent.ExecutionContext
@@ -127,6 +128,7 @@ class PeerConnectionManager(settings: NetworkSettings,
           case Success(handshake) => handleHandshake(handshake)
           case Failure(t) =>
             log.error(s"Error parsing Handshake, closing connection. ", t)
+            peerHandlerManagerRef ! AddToBlacklist(remote)
             self ! CloseConnection
         }
       }
