@@ -29,7 +29,7 @@ class Transaction(val txType: TransactionType.Value,
     toPubKeyHash.address
   }
 
-  def isContractCreation(): Boolean = txType == TransactionType.Deploy && toPubKeyHash == UInt160.Zero
+  def isContractCreation(): Boolean = txType == TransactionType.Deploy // && toPubKeyHash == UInt160.Zero
 
   def getContractAddress(): Option[UInt160] = {
     if (isContractCreation()) {
@@ -129,7 +129,11 @@ object Transaction {
         "from" -> {
           if (o.txType == TransactionType.Miner) "" else o.from.address
         },
-        "to" -> o.toAddress,
+        "to" -> {
+          if (o.txType == TransactionType.Deploy)
+            o.getContractAddress().get.address
+          else o.toAddress
+        },
         "amount" -> o.amount.toString,
         "nonce" -> o.nonce.toString,
         /*"data" -> o.data.toString,*/
