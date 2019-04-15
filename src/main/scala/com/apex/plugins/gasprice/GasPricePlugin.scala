@@ -7,9 +7,9 @@ import com.apex.crypto.FixedNumber
 import com.apex.rpc.GetAverageCmd
 import com.apex.settings.ApexSettings
 
-
 import scala.collection.mutable
 import scala.concurrent.ExecutionContext
+import scala.util.Try
 
 class GasPricePlugin(settings: ApexSettings, mongodbPlugin: Option[ActorRef])
                     (implicit ec: ExecutionContext) extends Actor with ApexLogging {
@@ -30,7 +30,10 @@ class GasPricePlugin(settings: ApexSettings, mongodbPlugin: Option[ActorRef])
       if (mongodbPlugin.isDefined) mongodbPlugin.get ! UpdateAverageGasPrice(averageValue.toString)
     }
     case GetAverageCmd => {
-      sender() ! averageValue.toString
+      val average = Try {
+        averageValue.toString
+      }
+      sender() ! average
     }
     case a: Any => {}
   }
