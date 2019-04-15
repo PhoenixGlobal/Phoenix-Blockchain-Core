@@ -2,7 +2,7 @@ package com.apex.core
 
 import java.time.Instant
 import com.apex.common.ApexLogging
-import com.apex.consensus.Vote
+import com.apex.consensus.WitnessVote
 import com.apex.consensus.WitnessList
 import com.apex.consensus.{ProducerUtil, WitnessInfo}
 import com.apex.crypto.Ecdsa.{PrivateKey, PublicKeyHash}
@@ -692,7 +692,7 @@ class Blockchain(chainSettings: ChainSettings,
     dataBase.getAllScheduleTx()
   }
 
-  def getVote(address: UInt160): Option[Vote] = {
+  def getVote(address: UInt160): Option[WitnessVote] = {
     dataBase.getVote(address)
   }
 

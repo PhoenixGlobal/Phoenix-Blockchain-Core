@@ -15,7 +15,7 @@ import play.api.libs.json.{JsValue, Json, Writes}
 
 import scala.collection.mutable
 
-case class Vote(voter: UInt160,
+case class WitnessVote(voter: UInt160,
                 targetMap: mutable.Map[UInt160, FixedNumber] = scala.collection.mutable.Map[UInt160, FixedNumber](),
                 version: Int = 0x01) extends com.apex.common.Serializable {
 
@@ -27,7 +27,7 @@ case class Vote(voter: UInt160,
     os.writeMap(targetMap.toMap)
   }
 
-  def updateTargetCounter(addr: UInt160, counter: FixedNumber): Vote ={
+  def updateTargetCounter(addr: UInt160, counter: FixedNumber): WitnessVote ={
     if(targetMap.get(addr).isEmpty && counter.value < 0) return this
     val oldCounter = targetMap.getOrElse(addr, FixedNumber.Zero)
     if(oldCounter + counter >= FixedNumber.Zero) targetMap.update(addr, oldCounter + counter)
@@ -36,20 +36,20 @@ case class Vote(voter: UInt160,
 
 }
 
-object Vote {
+object WitnessVote {
 
-  def deserialize(is: DataInputStream): Vote = {
+  def deserialize(is: DataInputStream): WitnessVote = {
     import com.apex.common.Serializable._
 
     val version = is.readInt
     val voter = UInt160.deserialize(is)
     val target = is.readMap(UInt160.deserialize, FixedNumber.deserialize)
 
-    new Vote(voter, mutable.Map(target.toSeq: _*), version)
+    new WitnessVote(voter, mutable.Map(target.toSeq: _*), version)
   }
 
-  implicit val voteWrites = new Writes[Vote] {
-    override def writes(o: Vote): JsValue = {
+  implicit val voteWrites = new Writes[WitnessVote] {
+    override def writes(o: WitnessVote): JsValue = {
       Json.obj(
         "voter" -> o.voter.address,
         "target" -> o.targetMap.map(t => t._1.address +" - "+ t._2.toString()),

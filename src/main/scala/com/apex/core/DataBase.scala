@@ -13,7 +13,7 @@ package com.apex.core
 import java.time.Instant
 
 import com.apex.common.ApexLogging
-import com.apex.consensus.{Vote, WitnessInfo, WitnessList, WitnessMap}
+import com.apex.consensus.{WitnessVote, WitnessInfo, WitnessList, WitnessMap}
 import com.apex.crypto.{BinaryData, FixedNumber, UInt160, UInt256}
 import com.apex.settings.DataBaseSettings
 import com.apex.storage.Storage
@@ -174,11 +174,11 @@ class DataBase(settings: DataBaseSettings, db: Storage.lowLevelRaw, tracking: Tr
     witnessInfoStore.delete(address)
   }
 
-  def getVote(address: UInt160): Option[Vote] = {
+  def getVote(address: UInt160): Option[WitnessVote] = {
     voteStore.get(address)
   }
 
-  def createVote(address: UInt160, vote: Vote): Unit = {
+  def createVote(address: UInt160, vote: WitnessVote): Unit = {
     voteStore.set(address, vote)
   }
 

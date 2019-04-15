@@ -16,7 +16,7 @@ import akka.pattern.ask
 import akka.stream.ActorMaterializer
 import akka.util.Timeout
 import com.apex.common.ApexLogging
-import com.apex.consensus.{Vote, WitnessInfo, WitnessList}
+import com.apex.consensus.{WitnessVote, WitnessInfo, WitnessList}
 import com.apex.core._
 import com.apex.rpc.RpcServer.sussesRes
 import com.apex.settings.ApexSettings
@@ -267,12 +267,12 @@ object RpcServer extends ApexLogging {
               Json.parse(data).validate[GetVotesCmd] match {
                 case cmd: JsSuccess[GetVotesCmd] => {
                   val f = (nodeRef ? cmd.value)
-                    .mapTo[Try[Option[Vote]]]
+                    .mapTo[Try[Option[WitnessVote]]]
                     .map(s =>
                       s match {
                         case Success(producerOption) => {
                           producerOption match {
-                            case Some(vote) => sussesRes(Vote.voteWrites.writes(vote).toString())
+                            case Some(vote) => sussesRes(WitnessVote.voteWrites.writes(vote).toString())
                             case None => sussesRes("")
                           }
                         }

@@ -1,6 +1,6 @@
 package com.apex.vm
 
-import com.apex.consensus.{Vote, VoteData, WitnessInfo}
+import com.apex.consensus.{WitnessVote, VoteData, WitnessInfo}
 import com.apex.core.{DataBase, OperationType, Transaction, TransactionType}
 import com.apex.crypto.{FixedNumber, UInt160}
 
@@ -124,7 +124,7 @@ object VoteContractExecutor {
       track.addBalance(new UInt160(PrecompiledContracts.voteAddr.getLast20Bytes), voteData.voterCount)
       val newWitness = witness.copy(voteCounts = witness.voteCounts + voteData.voterCount)
       track.setWitness(newWitness)
-      track.getVote(tx.from).fold(track.createVote(tx.from, Vote(tx.from,
+      track.getVote(tx.from).fold(track.createVote(tx.from, WitnessVote(tx.from,
         scala.collection.mutable.Map[UInt160, FixedNumber](voteData.candidate -> voteData.voterCount))))(
         vote =>{
           val newVote = vote.updateTargetCounter(voteData.candidate, voteData.voterCount)

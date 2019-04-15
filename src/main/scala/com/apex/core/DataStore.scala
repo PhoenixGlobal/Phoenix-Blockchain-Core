@@ -4,7 +4,7 @@ import java.io.{ByteArrayInputStream, ByteArrayOutputStream, DataInputStream, Da
 import java.util.Map
 
 import com.apex.common.{Cache, LRUCache, Serializable}
-import com.apex.consensus.{Vote, WitnessInfo, WitnessList, WitnessMap}
+import com.apex.consensus.{WitnessVote, WitnessInfo, WitnessList, WitnessMap}
 import com.apex.crypto.Ecdsa.PublicKey
 import com.apex.crypto.{UInt160, UInt256}
 import com.apex.settings.DataBaseSettings
@@ -37,7 +37,7 @@ class AccountStore(db: Storage.raw, capacity: Int)
     with AccountValue
 
 class VoteStore(db: Storage.raw, capacity: Int)
-  extends StoreBase[UInt160, Vote](db, capacity)
+  extends StoreBase[UInt160, WitnessVote](db, capacity)
     with VotePrefix
     with UInt160Key
     with VoteValue
@@ -369,8 +369,8 @@ trait AccountValue extends ValueConverterProvider[Account] {
   override val valConverter: Converter[Account] = new SerializableConverter(Account.deserialize)
 }
 
-trait VoteValue extends ValueConverterProvider[Vote] {
-  override val valConverter: Converter[Vote] = new SerializableConverter(Vote.deserialize)
+trait VoteValue extends ValueConverterProvider[WitnessVote] {
+  override val valConverter: Converter[WitnessVote] = new SerializableConverter(WitnessVote.deserialize)
 }
 
 trait ContractValue extends ValueConverterProvider[Contract]{
