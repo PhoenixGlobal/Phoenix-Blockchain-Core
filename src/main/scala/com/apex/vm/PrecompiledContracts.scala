@@ -28,7 +28,6 @@ package com.apex.vm
 import java.math.BigInteger
 
 import akka.util.ByteString
-import com.apex.consensus.{RegisterData, VoteData}
 import com.apex.core.{DataBase, Transaction}
 import com.apex.crypto.zksnark.{BN128Fp, BN128G1, BN128G2, PairingCheck}
 
