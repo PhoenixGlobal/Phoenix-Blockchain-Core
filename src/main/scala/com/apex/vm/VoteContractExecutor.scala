@@ -1,6 +1,6 @@
 package com.apex.vm
 
-import com.apex.consensus.{WitnessVote, VoteData, WitnessInfo}
+import com.apex.consensus.{WitnessVote, WitnessVoteData, WitnessInfo}
 import com.apex.core.{DataBase, OperationType, Transaction, TransactionType}
 import com.apex.crypto.{FixedNumber, UInt160}
 
@@ -9,7 +9,7 @@ object VoteContractExecutor {
   import OperationChecker._
 
   def execute(data: Array[Byte], track: DataBase, tx: Transaction, timeStamp: Long): (Boolean, Array[Byte]) ={
-    val voteData = VoteData.fromBytes(data)
+    val voteData = WitnessVoteData.fromBytes(data)
     voteData.isVoterRequestValid()
       .isAccountBalanceEnough(track, tx)
       .isVoteWitnessExist(track)
@@ -21,7 +21,7 @@ object VoteContractExecutor {
       .returnResult()
   }
 
-  implicit class VoteContractContext(voteData:VoteData){
+  implicit class VoteContractContext(voteData: WitnessVoteData){
     var result: (Boolean, Array[Byte]) = (true, new Array[Byte](0))
 
     //when vote a witness, the counter must be larger than 0

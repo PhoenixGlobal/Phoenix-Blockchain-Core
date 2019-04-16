@@ -7,7 +7,7 @@ package com.apex.test
 
 import java.time.Instant
 
-import com.apex.consensus.{ProducerUtil, VoteData}
+import com.apex.consensus.{ProducerUtil, WitnessVoteData}
 import com.apex.core.{OperationType, Transaction, TransactionType}
 import com.apex.crypto.Ecdsa.PrivateKey
 import com.apex.crypto.{BinaryData, FixedNumber, UInt160}
@@ -362,7 +362,7 @@ class VoteContractTest extends RegisterContractTest {
   private def makeVoteTransaction(operationType: OperationType.Value = OperationType.register, nonce: Long = 0,
                                   counter: FixedNumber = FixedNumber.One, candidate: UInt160 = _acct3.publicKey.pubKeyHash,
                                   voter: UInt160 = _acct1.publicKey.pubKeyHash)(f: Transaction => Unit){
-    val txData = VoteData(candidate, counter,operationType).toBytes
+    val txData = WitnessVoteData(candidate, counter,operationType).toBytes
     val registerContractAddr = new UInt160(DataWord.of("0000000000000000000000000000000000000000000000000000000000000102").getLast20Bytes)
     val tx = new Transaction(TransactionType.Call, voter, registerContractAddr, FixedNumber.Zero,
       nonce, txData, FixedNumber(1), 9000000L, BinaryData.empty)

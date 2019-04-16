@@ -2,7 +2,7 @@ package com.apex.test
 
 import java.time.Instant
 
-import com.apex.consensus.{ProducerUtil, RegisterData, VoteData, WitnessInfo}
+import com.apex.consensus.{ProducerUtil, RegisterData, WitnessVoteData, WitnessInfo}
 import com.apex.core._
 import com.apex.crypto.{BinaryData, Crypto, Ecdsa, FixedNumber, MerkleTree, UInt160, UInt256}
 import com.apex.crypto.Ecdsa.{PrivateKey, PublicKey}
@@ -228,7 +228,7 @@ class BlockchainVoteTest {
                                   operationType: OperationType.Value = OperationType.register,
                                   counter: FixedNumber = FixedNumber.One,
                                   nonce: Long = 0): Transaction = {
-    val txData = VoteData(candidate.publicKey.pubKeyHash, counter, operationType).toBytes
+    val txData = WitnessVoteData(candidate.publicKey.pubKeyHash, counter, operationType).toBytes
     val registerContractAddr = new UInt160(DataWord.of("0000000000000000000000000000000000000000000000000000000000000102").getLast20Bytes)
     val tx = new Transaction(TransactionType.Call, voter.publicKey.pubKeyHash, registerContractAddr, FixedNumber.Zero,
       nonce, txData, FixedNumber(1), 9000000L, BinaryData.empty)
