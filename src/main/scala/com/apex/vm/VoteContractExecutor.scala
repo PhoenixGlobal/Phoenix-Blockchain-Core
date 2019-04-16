@@ -9,16 +9,24 @@ object VoteContractExecutor {
   import OperationChecker._
 
   def execute(data: Array[Byte], track: DataBase, tx: Transaction, timeStamp: Long): (Boolean, Array[Byte]) ={
-    val voteData = WitnessVoteData.fromBytes(data)
-    voteData.isVoterRequestValid()
-      .isAccountBalanceEnough(track, tx)
-      .isVoteWitnessExist(track)
-      .isVoteWitnessExistAndRegistered(track)
-      .isCancelWitnessExistInVoterTargetMap(track, tx)
-      .isVoterExist(track, tx)
-      .voterCancelWitnessCounterInvalid(track, tx)
-      .processReq(track, tx, timeStamp)
-      .returnResult()
+    try {
+      val voteData = WitnessVoteData.fromBytes(data)
+      voteData.isVoterRequestValid()
+        .isAccountBalanceEnough(track, tx)
+        .isVoteWitnessExist(track)
+        .isVoteWitnessExistAndRegistered(track)
+        .isCancelWitnessExistInVoterTargetMap(track, tx)
+        .isVoterExist(track, tx)
+        .voterCancelWitnessCounterInvalid(track, tx)
+        .processReq(track, tx, timeStamp)
+        .returnResult()
+    }
+    catch {
+      case e: Throwable => {
+        //log.error("startProduceBlock failed", e)
+        (false, e.getMessage.getBytes())
+      }
+    }
   }
 
   implicit class VoteContractContext(voteData: WitnessVoteData){

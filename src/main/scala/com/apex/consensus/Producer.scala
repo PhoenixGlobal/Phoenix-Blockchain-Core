@@ -127,11 +127,20 @@ class Producer(apexSettings: ApexSettings)
         //println(delay)
         scheduleBegin(delay)
       } else {
-        chain.startProduceBlock(apexSettings.miner.findPrivKey(witness).get,
-                                 next, next - apexSettings.runtimeParas.stopProcessTxTimeSlot)
-        val now = Instant.now.toEpochMilli
-        val delay = calcDelay(now, next, myTurn)
-        scheduleEnd(delay)
+        try {
+          chain.startProduceBlock(apexSettings.miner.findPrivKey(witness).get,
+            next, next - apexSettings.runtimeParas.stopProcessTxTimeSlot)
+        }
+        catch {
+          case e: Throwable => {
+            log.error("startProduceBlock failed", e)
+          }
+        }
+        if (chain.isProducingBlock()) {
+          val now = Instant.now.toEpochMilli
+          val delay = calcDelay(now, next, myTurn)
+          scheduleEnd(delay)
+        }
       }
     }
   }

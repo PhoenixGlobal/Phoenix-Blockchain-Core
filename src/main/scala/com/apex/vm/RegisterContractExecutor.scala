@@ -154,13 +154,13 @@ object RegisterContractExecutor {
 
 object OperationChecker {
 
-  var result: (Boolean, Array[Byte]) = (true, new Array[Byte](0))
+  var result: (Boolean, Array[Byte]) = (true, Array.empty)
 
   def errorDetected(f: => Unit): Unit = {
     if(result._1) f
   }
 
-  def setResult(flag: Boolean, description: Array[Byte] = new Array[Byte](0)): Unit = {
+  def setResult(flag: Boolean, description: Array[Byte] = Array.empty): Unit = {
     result =  (flag, description)
   }
 
@@ -169,6 +169,6 @@ object OperationChecker {
   }
 
   def setResultToInit(){
-    result = (true, new Array[Byte](0))
+    result = (true, Array.empty)
   }
 }
