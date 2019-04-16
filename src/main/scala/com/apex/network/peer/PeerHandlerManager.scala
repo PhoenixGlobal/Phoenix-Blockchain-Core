@@ -168,9 +168,9 @@ class PeerHandlerManager(settings: NetworkSettings, timeProvider: NetworkTimePro
         }
       }
     case NewBlockProducedNotify(block) => {
-      //log.info("broadcasting the new produced Block")
+      log.info("broadcasting the new produced Block")
       connectedPeers.values.foreach(peer => {
-        //log.debug(s"send block #${block.height} (${block.id}) to ${peer.toString}")
+        log.info(s"send block #${block.height} (${block.id}) to ${peer.toString}")
         peer.connectionRef ! BlockMessage(block).pack()
       })
     }

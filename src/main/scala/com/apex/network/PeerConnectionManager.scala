@@ -193,8 +193,9 @@ class PeerConnectionManager(settings: NetworkSettings,
     builder.putByte(msg.messageType.id.toByte)
     builder.putBytes(msg.data)
 
-    //log.info(s"write ${builder.result().size} bytes")
+    log.info(s"write ${builder.result().size} bytes, ${msg.messageType}")
     connection ! Write(builder.result(), Ack)
+    log.info(s"write done")
   }
 
   private def acknowledge(): Unit = {
