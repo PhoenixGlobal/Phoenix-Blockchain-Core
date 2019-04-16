@@ -323,7 +323,7 @@ class Blockchain(chainSettings: ChainSettings,
     }
   }
 
-  private def stopProduceBlock() = {
+  def stopProduceBlock() = {
     pendingState.txs.foreach(tx => {
       if (tx.txType != TransactionType.Miner)
         txPool.add(tx)

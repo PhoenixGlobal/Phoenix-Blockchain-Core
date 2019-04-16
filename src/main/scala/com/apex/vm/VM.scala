@@ -1197,7 +1197,7 @@ class ExecuteContext(val op: OpObject, val program: Program, val settings: Contr
 
   def logHint() = {
     if (log.isInfoEnabled) {
-      log.info(s"[${program.getPC.formatted("%5s")}]    Op: [${op.code.name.formatted("%-12s")}]  Gas: [${program.getGas.value}] Deep: [${program.getCallDeep}]  Hint: [${hint}]")
+      log.info(s"[${program.getPC.formatted("%5s")}]    Op: [${op.code.name.formatted("%-12s")}]  Gas: [${program.getGas.value}] Deep: [${program.getCallDeep}]  Hint: [${hint}] Stack: ${java.util.Arrays.toString(program.getStack.toArray())}")
     }
   }
 

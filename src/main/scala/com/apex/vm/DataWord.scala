@@ -347,7 +347,7 @@ class DataWord(val data: Array[Byte]) {
 
   def asString = new String(getNoLeadZeroesData)
 
-  override def toString: String = data.toHex
+  override def toString: String = data.dropWhile(_ == 0).toHex
 
   override def hashCode: Int = java.util.Arrays.hashCode(data)
 
