@@ -14,10 +14,11 @@ class PeerDatabaseImplTest {
     val peerDatabase = new PeerDatabaseImpl("test")
 
     val node = new NodeInfo("localhost", 1000)
-    peerDatabase.addOrUpdateKnownPeer(node.address, node)
+    val address =new InetSocketAddress("localhost",1000)
+    peerDatabase.addOrUpdateKnownPeer(address, node)
 
     val kn = peerDatabase.knownPeers()
-    val node2 = kn.get("localhost").get
+    val node2 = kn.get(address).get
     assert(node == node2)
   }
 
@@ -45,7 +46,7 @@ class PeerDatabaseImplTest {
     peerDatabase.remove(address)
 
     val kn = peerDatabase.knownPeers()
-    val node2 = kn.get("localhost")
+    val node2 = kn.get(address)
     assert(node2 == None)
   }
 

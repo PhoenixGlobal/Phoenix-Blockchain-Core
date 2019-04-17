@@ -31,32 +31,28 @@ class PeerHandlerManager(settings: NetworkSettings, timeProvider: NetworkTimePro
 
   private lazy val peerDatabase = new PeerDatabaseImpl(settings.peersDB)
 
-  private var peerUpdated = false
-
   override def preStart: Unit = {
     peerDatabase.loadFromDB()
-    settings.knownPeers.foreach { address =>
+
+    settings.seedPeers.foreach { address =>
       if (!isSelf(address, None)) {
-        val defaultPeerInfo = new NodeInfo(address.getAddress.getHostAddress, address.getPort)
-        peerDatabase.addOrUpdateKnownPeer(address.getAddress.getHostAddress, defaultPeerInfo)
+        val defaultPeerInfo = new NodeInfo(address.getAddress.getHostAddress, address.getPort, NodeType.SEED)
+        peerDatabase.addOrUpdateKnownPeer(address, defaultPeerInfo)
       }
     }
 
-    //30s后，每隔30s与其它peer交换一次peerDatabase
-    context.system.scheduler.schedule(30.seconds, 30.seconds) {
-      if (peerUpdated) { //仅当peerDatabase 有更新的时才广播
-        var knowPeerSer = Seq[NodeInfo]()
-        peerDatabase.selectPeersByRandom(settings.peerSyncNumber).foreach(peerInfo => {
-          knowPeerSer = knowPeerSer :+ new NodeInfo(peerInfo.address, peerInfo.port)
-        })
-
-        if (knowPeerSer.size > 0) {
-          connectedPeers.values.foreach(connectedPeer => {
-            connectedPeer.connectionRef ! PeerInfoMessage(new PeerInfoPayload(knowPeerSer)).pack()
-            peerUpdated = false
-          })
-        }
+    settings.knownPeers.foreach { address =>
+      if (!isSelf(address, None)) {
+        val defaultPeerInfo = new NodeInfo(address.getAddress.getHostAddress, address.getPort, NodeType.TRUST)
+        peerDatabase.addOrUpdateKnownPeer(address, defaultPeerInfo)
       }
+    }
+
+    //syn up peerInfoMessage with other connected-peers every one minute
+    context.system.scheduler.schedule(1.minute, 1.minute) {
+      val knowPeerSer = peerDatabase.selectPeersByRandom(settings.peerSyncNumber)
+      //TODO don't needs to broadcast , it can be other strategy
+      self ! SendToNetWork((PeerInfoMessage(new PeerInfoPayload(knowPeerSer))).pack(), Broadcast)
     }
   }
 
@@ -66,9 +62,8 @@ class PeerHandlerManager(settings: NetworkSettings, timeProvider: NetworkTimePro
 
   private def peerListOperations: Receive = {
     case AddOrUpdatePeer(peer, nodeInfo) =>
-      peerDatabase.addOrUpdateKnownPeer(peer.getAddress.getHostAddress, nodeInfo)
-      peerUpdated = true
-    case RemovePeer(peerInfo)=>
+      peerDatabase.addOrUpdateKnownPeer(peer, nodeInfo)
+    case RemovePeer(peerInfo) =>
       peerDatabase.remove(peerInfo)
   }
 
@@ -160,7 +155,6 @@ class PeerHandlerManager(settings: NetworkSettings, timeProvider: NetworkTimePro
           }
 
           connectedPeers += peer.socketAddress -> peer
-          peerUpdated = true
           log.info("更新本节点连接的节点=" + connectedPeers)
           // Once connected, try get the peer's latest block to sync
           Thread.sleep(50) // to avoid peer mess with the "handshakeDone"
@@ -168,18 +162,10 @@ class PeerHandlerManager(settings: NetworkSettings, timeProvider: NetworkTimePro
         }
       }
     case NewBlockProducedNotify(block) => {
-      //log.info("broadcasting the new produced Block")
-      connectedPeers.values.foreach(peer => {
-        //log.info(s"send block #${block.height} (${block.id}) to ${peer.toString}")
-        peer.connectionRef ! BlockMessage(block).pack()
-      })
+      self ! SendToNetWork(BlockMessage(block).pack(), Broadcast)
     }
     case msg: InventoryMessage => {
-      //log.info("broadcasting InventoryMessage")
-      connectedPeers.values.foreach(peer => {
-        //log.info(s"send INV to ${peer.toString}")
-        peer.connectionRef ! msg.pack()
-      })
+      self ! SendToNetWork(msg.pack(), Broadcast)
     }
   }
 
@@ -188,44 +174,6 @@ class PeerHandlerManager(settings: NetworkSettings, timeProvider: NetworkTimePro
       connectedPeers -= remote
       connectingPeers -= remote
   }
-
-
-  /**
-    * 返回一个随机节点RandomPeerToConnect
-    *
-    * @return
-    */
-  private def randomPeer: Receive = {
-    case RandomPeerToConnect() => {
-      // log.info("now, select a peer to connected if can found.")
-      if (connectedPeers.size <= settings.maxConnections)
-        sender() ! randomPeerExcluded()
-
-    }
-  }
-
-
-  //从peerDatabase中，随机选 出一个peer,且不在connectedPeers
-  private def randomPeerExcluded(): Option[InetSocketAddress] = {
-    val candidates = peerDatabase.knownPeers().values.filterNot { node =>
-      connectedPeers.keys.exists(e => {
-        //  log.info("-----" + e.getAddress.getHostAddress + " ------" + node.address)
-        e.getAddress.getHostAddress.equals(node.address)
-      }
-      )
-    }.toSeq
-
-    randomSelectedPeer(candidates)
-  }
-
-  private def randomSelectedPeer(nodes: Seq[NodeInfo]): Option[InetSocketAddress] = {
-    if (nodes.nonEmpty) {
-      val node = nodes(Random.nextInt(nodes.size))
-      Some(new InetSocketAddress(node.address, node.port))
-    }
-    else None
-  }
-
 
   override def receive: Receive = ({
     case AddToBlacklist(peer) =>
@@ -239,15 +187,33 @@ class PeerHandlerManager(settings: NetworkSettings, timeProvider: NetworkTimePro
       if (peerDatabase.peerSize() < settings.peerDatabaseMax) {
         peers.knownPeers.foreach(knPeer => {
           val address = new InetSocketAddress(knPeer.address, knPeer.port)
-          log.info("收到peer:" + knPeer.toString)
+          // log.info("received:" + knPeer.address + ":" + knPeer.port)
           if (!isSelf(address, None)) {
-            peerDatabase.addOrUpdateKnownPeer(address.getAddress.getHostAddress, knPeer)
+            peerDatabase.addPeerIfEmpty(address, knPeer)
           }
         })
       }
     }
-  }: Receive) orElse peerListOperations orElse apiInterface orElse randomPeer orElse peerCycle
+    case SendToNetWork(messagePack, sendingStrategy) => {
+      sendingStrategy.choose(connectedPeers.values.toSeq).foreach(peer => {
+        peer.connectionRef ! messagePack
+      })
+    }
+    case get: GetPeers[_] => {
+      //first filter already connected peer
+      val candidates = peerDatabase.knownPeers().filterNot { entry =>
+        connectedPeers.keys.exists(e => {
+          e.getAddress.getHostAddress.equals(entry._2.address)
+        }
+        )
+      }
+      if (connectedPeers.size <= settings.maxConnections)
+        sender() ! get.choose(candidates)
+    }
+
+  }: Receive) orElse peerListOperations orElse apiInterface orElse peerCycle
 }
+
 
 object PeerHandlerManager {
 
@@ -263,8 +229,6 @@ object PeerHandlerManager {
 
     case object GetConnectedPeers
 
-    case object GetAllPeers
-
     case object GetBlacklistedPeers
 
     case class DoConnecting(remote: InetSocketAddress, direction: ConnectionType)
@@ -279,9 +243,57 @@ object PeerHandlerManager {
 
     case class BroadCastPeers(data: Array[Byte], peers: Seq[ConnectedPeer])
 
-    case class RandomPeerToConnect()
-
     case class ReceivedPeers(peerInfoPayload: PeerInfoPayload)
+
+    case class SendToNetWork(messagePack: MessagePack, sendingStrategy: SendingStrategy)
+
+    /**
+      * Message to get peers from known peers map filtered by `choose` function
+      */
+    trait GetPeers[T] {
+      def choose(knownPeers: Map[InetSocketAddress, NodeInfo]): T
+    }
+
+
+    case object GetAllPeers extends GetPeers[Map[InetSocketAddress, NodeInfo]] {
+      override def choose(knownPeers: Map[InetSocketAddress, NodeInfo]): Map[InetSocketAddress, NodeInfo] = knownPeers
+    }
+
+    case class RandomPeerExcluding(excludedPeers: Seq[InetSocketAddress]) extends GetPeers[Option[NodeInfo]] {
+
+      override def choose(knownPeers: Map[InetSocketAddress, NodeInfo]): Option[NodeInfo] = {
+        val candidates = knownPeers.values.filterNot { p =>
+          excludedPeers.exists(e => {
+            e.getAddress.getHostAddress.equals(p.address) && e.getPort == p.port
+          })
+        }.toSeq
+        if (candidates.nonEmpty) Some(candidates(Random.nextInt(candidates.size)))
+        else None
+      }
+    }
+
+    case object RandomNodeInfo extends GetPeers[Option[NodeInfo]] {
+
+      override def choose(knownPeers: Map[InetSocketAddress, NodeInfo]): Option[NodeInfo] = {
+        if (knownPeers.nonEmpty) {
+          val nodes = knownPeers.values.toSeq
+          Some(nodes(Random.nextInt(knownPeers.size)))
+        }
+        else None
+      }
+    }
+
+    case object RandomTrustNodeInfo extends GetPeers[Option[NodeInfo]] {
+
+      override def choose(knownPeers: Map[InetSocketAddress, NodeInfo]): Option[NodeInfo] = {
+        val candidates = knownPeers.values.filter({ p => p.nodeType != NodeType.UNKNOWN }).toSeq
+
+        if (candidates.nonEmpty) Some(candidates(Random.nextInt(candidates.size)))
+        else None
+      }
+
+
+    }
 
   }
 
