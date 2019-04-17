@@ -129,7 +129,7 @@ object VoteContractExecutor {
 
     private def voteWitness(track: DataBase, tx: Transaction, witness: WitnessInfo): Unit = {
       track.addBalance(tx.from, -voteData.voterCount)
-      track.addBalance(new UInt160(PrecompiledContracts.voteAddr.getLast20Bytes), voteData.voterCount)
+      track.addBalance(new UInt160(PrecompiledContracts.witnessVoteAddr.getLast20Bytes), voteData.voterCount)
       val newWitness = witness.copy(voteCounts = witness.voteCounts + voteData.voterCount)
       track.setWitness(newWitness)
       track.getVote(tx.from).fold(track.createVote(tx.from, WitnessVote(tx.from,

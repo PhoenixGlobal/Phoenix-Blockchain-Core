@@ -231,7 +231,10 @@ class Blockchain(chainSettings: ChainSettings,
       }
     })
     pendingState.txs.foreach(tx => txPool.remove(tx))
-    badTxs.foreach(tx => txPool.remove(tx))
+    badTxs.foreach(tx => {
+      log.info(s"remove badTx from txPool ${tx.id.toString}")
+      txPool.remove(tx)
+    })
   }
 
   def isProducingBlock(): Boolean = {

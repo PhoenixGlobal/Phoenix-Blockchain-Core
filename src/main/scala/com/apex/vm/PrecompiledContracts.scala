@@ -61,11 +61,17 @@ object PrecompiledContracts {
   val registerNodeAddr = DataWord.of("0000000000000000000000000000000000000000000000000000000000000101")
 
   // AP1xWDozWvuVah1W86DKtcWzdw1LqMYokMU
-  val voteAddr = DataWord.of("0000000000000000000000000000000000000000000000000000000000000102")
+  val witnessVoteAddr = DataWord.of("0000000000000000000000000000000000000000000000000000000000000102")
 
-  def isVoteOrRegisterAddr(address: UInt160): Boolean ={
-    registerNodeAddr.getLast20Bytes.sameElements(address.data) || voteAddr.getLast20Bytes.sameElements(address.data)
-  }
+  // AP1xWDozWvuVah1W86DKtcWzdw1LqRxiSfr
+  val proposalAddr = DataWord.of("0000000000000000000000000000000000000000000000000000000000000103")
+
+  // AP1xWDozWvuVah1W86DKtcWzdw1LqdV35rk
+  val proposalVoteAddr = DataWord.of("0000000000000000000000000000000000000000000000000000000000000104")
+
+  //  def isVoteOrRegisterAddr(address: UInt160): Boolean = {
+  //    registerNodeAddr.getLast20Bytes.sameElements(address.data) || witnessVoteAddr.getLast20Bytes.sameElements(address.data)
+  //  }
 
   def getContractForAddress(address: DataWord, settings: ContractSettings, cacheTrack: DataBase = null,
                             tx: Transaction = null, timeStamp: Long = 0): PrecompiledContract = {
@@ -80,7 +86,7 @@ object PrecompiledContracts {
     else if (address == altBN128MulAddr) altBN128Mul
     else if (address == altBN128PairingAddr) altBN128Pairing
     else if (address == registerNodeAddr) registerNode(cacheTrack, tx, settings.registerSpend, timeStamp)
-    else if (address == voteAddr) vote(cacheTrack, tx, timeStamp)
+    else if (address == witnessVoteAddr) vote(cacheTrack, tx, timeStamp)
     else null
   }
 

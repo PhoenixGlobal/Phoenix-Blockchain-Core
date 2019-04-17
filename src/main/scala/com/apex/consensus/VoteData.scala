@@ -11,8 +11,9 @@ import com.apex.common.Serializable
 import com.apex.core.OperationType
 import com.apex.crypto.{FixedNumber, UInt160}
 
-case class WitnessVoteData(candidate: UInt160, voterCount: FixedNumber, operationType: OperationType.Value)
-  extends Serializable{
+case class WitnessVoteData(candidate: UInt160,
+                           voterCount: FixedNumber,
+                           operationType: OperationType.Value) extends Serializable {
   override def serialize(os: DataOutputStream): Unit = {
     import com.apex.common.Serializable._
     os.write(candidate)
