@@ -50,7 +50,7 @@ class MongodbPlugin(settings: ApexSettings)
         addTransaction(tx, None)
     }
     case DeleteTransactionNotify(tx) => {
-      deleteTransaction(tx)     //remove transaction from txpool
+      deleteTransaction(tx) //remove transaction from txpool
     }
     case ForkSwitchNotify(from, to) => {
       log.info("MongodbPlugin got ForkSwitchNotify")
@@ -66,9 +66,14 @@ class MongodbPlugin(settings: ApexSettings)
   }
 
   def updateGasPrice(gasPrice: String): Unit = {
-    val option = UpdateOptions()
-    option.upsert(true)
-    gasPriceCol.updateOne(equal("average_gp", "average_gp"), set("average_gp", gasPrice), option).results()
+    if (gasPriceCol.find(equal("_id", 1)).results().size > 0) {
+      gasPriceCol.updateOne(equal("_id", 1), set("average_gp", gasPrice)).results()
+    } else {
+      val gasDoc: Document = Document("_id" -> 1,
+        "average_gp" -> gasPrice)
+      gasPriceCol.insertOne(gasDoc).results()
+    }
+
   }
 
 

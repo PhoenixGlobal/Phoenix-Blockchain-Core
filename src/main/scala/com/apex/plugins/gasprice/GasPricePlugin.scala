@@ -27,7 +27,8 @@ class GasPricePlugin(settings: ApexSettings, mongodbPlugin: Option[ActorRef])
   override def receive: Receive = {
     case BlockAddedToHeadNotify(blockSummary) => {
       updateGasPrice(blockSummary)
-      if (mongodbPlugin.isDefined) mongodbPlugin.get ! UpdateAverageGasPrice(averageValue.toString)
+      // don't need save to mongo, only RPC is well
+//      if (mongodbPlugin.isDefined) mongodbPlugin.get ! UpdateAverageGasPrice(averageValue.toString)
     }
     case GetAverageCmd => {
       val average = Try {
