@@ -293,9 +293,10 @@ class Blockchain(chainSettings: ChainSettings,
     }
     if (result.added) {
       notification.broadcast(AddTransactionNotify(tx))
-    } else {
-      log.error(s"addTransaction error, txid=${tx.id.toString}  ${result.result}")
+      log.info(s"addTransaction success, txid=${tx.id.toString}")
     }
+    else
+      log.error(s"addTransaction error, txid=${tx.id.toString}  ${result.result}")
 
     result
   }
