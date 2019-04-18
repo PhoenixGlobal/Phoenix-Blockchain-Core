@@ -30,7 +30,7 @@ class DataBase(settings: DataBaseSettings, db: Storage.lowLevelRaw, tracking: Tr
   private val nameToAccountStore = new NameToAccountStore(tracking, settings.cacheSize)
   private val scheduleTxStore = new ScheduleTxStore(tracking, settings.cacheSize)
 
-  private val voteStore = new VoteStore(tracking, settings.cacheSize)
+  private val witnessVoteStore = new WitnessVoteStore(tracking, settings.cacheSize)
   private val witnessInfoStore = new WitnessInfoStore(tracking, settings.cacheSize)
 
   private val previousWitnessStore = new PreviousWitnessStore(tracking)
@@ -174,12 +174,12 @@ class DataBase(settings: DataBaseSettings, db: Storage.lowLevelRaw, tracking: Tr
     witnessInfoStore.delete(address)
   }
 
-  def getVote(address: UInt160): Option[WitnessVote] = {
-    voteStore.get(address)
+  def getWitnessVote(address: UInt160): Option[WitnessVote] = {
+    witnessVoteStore.get(address)
   }
 
-  def createVote(address: UInt160, vote: WitnessVote): Unit = {
-    voteStore.set(address, vote)
+  def createWitnessVote(address: UInt160, vote: WitnessVote): Unit = {
+    witnessVoteStore.set(address, vote)
   }
 
   // Previous active producer

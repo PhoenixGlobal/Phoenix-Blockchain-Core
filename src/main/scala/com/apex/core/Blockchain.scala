@@ -695,8 +695,8 @@ class Blockchain(chainSettings: ChainSettings,
     dataBase.getAllScheduleTx()
   }
 
-  def getVote(address: UInt160): Option[WitnessVote] = {
-    dataBase.getVote(address)
+  def getWitnessVote(address: UInt160): Option[WitnessVote] = {
+    dataBase.getWitnessVote(address)
   }
 
   def getReceipt(txid: UInt256): Option[TransactionReceipt] = {

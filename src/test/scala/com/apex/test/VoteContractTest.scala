@@ -74,7 +74,7 @@ class VoteContractTest extends RegisterContractTest {
       When.When.makeVoteTransaction(OperationType.register, nonce = 3, counter = FixedNumber.fromDecimal(0.5)){
         tx => {
           assert(chain.addTransaction(tx))
-          chain.getVote(_acct1.publicKey.pubKeyHash).get.targetMap(_acct3.publicKey.pubKeyHash) == FixedNumber.fromDecimal(0.5)
+          chain.getWitnessVote(_acct1.publicKey.pubKeyHash).get.targetMap(_acct3.publicKey.pubKeyHash) == FixedNumber.fromDecimal(0.5)
           chain.getWitness(_acct3.publicKey.pubKeyHash).get.voteCounts == FixedNumber.fromDecimal(0.5)
         }}
     }
@@ -194,7 +194,7 @@ class VoteContractTest extends RegisterContractTest {
       When.makeRegisterTransaction()(checkRegisterSuccess)
       When.makeVoteTransaction(nonce = 2, counter = FixedNumber.Ten)(tx => {
         assert(chain.addTransaction(tx))
-        assert(chain.getVote(_acct1.publicKey.pubKeyHash).get.targetMap(_acct3.publicKey.pubKeyHash) == FixedNumber.Ten)
+        assert(chain.getWitnessVote(_acct1.publicKey.pubKeyHash).get.targetMap(_acct3.publicKey.pubKeyHash) == FixedNumber.Ten)
         assert(chain.getBalance(_acct1).get == FixedNumber.fromDecimal(BigDecimal("110.11999999999993514")))
         assert(chain.getBalance(_acct1).get == FixedNumber.fromDecimal(110.12) - FixedNumber(42000)- FixedNumber(22860))
       })
@@ -229,7 +229,7 @@ class VoteContractTest extends RegisterContractTest {
       })
       When.makeVoteTransaction(nonce = 3, candidate = _acct4.publicKey.pubKeyHash)(tx => {
         assert(chain.addTransaction(tx))
-        assert(chain.getVote(_acct1.publicKey.pubKeyHash).get
+        assert(chain.getWitnessVote(_acct1.publicKey.pubKeyHash).get
           .targetMap.sameElements(scala.collection.mutable.Map(_acct3.publicKey.pubKeyHash -> FixedNumber.One,
           _acct4.publicKey.pubKeyHash -> FixedNumber.One)))
         assert(chain.getBalance(new UInt160(PrecompiledContracts.witnessVoteAddr.getLast20Bytes)).get == FixedNumber(FixedNumber.One.value * 2))
@@ -298,14 +298,14 @@ class VoteContractTest extends RegisterContractTest {
       When.makeVoteTransaction(nonce = 2, counter = FixedNumber.Ten)(tx => {
         assert(chain.addTransaction(tx))
         println(chain.getBalance(_acct1).get)
-        assert(chain.getVote(_acct1.publicKey.pubKeyHash).get.targetMap(_acct3.publicKey.pubKeyHash) == FixedNumber.Ten)
+        assert(chain.getWitnessVote(_acct1.publicKey.pubKeyHash).get.targetMap(_acct3.publicKey.pubKeyHash) == FixedNumber.Ten)
         assert(chain.getBalance(_acct1).get == FixedNumber.fromDecimal(BigDecimal("110.119999999999935140")))
         assert(chain.getBalance(_acct1).get == FixedNumber.fromDecimal(110.12) - FixedNumber(42000) - FixedNumber(22860))
         assert(chain.getBalance(new UInt160(PrecompiledContracts.witnessVoteAddr.getLast20Bytes)).get == FixedNumber.Ten)
       })
       When.makeVoteTransaction(OperationType.resisterCancel,nonce = 3, counter = FixedNumber.One)(tx => {
         assert(chain.addTransaction(tx))
-        assert(chain.getVote(_acct1.publicKey.pubKeyHash).get.targetMap(_acct3.publicKey.pubKeyHash) == FixedNumber(FixedNumber.One.value * 9))
+        assert(chain.getWitnessVote(_acct1.publicKey.pubKeyHash).get.targetMap(_acct3.publicKey.pubKeyHash) == FixedNumber(FixedNumber.One.value * 9))
         assert(chain.getBalance(new UInt160(PrecompiledContracts.witnessVoteAddr.getLast20Bytes)).get == FixedNumber(FixedNumber.One.value * 10))
         assert(chain.getBalance(_acct1).get == FixedNumber.fromDecimal(BigDecimal("110.119999999999912220")))
         assert(chain.getBalance(_acct1).get == FixedNumber.fromDecimal(110.12)- FixedNumber(42000) - FixedNumber(22860) - FixedNumber(22920))
@@ -380,7 +380,7 @@ class VoteContractTest extends RegisterContractTest {
     assert(chain.getBalance(_acct3).get == (FixedNumber.fromDecimal(2) - FixedNumber(24980)))
 
     assert(account == (FixedNumber.fromDecimal(119.12) - FixedNumber(22856) - FixedNumber(42000)))
-    assert(chain.getVote(_acct1.publicKey.pubKeyHash).get.targetMap.get(_acct3.publicKey.pubKeyHash).get == FixedNumber.One)
+    assert(chain.getWitnessVote(_acct1.publicKey.pubKeyHash).get.targetMap.get(_acct3.publicKey.pubKeyHash).get == FixedNumber.One)
     assert(chain.getBalance(new UInt160(PrecompiledContracts.witnessVoteAddr.getLast20Bytes)).get == FixedNumber.One)
 
     val currentWitness = chain.getProducers("active").witnesses

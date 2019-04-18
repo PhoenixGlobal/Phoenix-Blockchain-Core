@@ -80,7 +80,7 @@ object VoteContractExecutor {
     def isCancelWitnessExistInVoterTargetMap(track: DataBase, tx: Transaction): VoteContractContext = {
       errorDetected {
         if (voteData.operationType == OperationType.resisterCancel) {
-          val vote = track.getVote(tx.from)
+          val vote = track.getWitnessVote(tx.from)
           if (vote.isDefined) {
             if (vote.get.targetMap.get(voteData.candidate).isEmpty)
               setResult(false, ("voter can not cancel a vote if it not exist in vote target map").getBytes)
@@ -93,7 +93,7 @@ object VoteContractExecutor {
     //when a voter cancel vote to a witness,check it exist in vote db or not
     def isVoterExist(track: DataBase, tx: Transaction): VoteContractContext = {
       errorDetected {
-        if (voteData.operationType == OperationType.resisterCancel && track.getVote(tx.from).isEmpty) {
+        if (voteData.operationType == OperationType.resisterCancel && track.getWitnessVote(tx.from).isEmpty) {
           setResult(false, ("voter can not cancel a vote if it not exist in votes list").getBytes)
         }
       }
@@ -104,7 +104,7 @@ object VoteContractExecutor {
     def voterCancelWitnessCounterInvalid(track: DataBase, tx: Transaction): VoteContractContext = {
       errorDetected {
         if (voteData.operationType == OperationType.resisterCancel) {
-          val vote = track.getVote(tx.from)
+          val vote = track.getWitnessVote(tx.from)
           if (vote.isDefined) {
             if (vote.get.targetMap.getOrElse(voteData.candidate, FixedNumber.Zero).value < voteData.voterCount.value)
               setResult(false, ("cancel request counter bigger than its counter in target map is forbidden").getBytes)
@@ -132,11 +132,11 @@ object VoteContractExecutor {
       track.addBalance(new UInt160(PrecompiledContracts.witnessVoteAddr.getLast20Bytes), voteData.voterCount)
       val newWitness = witness.copy(voteCounts = witness.voteCounts + voteData.voterCount)
       track.setWitness(newWitness)
-      track.getVote(tx.from).fold(track.createVote(tx.from, WitnessVote(tx.from,
+      track.getWitnessVote(tx.from).fold(track.createWitnessVote(tx.from, WitnessVote(tx.from,
         scala.collection.mutable.Map[UInt160, FixedNumber](voteData.candidate -> voteData.voterCount))))(
         vote => {
           val newVote = vote.updateTargetCounter(voteData.candidate, voteData.voterCount)
-          track.createVote(vote.voter, newVote)
+          track.createWitnessVote(vote.voter, newVote)
         })
     }
 
@@ -153,10 +153,10 @@ object VoteContractExecutor {
         val newWitness = witness.get.copy(voteCounts = witness.get.voteCounts - voteData.voterCount)
         track.setWitness(newWitness)
       }
-      track.getVote(tx.from).fold({})(
+      track.getWitnessVote(tx.from).fold({})(
         vote => {
           val newVote = vote.updateTargetCounter(voteData.candidate, -voteData.voterCount)
-          track.createVote(vote.voter, newVote)
+          track.createWitnessVote(vote.voter, newVote)
         })
     }
 

@@ -36,11 +36,11 @@ class AccountStore(db: Storage.raw, capacity: Int)
     with UInt160Key
     with AccountValue
 
-class VoteStore(db: Storage.raw, capacity: Int)
+class WitnessVoteStore(db: Storage.raw, capacity: Int)
   extends StoreBase[UInt160, WitnessVote](db, capacity)
-    with VotePrefix
+    with WitnessVotePrefix
     with UInt160Key
-    with VoteValue
+    with WitnessVoteValue
 
 class ContractStore(db: Storage.raw, capacity: Int)
   extends StoreBase[UInt160, Contract](db, capacity)
@@ -147,7 +147,7 @@ object DataType extends Enumeration {
   val ContractState = Value(0x07)
   val Receipt = Value(0x08)
 //  val Peer = Value(0x09)
-  val Votes = Value(0x0a)
+  val WitnessVotes = Value(0x0a)
   val scheduleTransaction = Value(0x0b)
   val WitnessInfo = Value(0x0c)
 }
@@ -208,8 +208,8 @@ trait AccountPrefix extends DataPrefix {
   override val dataType: DataType.Value = DataType.Account
 }
 
-trait VotePrefix extends DataPrefix {
-  override val dataType: DataType.Value = DataType.Votes
+trait WitnessVotePrefix extends DataPrefix {
+  override val dataType: DataType.Value = DataType.WitnessVotes
 }
 
 trait ContractPrefix extends DataPrefix {
@@ -369,7 +369,7 @@ trait AccountValue extends ValueConverterProvider[Account] {
   override val valConverter: Converter[Account] = new SerializableConverter(Account.deserialize)
 }
 
-trait VoteValue extends ValueConverterProvider[WitnessVote] {
+trait WitnessVoteValue extends ValueConverterProvider[WitnessVote] {
   override val valConverter: Converter[WitnessVote] = new SerializableConverter(WitnessVote.deserialize)
 }
 
