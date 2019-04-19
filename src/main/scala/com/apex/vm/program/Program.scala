@@ -36,6 +36,7 @@ import com.apex.settings.ContractSettings
 import com.apex.vm.DataWord
 import com.apex.vm.exceptions._
 import com.apex.vm.hook.VMHook
+import com.apex.vm.precompiled.PrecompiledContract
 import com.apex.vm.program.invoke.{ProgramInvoke, ProgramInvokeImpl}
 import com.apex.vm.program.listener.{CompositeProgramListener, ProgramListenerAware, ProgramStorageChangeListener}
 import com.apex.vm.program.trace.{ProgramTrace, ProgramTraceListener}

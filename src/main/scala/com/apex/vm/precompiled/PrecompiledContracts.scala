@@ -23,9 +23,10 @@
  *
  */
 
-package com.apex.vm
+package com.apex.vm.precompiled
 
 import java.math.BigInteger
+import com.apex.vm._
 
 import akka.util.ByteString
 import com.apex.core.{DataBase, Transaction}

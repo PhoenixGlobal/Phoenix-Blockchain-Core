@@ -34,6 +34,7 @@ import com.apex.vm.hook.VMHook
 import com.apex.vm.program.{Program, ProgramResult}
 import com.apex.vm.program.trace.LogInfo
 import org.apex.vm._
+import com.apex.vm.precompiled._
 import org.slf4j.Logger
 
 import scala.collection.mutable.ListBuffer

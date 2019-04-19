@@ -8,7 +8,8 @@ import com.apex.crypto.{BinaryData, Crypto, Ecdsa, FixedNumber, MerkleTree, UInt
 import com.apex.crypto.Ecdsa.{PrivateKey, PublicKey}
 import com.apex.settings.{ConsensusSettings, RuntimeParas, _}
 import com.apex.solidity.Abi
-import com.apex.vm.{DataWord, PrecompiledContracts}
+import com.apex.vm.{DataWord}
+import com.apex.vm.precompiled._
 import org.junit.{AfterClass, Test}
 
 import scala.collection.mutable.ArrayBuffer

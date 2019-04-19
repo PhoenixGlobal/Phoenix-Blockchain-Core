@@ -12,7 +12,8 @@ import com.apex.core.{OperationType, Transaction, TransactionType}
 import com.apex.crypto.Ecdsa.PrivateKey
 import com.apex.crypto.{BinaryData, FixedNumber, UInt160}
 import com.apex.settings.MinerSettings
-import com.apex.vm.{DataWord, PrecompiledContracts}
+import com.apex.vm.DataWord
+import com.apex.vm.precompiled.PrecompiledContracts
 import org.bouncycastle.math.ec.FixedPointUtil
 import org.junit.{AfterClass, Test}
 

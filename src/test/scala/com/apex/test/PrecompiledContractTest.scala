@@ -11,7 +11,8 @@
 package com.apex.test
 
 import com.apex.settings.{ContractSettings, DataBaseSettings}
-import com.apex.vm.{DataWord, PrecompiledContracts, VM}
+import com.apex.vm.{DataWord, VM}
+import com.apex.vm.precompiled._
 import org.junit.Assert.{assertArrayEquals, assertEquals}
 import org.junit.Test
 import org.spongycastle.util.encoders.Hex

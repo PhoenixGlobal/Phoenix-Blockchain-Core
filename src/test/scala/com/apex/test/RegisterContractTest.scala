@@ -13,7 +13,8 @@ import com.apex.consensus.{ProducerUtil, RegisterData, WitnessInfo}
 import com.apex.core.{OperationType, Transaction, TransactionType}
 import com.apex.crypto.{BinaryData, FixedNumber, UInt160}
 import com.apex.test.ResourcePrepare.BlockChainPrepare
-import com.apex.vm.{DataWord, PrecompiledContracts}
+import com.apex.vm.{DataWord}
+import com.apex.vm.precompiled._
 import org.junit.{AfterClass, Test}
 
 import scala.reflect.io.Directory

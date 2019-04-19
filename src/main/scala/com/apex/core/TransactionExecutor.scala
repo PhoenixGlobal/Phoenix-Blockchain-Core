@@ -8,6 +8,7 @@ import com.apex.settings.ContractSettings
 import com.apex.vm.hook.VMHook
 import com.apex.vm._
 import com.apex.vm.hook.VMHook
+import com.apex.vm.precompiled.{PrecompiledContract, PrecompiledContracts}
 import com.apex.vm.program.Program
 import com.apex.vm.program.ProgramResult
 import com.apex.vm.program.invoke.{ProgramInvoke, ProgramInvokeImpl}

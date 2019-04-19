@@ -17,7 +17,8 @@ import com.apex.consensus.{WitnessVote, WitnessInfo, WitnessList, WitnessMap}
 import com.apex.crypto.{BinaryData, FixedNumber, UInt160, UInt256}
 import com.apex.settings.DataBaseSettings
 import com.apex.storage.Storage
-import com.apex.vm.{DataWord, PrecompiledContracts}
+import com.apex.vm.DataWord
+import com.apex.vm.precompiled.PrecompiledContracts
 
 import scala.collection.mutable
 import scala.collection.mutable.ArrayBuffer

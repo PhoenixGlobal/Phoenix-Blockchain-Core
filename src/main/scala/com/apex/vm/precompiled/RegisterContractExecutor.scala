@@ -1,4 +1,4 @@
-package com.apex.vm
+package com.apex.vm.precompiled
 
 import com.apex.consensus.{RegisterData, WitnessInfo}
 import com.apex.core.{DataBase, OperationType, Transaction, TransactionType}
