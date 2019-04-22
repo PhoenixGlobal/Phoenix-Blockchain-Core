@@ -27,10 +27,12 @@ case class WitnessVote(voter: UInt160,
     os.writeMap(targetMap.toMap)
   }
 
-  def updateTargetCounter(addr: UInt160, counter: FixedNumber): WitnessVote ={
-    if(targetMap.get(addr).isEmpty && counter.value < 0) return this
+  def updateTargetCounter(addr: UInt160, counter: FixedNumber): WitnessVote = {
+    if (targetMap.get(addr).isEmpty && counter.value < 0)
+      return this
     val oldCounter = targetMap.getOrElse(addr, FixedNumber.Zero)
-    if(oldCounter + counter >= FixedNumber.Zero) targetMap.update(addr, oldCounter + counter)
+    if (oldCounter + counter >= FixedNumber.Zero)
+      targetMap.update(addr, oldCounter + counter)
     this
   }
 
@@ -48,7 +50,7 @@ object WitnessVote {
     new WitnessVote(voter, mutable.Map(target.toSeq: _*), version)
   }
 
-  implicit val voteWrites = new Writes[WitnessVote] {
+  implicit val witnessVoteWrites = new Writes[WitnessVote] {
     override def writes(o: WitnessVote): JsValue = {
       Json.obj(
         "voter" -> o.voter.address,

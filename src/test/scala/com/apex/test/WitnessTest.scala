@@ -289,6 +289,72 @@ class WitnessTest {
     sorted.foreach(w => println(w.addr.address))
   }
 
+  @Test
+  def testWitnessBlockCount1 = {
+
+    val blockCount = mutable.Map.empty[UInt160, Int]
+
+    val wbc1 = new WitnessBlockCount(blockCount, 2)
+
+    val bos = new ByteArrayOutputStream
+    val dos = new DataOutputStream(bos)
+    wbc1.serialize(dos)
+    val ba = bos.toByteArray
+    val bis = new ByteArrayInputStream(ba)
+    val is = new DataInputStream(bis)
+    val wbc2 = WitnessBlockCount.deserialize(is)
+
+    assert(wbc2.blockCount.size == 0)
+    assert(wbc2.version == 2)
+  }
+
+  @Test
+  def testWitnessBlockCount2 = {
+
+    val blockCount = mutable.Map.empty[UInt160, Int]
+    blockCount.update(UInt160.Zero, 5)
+
+    val wbc1 = new WitnessBlockCount(blockCount, 3)
+
+    val bos = new ByteArrayOutputStream
+    val dos = new DataOutputStream(bos)
+    wbc1.serialize(dos)
+    val ba = bos.toByteArray
+    val bis = new ByteArrayInputStream(ba)
+    val is = new DataInputStream(bis)
+    val wbc2 = WitnessBlockCount.deserialize(is)
+
+    assert(wbc2.blockCount.size == 1)
+    assert(wbc2.blockCount.get(UInt160.Zero).get == 5)
+    assert(wbc2.version == 3)
+  }
+
+  @Test
+  def testWitnessBlockCount3 = {
+
+    val a = UInt160.parse("1212121212121212121212121212121212121211").get
+    val b = UInt160.parse("1212121212121212121212121212121212121212").get
+
+    val blockCount = mutable.Map.empty[UInt160, Int]
+    blockCount.update(a, 51)
+    blockCount.update(b, 61)
+
+    val wbc1 = new WitnessBlockCount(blockCount, 3)
+
+    val bos = new ByteArrayOutputStream
+    val dos = new DataOutputStream(bos)
+    wbc1.serialize(dos)
+    val ba = bos.toByteArray
+    val bis = new ByteArrayInputStream(ba)
+    val is = new DataInputStream(bis)
+    val wbc2 = WitnessBlockCount.deserialize(is)
+
+    assert(wbc2.blockCount.size == 2)
+    assert(wbc2.blockCount.get(a).get == 51)
+    assert(wbc2.blockCount.get(b).get == 61)
+    assert(wbc2.version == 3)
+  }
+
 //  @Test
 //  def testRegisterInfo = {
 //    val a = new RegisterInfo("abc")

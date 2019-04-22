@@ -23,6 +23,8 @@ class Transaction(val txType: TransactionType.Value,
 
   require(gasPrice > FixedNumber.Zero, "transaction gas price must be lager than 0")
 
+  require(executeTime >= 0, "executeTime must be lager than or equal to 0")
+
   def sender(): UInt160 = from
 
   def toAddress(): String = {

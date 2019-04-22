@@ -4,7 +4,7 @@ import java.io.{ByteArrayInputStream, ByteArrayOutputStream, DataInputStream, Da
 import java.util.Map
 
 import com.apex.common.{Cache, LRUCache, Serializable}
-import com.apex.consensus.{WitnessInfo, WitnessList, WitnessMap, WitnessVote}
+import com.apex.consensus._
 import com.apex.crypto.Ecdsa.PublicKey
 import com.apex.crypto.{UInt160, UInt256}
 import com.apex.proposal.{Proposal, ProposalVoteList}
@@ -113,6 +113,16 @@ class ProposalVoteListStore(db: Storage.raw)
     with ProposalVoteListPrefix
     with ProposalVoteListValue
 
+class WitnessBlockCountLastWeekStore(db: Storage.raw)
+  extends StateStore[WitnessBlockCount](db)
+    with BlockCountLastWeekPrefix
+    with WitnessBlockCountValue
+
+class WitnessBlockCountThisWeekStore(db: Storage.raw)
+  extends StateStore[WitnessBlockCount](db)
+    with BlockCountThisWeekPrefix
+    with WitnessBlockCountValue
+
 //class WitnessInfoStore(db: Storage.raw)
 //  extends StateStore[WitnessMap](db)
 //    with AllWitnessMapStatePrefix
@@ -170,6 +180,8 @@ object StateType extends Enumeration {
   val PendingWitnessState = Value(0x06)
   val AllWitnessMapState = Value(0x07)
   val ProposalVoteList = Value(0x08)
+  val BlockCountLastWeek = Value(0x09)
+  val BlockCountThisWeek = Value(0x0a)
 }
 
 trait Prefix {
@@ -275,6 +287,13 @@ trait ProposalVoteListPrefix extends StatePrefix {
   override val stateType: StateType.Value = StateType.ProposalVoteList
 }
 
+trait BlockCountLastWeekPrefix extends StatePrefix {
+  override val stateType: StateType.Value = StateType.BlockCountLastWeek
+}
+
+trait BlockCountThisWeekPrefix extends StatePrefix {
+  override val stateType: StateType.Value = StateType.BlockCountThisWeek
+}
 
 trait Converter[A] {
   def toBytes(key: A): Array[Byte] = {
@@ -409,6 +428,10 @@ trait WitnessListValue extends ValueConverterProvider[WitnessList] {
 
 trait ProposalVoteListValue extends ValueConverterProvider[ProposalVoteList] {
   override val valConverter: Converter[ProposalVoteList] = new SerializableConverter(ProposalVoteList.deserialize)
+}
+
+trait WitnessBlockCountValue extends ValueConverterProvider[WitnessBlockCount] {
+  override val valConverter: Converter[WitnessBlockCount] = new SerializableConverter(WitnessBlockCount.deserialize)
 }
 
 trait WitnessMapValue extends ValueConverterProvider[WitnessMap] {

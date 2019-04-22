@@ -1,6 +1,6 @@
 package com.apex.proposal
 
-import java.io.{DataInputStream, DataOutputStream}
+import java.io.{ByteArrayInputStream, DataInputStream, DataOutputStream}
 
 import com.apex.common.{ApexLogging, Serializable}
 import com.apex.crypto.{BinaryData, UInt160, UInt256}
@@ -22,6 +22,12 @@ case class ProposalData(proposalType: ProposalType.Value,
 }
 
 object ProposalData {
+
+  def fromBytes(data: Array[Byte]): ProposalData = {
+    val bs = new ByteArrayInputStream(data)
+    val is = new DataInputStream(bs)
+    deserialize(is)
+  }
 
   def deserialize(is: DataInputStream): ProposalData = {
     import com.apex.common.Serializable._
