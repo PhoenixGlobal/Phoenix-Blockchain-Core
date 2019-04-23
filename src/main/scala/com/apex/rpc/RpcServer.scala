@@ -272,7 +272,7 @@ object RpcServer extends ApexLogging {
                       s match {
                         case Success(producerOption) => {
                           producerOption match {
-                            case Some(vote) => sussesRes(Json.prettyPrint(WitnessVote.voteWrites.writes(vote)))
+                            case Some(vote) => sussesRes(Json.prettyPrint(WitnessVote.witnessVoteWrites.writes(vote)))
                             case None => sussesRes("")
                           }
                         }

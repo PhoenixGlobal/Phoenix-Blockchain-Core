@@ -13,8 +13,9 @@ package com.apex.core
 import java.time.Instant
 
 import com.apex.common.ApexLogging
-import com.apex.consensus.{WitnessVote, WitnessInfo, WitnessList, WitnessMap}
+import com.apex.consensus.{WitnessInfo, WitnessList, WitnessMap, WitnessVote}
 import com.apex.crypto.{BinaryData, FixedNumber, UInt160, UInt256}
+import com.apex.proposal.{Proposal, ProposalVoteList}
 import com.apex.settings.DataBaseSettings
 import com.apex.storage.Storage
 import com.apex.vm.DataWord
@@ -28,7 +29,6 @@ class DataBase(settings: DataBaseSettings, db: Storage.lowLevelRaw, tracking: Tr
   private val receiptStore = new ReceiptStore(tracking, settings.cacheSize)
   private val contractStore = new ContractStore(tracking, settings.cacheSize)
   private val contractStateStore = new ContractStateStore(tracking, settings.cacheSize)
-  private val nameToAccountStore = new NameToAccountStore(tracking, settings.cacheSize)
   private val scheduleTxStore = new ScheduleTxStore(tracking, settings.cacheSize)
 
   private val witnessVoteStore = new WitnessVoteStore(tracking, settings.cacheSize)
@@ -37,6 +37,12 @@ class DataBase(settings: DataBaseSettings, db: Storage.lowLevelRaw, tracking: Tr
   private val previousWitnessStore = new PreviousWitnessStore(tracking)
   private val currentWitnessStore = new CurrentWitnessStore(tracking)
   private val pendingWitnessStore = new PendingWitnessStore(tracking)
+
+  private val proposalStore = new ProposalStore(tracking, settings.cacheSize)
+  private val proposalVoteListStore = new ProposalVoteListStore(tracking)
+
+  private val witnessBlockCountLastWeekStore = new WitnessBlockCountLastWeekStore(tracking)
+  private val witnessBlockCountThisWeekStore = new WitnessBlockCountThisWeekStore(tracking)
 
   def this(settings: DataBaseSettings, db: Storage.lowLevelRaw) = {
     this(settings, db, Tracking.root(db))
@@ -194,6 +200,15 @@ class DataBase(settings: DataBaseSettings, db: Storage.lowLevelRaw, tracking: Tr
   // next active producer
   def getPendingWitnessList(): Option[WitnessList] = pendingWitnessStore.get()
   def setPendingWitnessList(wl: WitnessList): Unit = pendingWitnessStore.set(wl)
+
+  def setProposal(p: Proposal): Unit = proposalStore.set(p.proposalID, p)
+  def getProposal(proposalID: UInt256): Option[Proposal] = proposalStore.get(proposalID)
+
+  def getAllProposal(): ArrayBuffer[Proposal] = {
+    proposalStore.getLists(Array(StoreType.Data.id.toByte, DataType.Proposal.id.toByte))
+  }
+
+  def getProposalVoteList(): Option[ProposalVoteList] = proposalVoteListStore.get
 
 
   def startTracking(): DataBase = {

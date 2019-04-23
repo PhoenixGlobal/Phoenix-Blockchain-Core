@@ -4,9 +4,10 @@ import java.io.{ByteArrayInputStream, ByteArrayOutputStream, DataInputStream, Da
 import java.util.Map
 
 import com.apex.common.{Cache, LRUCache, Serializable}
-import com.apex.consensus.{WitnessVote, WitnessInfo, WitnessList, WitnessMap}
+import com.apex.consensus._
 import com.apex.crypto.Ecdsa.PublicKey
 import com.apex.crypto.{UInt160, UInt256}
+import com.apex.proposal.{Proposal, ProposalVoteList}
 import com.apex.settings.DataBaseSettings
 import com.apex.storage.{Batch, ByteArray, LevelDbStorage, Storage}
 
@@ -66,18 +67,6 @@ class HeightStore(db: Storage.raw, capacity: Int)
     with LongKey
     with UInt256Value
 
-class BlkTxMappingStore(db: Storage.raw, capacity: Int)
-  extends StoreBase[UInt256, BlkTxMapping](db, capacity)
-    with BlockIdToTxIdIndexPrefix
-    with UInt256Key
-    with BlkTxMappingValue
-
-class NameToAccountStore(db: Storage.raw, capacity: Int)
-  extends StoreBase[String, UInt160](db, capacity)
-    with NameToAccountIndexPrefix
-    with StringKey
-    with UInt160Value
-
 class ForkItemStore(db: Storage.raw, capacity: Int)
   extends StoreBase[UInt256, ForkItem](db, capacity)
     with ForkItemPrefix
@@ -119,6 +108,21 @@ class PendingWitnessStore(db: Storage.raw)
     with PendingWitnessStatePrefix
     with WitnessListValue
 
+class ProposalVoteListStore(db: Storage.raw)
+  extends StateStore[ProposalVoteList](db)
+    with ProposalVoteListPrefix
+    with ProposalVoteListValue
+
+class WitnessBlockCountLastWeekStore(db: Storage.raw)
+  extends StateStore[WitnessBlockCount](db)
+    with BlockCountLastWeekPrefix
+    with WitnessBlockCountValue
+
+class WitnessBlockCountThisWeekStore(db: Storage.raw)
+  extends StateStore[WitnessBlockCount](db)
+    with BlockCountThisWeekPrefix
+    with WitnessBlockCountValue
+
 //class WitnessInfoStore(db: Storage.raw)
 //  extends StateStore[WitnessMap](db)
 //    with AllWitnessMapStatePrefix
@@ -129,6 +133,12 @@ class WitnessInfoStore(db: Storage.raw, capacity: Int)
     with WitnessInfoPrefix
     with UInt160Key
     with WitnessInfoValue
+
+class ProposalStore(db: Storage.raw, capacity: Int)
+  extends StoreBase[UInt256, Proposal](db, capacity)
+    with ProposalPrefix
+    with UInt256Key
+    with ProposalValue
 
 object StoreType extends Enumeration {
   val Data = Value(0x00)
@@ -150,13 +160,14 @@ object DataType extends Enumeration {
   val WitnessVotes = Value(0x0a)
   val scheduleTransaction = Value(0x0b)
   val WitnessInfo = Value(0x0c)
+  val Proposal = Value(0x0d)
 }
 
 object IndexType extends Enumeration {
   val BlockHeightToId = Value(0x00)
-  val BlockIdToTxId = Value(0x01)
-  val UTXO = Value(0x02)
-  val NameToAccount = Value(0x03)
+  //val BlockIdToTxId = Value(0x01)
+  //val UTXO = Value(0x02)
+  //val NameToAccount = Value(0x03)
 }
 
 object StateType extends Enumeration {
@@ -168,6 +179,9 @@ object StateType extends Enumeration {
   val CurrentWitnessState = Value(0x05)
   val PendingWitnessState = Value(0x06)
   val AllWitnessMapState = Value(0x07)
+  val ProposalVoteList = Value(0x08)
+  val BlockCountLastWeek = Value(0x09)
+  val BlockCountThisWeek = Value(0x0a)
 }
 
 trait Prefix {
@@ -228,21 +242,18 @@ trait ForkItemPrefix extends DataPrefix {
   override val dataType: DataType.Value = DataType.ForkItem
 }
 
+trait WitnessInfoPrefix extends DataPrefix {
+  override val dataType: DataType.Value = DataType.WitnessInfo
+}
+
+trait ProposalPrefix extends DataPrefix {
+  override val dataType: DataType.Value = DataType.Proposal
+}
+
 trait HeightToIdIndexPrefix extends IndexPrefix {
   override val indexType: IndexType.Value = IndexType.BlockHeightToId
 }
 
-trait BlockIdToTxIdIndexPrefix extends IndexPrefix {
-  override val indexType: IndexType.Value = IndexType.BlockIdToTxId
-}
-
-trait UTXOIndexPrefix extends IndexPrefix {
-  override val indexType: IndexType.Value = IndexType.UTXO
-}
-
-trait NameToAccountIndexPrefix extends IndexPrefix {
-  override val indexType: IndexType.Value = IndexType.NameToAccount
-}
 
 trait HeadBlockStatePrefix extends StatePrefix {
   override val stateType: StateType.Value = StateType.HeadBlock
@@ -272,11 +283,17 @@ trait PendingWitnessStatePrefix extends StatePrefix {
   override val stateType: StateType.Value = StateType.PendingWitnessState
 }
 
-trait WitnessInfoPrefix extends DataPrefix {
-  override val dataType: DataType.Value = DataType.WitnessInfo
+trait ProposalVoteListPrefix extends StatePrefix {
+  override val stateType: StateType.Value = StateType.ProposalVoteList
 }
 
+trait BlockCountLastWeekPrefix extends StatePrefix {
+  override val stateType: StateType.Value = StateType.BlockCountLastWeek
+}
 
+trait BlockCountThisWeekPrefix extends StatePrefix {
+  override val stateType: StateType.Value = StateType.BlockCountThisWeek
+}
 
 trait Converter[A] {
   def toBytes(key: A): Array[Byte] = {
@@ -409,12 +426,24 @@ trait WitnessListValue extends ValueConverterProvider[WitnessList] {
   override val valConverter: Converter[WitnessList] = new SerializableConverter(WitnessList.deserialize)
 }
 
+trait ProposalVoteListValue extends ValueConverterProvider[ProposalVoteList] {
+  override val valConverter: Converter[ProposalVoteList] = new SerializableConverter(ProposalVoteList.deserialize)
+}
+
+trait WitnessBlockCountValue extends ValueConverterProvider[WitnessBlockCount] {
+  override val valConverter: Converter[WitnessBlockCount] = new SerializableConverter(WitnessBlockCount.deserialize)
+}
+
 trait WitnessMapValue extends ValueConverterProvider[WitnessMap] {
   override val valConverter: Converter[WitnessMap] = new SerializableConverter(WitnessMap.deserialize)
 }
 
 trait WitnessInfoValue extends ValueConverterProvider[WitnessInfo] {
   override val valConverter: Converter[WitnessInfo] = new SerializableConverter(WitnessInfo.deserialize)
+}
+
+trait ProposalValue extends ValueConverterProvider[Proposal] {
+  override val valConverter: Converter[Proposal] = new SerializableConverter(Proposal.deserialize)
 }
 
 class IntConverter extends Converter[Int] {
