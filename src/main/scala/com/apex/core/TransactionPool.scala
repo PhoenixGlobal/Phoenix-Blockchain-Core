@@ -69,6 +69,8 @@ class TransactionPool extends ApexLogging {
 
   def remove(tx: Transaction) = {
     if (contains(tx)) {
+      log.info(s"TransactionPool remove tx ${tx.id.toString}  ${txsMap.size}  ${txsSorted.size}")
+      require(txsMap.size == txsSorted.size)
       txsMap.remove(tx.id)
       txsSorted.remove(TxEntry(tx))
       txTotalSize -= tx.approximateSize
