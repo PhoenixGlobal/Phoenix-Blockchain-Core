@@ -57,7 +57,7 @@ object RpcServer extends ApexLogging {
                     s match {
                       case Success(blockOption) => {
                         blockOption match {
-                          case Some(block) => sussesRes(Block.blockWrites.writes(block).toString())
+                          case Some(block) => sussesRes(Json.prettyPrint(Block.blockWrites.writes(block)))
                           case None => sussesRes("")
                         }
                       }
@@ -74,7 +74,7 @@ object RpcServer extends ApexLogging {
                         s match {
                           case Success(blockOption) => {
                             blockOption match {
-                              case Some(block) => sussesRes(Block.blockWrites.writes(block).toString())
+                              case Some(block) => sussesRes(Json.prettyPrint(Block.blockWrites.writes(block)))
                               case None => sussesRes("")
                             }
                           }
@@ -100,7 +100,7 @@ object RpcServer extends ApexLogging {
                 .map(s =>
                   s match {
                     case Success(blocks) => {
-                      sussesRes(Json.toJson(blocks).toString())
+                      sussesRes(Json.prettyPrint(Json.toJson(blocks)))
                     }
                     case Failure(e) => error500Res(e.getMessage)
                   }
@@ -120,7 +120,7 @@ object RpcServer extends ApexLogging {
                       s match {
                         case Success(accountOption) => {
                           accountOption match {
-                            case Some(account) => sussesRes(Account.accountWrites.writes(account).toString())
+                            case Some(account) => sussesRes(Json.prettyPrint(Account.accountWrites.writes(account)))
                             case None => sussesRes("")
                           }
                         }
@@ -147,7 +147,7 @@ object RpcServer extends ApexLogging {
                       s match {
                         case Success(contractOption) => {
                           contractOption match {
-                            case Some(contract) => sussesRes(TransactionReceipt.TransactionReceiptWrites.writes(contract).toString())
+                            case Some(contract) => sussesRes(Json.prettyPrint(TransactionReceipt.TransactionReceiptWrites.writes(contract)))
                             case None => sussesRes("")
                           }
                         }
@@ -173,7 +173,7 @@ object RpcServer extends ApexLogging {
                     .mapTo[Try[AddTxResult]]
                     .map(s =>
                       s match {
-                        case Success(sendTx) => sussesRes(AddTxResult.resultWrites.writes(sendTx).toString())
+                        case Success(sendTx) => sussesRes(Json.prettyPrint(AddTxResult.resultWrites.writes(sendTx)))
                         case Failure(e) => error500Res(e.getMessage)
                       })
                   complete(f)
@@ -193,7 +193,7 @@ object RpcServer extends ApexLogging {
                 .mapTo[Try[Long]]
                 .map(s =>
                   s match {
-                    case Success(blockheight) => sussesRes(blockheight.toString())
+                    case Success(blockheight) => sussesRes(blockheight.toString)
                     case Failure(e) => error500Res(e.getMessage)
                   })
               complete(f)
@@ -207,7 +207,7 @@ object RpcServer extends ApexLogging {
                 .mapTo[Try[BlockHeader]]
                 .map(s =>
                   s match {
-                    case Success(blockHeader) => sussesRes(BlockHeader.blockHeaderWrites.writes(blockHeader).toString())
+                    case Success(blockHeader) => sussesRes(Json.prettyPrint(BlockHeader.blockHeaderWrites.writes(blockHeader)))
                     case Failure(e) => error500Res(e.getMessage)
                   })
               complete(f)
@@ -223,7 +223,7 @@ object RpcServer extends ApexLogging {
                     .mapTo[Try[WitnessList]]
                     .map(s =>
                       s match {
-                        case Success(witnessList) => sussesRes(WitnessList.witnessListWrites.writes(witnessList).toString())
+                        case Success(witnessList) => sussesRes(Json.prettyPrint(WitnessList.witnessListWrites.writes(witnessList)))
                         case Failure(e) => error500Res(e.getMessage)
                       })
                   complete(f)
@@ -246,7 +246,7 @@ object RpcServer extends ApexLogging {
                       s match {
                         case Success(producerOption) => {
                           producerOption match {
-                            case Some(producer) => sussesRes(WitnessInfo.witnessInfoWrites.writes(producer).toString())
+                            case Some(producer) => sussesRes(Json.prettyPrint(WitnessInfo.witnessInfoWrites.writes(producer)))
                             case None => sussesRes("")
                           }
                         }
@@ -272,7 +272,7 @@ object RpcServer extends ApexLogging {
                       s match {
                         case Success(producerOption) => {
                           producerOption match {
-                            case Some(vote) => sussesRes(WitnessVote.voteWrites.writes(vote).toString())
+                            case Some(vote) => sussesRes(Json.prettyPrint(WitnessVote.voteWrites.writes(vote)))
                             case None => sussesRes("")
                           }
                         }
@@ -319,7 +319,14 @@ object RpcServer extends ApexLogging {
   }
 
   private def resultString(execResult: ExecResult): String = {
-    ExecResult.resultWrites.writes(execResult).toString()
+    //       Json.prettyPrint(ExecResult.resultWrites.writes(execResult))
+
+    val ret = "{\r\n\"succeed\":" + execResult.succeed + ",\r\n" +
+      "\"status\":" + execResult.status + ",\r\n" +
+      "\"message\":\"" + execResult.message + "\",\r\n" +
+      "\"result\":" + execResult.result + "\r\n}"
+
+    ret
   }
 
   /*def completeFuture()*/
