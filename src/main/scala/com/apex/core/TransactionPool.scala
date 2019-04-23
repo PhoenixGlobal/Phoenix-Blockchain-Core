@@ -36,48 +36,52 @@ case class TxEntry(tx: Transaction,
 
 class TransactionPool extends ApexLogging {
 
-  val unapplyTxsMap = mutable.LinkedHashMap.empty[UInt256, Transaction]
-  val unapplyTxsSorted = mutable.SortedSet.empty[TxEntry]
+  private val txsMap = mutable.LinkedHashMap.empty[UInt256, Transaction]
+  private val txsSorted = mutable.SortedSet.empty[TxEntry]
 
-  var txTotalSize: Long = 0
-  val txTotalSizeLimit: Long = 10000000000L // 10 MB
-  val maxKeepTime: Long = 600000 // 10 min
+  private var txTotalSize: Long = 0
+  private val txTotalSizeLimit: Long = 10000000000L // 10 MB
+  private val maxKeepTime: Long = 600000 // 10 min
+
+  def getSortedTxs(): Array[TxEntry] = {
+    txsSorted.toArray.clone()
+  }
 
   def get(txid: UInt256): Option[Transaction] = {
-    unapplyTxsMap.get(txid)
+    txsMap.get(txid)
   }
 
   def add(tx: Transaction) = {
     if (!contains(tx) && txTotalSize + tx.approximateSize <= txTotalSizeLimit) {
-      log.info(s"TransactionPool add tx ${tx.id.toString}")
-      unapplyTxsMap += (tx.id -> tx)
-      unapplyTxsSorted.add(TxEntry(tx, Instant.now.toEpochMilli))
+      log.info(s"TransactionPool add tx ${tx.id.toString}  ${txsMap.size}  ${txsSorted.size}")
+      txsMap += (tx.id -> tx)
+      txsSorted.add(TxEntry(tx, Instant.now.toEpochMilli))
       txTotalSize += tx.approximateSize
-      require(unapplyTxsMap.size == unapplyTxsSorted.size)
+      require(txsMap.size == txsSorted.size)
       true
     }
     else false
   }
 
   def contains(tx: Transaction): Boolean = {
-    unapplyTxsMap.contains(tx.id)
+    txsMap.contains(tx.id)
   }
 
   def remove(tx: Transaction) = {
     if (contains(tx)) {
-      unapplyTxsMap.remove(tx.id)
-      unapplyTxsSorted.remove(TxEntry(tx))
+      txsMap.remove(tx.id)
+      txsSorted.remove(TxEntry(tx))
       txTotalSize -= tx.approximateSize
-      require(unapplyTxsMap.size == unapplyTxsSorted.size)
+      require(txsMap.size == txsSorted.size)
     }
   }
 
-  def txNumber: Int = unapplyTxsSorted.size
+  def txNumber: Int = txsSorted.size
 
   def checkRemoveTimeoutTxs = {
     val nowTime = Instant.now.toEpochMilli
     val badTxs = ArrayBuffer.empty[Transaction]
-    unapplyTxsSorted.foreach(p => if (nowTime - p.firstSeenTime > maxKeepTime) badTxs.append(p.tx))
+    txsSorted.foreach(p => if (nowTime - p.firstSeenTime > maxKeepTime) badTxs.append(p.tx))
     badTxs.foreach(tx => remove(tx))
   }
 

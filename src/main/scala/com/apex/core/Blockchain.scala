@@ -220,7 +220,7 @@ class Blockchain(chainSettings: ChainSettings,
     }
     val badTxs = ArrayBuffer.empty[Transaction]
 
-    txPool.unapplyTxsSorted.foreach(p => {
+    txPool.getSortedTxs().foreach(p => {
       if (Instant.now.toEpochMilli < stopProcessTxTime) {
         val applyResult = applyTransaction(p.tx, producer, stopProcessTxTime, blockTime, forkHead.block.height + 1)
         applyResult match {
