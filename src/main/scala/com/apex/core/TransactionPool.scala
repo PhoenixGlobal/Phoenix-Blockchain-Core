@@ -10,6 +10,7 @@ package com.apex.core
 
 import java.time.Instant
 
+import com.apex.common.ApexLogging
 import com.apex.crypto.UInt256
 
 import scala.collection.mutable
@@ -33,7 +34,7 @@ case class TxEntry(tx: Transaction,
   }
 }
 
-class TransactionPool {
+class TransactionPool extends ApexLogging {
 
   val unapplyTxsMap = mutable.LinkedHashMap.empty[UInt256, Transaction]
   val unapplyTxsSorted = mutable.SortedSet.empty[TxEntry]
@@ -48,9 +49,11 @@ class TransactionPool {
 
   def add(tx: Transaction) = {
     if (!contains(tx) && txTotalSize + tx.approximateSize <= txTotalSizeLimit) {
+      log.info(s"TransactionPool add tx ${tx.id.toString}")
       unapplyTxsMap += (tx.id -> tx)
       unapplyTxsSorted.add(TxEntry(tx, Instant.now.toEpochMilli))
       txTotalSize += tx.approximateSize
+      require(unapplyTxsMap.size == unapplyTxsSorted.size)
       true
     }
     else false
@@ -65,6 +68,7 @@ class TransactionPool {
       unapplyTxsMap.remove(tx.id)
       unapplyTxsSorted.remove(TxEntry(tx))
       txTotalSize -= tx.approximateSize
+      require(unapplyTxsMap.size == unapplyTxsSorted.size)
     }
   }
 
