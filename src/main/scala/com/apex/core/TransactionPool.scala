@@ -36,8 +36,8 @@ case class TxEntry(tx: Transaction,
 
 class TransactionPool extends ApexLogging {
 
-  private val txsMap = mutable.LinkedHashMap.empty[UInt256, Transaction]
-  private val txsSorted = mutable.SortedSet.empty[TxEntry]
+  val txsMap = mutable.LinkedHashMap.empty[UInt256, Transaction]
+  val txsSorted = mutable.SortedSet.empty[TxEntry]
 
   private var txTotalSize: Long = 0
   private val txTotalSizeLimit: Long = 10000000000L // 10 MB
