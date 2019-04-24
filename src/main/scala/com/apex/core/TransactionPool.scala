@@ -53,7 +53,7 @@ class TransactionPool extends ApexLogging {
 
   def add(tx: Transaction): Boolean = {
     if (!contains(tx) && txTotalSize + tx.approximateSize <= txTotalSizeLimit) {
-      log.info(s"TransactionPool add tx ${tx.id.toString}  ${txsMap.size}  ${txsSorted.size}")
+      //log.info(s"TransactionPool add tx ${tx.id.toString}  ${txsMap.size}  ${txsSorted.size}")
       txsMap += (tx.id -> tx)
       txsSorted.add(TxEntry(tx, Instant.now.toEpochMilli))
       txTotalSize += tx.approximateSize
@@ -69,14 +69,14 @@ class TransactionPool extends ApexLogging {
 
   def remove(tx: Transaction) = {
     if (contains(tx)) {
-      log.info(s"TransactionPool remove tx ${tx.id.toString}  ${txsMap.size}  ${txsSorted.size}")
+      //log.info(s"TransactionPool remove tx ${tx.id.toString}  ${txsMap.size}  ${txsSorted.size}")
       require(txsMap.size == txsSorted.size)
       txsMap.remove(tx.id)
       //txsSorted.remove(TxEntry(tx))
       txsSorted = txsSorted.filter(p => if (p.tx.id == tx.id) false else true)
       //txsSorted.retain(p => if (p.tx.id == tx.id) false else true)
       txTotalSize -= tx.approximateSize
-      log.info(s"x TransactionPool removed tx ${txsMap.size}  ${txsSorted.size}")
+      //log.info(s"x TransactionPool removed tx ${txsMap.size}  ${txsSorted.size}")
       require(txsMap.size == txsSorted.size)
     }
   }
