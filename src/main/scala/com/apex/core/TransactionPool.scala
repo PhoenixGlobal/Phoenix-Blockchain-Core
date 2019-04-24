@@ -37,7 +37,7 @@ case class TxEntry(tx: Transaction,
 class TransactionPool extends ApexLogging {
 
   val txsMap = mutable.LinkedHashMap.empty[UInt256, Transaction]
-  val txsSorted = mutable.SortedSet.empty[TxEntry]
+  var txsSorted = mutable.SortedSet.empty[TxEntry]
 
   private var txTotalSize: Long = 0
   private val txTotalSizeLimit: Long = 10000000000L // 10 MB
@@ -73,10 +73,10 @@ class TransactionPool extends ApexLogging {
       require(txsMap.size == txsSorted.size)
       txsMap.remove(tx.id)
       //txsSorted.remove(TxEntry(tx))
-      //txsSorted = txsSorted.filter(p => if (p.tx.id == tx.id) true else false)
-      txsSorted.retain(p => if (p.tx.id == tx.id) false else true)
+      txsSorted = txsSorted.filter(p => if (p.tx.id == tx.id) false else true)
+      //txsSorted.retain(p => if (p.tx.id == tx.id) false else true)
       txTotalSize -= tx.approximateSize
-      log.info(s"TransactionPool removed tx ${txsMap.size}  ${txsSorted.size}")
+      log.info(s"x TransactionPool removed tx ${txsMap.size}  ${txsSorted.size}")
       require(txsMap.size == txsSorted.size)
     }
   }
