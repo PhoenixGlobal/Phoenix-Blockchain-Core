@@ -49,29 +49,41 @@ class PeerDatabaseImpl(filename: String) extends PeerDatabase with ApexLogging {
   }
 
   def loadFromDB(): Unit = {
-    val whileListFile = filename + "/knowPeers.txt"
-    val wlf = new File(whileListFile)
-    if (!wlf.exists()) {
-      return
+    try {
+      val whileListFile = filename + "/knowPeers.txt"
+      val wlf = new File(whileListFile)
+      if (!wlf.exists()) {
+        return
+      }
+      val file = Source.fromFile(whileListFile)
+      val it = file.getLines
+      while (it.hasNext) {
+        val line: Array[String] = it.next().toString.split(":")
+        addOrUpdateKnownPeer(new InetSocketAddress(line(0), line(1).toInt), new NodeInfo(line(0), line(1).toInt, NodeType(line(2).toInt)))
+      }
     }
-    val file = Source.fromFile(whileListFile)
-    val it = file.getLines
-    while (it.hasNext) {
-      val line: Array[String] = it.next().toString.split(":")
-      addOrUpdateKnownPeer(new InetSocketAddress(line(0), line(1).toInt), new NodeInfo(line(0), line(1).toInt, NodeType(line(2).toInt)))
+    catch {
+      case e: Exception =>
+        log.info("init  knowPeers failed.")
+        e.printStackTrace()
     }
-
-    val blackFilePath = filename + "/blackListPeers.txt"
-    val bfp = new File(blackFilePath)
-    if (!bfp.exists()) {
-      return
-    }
-    val bfile = Source.fromFile(blackFilePath)
-    val it2 = bfile.getLines
-    while (it2.hasNext) {
-      val line: Array[String] = it2.next().toString.split(":")
-      val address = new InetSocketAddress(line(0), line(1).toInt)
-      addBlacklistPeer(address, System.currentTimeMillis())
+    try {
+      val blackFilePath = filename + "/blackListPeers.txt"
+      val bfp = new File(blackFilePath)
+      if (!bfp.exists()) {
+        return
+      }
+      val bfile = Source.fromFile(blackFilePath)
+      val it2 = bfile.getLines
+      while (it2.hasNext) {
+        val line: Array[String] = it2.next().toString.split(":")
+        val address = new InetSocketAddress(line(0), 0)
+        addBlacklistPeer(address, System.currentTimeMillis())
+      }
+    } catch {
+      case e: Exception =>
+        log.info("init  blackListPeers failed.")
+        e.printStackTrace()
     }
   }
 
@@ -85,7 +97,7 @@ class PeerDatabaseImpl(filename: String) extends PeerDatabase with ApexLogging {
   }
 
   override def addBlacklistPeer(address: InetSocketAddress, time: NetworkTime.Time): Unit = {
-    knownPeersMap.remove(address)
+  //  knownPeersMap.remove(address)
     if (!isBlacklisted(address)) blacklist += address.getAddress.getHostAddress -> time
   }
 
@@ -109,7 +121,6 @@ class PeerDatabaseImpl(filename: String) extends PeerDatabase with ApexLogging {
 
   //从whitelist里随机选出number个peer
   override def selectPeersByRandom(number: Int): Seq[NodeInfo] = {
-
     val allSeq = knownPeersMap.values.toSeq
     if (allSeq.size < number)
       return allSeq

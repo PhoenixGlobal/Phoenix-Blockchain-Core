@@ -319,12 +319,15 @@ object RpcServer extends ApexLogging {
   }
 
   private def resultString(execResult: ExecResult): String = {
-    //       Json.prettyPrint(ExecResult.resultWrites.writes(execResult))
+//           Json.prettyPrint(ExecResult.resultWrites.writes(execResult))
 
-    val ret = "{\r\n\"succeed\":" + execResult.succeed + ",\r\n" +
+    var ret = "{\r\n\"succeed\":" + execResult.succeed + ",\r\n" +
       "\"status\":" + execResult.status + ",\r\n" +
-      "\"message\":\"" + execResult.message + "\",\r\n" +
-      "\"result\":" + execResult.result + "\r\n}"
+      "\"message\":\"" + execResult.message + "\",\r\n"
+    if (execResult.result.startsWith("{"))
+      ret += "\"result\":" + execResult.result + "\r\n}"
+    else
+      ret += "\"result\":\"" + execResult.result + "\"\r\n}"
 
     ret
   }
