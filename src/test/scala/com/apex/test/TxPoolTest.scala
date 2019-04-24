@@ -54,19 +54,45 @@ class TxPoolTest {
     val tx2 = new Transaction(TransactionType.Call, UInt160.Zero, UInt160.Zero, FixedNumber.Zero, 2, BinaryData.empty,
       FixedNumber(1000), 100, BinaryData.empty, 1, 0)
 
+    val tx2same = new Transaction(TransactionType.Call, UInt160.Zero, UInt160.Zero, FixedNumber.Zero, 2, BinaryData.empty,
+      FixedNumber(1000), 100, BinaryData.empty, 1, 0)
+
+    val tx3 = new Transaction(TransactionType.Call, UInt160.Zero, UInt160.Zero, FixedNumber.Zero, 3, BinaryData.empty,
+      FixedNumber(1000), 100, BinaryData.empty, 1, 0)
+
+    val tx3same = new Transaction(TransactionType.Call, UInt160.Zero, UInt160.Zero, FixedNumber.Zero, 3, BinaryData.empty,
+      FixedNumber(1000), 100, BinaryData.empty, 1, 0)
+
     val txPool = new TransactionPool()
 
     txPool.add(tx1)
     txPool.add(tx2)
+    txPool.add(tx3)
+    assert(txPool.txNumber == 3)
 //    assert(txPool.unapplyTxsMap.size == 2)
 //    assert(txPool.unapplyTxsSorted.size == 2)
     txPool.remove(tx1same)
+    assert(txPool.txNumber == 2)
 //    assert(txPool.unapplyTxsMap.size == 1)
 //    assert(txPool.unapplyTxsSorted.size == 1)
 
     assert(!txPool.contains(tx1same))
     assert(!txPool.contains(tx1))
     assert(txPool.contains(tx2))
+    assert(txPool.contains(tx2same))
+    assert(txPool.contains(tx3))
+    assert(txPool.contains(tx3same))
+
+    txPool.remove(tx2same)
+    assert(txPool.txNumber == 1)
+
+    assert(!txPool.contains(tx1same))
+    assert(!txPool.contains(tx1))
+    assert(!txPool.contains(tx2))
+    assert(!txPool.contains(tx2same))
+    assert(txPool.contains(tx3))
+    assert(txPool.contains(tx3same))
+
 //    assert(!txPool.unapplyTxsMap.contains(tx1.id))
 //    assert(!txPool.unapplyTxsMap.contains(tx1same.id))
 //    assert(txPool.unapplyTxsMap.contains(tx2.id))
@@ -75,7 +101,8 @@ class TxPoolTest {
 //    assert(txPool.unapplyTxsSorted.contains(new TxEntry(tx2, 222)))
     assert(txPool.get(tx1same.id).isEmpty)
     assert(txPool.get(tx1.id).isEmpty)
-    assert(txPool.get(tx2.id).isDefined)
+    assert(txPool.get(tx2.id).isEmpty)
+    assert(txPool.get(tx3.id).isDefined)
   }
 
   @Test
@@ -129,19 +156,19 @@ class TxPoolTest {
     txPool.add(tx8)
     txPool.add(tx9)
 
-//    val sort = txPool.unapplyTxsSorted.toArray
-//
-//    //sort.foreach(f => println(Json.toJson(f.tx)))
-//
-//    assert(sort(0).tx.id == tx3.id)
-//    assert(sort(1).tx.id == tx2.id)
-//    assert(sort(2).tx.id == tx1.id)
-//    assert(sort(3).tx.id == tx5.id)
-//    assert(sort(4).tx.id == tx8.id) // tx8 vs tx4
-//    assert(sort(5).tx.id == tx7.id)
-//    assert(sort(6).tx.id == tx6.id)
-//    assert(sort(7).tx.id == tx9.id)
-//    assert(sort(8).tx.id == tx4.id)
+    val sort = txPool.getSortedTxs()//txPool.unapplyTxsSorted.toArray
+
+    //sort.foreach(f => println(Json.toJson(f.tx)))
+
+    assert(sort(0).tx.id == tx3.id)
+    assert(sort(1).tx.id == tx2.id)
+    assert(sort(2).tx.id == tx1.id)
+    assert(sort(3).tx.id == tx5.id)
+    assert(sort(4).tx.id == tx8.id) // tx8 vs tx4
+    assert(sort(5).tx.id == tx7.id)
+    assert(sort(6).tx.id == tx6.id)
+    assert(sort(7).tx.id == tx9.id)
+    assert(sort(8).tx.id == tx4.id)
   }
 
 }
