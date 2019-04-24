@@ -41,7 +41,7 @@ class TransactionPool extends ApexLogging {
 
   private var txTotalSize: Long = 0
   private val txTotalSizeLimit: Long = 10000000000L // 10 MB
-  private val maxKeepTime: Long = 600000 // 10 min
+  private val maxKeepTime: Long = 300000 // 5 min
 
   def getSortedTxs(): Array[TxEntry] = {
     txsSorted.toArray.clone()
