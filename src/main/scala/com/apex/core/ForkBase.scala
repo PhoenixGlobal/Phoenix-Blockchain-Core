@@ -431,7 +431,7 @@ class ForkBase(settings: ForkBaseSettings,
         log.info(s"id: ${id}, item${indexById.get(id).map(_.toString).getOrElse("not found")}")
       }))
     }
-    while (curr.exists(!_.prev.equals(tail))) {
+    while (curr.exists(!_.id.equals(tail))) {
       branch.append(curr.get)
       curr = indexById.get(curr.get.prev)
       log.info(s"curr=${curr.map(_.toString).getOrElse("None")}  ${curr.map(_.prev().equals(tail)).getOrElse(false)}")
