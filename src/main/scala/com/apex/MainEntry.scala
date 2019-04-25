@@ -17,9 +17,25 @@ import net.sourceforge.argparse4j.inf.{ArgumentParser, ArgumentParserException, 
 
 import scala.concurrent.ExecutionContext
 
+import sys.process._
+
 object MainEntry extends ApexLogging {
 
+  import java.lang.management.ManagementFactory
+  import java.lang.management.RuntimeMXBean
+
+  private def getProcessID: Int = {
+    val runtimeMXBean = ManagementFactory.getRuntimeMXBean
+    System.out.println(runtimeMXBean.getName)
+    Integer.valueOf(runtimeMXBean.getName.split("@")(0)).intValue
+  }
+
   def main(args: Array[String]): Unit = {
+
+    val pid: Long = Seq("sh", "-c", "echo $PPID").!!.trim.toLong
+
+    log.info(s"main pid ${getProcessID}  $pid")
+
     Thread.setDefaultUncaughtExceptionHandler((t, e) => {
       log.error(s"Thread [${t.getId}], there is an unhandled exception", e)
     })

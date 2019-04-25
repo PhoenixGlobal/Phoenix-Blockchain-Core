@@ -290,7 +290,7 @@ class Blockchain(chainSettings: ChainSettings,
     }
     if (result.added) {
       notification.broadcast(AddTransactionNotify(tx))
-      log.info(s"addTransaction success, txid=${tx.id.toString}")
+      log.info(s"addTransaction success, txid=${tx.id.toString} ${result.result}")
     }
     else
       log.error(s"addTransaction error, txid=${tx.id.toString}  ${result.result}")
@@ -778,6 +778,7 @@ class Blockchain(chainSettings: ChainSettings,
 
     printChain("old chain", from)
     printChain("new chain", to)
+    log.info(s"dataBase.revision=${dataBase.revision}  from.last.height + 1 = ${from.last.height + 1}")
 
     require(dataBase.revision == from.last.height + 1)
     while (dataBase.revision > switchState.height + 1) {
