@@ -417,26 +417,13 @@ class ForkBase(settings: ForkBaseSettings,
   // get a chain which begin with head and end with tail
   // eg. head <- ... <- tail
   def getBranch(head: UInt256, tail: UInt256): Seq[ForkItem] = {
-    log.info(s"head=$head  tail=$tail")
     var curr = indexById.get(head)
     val branch = ListBuffer.empty[ForkItem]
 
-    log.info(s"curr=${curr.map(_.toString).getOrElse("None")}  ${curr.map(_.prev().equals(tail)).getOrElse(false)}")
-
-    for (temp <- 60232 to 60234) {
-      indexByHeight.get(temp, true).foreach(_.foreach(id => {
-        log.info(s"id: ${id}, item${indexById.get(id).map(_.toString).getOrElse("not found")}")
-      }))
-      indexByHeight.get(temp, false).foreach(_.foreach(id => {
-        log.info(s"id: ${id}, item${indexById.get(id).map(_.toString).getOrElse("not found")}")
-      }))
-    }
     while (curr.exists(!_.id.equals(tail))) {
       branch.append(curr.get)
       curr = indexById.get(curr.get.prev)
-      log.info(s"curr=${curr.map(_.toString).getOrElse("None")}  ${curr.map(_.prev().equals(tail)).getOrElse(false)}")
     }
-    log.info(s"branch size ${branch.size}")
     branch.reverse
   }
 

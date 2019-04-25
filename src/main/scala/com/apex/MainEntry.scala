@@ -32,9 +32,9 @@ object MainEntry extends ApexLogging {
 
   def main(args: Array[String]): Unit = {
 
-    val pid: Long = Seq("sh", "-c", "echo $PPID").!!.trim.toLong
+    //val pid: Long = Seq("sh", "-c", "echo $PPID").!!.trim.toLong
 
-    log.info(s"main pid ${getProcessID}  $pid")
+    log.info(s"main pid ${getProcessID}")
 
     Thread.setDefaultUncaughtExceptionHandler((t, e) => {
       log.error(s"Thread [${t.getId}], there is an unhandled exception", e)
