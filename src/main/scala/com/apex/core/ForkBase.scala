@@ -345,13 +345,20 @@ object ForkItem {
 }
 
 // context information about chain switching
-case class SwitchState(oldHead: UInt256, newHead: UInt256, forkPoint: UInt256, height: Long) extends com.apex.common.Serializable {
+case class SwitchState(oldHead: UInt256, newHead: UInt256, forkPoint: UInt256, height: Long) extends com.apex.common.Serializable with ApexLogging {
   override def serialize(os: DataOutputStream): Unit = {
     import com.apex.common.Serializable._
     os.write(oldHead)
     os.write(newHead)
     os.write(forkPoint)
     os.writeLong(height)
+  }
+  def logInfo() = {
+    log.info(s"SwitchState: ")
+    log.info(s"    oldHead: ${oldHead}")
+    log.info(s"    newHead: ${newHead}")
+    log.info(s"  forkPoint: ${forkPoint}")
+    log.info(s"     height: ${height}")
   }
 }
 
@@ -522,6 +529,8 @@ class ForkBase(settings: ForkBaseSettings,
     val (originFork, newFork, switchState) = getForks(from, to)
     require(switchState != null)
 
+    log.info("beginSwitch set switchState")
+    switchState.logInfo()
     if (switchStateStore.set(switchState)) {
       val result = onSwitch(originFork, newFork, switchState)
       endSwitch(originFork, newFork, result)

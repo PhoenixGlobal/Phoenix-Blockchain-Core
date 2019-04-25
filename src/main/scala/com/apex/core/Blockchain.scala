@@ -750,13 +750,8 @@ class Blockchain(chainSettings: ChainSettings,
   }
 
   private def resolveSwitchFailure(state: SwitchState): Unit = {
-
-    log.info(s"resolveSwitchFailure SwitchState: ")
-    log.info(s"    oldHead: ${state.oldHead}")
-    log.info(s"    newHead: ${state.newHead}")
-    log.info(s"  forkPoint: ${state.forkPoint}")
-    log.info(s"     height: ${state.height}")
-
+    log.info(s"resolveSwitchFailure")
+    state.logInfo()
     val oldBranch = forkBase.getBranch(state.oldHead, state.forkPoint)
     val newBranch = forkBase.getBranch(state.newHead, state.forkPoint)
     val result = onSwitch(oldBranch, newBranch, state)
