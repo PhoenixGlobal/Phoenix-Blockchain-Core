@@ -754,7 +754,7 @@ class Blockchain(chainSettings: ChainSettings,
     state.logInfo()
     val oldBranch = forkBase.getBranch(state.oldHead, state.forkPoint)
     val newBranch = forkBase.getBranch(state.newHead, state.forkPoint)
-    val result = onSwitch(oldBranch, newBranch, state)
+    val result = onSwitch(oldBranch, newBranch, state, true)
     forkBase.endSwitch(oldBranch, newBranch, result)
   }
 
@@ -773,7 +773,8 @@ class Blockchain(chainSettings: ChainSettings,
     notification.broadcast(BlockConfirmedNotify(block))
   }
 
-  private def onSwitch(from: Seq[ForkItem], to: Seq[ForkItem], switchState: SwitchState): SwitchResult = {
+  private def onSwitch(from: Seq[ForkItem], to: Seq[ForkItem],
+                       switchState: SwitchState, isInit: Boolean = false): SwitchResult = {
     def printChain(title: String, fork: Seq[ForkItem]): Unit = {
       log.info(s"$title: ${fork.map(_.block.shortId).mkString(" <- ")}")
     }
@@ -783,7 +784,12 @@ class Blockchain(chainSettings: ChainSettings,
     log.info(s"dataBase.revision=${dataBase.revision}")
     log.info(s"from.last.height + 1 = ${from.last.height + 1}")
 
-    require(dataBase.revision == from.last.height + 1)
+    if (isInit) {
+      require(dataBase.revision >= from.last.height + 1)
+    }
+    else {
+      require(dataBase.revision == from.last.height + 1)
+    }
     while (dataBase.revision > switchState.height + 1) {
       dataBase.rollBack()
       updateWitnessLists()

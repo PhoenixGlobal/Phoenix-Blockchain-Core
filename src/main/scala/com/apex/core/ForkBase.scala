@@ -390,7 +390,7 @@ case class SwitchResult(succeed: Boolean, failedItem: ForkItem = null)
 class ForkBase(settings: ForkBaseSettings,
                //witnesses: Array[Witness],
                onConfirmed: Block => Unit,
-               onSwitch: (Seq[ForkItem], Seq[ForkItem], SwitchState) => SwitchResult) extends ApexLogging {
+               onSwitch: (Seq[ForkItem], Seq[ForkItem], SwitchState, Boolean) => SwitchResult) extends ApexLogging {
   private val db = Storage.openTemp(settings.dbType, settings.dir)
   private val forkStore = new ForkItemStore(db, settings.cacheSize)
   private val switchStateStore = new SwitchStateStore(db)
@@ -550,7 +550,7 @@ class ForkBase(settings: ForkBaseSettings,
     log.info("beginSwitch set switchState")
     switchState.logInfo()
     if (switchStateStore.set(switchState)) {
-      val result = onSwitch(originFork, newFork, switchState)
+      val result = onSwitch(originFork, newFork, switchState, false)
       endSwitch(originFork, newFork, result)
     } else {
       log.error("begin switch failed")

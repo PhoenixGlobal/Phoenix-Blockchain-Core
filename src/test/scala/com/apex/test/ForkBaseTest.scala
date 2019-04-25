@@ -172,7 +172,7 @@ class ForkBaseTest {
       !blk.header.producer.equals(PubC)
     }
 
-    def onSwitch(a: Seq[ForkItem], b: Seq[ForkItem], c: SwitchState) = {
+    def onSwitch(a: Seq[ForkItem], b: Seq[ForkItem], c: SwitchState, d: Boolean) = {
       var i = 0
       for (blk <- b.map(_.block) if applyBlock(blk)) {
         i += 1
@@ -294,7 +294,7 @@ class ForkBaseTest {
 }
 
 object ForkBaseTest {
-  type SwitchCallback = (Seq[ForkItem], Seq[ForkItem], SwitchState) => SwitchResult
+  type SwitchCallback = (Seq[ForkItem], Seq[ForkItem], SwitchState, Boolean) => SwitchResult
 
   private final val dirs = ListBuffer.empty[String]
   private final val dbs = ListBuffer.empty[ForkBase]
@@ -312,14 +312,14 @@ object ForkBaseTest {
 
     var switchCallback: SwitchCallback = null
     if (onSwitch == null) {
-      switchCallback = (from, to, _) => {
+      switchCallback = (from, to, _, _) => {
         println(s"switch\n${forkStr("from", from)}\n${forkStr("to", to)}")
         SwitchResult(true)
       }
     } else {
-      switchCallback = (from, to, state) => {
+      switchCallback = (from, to, state, _) => {
         println(s"switch\n${forkStr("from", from)}\n${forkStr("to", to)}")
-        onSwitch(from, to, state)
+        onSwitch(from, to, state, false)
       }
     }
 
