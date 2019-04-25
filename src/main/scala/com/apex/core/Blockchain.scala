@@ -750,6 +750,13 @@ class Blockchain(chainSettings: ChainSettings,
   }
 
   private def resolveSwitchFailure(state: SwitchState): Unit = {
+
+    log.info(s"resolveSwitchFailure SwitchState: ")
+    log.info(s"    oldHead: ${state.oldHead}")
+    log.info(s"    newHead: ${state.newHead}")
+    log.info(s"  forkPoint: ${state.forkPoint}")
+    log.info(s"     height: ${state.height}")
+
     val oldBranch = forkBase.getBranch(state.oldHead, state.forkPoint)
     val newBranch = forkBase.getBranch(state.newHead, state.forkPoint)
     val result = onSwitch(oldBranch, newBranch, state)
@@ -778,7 +785,8 @@ class Blockchain(chainSettings: ChainSettings,
 
     printChain("old chain", from)
     printChain("new chain", to)
-    log.info(s"dataBase.revision=${dataBase.revision}  from.last.height + 1 = ${from.last.height + 1}")
+    log.info(s"dataBase.revision=${dataBase.revision}")
+    log.info(s"from.last.height + 1 = ${from.last.height + 1}")
 
     require(dataBase.revision == from.last.height + 1)
     while (dataBase.revision > switchState.height + 1) {
