@@ -73,12 +73,23 @@ class TransactionPool extends ApexLogging {
       require(txsMap.size == txsSorted.size)
       txsMap.remove(tx.id)
       //txsSorted.remove(TxEntry(tx))
-      txsSorted = txsSorted.filter(p => if (p.tx.id == tx.id) false else true)
+      txsSorted = txsSorted.filter(p => !(p.tx.id == tx.id))
       //txsSorted.retain(p => if (p.tx.id == tx.id) false else true)
       txTotalSize -= tx.approximateSize
       //log.info(s"x TransactionPool removed tx ${txsMap.size}  ${txsSorted.size}")
       require(txsMap.size == txsSorted.size)
     }
+  }
+
+  def remove(txs: Seq[Transaction]) = {
+    txs.foreach(tx => {
+      if (txsMap.contains(tx.id)) {
+        txsMap.remove(tx.id)
+        txTotalSize -= tx.approximateSize
+      }
+    })
+    txsSorted = txsSorted.filter(p => (txsMap.contains(p.tx.id)))
+    require(txsMap.size == txsSorted.size)
   }
 
   def txNumber: Int = txsSorted.size

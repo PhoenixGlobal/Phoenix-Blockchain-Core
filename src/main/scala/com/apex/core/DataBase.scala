@@ -13,10 +13,10 @@ package com.apex.core
 import java.time.Instant
 
 import com.apex.common.ApexLogging
-import com.apex.consensus.{WitnessInfo, WitnessList, WitnessMap, WitnessVote}
+import com.apex.consensus._
 import com.apex.crypto.{BinaryData, FixedNumber, UInt160, UInt256}
 import com.apex.proposal.{Proposal, ProposalVoteList}
-import com.apex.settings.DataBaseSettings
+import com.apex.settings.{ConsensusSettings, DataBaseSettings}
 import com.apex.storage.Storage
 import com.apex.vm.DataWord
 import com.apex.vm.precompiled.PrecompiledContracts
@@ -24,7 +24,8 @@ import com.apex.vm.precompiled.PrecompiledContracts
 import scala.collection.mutable
 import scala.collection.mutable.ArrayBuffer
 
-class DataBase(settings: DataBaseSettings, db: Storage.lowLevelRaw, tracking: Tracking) extends ApexLogging {
+class DataBase(settings: DataBaseSettings, consensusSettings: ConsensusSettings,
+               db: Storage.lowLevelRaw, tracking: Tracking) extends ApexLogging {
   private val accountStore = new AccountStore(tracking, settings.cacheSize)
   private val receiptStore = new ReceiptStore(tracking, settings.cacheSize)
   private val contractStore = new ContractStore(tracking, settings.cacheSize)
@@ -44,12 +45,12 @@ class DataBase(settings: DataBaseSettings, db: Storage.lowLevelRaw, tracking: Tr
   private val witnessBlockCountLastWeekStore = new WitnessBlockCountLastWeekStore(tracking)
   private val witnessBlockCountThisWeekStore = new WitnessBlockCountThisWeekStore(tracking)
 
-  def this(settings: DataBaseSettings, db: Storage.lowLevelRaw) = {
-    this(settings, db, Tracking.root(db))
+  def this(settings: DataBaseSettings, consensusSettings: ConsensusSettings, db: Storage.lowLevelRaw) = {
+    this(settings, consensusSettings, db, Tracking.root(db))
   }
 
-  def this(settings: DataBaseSettings) = {
-    this(settings, Storage.openTemp(settings.dbType, settings.dir))
+  def this(settings: DataBaseSettings, consensusSettings: ConsensusSettings) = {
+    this(settings, consensusSettings, Storage.openTemp(settings.dbType, settings.dir))
   }
 
   //  def nameExists(name: String): Boolean = {
@@ -210,9 +211,20 @@ class DataBase(settings: DataBaseSettings, db: Storage.lowLevelRaw, tracking: Tr
 
   def getProposalVoteList(): Option[ProposalVoteList] = proposalVoteListStore.get
 
+  def getBlockCountLastWeek(): Option[WitnessBlockCount] = {
+    witnessBlockCountLastWeekStore.get
+  }
+
+  def getLastWeekValidVoters(): Option[Array[UInt160]] = {
+    witnessBlockCountLastWeekStore.get.map(_.getTop(consensusSettings.witnessNum))
+  }
+
+  def getBlockCountThisWeek(): Option[WitnessBlockCount] = {
+    witnessBlockCountThisWeekStore.get
+  }
 
   def startTracking(): DataBase = {
-    new DataBase(settings, db, tracking.newTracking)
+    new DataBase(settings, consensusSettings, db, tracking.newTracking)
   }
 
   // start new session

@@ -48,7 +48,7 @@ class Blockchain(chainSettings: ChainSettings,
 
   log.info("creating DataBase")
 
-  private val dataBase = new DataBase(chainSettings.dataBase)
+  private val dataBase = new DataBase(chainSettings.dataBase, consensusSettings)
 
   log.info("creating ForkBase")
 

@@ -27,12 +27,11 @@ class ProposalContract(track: DataBase,
         timeStamp,
         timeStamp + 72 * 3600 * 1000,
         proposalData.activeTime,
-        Array.empty,
+        track.getLastWeekValidVoters().get,
         proposalData.proposalValue
       ))
 
       (true, Array.empty)
-
     }
     catch {
       case e: Throwable => {

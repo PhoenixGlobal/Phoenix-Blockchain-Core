@@ -4,7 +4,7 @@ import java.io.{ByteArrayInputStream, DataInputStream}
 
 import com.apex.consensus.RegisterData
 import com.apex.crypto.{BinaryData, FixedNumber, UInt160, UInt256}
-import com.apex.settings.ContractSettings
+import com.apex.settings.{ConsensusSettings, ContractSettings}
 import com.apex.vm.hook.VMHook
 import com.apex.vm._
 import com.apex.vm.hook.VMHook
@@ -31,6 +31,7 @@ class TransactionExecutor(val tx: Transaction,
                           val blockTime: Long,
                           val blockIndex: Long,
                           val chain: Blockchain,
+                          //val consensusSettings: ConsensusSettings,
                           val isScheduleTx: Boolean = false) {
 
   private val vmSettings = ContractSettings(0, false, Int.MaxValue)

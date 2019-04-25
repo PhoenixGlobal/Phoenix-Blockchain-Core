@@ -3,6 +3,8 @@ package com.apex.consensus
 import java.io.{DataInputStream, DataOutputStream}
 
 import com.apex.crypto.{UInt160, UInt256}
+
+import scala.collection.mutable.ArrayBuffer
 import scala.collection.{immutable, mutable}
 
 class WitnessBlockCount(val blockCount: mutable.Map[UInt160, Int],
@@ -23,6 +25,17 @@ class WitnessBlockCount(val blockCount: mutable.Map[UInt160, Int],
   def increase(addr: UInt160) = {
     val old = blockCount.get(addr).getOrElse(0)
     blockCount.update(addr, old + 1)
+  }
+
+  def sortByCount(): Array[UInt160] = {
+    val sorted = blockCount.toArray.sortWith((w1, w2) => {
+      w1._2 > w2._2
+    })
+    sorted.map(_._1)
+  }
+
+  def getTop(num: Int): Array[UInt160] = {
+    sortByCount().slice(0, num)
   }
 
   override def serialize(os: DataOutputStream): Unit = {

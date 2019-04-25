@@ -26,15 +26,15 @@
 package com.apex.vm.precompiled
 
 import java.math.BigInteger
-import com.apex.vm._
 
+import com.apex.vm._
 import akka.util.ByteString
 import com.apex.core.{DataBase, Transaction}
 import com.apex.crypto.zksnark.{BN128Fp, BN128G1, BN128G2, PairingCheck}
 
 import scala.util.Try
 import com.apex.crypto.{Crypto, ECDSASignature, FixedNumber, UInt160}
-import com.apex.settings.ContractSettings
+import com.apex.settings.{ConsensusSettings, ContractSettings}
 
 object PrecompiledContracts {
   private val ecRecover = new ECRecover
@@ -74,8 +74,8 @@ object PrecompiledContracts {
   //    registerNodeAddr.getLast20Bytes.sameElements(address.data) || witnessVoteAddr.getLast20Bytes.sameElements(address.data)
   //  }
 
-  def getContractForAddress(address: DataWord, settings: ContractSettings, cacheTrack: DataBase = null,
-                            tx: Transaction = null, timeStamp: Long = 0): PrecompiledContract = {
+  def getContractForAddress(address: DataWord, settings: ContractSettings, //consensusSettings: ConsensusSettings,
+                            cacheTrack: DataBase = null, tx: Transaction = null, timeStamp: Long = 0): PrecompiledContract = {
     if (address == null) identity
     else if (address == ecRecoverAddr) ecRecover
     else if (address == sha256Addr) sha256

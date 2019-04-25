@@ -32,7 +32,7 @@ import java.util
 import com.apex.common.ApexLogging
 import com.apex.core.{Account, DataBase}
 import com.apex.crypto.{Crypto, FixedNumber, UInt160}
-import com.apex.settings.ContractSettings
+import com.apex.settings.{ConsensusSettings, ContractSettings}
 import com.apex.vm.DataWord
 import com.apex.vm.exceptions._
 import com.apex.vm.hook.VMHook
@@ -42,7 +42,8 @@ import com.apex.vm.program.listener.{CompositeProgramListener, ProgramListenerAw
 import com.apex.vm.program.trace.{ProgramTrace, ProgramTraceListener}
 import org.apex.vm.{OpCache, OpCode}
 
-class Program(settings: ContractSettings, ops: Array[Byte], invoke: ProgramInvoke, stopTime: Long, vmHook: VMHook = VMHook.EMPTY) extends ApexLogging {
+class Program(settings: ContractSettings, ops: Array[Byte], invoke: ProgramInvoke,
+              stopTime: Long, vmHook: VMHook = VMHook.EMPTY) extends ApexLogging {
   import Program._
 
   private var listener: ProgramOutListener = _
