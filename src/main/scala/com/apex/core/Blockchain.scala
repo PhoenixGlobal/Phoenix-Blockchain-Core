@@ -783,9 +783,10 @@ class Blockchain(chainSettings: ChainSettings,
     printChain("new chain", to)
     log.info(s"dataBase.revision=${dataBase.revision}")
     log.info(s"from.last.height + 1 = ${from.last.height + 1}")
+    log.info(s"switchState.height + 1 = ${switchState.height + 1}")
 
     if (isInit) {
-      require(dataBase.revision >= from.last.height + 1)
+      require(dataBase.revision >= switchState.height + 1)
     }
     else {
       require(dataBase.revision == from.last.height + 1)
