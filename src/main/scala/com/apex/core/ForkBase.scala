@@ -323,6 +323,10 @@ case class ForkItem(block: Block, lastProducerHeight: mutable.Map[UInt160, Long]
       os.writeLong(p._2)
     })
   }
+
+  override def toString: String = {
+    s"#${height} ${block.shortId} master=${master}"
+  }
 }
 
 object ForkItem {
@@ -415,6 +419,15 @@ class ForkBase(settings: ForkBaseSettings,
   def getBranch(head: UInt256, tail: UInt256): Seq[ForkItem] = {
     var curr = indexById.get(head)
     val branch = ListBuffer.empty[ForkItem]
+
+    for (temp <- 60232 to 60234) {
+      indexByHeight.get(temp, true).foreach(_.foreach(id => {
+        log.info(s"id: ${id}, item${indexById.get(id).map(_.toString).getOrElse("not found")}")
+      }))
+      indexByHeight.get(temp, false).foreach(_.foreach(id => {
+        log.info(s"id: ${id}, item${indexById.get(id).map(_.toString).getOrElse("not found")}")
+      }))
+    }
     while (curr.exists(!_.prev.equals(tail))) {
       branch.append(curr.get)
       curr = indexById.get(curr.get.prev)
