@@ -6,7 +6,7 @@ import java.util.Map
 import com.apex.common.{Cache, LRUCache, Serializable}
 import com.apex.consensus._
 import com.apex.crypto.Ecdsa.PublicKey
-import com.apex.crypto.{UInt160, UInt256}
+import com.apex.crypto.{FixedNumber, UInt160, UInt256}
 import com.apex.proposal.{Proposal, ProposalVoteList}
 import com.apex.settings.DataBaseSettings
 import com.apex.storage.{Batch, ByteArray, LevelDbStorage, Storage}
@@ -123,6 +123,11 @@ class WitnessBlockCountThisWeekStore(db: Storage.raw)
     with BlockCountThisWeekPrefix
     with WitnessBlockCountValue
 
+class MinerAwardStore(db: Storage.raw)
+  extends StateStore[FixedNumber](db)
+    with MinerAwardPrefix
+    with FixedNumberValue
+
 //class WitnessInfoStore(db: Storage.raw)
 //  extends StateStore[WitnessMap](db)
 //    with AllWitnessMapStatePrefix
@@ -182,6 +187,7 @@ object StateType extends Enumeration {
   val ProposalVoteList = Value(0x08)
   val BlockCountLastWeek = Value(0x09)
   val BlockCountThisWeek = Value(0x0a)
+  val MinerAward = Value(0x0b)
 }
 
 trait Prefix {
@@ -293,6 +299,10 @@ trait BlockCountLastWeekPrefix extends StatePrefix {
 
 trait BlockCountThisWeekPrefix extends StatePrefix {
   override val stateType: StateType.Value = StateType.BlockCountThisWeek
+}
+
+trait MinerAwardPrefix extends StatePrefix {
+  override val stateType: StateType.Value = StateType.MinerAward
 }
 
 trait Converter[A] {
@@ -432,6 +442,10 @@ trait ProposalVoteListValue extends ValueConverterProvider[ProposalVoteList] {
 
 trait WitnessBlockCountValue extends ValueConverterProvider[WitnessBlockCount] {
   override val valConverter: Converter[WitnessBlockCount] = new SerializableConverter(WitnessBlockCount.deserialize)
+}
+
+trait FixedNumberValue extends ValueConverterProvider[FixedNumber] {
+  override val valConverter: Converter[FixedNumber] = new SerializableConverter(FixedNumber.deserialize)
 }
 
 trait WitnessMapValue extends ValueConverterProvider[WitnessMap] {

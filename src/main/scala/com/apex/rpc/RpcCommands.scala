@@ -153,6 +153,18 @@ object GetProducerCmd {
     ) map (GetProducerCmd.apply _)
 }
 
+case class GetProposalCmd(proposalID: UInt256) extends RPCCommand
+object GetProposalCmd {
+  implicit val testWrites = new Writes[GetProposalCmd] {
+    override def writes(o: GetProposalCmd): JsValue = Json.obj(
+      "id" -> o.proposalID.toString
+    )
+  }
+  implicit val testReads: Reads[GetProposalCmd] = (
+    (__ \ "id").read[String](Validators.uint256Validator).map(c => UInt256.parse(c).get)
+    ) map (GetProposalCmd.apply _)
+}
+
 case class GetVotesCmd(address: UInt160) extends RPCCommand
 
 object GetVotesCmd {

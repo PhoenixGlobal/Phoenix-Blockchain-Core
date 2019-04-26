@@ -44,6 +44,8 @@ class DataBase(settings: DataBaseSettings, consensusSettings: ConsensusSettings,
   private val witnessBlockCountLastWeekStore = new WitnessBlockCountLastWeekStore(tracking)
   private val witnessBlockCountThisWeekStore = new WitnessBlockCountThisWeekStore(tracking)
 
+  private val minerAwardStore = new MinerAwardStore(tracking)
+
   def this(settings: DataBaseSettings, consensusSettings: ConsensusSettings, db: Storage.lowLevelRaw) = {
     this(settings, consensusSettings, db, Tracking.root(db))
   }
@@ -230,6 +232,9 @@ class DataBase(settings: DataBaseSettings, consensusSettings: ConsensusSettings,
     thisWeek.increase(producer)
     witnessBlockCountThisWeekStore.set(thisWeek)
   }
+
+  def getMinerAward(): FixedNumber = minerAwardStore.get().getOrElse(FixedNumber.Zero)
+  def setMinerAward(award: FixedNumber) = minerAwardStore.set(award)
 
   def startTracking(): DataBase = {
     new DataBase(settings, consensusSettings, db, tracking.newTracking)

@@ -2,7 +2,7 @@ package com.apex.vm.precompiled
 
 import com.apex.common.ApexLogging
 import com.apex.core.{DataBase, Transaction}
-import com.apex.proposal.{Proposal, ProposalData}
+import com.apex.proposal.{Proposal, ProposalData, ProposalStatus}
 import com.apex.vm.VM
 
 class ProposalContract(track: DataBase,
@@ -22,13 +22,14 @@ class ProposalContract(track: DataBase,
       val proposalData = ProposalData.fromBytes(data)
       val (valid, errString) = checkValid(proposalData)
       if (valid) {
-        log.info(s"new proposal ${tx.id} type is ${proposalData.proposalType} activeTime=${proposalData.activeTime}")
+        log.info(s"new proposal ${tx.id} type=${proposalData.proposalType} activeTime=${proposalData.activeTime}")
         log.info(s"valid voters:")
         track.getLastWeekValidVoters().foreach(p => {
           log.info(s"   ${p.address}")
         })
         track.setProposal(new Proposal(tx.id,
           proposalData.proposalType,
+          ProposalStatus.Voting,
           timeStamp,
           timeStamp + 72 * 3600 * 1000,
           proposalData.activeTime,

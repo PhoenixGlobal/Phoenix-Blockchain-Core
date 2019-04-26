@@ -4,9 +4,11 @@ import java.io.{DataInputStream, DataOutputStream}
 
 import com.apex.common.{ApexLogging, Serializable}
 import com.apex.crypto.{BinaryData, UInt160, UInt256}
+import play.api.libs.json.{JsValue, Json, Writes}
 
 case class Proposal(proposalID: UInt256,
                     proposalType: ProposalType.Value,
+                    status: ProposalStatus.Value,
                     startVoteTime: Long,
                     endVoteTime: Long,
                     activeTime: Long,
@@ -24,6 +26,7 @@ case class Proposal(proposalID: UInt256,
     os.writeInt(version)
     os.write(proposalID)
     os.writeByte(proposalType.toByte)
+    os.writeByte(status.toByte)
     os.writeLong(startVoteTime)
     os.writeLong(endVoteTime)
     os.writeLong(activeTime)
@@ -41,13 +44,29 @@ object Proposal {
     val version = is.readInt()
     val proposalID = UInt256.deserialize(is)
     val proposalType = ProposalType(is.readByte)
+    val status = ProposalStatus(is.readByte)
     val startVoteTime = is.readLong()
     val endVoteTime = is.readLong()
     val activeTime = is.readLong()
     val voters = is.readSeq(UInt160.deserialize)
     val proposalValue = is.readByteArray
 
-    new Proposal(proposalID, proposalType, startVoteTime, endVoteTime, activeTime, voters.toArray, proposalValue, version)
+    new Proposal(proposalID, proposalType, status, startVoteTime, endVoteTime, activeTime, voters.toArray, proposalValue, version)
+  }
+
+  implicit val proposalWrites = new Writes[Proposal] {
+    override def writes(o: Proposal): JsValue = {
+      Json.obj(
+        "proposalID" -> o.proposalID.toString,
+        "proposalType" -> o.proposalType,
+        "status" -> o.status,
+        "startVoteTime" -> o.startVoteTime,
+        "endVoteTime" ->  o.endVoteTime,
+        "activeTime" -> o.activeTime,
+        //"voters" -> o.voters,
+        "proposalValue" -> o.proposalValue.toString
+      )
+    }
   }
 
 }

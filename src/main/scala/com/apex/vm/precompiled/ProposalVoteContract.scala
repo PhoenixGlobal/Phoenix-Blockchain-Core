@@ -22,7 +22,7 @@ class ProposalVoteContract(track: DataBase,
       val proposalVoteData = ProposalVoteData.fromBytes(data)
       val (valid, errString) = checkValid(proposalVoteData)
       if (valid) {
-        log.info(s"new proposal vote, proposalID=${proposalVoteData.proposalID} voter=${tx.from.address} agree=${proposalVoteData.agree}")
+        log.info(s"new vaild proposal vote, proposalID=${proposalVoteData.proposalID} voter=${tx.from.address} agree=${proposalVoteData.agree}")
         track.addProposalVote(new ProposalVote(
           proposalVoteData.proposalID,
           tx.from,

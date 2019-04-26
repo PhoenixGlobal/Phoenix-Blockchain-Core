@@ -1,5 +1,6 @@
 package com.apex.core
 
+import java.io.{ByteArrayInputStream, DataInputStream}
 import java.time.Instant
 
 import com.apex.common.{ApexLogging, Helper}
@@ -8,6 +9,7 @@ import com.apex.consensus.WitnessList
 import com.apex.consensus.{ProducerUtil, WitnessInfo}
 import com.apex.crypto.Ecdsa.{PrivateKey, PublicKeyHash}
 import com.apex.crypto.{BinaryData, Crypto, FixedNumber, MerkleTree, UInt160, UInt256}
+import com.apex.proposal.{Proposal, ProposalType}
 import com.apex.settings.{ChainSettings, ConsensusSettings, RuntimeParas}
 import com.apex.vm.GasCost
 
@@ -194,7 +196,7 @@ class Blockchain(chainSettings: ChainSettings,
     log.debug(s"start block at: ${pendingState.startTime}  blockTime=${blockTime}  stopProcessTxTime=${stopProcessTxTime}")
 
     val minerTx = new Transaction(TransactionType.Miner, minerCoinFrom,
-      producer, minerAward, forkHead.block.height + 1,
+      producer, dataBase.getMinerAward(), forkHead.block.height + 1,
       BinaryData(Crypto.randomBytes(8)), // add random bytes to distinct different blocks with same block index during debug in some cases
       FixedNumber.MinValue, 0, BinaryData.empty)
 
@@ -462,11 +464,23 @@ class Blockchain(chainSettings: ChainSettings,
         val agreeCount = dataBase.getProposalVoteList().agreeCount(p.proposalID)
         log.info(s"block ${curBlock.height()}, proposal ${p.proposalID} vote time end, agreeCount=${agreeCount}")
 
+        if (agreeCount > 2 * consensusSettings.witnessNum / 3) {
+          log.info("proposal pass")
+          if (p.proposalType == ProposalType.BlockAward) {
+            val bs = new ByteArrayInputStream(p.proposalValue)
+            val is = new DataInputStream(bs)
+            val newBlockAward = FixedNumber.deserialize(is)
+            log.info(s"new Block Award is ${newBlockAward}")
+            dataBase.setMinerAward(newBlockAward)
+          }
+        }
+        else
+          log.info("proposal fail")
+
         dataBase.deleteProposal(p.proposalID)
         dataBase.deleteProposalVote(p.proposalID)
       }
     })
-
   }
 
   private def isStartOfNewWeek(prevBlock: Block, curBlock: Block): Boolean = {
@@ -654,8 +668,10 @@ class Blockchain(chainSettings: ChainSettings,
     txs.foreach(tx => {
       if (tx.txType == TransactionType.Miner) {
         minerTxNum += 1
-        if (tx.amount.value != minerAward.value)
+        if (tx.amount.value != dataBase.getMinerAward().value) {
+          log.error(s"miner award ${tx.amount} not valid, should be ${dataBase.getMinerAward()}")
           isValid = false
+        }
       }
       else {
         if (tx.txType == TransactionType.Schedule) {
@@ -761,6 +777,7 @@ class Blockchain(chainSettings: ChainSettings,
 
     log.info("chain populate")
     if (forkBase.head.isEmpty) {
+      dataBase.setMinerAward(minerAward)
       initGenesisWitness()
       applyBlock(genesisBlock, false, false)
       blockBase.add(genesisBlock)
@@ -908,5 +925,9 @@ class Blockchain(chainSettings: ChainSettings,
       }
       case _ => null
     }
+  }
+
+  def getProposal(id: UInt256): Option[Proposal] = {
+    dataBase.getProposal(id)
   }
 }

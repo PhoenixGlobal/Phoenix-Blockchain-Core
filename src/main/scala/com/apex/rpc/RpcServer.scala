@@ -16,12 +16,14 @@ import akka.pattern.ask
 import akka.stream.ActorMaterializer
 import akka.util.Timeout
 import com.apex.common.ApexLogging
-import com.apex.consensus.{WitnessVote, WitnessInfo, WitnessList}
+import com.apex.consensus.{WitnessInfo, WitnessList, WitnessVote}
 import com.apex.core._
+import com.apex.proposal.Proposal
 import com.apex.rpc.RpcServer.sussesRes
 import com.apex.settings.ApexSettings
 import com.typesafe.config.Config
 import play.api.libs.json._
+
 import scala.collection.mutable.ArrayBuffer
 import scala.concurrent.duration._
 import scala.concurrent.{ExecutionContextExecutor, Future}
@@ -247,6 +249,32 @@ object RpcServer extends ApexLogging {
                         case Success(producerOption) => {
                           producerOption match {
                             case Some(producer) => sussesRes(Json.prettyPrint(WitnessInfo.witnessInfoWrites.writes(producer)))
+                            case None => sussesRes("")
+                          }
+                        }
+                        case Failure(e) => error500Res(e.getMessage)
+                      })
+                  complete(f)
+                }
+                case e: JsError => {
+                  complete(HttpEntity(ContentTypes.`application/json`, error400Res()))
+                }
+              }
+            }
+          }
+        } ~
+        path("getProposal") {
+          post {
+            entity(as[String]) { data =>
+              Json.parse(data).validate[GetProposalCmd] match {
+                case cmd: JsSuccess[GetProposalCmd] => {
+                  val f = (nodeRef ? cmd.value)
+                    .mapTo[Try[Option[Proposal]]]
+                    .map(s =>
+                      s match {
+                        case Success(proposalOption) => {
+                          proposalOption match {
+                            case Some(proposal) => sussesRes(Json.prettyPrint(Proposal.proposalWrites.writes(proposal)))
                             case None => sussesRes("")
                           }
                         }
