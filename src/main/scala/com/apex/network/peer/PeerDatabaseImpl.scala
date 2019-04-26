@@ -23,67 +23,74 @@ class PeerDatabaseImpl(filename: String) extends PeerDatabase with ApexLogging {
 
   private val blacklist = mutable.Map[String, NetworkTime.Time]()
 
+  private val knowPeersFileName = filename + "/" + "knowPeers.txt"
+  private val blackListFileName = filename + "/" + "blackListPeers.txt"
 
   def flush2DB(): Unit = {
-    val file = new File(filename)
-    if (!file.exists() && !file.isDirectory()) {
-      file.mkdir()
+    try {
+      val file = new File(filename)
+      if (!file.exists() && !file.isDirectory()) {
+        file.mkdir()
+      }
+
+      val fw = new PrintWriter(knowPeersFileName)
+      knownPeersMap.values.foreach(node => {
+        fw.println(node.address + ":" + node.port + ":" + node.nodeType.toByte)
+      })
+      log.info("write peers into file " + knowPeersFileName)
+      fw.close()
+
+      val fw2 = new PrintWriter(blackListFileName)
+      blacklist.keys.foreach(address => {
+        fw2.println(address)
+      })
+
+      fw2.close()
+      log.info("write black list into file " + blackListFileName)
+    } catch {
+      case e: Exception =>
+        log.info(s"cann't write ${knowPeersFileName},${blackListFileName}")
+        e.printStackTrace()
     }
-    val whileListFile = filename + "/knowPeers.txt"
-    val fw = new PrintWriter(whileListFile)
-    knownPeersMap.values.foreach(node => {
-      fw.println(node.address + ":" + node.port + ":" + node.nodeType.toByte)
-    })
-    log.info("write while list into file " + whileListFile)
-    fw.close()
-
-    val blackListFile = filename + "/blackListPeers.txt"
-
-    val fw2 = new PrintWriter(blackListFile)
-    blacklist.keys.foreach(address => {
-      fw2.println(address)
-    })
-
-    fw2.close()
-    log.info("write black list into file " + blackListFile)
   }
 
   def loadFromDB(): Unit = {
     try {
-      val whileListFile = filename + "/knowPeers.txt"
-      val wlf = new File(whileListFile)
-      if (!wlf.exists()) {
-        return
-      }
-      val file = Source.fromFile(whileListFile)
-      val it = file.getLines
-      while (it.hasNext) {
-        val line: Array[String] = it.next().toString.split(":")
+      val knowPeers = loadFromFile(knowPeersFileName)
+      knowPeers.foreach { lineStr =>
+        val line: Array[String] = lineStr.toString.split(":")
         addOrUpdateKnownPeer(new InetSocketAddress(line(0), line(1).toInt), new NodeInfo(line(0), line(1).toInt, NodeType(line(2).toInt)))
       }
-    }
-    catch {
-      case e: Exception =>
-        log.info("init  knowPeers failed.")
-        e.printStackTrace()
-    }
-    try {
-      val blackFilePath = filename + "/blackListPeers.txt"
-      val bfp = new File(blackFilePath)
-      if (!bfp.exists()) {
-        return
-      }
-      val bfile = Source.fromFile(blackFilePath)
-      val it2 = bfile.getLines
-      while (it2.hasNext) {
-        val line: Array[String] = it2.next().toString.split(":")
+
+      val blackLists = loadFromFile(blackListFileName)
+      blackLists.foreach { lineStr =>
+        val line: Array[String] = lineStr.toString.split(":")
         val address = new InetSocketAddress(line(0), 0)
         addBlacklistPeer(address, System.currentTimeMillis())
       }
     } catch {
       case e: Exception =>
-        log.info("init  blackListPeers failed.")
+        log.error(e.getMessage)
+        e.printStackTrace().toString
+    }
+  }
+
+  private def loadFromFile(path: String): Seq[String] = {
+    try {
+      val bfp = new File(path)
+      if (!bfp.exists())
+        Seq()
+      else {
+        val source = Source.fromFile(path)
+        val lines = source.getLines.toSeq
+        source.close()
+        lines
+      }
+    } catch {
+      case e: Exception =>
+        log.error(s"init failed, cannot read from ${path}.")
         e.printStackTrace()
+        Seq()
     }
   }
 
@@ -97,7 +104,7 @@ class PeerDatabaseImpl(filename: String) extends PeerDatabase with ApexLogging {
   }
 
   override def addBlacklistPeer(address: InetSocketAddress, time: NetworkTime.Time): Unit = {
-  //  knownPeersMap.remove(address)
+    knownPeersMap.remove(address)
     if (!isBlacklisted(address)) blacklist += address.getAddress.getHostAddress -> time
   }
 
