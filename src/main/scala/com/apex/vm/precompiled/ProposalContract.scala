@@ -1,12 +1,13 @@
 package com.apex.vm.precompiled
 
+import com.apex.common.ApexLogging
 import com.apex.core.{DataBase, Transaction}
 import com.apex.proposal.{Proposal, ProposalData}
 import com.apex.vm.VM
 
 class ProposalContract(track: DataBase,
                        tx: Transaction,
-                       timeStamp: Long) extends PrecompiledContract {
+                       timeStamp: Long) extends PrecompiledContract with ApexLogging {
 
   override def getGasForData(data: Array[Byte]): Long = {
     if (data == null) {
@@ -17,21 +18,28 @@ class ProposalContract(track: DataBase,
   }
 
   override def execute(data: Array[Byte]): (Boolean, Array[Byte]) = {
-
     try {
-
       val proposalData = ProposalData.fromBytes(data)
-
-      track.setProposal(new Proposal(tx.id,
-        proposalData.proposalType,
-        timeStamp,
-        timeStamp + 72 * 3600 * 1000,
-        proposalData.activeTime,
-        track.getLastWeekValidVoters().get,
-        proposalData.proposalValue
-      ))
-
-      (true, Array.empty)
+      val (valid, errString) = checkValid(proposalData)
+      if (valid) {
+        log.info(s"new proposal ${tx.id} type is ${proposalData.proposalType} activeTime=${proposalData.activeTime}")
+        log.info(s"valid voters:")
+        track.getLastWeekValidVoters().foreach(p => {
+          log.info(s"   ${p.address}")
+        })
+        track.setProposal(new Proposal(tx.id,
+          proposalData.proposalType,
+          timeStamp,
+          timeStamp + 72 * 3600 * 1000,
+          proposalData.activeTime,
+          track.getLastWeekValidVoters(),
+          proposalData.proposalValue
+        ))
+        (true, Array.empty)
+      }
+      else {
+        (valid, errString)
+      }
     }
     catch {
       case e: Throwable => {
@@ -40,8 +48,29 @@ class ProposalContract(track: DataBase,
     }
   }
 
-  private def checkValid() = {
-
+  private def checkValid(proposalData: ProposalData): (Boolean, Array[Byte]) = {
+    var valid = true
+    var errString = Array.empty[Byte]
+    track.getAllProposal().foreach(p => {
+     if (p.proposalType == proposalData.proposalType) {
+       valid = false
+       errString = ("same proposal type already ongoing").getBytes
+     }
+    })
+    if (proposalData.activeTime != 0 && proposalData.activeTime < timeStamp + 72 * 3600 * 1000) {
+      valid = false
+      errString = ("activeTime too early").getBytes
+    }
+    var proposalIniterValid = false
+    track.getLastWeekValidVoters().foreach(p => {
+      if (p == tx.from)
+        proposalIniterValid = true
+    })
+    if (proposalIniterValid == false) {
+      valid = false
+      errString = ("proposal initiator not valid").getBytes
+    }
+    (valid, errString)
   }
 
 }

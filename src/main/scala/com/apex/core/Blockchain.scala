@@ -1,7 +1,8 @@
 package com.apex.core
 
 import java.time.Instant
-import com.apex.common.ApexLogging
+
+import com.apex.common.{ApexLogging, Helper}
 import com.apex.consensus.WitnessVote
 import com.apex.consensus.WitnessList
 import com.apex.consensus.{ProducerUtil, WitnessInfo}
@@ -9,6 +10,7 @@ import com.apex.crypto.Ecdsa.{PrivateKey, PublicKeyHash}
 import com.apex.crypto.{BinaryData, Crypto, FixedNumber, MerkleTree, UInt160, UInt256}
 import com.apex.settings.{ChainSettings, ConsensusSettings, RuntimeParas}
 import com.apex.vm.GasCost
+
 import scala.collection.mutable
 import scala.collection.mutable.ArrayBuffer
 
@@ -443,6 +445,38 @@ class Blockchain(chainSettings: ChainSettings,
       mCurWitnessList = dataBase.getCurrentWitnessList()
       mPendingWitnessList = dataBase.getPendingWitnessList()
     }
+    checkUpdateProposalVote(curblock)
+  }
+
+  private def checkUpdateProposalVote(curBlock: Block) = {
+    val prevBlock = getBlock(curBlock.prev()).get
+
+    if (isStartOfNewWeek(prevBlock, curBlock)) {
+      log.info(s"block ${curBlock.height()} ${curBlock.header.timeString()} is start of new week")
+      dataBase.setWitnessBlockCountNewWeek()
+    }
+    dataBase.witnessBlockCountAdd(curBlock.producer())
+
+    dataBase.getAllProposal().foreach(p => {
+      if (curBlock.timeStamp() >= p.endVoteTime) {
+        val agreeCount = dataBase.getProposalVoteList().agreeCount(p.proposalID)
+        log.info(s"block ${curBlock.height()}, proposal ${p.proposalID} vote time end, agreeCount=${agreeCount}")
+
+        dataBase.deleteProposal(p.proposalID)
+        dataBase.deleteProposalVote(p.proposalID)
+      }
+    })
+
+  }
+
+  private def isStartOfNewWeek(prevBlock: Block, curBlock: Block): Boolean = {
+    val oneWeek: Long = 7 * 24 * 3600 * 1000
+    if (Helper.weekNumOfYear(prevBlock.timeStamp()) != Helper.weekNumOfYear(curBlock.timeStamp()))
+      true
+    else if (curBlock.timeStamp() - prevBlock.timeStamp() > oneWeek) // rare case
+      true
+    else
+      false
   }
 
   private def applyBlock(block: Block, verify: Boolean = true, enableSession: Boolean = true): Boolean = {

@@ -14,6 +14,10 @@ case class Proposal(proposalID: UInt256,
                     proposalValue: BinaryData,
                     version: Int = 0x01) extends Serializable {
 
+  def voterValid(voter: UInt160): Boolean = {
+    voters.count(p => p == voter) > 0
+  }
+
   override def serialize(os: DataOutputStream): Unit = {
     import com.apex.common.Serializable._
 

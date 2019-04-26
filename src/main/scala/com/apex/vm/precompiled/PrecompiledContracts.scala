@@ -88,6 +88,8 @@ object PrecompiledContracts {
     else if (address == altBN128PairingAddr) altBN128Pairing
     else if (address == registerNodeAddr) registerNode(cacheTrack, tx, settings.registerSpend, timeStamp)
     else if (address == witnessVoteAddr) vote(cacheTrack, tx, timeStamp)
+    else if (address == proposalAddr) new ProposalContract(cacheTrack, tx, timeStamp)
+    else if (address == proposalVoteAddr) new ProposalVoteContract(cacheTrack, tx, timeStamp)
     else null
   }
 

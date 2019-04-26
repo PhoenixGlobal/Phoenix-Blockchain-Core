@@ -10,6 +10,8 @@ import scala.collection.{immutable, mutable}
 class WitnessBlockCount(val blockCount: mutable.Map[UInt160, Int],
                         val version: Int = 0x01) extends com.apex.common.Serializable {
 
+  def producerNum: Int = blockCount.size
+
   def set(witness: UInt160, blockNum: Int) = {
     blockCount.update(witness, blockNum)
   }

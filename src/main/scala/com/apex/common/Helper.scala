@@ -8,8 +8,11 @@
 
 package com.apex.common
 
-import java.io.{InputStream, OutputStream, ByteArrayInputStream, IOException}
+import java.io.{ByteArrayInputStream, IOException, InputStream, OutputStream}
 import java.nio.{ByteBuffer, ByteOrder}
+import java.time.format.DateTimeFormatter
+import java.time.{Instant, ZoneId, ZonedDateTime}
+
 import com.apex.crypto.BinaryData
 
 object Helper {
@@ -140,6 +143,12 @@ object Helper {
   def writeScript(input: Array[Byte], out: OutputStream): Unit = {
     writeVarint(input.length.toLong, out)
     writeBytes(input, out)
+  }
+
+  def weekNumOfYear(timeStamp: Long): Int = {
+    val zonedDateTimeUtc = ZonedDateTime.ofInstant(Instant.ofEpochMilli(timeStamp), ZoneId.of("UTC"))
+    val dateTimeFormatter = DateTimeFormatter.ofPattern("w") // DateTimeFormatter.ISO_OFFSET_DATE_TIME
+    dateTimeFormatter.format(zonedDateTimeUtc).toInt
   }
 
 }

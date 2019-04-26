@@ -15,7 +15,7 @@ import java.time.Instant
 import com.apex.common.ApexLogging
 import com.apex.consensus._
 import com.apex.crypto.{BinaryData, FixedNumber, UInt160, UInt256}
-import com.apex.proposal.{Proposal, ProposalVoteList}
+import com.apex.proposal.{Proposal, ProposalVote, ProposalVoteList}
 import com.apex.settings.{ConsensusSettings, DataBaseSettings}
 import com.apex.storage.Storage
 import com.apex.vm.DataWord
@@ -193,23 +193,42 @@ class DataBase(settings: DataBaseSettings, consensusSettings: ConsensusSettings,
 
   def setProposal(p: Proposal): Unit = proposalStore.set(p.proposalID, p)
   def getProposal(proposalID: UInt256): Option[Proposal] = proposalStore.get(proposalID)
+  def deleteProposal(proposalID: UInt256) = proposalStore.delete(proposalID)
 
   def getAllProposal(): ArrayBuffer[Proposal] = {
     proposalStore.getLists(Array(StoreType.Data.id.toByte, DataType.Proposal.id.toByte))
   }
 
-  def getProposalVoteList(): Option[ProposalVoteList] = proposalVoteListStore.get
-
-  def getBlockCountLastWeek(): Option[WitnessBlockCount] = {
-    witnessBlockCountLastWeekStore.get
+  def addProposalVote(vote: ProposalVote) = {
+    proposalVoteListStore.set(getProposalVoteList().add(vote))
+  }
+  def getProposalVoteList(): ProposalVoteList = proposalVoteListStore.get.getOrElse(new ProposalVoteList(Array.empty))
+  def deleteProposalVote(proposalID: UInt256) = {
+    val votes = getProposalVoteList()
+    proposalVoteListStore.set(votes.remove(proposalID))
   }
 
-  def getLastWeekValidVoters(): Option[Array[UInt160]] = {
-    witnessBlockCountLastWeekStore.get.map(_.getTop(consensusSettings.witnessNum))
+  def getBlockCountLastWeek(): WitnessBlockCount = {
+    witnessBlockCountLastWeekStore.get.getOrElse(new WitnessBlockCount(mutable.Map.empty))
   }
 
-  def getBlockCountThisWeek(): Option[WitnessBlockCount] = {
-    witnessBlockCountThisWeekStore.get
+  def getLastWeekValidVoters(): Array[UInt160] = {
+    witnessBlockCountLastWeekStore.get.map(_.getTop(consensusSettings.witnessNum)).getOrElse(Array.empty)
+  }
+
+  def getBlockCountThisWeek(): WitnessBlockCount = {
+    witnessBlockCountThisWeekStore.get.getOrElse(new WitnessBlockCount(mutable.Map.empty))
+  }
+
+  def setWitnessBlockCountNewWeek() = {
+    witnessBlockCountLastWeekStore.set(witnessBlockCountThisWeekStore.get().getOrElse(new WitnessBlockCount(mutable.Map.empty)))
+    witnessBlockCountThisWeekStore.set(new WitnessBlockCount(mutable.Map.empty))
+  }
+
+  def witnessBlockCountAdd(producer: UInt160) = {
+    val thisWeek = getBlockCountThisWeek()
+    thisWeek.increase(producer)
+    witnessBlockCountThisWeekStore.set(thisWeek)
   }
 
   def startTracking(): DataBase = {
