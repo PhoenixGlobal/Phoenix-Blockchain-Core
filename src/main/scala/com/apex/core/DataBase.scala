@@ -27,7 +27,6 @@ import scala.collection.mutable.ArrayBuffer
 class DataBase(settings: DataBaseSettings, consensusSettings: ConsensusSettings,
                db: Storage.lowLevelRaw, tracking: Tracking) extends ApexLogging {
   private val accountStore = new AccountStore(tracking, settings.cacheSize)
-  private val receiptStore = new ReceiptStore(tracking, settings.cacheSize)
   private val contractStore = new ContractStore(tracking, settings.cacheSize)
   private val contractStateStore = new ContractStateStore(tracking, settings.cacheSize)
   private val scheduleTxStore = new ScheduleTxStore(tracking, settings.cacheSize)
@@ -154,16 +153,6 @@ class DataBase(settings: DataBaseSettings, consensusSettings: ConsensusSettings,
   // save contract state key-value pairs
   def saveContractState(address: UInt160, key: Array[Byte], value: Array[Byte]): Unit = {
     contractStateStore.set(address.data ++ key, value)
-  }
-
-  // get tx receipt
-  def getReceipt(txid: UInt256): Option[TransactionReceipt] = {
-    receiptStore.get(txid)
-  }
-
-  // set tx receipt
-  def setReceipt(txid: UInt256, receipt: TransactionReceipt) = {
-    receiptStore.set(txid, receipt)
   }
 
   def getAllWitness(): ArrayBuffer[WitnessInfo] = {

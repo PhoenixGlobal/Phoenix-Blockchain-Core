@@ -20,6 +20,7 @@ class BlockBase(settings: BlockBaseSettings) {
   private val blockStore = new BlockStore(db, settings.cacheSize)
   private val heightStore = new HeightStore(db, settings.cacheSize)
   private val headBlockStore = new HeadBlockStore(db)
+  private val receiptStore = new ReceiptStore(db, settings.cacheSize)
 
   def head(): Option[BlockHeader] = {
     headBlockStore.get()
@@ -45,6 +46,21 @@ class BlockBase(settings: BlockBaseSettings) {
 
   def containBlock(id: UInt256): Boolean = {
     blockStore.contains(id)
+  }
+
+  // TODO: This function need be called under some fork cases
+  def deleteReceipt(txid: UInt256) = {
+    receiptStore.delete(txid)
+  }
+
+  // get tx receipt
+  def getReceipt(txid: UInt256): Option[TransactionReceipt] = {
+    receiptStore.get(txid)
+  }
+
+  // set or update tx receipt
+  def setReceipt(txid: UInt256, receipt: TransactionReceipt) = {
+    receiptStore.set(txid, receipt)
   }
 
   def close(): Unit = {

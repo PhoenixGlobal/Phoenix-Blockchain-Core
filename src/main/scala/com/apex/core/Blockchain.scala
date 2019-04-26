@@ -380,7 +380,7 @@ class Blockchain(chainSettings: ChainSettings,
   private def blockSummary(block: Block): BlockSummary = {
     val summary = mutable.Map[UInt256, Option[TransactionReceipt]]()
     block.transactions.foreach(tx => {
-      summary.put(tx.id, dataBase.getReceipt(tx.id))
+      summary.put(tx.id, blockBase.getReceipt(tx.id))
     })
 
     new BlockSummary(block, summary)
@@ -555,9 +555,9 @@ class Blockchain(chainSettings: ChainSettings,
     if (applied.added) {
       cacheTrack.commit()
       if (originalTx.isDefined)
-        dataBase.setReceipt(tx.id(), TransactionReceipt(tx.id, receipt.txType, receipt.from, receipt.to, receipt.blockIndex, receipt.gasUsed, receipt.output, receipt.status, receipt.error))
+        blockBase.setReceipt(tx.id(), TransactionReceipt(tx.id, receipt.txType, receipt.from, receipt.to, receipt.blockIndex, receipt.gasUsed, receipt.output, receipt.status, receipt.error))
       else
-        dataBase.setReceipt(tx.id(), receipt)
+        blockBase.setReceipt(tx.id(), receipt)
     }
     applied
   }
@@ -565,7 +565,7 @@ class Blockchain(chainSettings: ChainSettings,
   private def applyMinerTransaction(tx: Transaction, blockProducer: UInt160, blockIndex: Long): AddTxResult = {
     dataBase.transfer(tx.from, tx.toPubKeyHash, tx.amount)
     dataBase.increaseNonce(tx.from)
-    dataBase.setReceipt(tx.id(), TransactionReceipt(tx.id(), tx.txType, tx.from, blockProducer,
+    blockBase.setReceipt(tx.id(), TransactionReceipt(tx.id(), tx.txType, tx.from, blockProducer,
       blockIndex, 0, BinaryData.empty, 0, ""))
     AddTxSucceed
   }
@@ -589,7 +589,7 @@ class Blockchain(chainSettings: ChainSettings,
       dataBase.transfer(tx.from, blockProducer, scheduleFee)
       dataBase.setScheduleTx(scheduleTx.id, scheduleTx)
       dataBase.increaseNonce(tx.from)
-      dataBase.setReceipt(tx.id(), TransactionReceipt(tx.id(), tx.txType, tx.from, tx.toPubKeyHash,
+      blockBase.setReceipt(tx.id(), TransactionReceipt(tx.id(), tx.txType, tx.from, tx.toPubKeyHash,
         blockIndex, tx.transactionCost(), BinaryData.empty, 0, ""))
     }
     txValid
@@ -698,7 +698,7 @@ class Blockchain(chainSettings: ChainSettings,
   }
 
   def getReceipt(txid: UInt256): Option[TransactionReceipt] = {
-    dataBase.getReceipt(txid)
+    blockBase.getReceipt(txid)
   }
 
   private def updateWitnessLists() = {
