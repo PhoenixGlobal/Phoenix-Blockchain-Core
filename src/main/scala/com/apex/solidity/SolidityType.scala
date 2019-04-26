@@ -188,10 +188,11 @@ object SolidityType {
       }
       ret
     }
+
     override def isDynamicType(): Boolean = true
   }
 
-  class BytesType protected (name: String) extends SolidityType(name) {
+  class BytesType protected(name: String) extends SolidityType(name) {
 
     def this() = this("bytes")
 
@@ -218,6 +219,7 @@ object SolidityType {
       offset += 32
       Arrays.copyOfRange(encoded, offset, offset + len)
     }
+
     override def isDynamicType(): Boolean = true
   }
 
@@ -228,6 +230,7 @@ object SolidityType {
         throw new RuntimeException("String value expected for type 'string'")
       super.encode(value.asInstanceOf[String].getBytes(StandardCharsets.UTF_8))
     }
+
     override def decode(encoded: Array[Byte], offset: Int): AnyRef =
       new String(super.decode(encoded, offset).asInstanceOf[Array[Byte]],
         StandardCharsets.UTF_8)
@@ -256,8 +259,8 @@ object SolidityType {
         val ret: Array[Byte] = Array.ofDim[Byte](32)
         System.arraycopy(bytes, 0, ret, 32 - bytes.length, bytes.length)
         ret
-      }
-      throw new RuntimeException("Can't encode java type " + value.getClass + " to bytes32")
+      } else
+        throw new RuntimeException("Can't encode java type " + value.getClass + " to bytes32")
     }
 
     override def decode(encoded: Array[Byte], offset: Int): AnyRef =
@@ -404,6 +407,7 @@ object SolidityType {
         ByteUtil.merge(Array(value.asInstanceOf[Array[Byte]], Array.ofDim[Byte](8))))
     }
   }
+
 }
 
 abstract class SolidityType(protected var name: String) {
@@ -433,7 +437,7 @@ abstract class SolidityType(protected var name: String) {
 
   /**
     * @return fixed size in bytes. For the dynamic types returns IntType.getFixedSize()
-    * which is effectively the int offset to dynamic data
+    *         which is effectively the int offset to dynamic data
     */
   def getFixedSize(): Int = 32
 
