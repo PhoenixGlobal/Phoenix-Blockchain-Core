@@ -82,7 +82,7 @@ class PeerDatabaseImpl(filename: String) extends PeerDatabase with ApexLogging {
         Seq()
       else {
         val source = Source.fromFile(path)
-        val lines = source.getLines.toSeq
+        val lines = source.getLines.toList
         source.close()
         lines
       }
