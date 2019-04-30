@@ -521,9 +521,8 @@ class Blockchain(chainSettings: ChainSettings,
     //if tx is a schedule tx and it is time to execute,or tx is a normal transfer or miner tx, start execute tx directly
     tx.txType match {
       case TransactionType.Miner => txValid = applyMinerTransaction(tx, blockProducer, blockIndex)
-      case TransactionType.Transfer => txValid = applyContractTransaction(tx, blockProducer, stopTime, blockTime, blockIndex)
-      case TransactionType.Deploy => txValid = applyContractTransaction(tx, blockProducer, stopTime, blockTime, blockIndex)
-      case TransactionType.Call => txValid = applyContractTransaction(tx, blockProducer, stopTime, blockTime, blockIndex)
+      case TransactionType.Transfer | TransactionType.Deploy | TransactionType.Call =>
+        txValid = applyContractTransaction(tx, blockProducer, stopTime, blockTime, blockIndex)
       case TransactionType.Refund => txValid = applyRefundTransaction(tx, blockProducer, blockTime)
       case TransactionType.Schedule => txValid = applyScheduleTransaction(tx, blockProducer, stopTime, blockTime, blockIndex)
     }
@@ -545,11 +544,7 @@ class Blockchain(chainSettings: ChainSettings,
     var txValid = new AddTxResult(false, "error")
     if (dataBase.getScheduleTx(tx.id()).isDefined && blockTime >= tx.executeTime) {
       val originalTx = Transaction.fromBytes(tx.data)
-      originalTx.txType match {
-        case TransactionType.Transfer => txValid = applyContractTransaction(tx, blockProducer, stopTime, blockTime, blockIndex, originalTx)
-        case TransactionType.Deploy => txValid = applyContractTransaction(tx, blockProducer, stopTime, blockTime, blockIndex, originalTx)
-        case TransactionType.Call => txValid = applyContractTransaction(tx, blockProducer, stopTime, blockTime, blockIndex, originalTx)
-      }
+      applyContractTransaction(tx, blockProducer, stopTime, blockTime, blockIndex, originalTx)
     }
     txValid
   }
@@ -912,7 +907,8 @@ class Blockchain(chainSettings: ChainSettings,
     listType match {
       case "all" => {
         val witnessInfo = dataBase.getAllWitness()
-        WitnessList.create(witnessInfo.toArray, UInt256.Zero)
+        val liveWitnessInfo = witnessInfo.filter(p => p.register)
+        WitnessList.create(liveWitnessInfo.toArray, UInt256.Zero)
       }
       case "active" => {
         dataBase.getCurrentWitnessList().get
