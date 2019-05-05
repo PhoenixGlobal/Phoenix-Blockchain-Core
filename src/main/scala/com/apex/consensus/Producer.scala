@@ -89,7 +89,7 @@ class Producer(apexSettings: ApexSettings)
 
   private def endProduce(chain: Blockchain): Unit = {
     try {
-      chain.produceBlockFinalize()
+      chain.produceBlockFinalize(true)
     } catch {
       case e: Throwable => log.error("end produce failed", e)
     }
