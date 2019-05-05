@@ -302,18 +302,23 @@ class Blockchain(chainSettings: ChainSettings,
     result
   }
 
-  def produceBlockFinalize(): Option[Block] = {
+  def produceBlockFinalize(checkTime: Boolean = false): Option[Block] = {
     val endTime = Instant.now.toEpochMilli
     if (!isProducingBlock()) {
       log.info("block canceled")
       None
-    } else {
+    }
+    else if (checkTime && endTime - pendingState.blockTime > 2000) {
+      log.error("produceBlockFinalize too late, block canceled")
+      stopProduceBlock()
+      None
+    }
+    else {
       log.debug(s"block time: ${pendingState.blockTime}, end time: $endTime, produce time: ${endTime - pendingState.startTime}")
       val forkHead = forkBase.head.get
       val merkleRoot = MerkleTree.root(pendingState.txs.map(_.id))
-      val timeStamp = pendingState.blockTime
       val header = BlockHeader.build(
-        forkHead.block.height + 1, timeStamp, merkleRoot,
+        forkHead.block.height + 1, pendingState.blockTime, merkleRoot,
         forkHead.block.id, pendingState.producerPrivKey)
       val block = Block.build(header, pendingState.txs.clone)
       pendingState.txs.clear()
