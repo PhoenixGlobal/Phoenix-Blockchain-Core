@@ -10,7 +10,8 @@ class ProposalVoteList(val votes: Array[ProposalVote],
                        val version: Int = 0x01) extends Serializable with ApexLogging {
 
   def add(newVote: ProposalVote): ProposalVoteList = {
-    new ProposalVoteList(votes ++ Array(newVote))
+    val oldVotes = votes.filter(p => !(p.proposalID == newVote.proposalID && p.voter == newVote.voter))
+    new ProposalVoteList(oldVotes ++ Array(newVote))
   }
 
   def remove(proposalID: UInt256): ProposalVoteList = {

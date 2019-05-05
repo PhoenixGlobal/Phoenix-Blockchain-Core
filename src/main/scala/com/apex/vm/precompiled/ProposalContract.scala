@@ -20,12 +20,12 @@ class ProposalContract(track: DataBase,
   override def execute(data: Array[Byte]): (Boolean, Array[Byte]) = {
     try {
       val proposalData = ProposalData.fromBytes(data)
+      log.info(s"new proposal: proposer=${tx.from.shortAddr} type=${proposalData.proposalType} activeTime=${proposalData.activeTime} proposalValue=${proposalData.proposalValue.toString} txid=${tx.id}")
       val (valid, errString) = checkValid(proposalData)
       if (valid) {
-        log.info(s"new proposal ${tx.id} type=${proposalData.proposalType} activeTime=${proposalData.activeTime}")
         log.info(s"valid voters:")
         track.getLastWeekValidVoters().foreach(p => {
-          log.info(s"   ${p.address}")
+          log.info(s"   ${p.shortAddr}")
         })
         track.setProposal(new Proposal(tx.id,
           proposalData.proposalType,

@@ -528,7 +528,7 @@ class Blockchain(chainSettings: ChainSettings,
       case TransactionType.Miner => txValid = applyMinerTransaction(tx, blockProducer, blockIndex)
       case TransactionType.Transfer | TransactionType.Deploy | TransactionType.Call =>
         txValid = applyContractTransaction(tx, blockProducer, stopTime, blockTime, blockIndex)
-      case TransactionType.Refund => txValid = applyRefundTransaction(tx, blockProducer, blockTime,blockIndex)
+      case TransactionType.Refund => txValid = applyRefundTransaction(tx, blockProducer, blockTime, blockIndex)
       case TransactionType.Schedule => txValid = applyScheduleTransaction(tx, blockProducer, stopTime, blockTime, blockIndex)
     }
     if (!txValid.added)
@@ -536,7 +536,8 @@ class Blockchain(chainSettings: ChainSettings,
     txValid
   }
 
-  private def applyRefundTransaction(tx: Transaction, blockProducer: UInt160, blockTime: Long,blockIndex:Long): AddTxResult = {
+  private def applyRefundTransaction(tx: Transaction, blockProducer: UInt160,
+                                     blockTime: Long, blockIndex:Long): AddTxResult = {
     if (blockTime >= tx.executeTime && dataBase.getScheduleTx(tx.id()).isDefined) {
       dataBase.transfer(tx.from, tx.toPubKeyHash, tx.amount)
       dataBase.deleteScheduleTx(tx.id())

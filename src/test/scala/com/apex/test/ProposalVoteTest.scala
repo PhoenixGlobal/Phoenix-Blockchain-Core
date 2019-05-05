@@ -321,6 +321,9 @@ class ProposalVoteTest {
       val block14 = makeBlock(chain, block13, Seq.empty)
       assert(!chain.tryInsertBlock(block14))  // miner award not valid
 
+      val block14ok = makeBlock(chain, block13, Seq.empty, 1)
+      assert(chain.tryInsertBlock(block14ok))  // miner award valid
+
     }
     finally {
       chain.close()
