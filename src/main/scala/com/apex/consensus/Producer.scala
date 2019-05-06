@@ -21,7 +21,7 @@ import com.apex.common.ApexLogging
 import com.apex.core.Blockchain
 import com.apex.crypto.Ecdsa.PublicKey
 import com.apex.crypto.UInt160
-import com.apex.settings.{ApexSettings, ConsensusSettings, Witness}
+import com.apex.settings.{ApexSettings, ConsensusSettings, InitWitness}
 
 import scala.concurrent.ExecutionContext
 import scala.concurrent.duration.FiniteDuration

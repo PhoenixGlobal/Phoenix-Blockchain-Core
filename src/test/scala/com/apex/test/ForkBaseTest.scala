@@ -16,7 +16,7 @@ import com.apex.consensus.{WitnessInfo, WitnessList}
 import com.apex.core._
 import com.apex.crypto.{BinaryData, UInt256}
 import com.apex.crypto.Ecdsa.{PrivateKey, PublicKey}
-import com.apex.settings.{DBType, ForkBaseSettings, Witness}
+import com.apex.settings.{DBType, ForkBaseSettings}
 import org.junit.{AfterClass, Test}
 
 import scala.collection.mutable.{ListBuffer, Seq}

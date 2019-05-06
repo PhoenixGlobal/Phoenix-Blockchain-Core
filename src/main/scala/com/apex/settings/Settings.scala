@@ -98,7 +98,7 @@ case class MinerSettings(privKeys: Array[PrivateKey]) {
     privKeys.find(p => p.publicKey.pubKeyHash == miner)
   }
 
-  def findPrivKey(miner: Witness): Option[PrivateKey] = {
+  def findPrivKey(miner: InitWitness): Option[PrivateKey] = {
     findPrivKey(miner.pubkeyHash)
   }
 }
@@ -108,7 +108,7 @@ case class ConsensusSettings(produceInterval: Int,
                              producerRepetitions: Int,
                              witnessNum: Int,
                              electeTime: Long,
-                             initialWitness: Array[Witness]) {
+                             initialWitness: Array[InitWitness]) {
 
   require(initialWitness.size == witnessNum)
   require(electeTime >= witnessNum * producerRepetitions * produceInterval)
@@ -132,7 +132,7 @@ case class ConsensusSettings(produceInterval: Int,
 case class CoinAirdrop(addr: String,
                        coins: Double)
 
-case class Witness(name: String,
+case class InitWitness(name: String,
                    pubkeyHash: UInt160)
 
 object ApexSettings extends SettingsReaders with ApexLogging {

@@ -18,7 +18,7 @@ import com.apex.common.ApexLogging
 import com.apex.consensus.WitnessList
 import com.apex.crypto.Ecdsa.PublicKey
 import com.apex.crypto.{UInt160, UInt256}
-import com.apex.settings.{ForkBaseSettings, Witness}
+import com.apex.settings.ForkBaseSettings
 import com.apex.storage.{Batch, Storage}
 
 import scala.collection.immutable.{Map => IMap}

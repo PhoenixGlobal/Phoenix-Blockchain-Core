@@ -75,19 +75,19 @@ class ProposalVoteTest {
 
   val _minerAward: Double = 12.3
 
-  val _witness1 = Witness("init1",
+  val _witness1 = InitWitness("init1",
     PublicKey("024f3076ac9b2b8ef8bf1c303c3ac3057472c9fa391df62c543789f34017168c62").pubKeyHash)
   //Some(new PrivateKey(BinaryData("efc382ccc0358f468c2a80f3738211be98e5ae419fc0907cb2f51d3334001471"))))
 
-  val _witness2 = Witness("init2",
+  val _witness2 = InitWitness("init2",
     PublicKey("02add2d02786ba350148aee109e67495d6c4c2dccd9b5aaa57ad866d7b6105ac8f").pubKeyHash)
   //Some(new PrivateKey(BinaryData("cc7b7fa6e706944fa2d75652065f95ef2f364316e172601320655aac0e648165"))))
 
-  val _witness3 = Witness("init3",
+  val _witness3 = InitWitness("init3",
     PublicKey("03d7a23792639a9824d1013151711b521653f0c72563d69481bd914db75b03309d").pubKeyHash)
   //Some(new PrivateKey(BinaryData("db71fe7c0ac4ca3e8cef95bf55cf535eaa8fe0c80d18e0cb19af8d7071b8a184"))))
 
-  val _witness4 = Witness("init4",  // APPnx5YahVg1dTgeWkp1fE33ftvAaGbeQaR  L2C4Za8VSx2iBgszQarHx4YzqHvfumkHjbi6bNqvqst6mc8QcuZ7
+  val _witness4 = InitWitness("init4",  // APPnx5YahVg1dTgeWkp1fE33ftvAaGbeQaR  L2C4Za8VSx2iBgszQarHx4YzqHvfumkHjbi6bNqvqst6mc8QcuZ7
     PublicKey("03f5bb4aa2a0773d658e9df51865ffbfd41f98891bd1994337afae4dc27c1d1927").pubKeyHash)
   //Some(new PrivateKey(BinaryData("9456beec947b368eda4be03f6c306703d9b2eda49f661285944b4e1f07ae18f3"))))
 

@@ -145,7 +145,7 @@ class PeerConnectionManager(settings: NetworkSettings,
     } else {
       val myTime = System.currentTimeMillis()
       val timeGap = math.abs(handshakeMsg.time - myTime)
-      log.info(s"peer timeGap = $timeGap")
+      log.info(s"peer timeGap = $timeGap ms")
       if (timeGap > settings.peerMaxTimeGap) {
         log.error(s"peer timeGap too large $timeGap  Closing connection")
         self ! CloseConnection
