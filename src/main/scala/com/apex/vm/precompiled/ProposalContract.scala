@@ -8,6 +8,8 @@ import com.apex.vm.VM
 class ProposalContract(track: DataBase,
                        tx: Transaction,
                        timeStamp: Long) extends PrecompiledContract with ApexLogging {
+  // 72 hour
+  private val voteTime: Long = 1800 * 1000 //72 * 3600 * 1000
 
   override def getGasForData(data: Array[Byte]): Long = {
     if (data == null) {
@@ -31,7 +33,7 @@ class ProposalContract(track: DataBase,
           proposalData.proposalType,
           ProposalStatus.Voting,
           timeStamp,
-          timeStamp + 72 * 3600 * 1000,
+          timeStamp + voteTime,
           proposalData.activeTime,
           track.getLastWeekValidVoters(),
           proposalData.proposalValue
@@ -58,7 +60,7 @@ class ProposalContract(track: DataBase,
        errString = ("same proposal type already ongoing").getBytes
      }
     })
-    if (proposalData.activeTime != 0 && proposalData.activeTime < timeStamp + 72 * 3600 * 1000) {
+    if (proposalData.activeTime != 0 && proposalData.activeTime < timeStamp + voteTime) {
       valid = false
       errString = ("activeTime too early").getBytes
     }
