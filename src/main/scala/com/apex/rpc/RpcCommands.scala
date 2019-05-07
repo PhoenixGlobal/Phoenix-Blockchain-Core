@@ -9,11 +9,14 @@
 package com.apex.rpc
 
 import java.io.{ByteArrayInputStream, DataInputStream}
+
 import com.apex.core.Transaction
 import com.apex.crypto.{BinaryData, UInt160, UInt256}
 import com.apex.crypto.Ecdsa.PublicKeyHash
 import play.api.libs.json.Reads._
 import play.api.libs.json._
+
+import scala.collection.mutable.ArrayBuffer
 
 object Validators {
   def uint256Validator = Reads.StringReads.filter(JsonValidationError("invalid UInt256"))(UInt256.parse(_).isDefined)
@@ -177,6 +180,9 @@ object GetVotesCmd {
     (__ \ "address").read[String](Validators.addressValidator).map(c => PublicKeyHash.fromAddress(c).get)
     ) map (GetVotesCmd.apply _)
 }
+
+case class GetAllProposalCmd() extends RPCCommand
+case class GetAllProposalVotesCmd() extends RPCCommand
 
 case class GetProducersCmd(listType: String) extends RPCCommand
 

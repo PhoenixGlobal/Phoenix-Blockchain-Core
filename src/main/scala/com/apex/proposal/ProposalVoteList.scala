@@ -5,6 +5,7 @@ import java.io.{DataInputStream, DataOutputStream}
 import com.apex.common.Serializable
 import com.apex.common.ApexLogging
 import com.apex.crypto.UInt256
+import play.api.libs.json.{JsValue, Json, Writes}
 
 class ProposalVoteList(val votes: Array[ProposalVote],
                        val version: Int = 0x01) extends Serializable with ApexLogging {
@@ -40,6 +41,15 @@ object ProposalVoteList {
     val votes = is.readSeq(ProposalVote.deserialize)
 
     new ProposalVoteList(votes.toArray, version)
+  }
+
+  implicit val proposalVoteListWrites = new Writes[ProposalVoteList] {
+    override def writes(o: ProposalVoteList): JsValue = {
+      Json.obj(
+        "votes" -> o.votes,
+        "version" -> o.version
+      )
+    }
   }
 
 

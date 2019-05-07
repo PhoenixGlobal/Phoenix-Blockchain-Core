@@ -1,8 +1,11 @@
 package com.apex.vm.precompiled
 
+import java.io.{ByteArrayInputStream, DataInputStream}
+
 import com.apex.common.ApexLogging
 import com.apex.core.{DataBase, Transaction}
-import com.apex.proposal.{Proposal, ProposalData, ProposalStatus}
+import com.apex.crypto.FixedNumber
+import com.apex.proposal.{Proposal, ProposalData, ProposalStatus, ProposalType}
 import com.apex.vm.VM
 
 class ProposalContract(track: DataBase,
@@ -23,6 +26,12 @@ class ProposalContract(track: DataBase,
     try {
       val proposalData = ProposalData.fromBytes(data)
       log.info(s"new proposal: proposer=${tx.from.shortAddr} type=${proposalData.proposalType} activeTime=${proposalData.activeTime} proposalValue=${proposalData.proposalValue.toString} txid=${tx.id}")
+      if (proposalData.proposalType == ProposalType.BlockAward) {
+        val bs = new ByteArrayInputStream(proposalData.proposalValue)
+        val is = new DataInputStream(bs)
+        val newBlockAward = FixedNumber.deserialize(is)
+        log.info(s"new Block Award is ${newBlockAward}")
+      }
       val (valid, errString) = checkValid(proposalData)
       if (valid) {
         log.info(s"valid voters:")

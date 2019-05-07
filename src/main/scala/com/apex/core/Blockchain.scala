@@ -9,7 +9,7 @@ import com.apex.consensus.WitnessList
 import com.apex.consensus.{ProducerUtil, WitnessInfo}
 import com.apex.crypto.Ecdsa.{PrivateKey, PublicKeyHash}
 import com.apex.crypto.{BinaryData, Crypto, FixedNumber, MerkleTree, UInt160, UInt256}
-import com.apex.proposal.{Proposal, ProposalType}
+import com.apex.proposal.{Proposal, ProposalList, ProposalType, ProposalVoteList}
 import com.apex.settings.{ChainSettings, ConsensusSettings, RuntimeParas}
 import com.apex.vm.GasCost
 
@@ -458,7 +458,7 @@ class Blockchain(chainSettings: ChainSettings,
   private def checkUpdateProposalVote(curBlock: Block) = {
     val prevBlock = getBlock(curBlock.prev()).get
 
-    if (isStartOfNewWeek(prevBlock, curBlock)) {
+    if (isStartOfNewMinutes(prevBlock, curBlock)) {
       log.info(s"block ${curBlock.height()} ${curBlock.header.timeString()} is start of new week")
       dataBase.setWitnessBlockCountNewWeek()
     }
@@ -496,6 +496,12 @@ class Blockchain(chainSettings: ChainSettings,
       true
     else
       false
+  }
+
+  // just for test, should use isStartOfNewWeek()
+  private def isStartOfNewMinutes(prevBlock: Block, curBlock: Block): Boolean = {
+    val timeGap = 300 * 1000
+    (curBlock.timeStamp() / timeGap) > (prevBlock.timeStamp() / timeGap)
   }
 
   private def applyBlock(block: Block, verify: Boolean = true, enableSession: Boolean = true): Boolean = {
@@ -935,5 +941,13 @@ class Blockchain(chainSettings: ChainSettings,
 
   def getProposal(id: UInt256): Option[Proposal] = {
     dataBase.getProposal(id)
+  }
+
+  def getProposalList(): ProposalList = {
+    new ProposalList(dataBase.getAllProposal().toArray)
+  }
+
+  def getProposalVoteList(): ProposalVoteList = {
+    dataBase.getProposalVoteList()
   }
 }

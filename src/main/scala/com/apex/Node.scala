@@ -216,6 +216,18 @@ class Node(val settings: ApexSettings, config: Config)
         }
         sender() ! votes
       }
+      case GetAllProposalVotesCmd() => {
+        val votes = Try {
+          chain.getProposalVoteList()
+        }
+        sender() ! votes
+      }
+      case GetAllProposalCmd() => {
+        val ps = Try {
+          chain.getProposalList()
+        }
+        sender() ! ps
+      }
     }
   }
 

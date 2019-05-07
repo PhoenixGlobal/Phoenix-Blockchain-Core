@@ -18,7 +18,7 @@ import akka.util.Timeout
 import com.apex.common.ApexLogging
 import com.apex.consensus.{WitnessInfo, WitnessList, WitnessVote}
 import com.apex.core._
-import com.apex.proposal.Proposal
+import com.apex.proposal.{Proposal, ProposalList, ProposalVoteList}
 import com.apex.rpc.RpcServer.sussesRes
 import com.apex.settings.ApexSettings
 import com.typesafe.config.Config
@@ -312,6 +312,36 @@ object RpcServer extends ApexLogging {
                   complete(HttpEntity(ContentTypes.`application/json`, error400Res()))
                 }
               }
+            }
+          }
+        } ~
+        path("getAllProposalVote") {
+          post {
+            entity(as[String]) { data =>
+              val f = (nodeRef ? GetAllProposalVotesCmd()).mapTo[Try[ProposalVoteList]]
+                  .map(s =>
+                  s match {
+                    case Success(voteList) => {
+                      sussesRes(Json.prettyPrint(ProposalVoteList.proposalVoteListWrites.writes(voteList)))
+                    }
+                    case Failure(e) => error500Res(e.getMessage)
+                  })
+              complete(f)
+            }
+          }
+        } ~
+        path("getAllProposal") {
+          post {
+            entity(as[String]) { data =>
+              val f = (nodeRef ? GetAllProposalCmd()).mapTo[Try[ProposalList]]
+                .map(s =>
+                  s match {
+                    case Success(ps) => {
+                      sussesRes(Json.prettyPrint(ProposalList.proposalListWrites.writes(ps)))
+                    }
+                    case Failure(e) => error500Res(e.getMessage)
+                  })
+              complete(f)
             }
           }
         } ~
