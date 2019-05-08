@@ -9,7 +9,7 @@ import com.apex.consensus.WitnessList
 import com.apex.consensus.{ProducerUtil, WitnessInfo}
 import com.apex.crypto.Ecdsa.{PrivateKey, PublicKeyHash}
 import com.apex.crypto.{BinaryData, Crypto, FixedNumber, MerkleTree, UInt160, UInt256}
-import com.apex.proposal.{Proposal, ProposalList, ProposalType, ProposalVoteList}
+import com.apex.proposal._
 import com.apex.settings.{ChainSettings, ConsensusSettings, RuntimeParas}
 import com.apex.vm.GasCost
 
@@ -465,27 +465,46 @@ class Blockchain(chainSettings: ChainSettings,
     dataBase.witnessBlockCountAdd(curBlock.producer())
 
     dataBase.getAllProposal().foreach(p => {
-      if (curBlock.timeStamp() >= p.endVoteTime) {
+      if (p.status == ProposalStatus.PendingActive) {
+        if (curBlock.timeStamp() >= p.activeTime)
+          activeProposal(p)
+      }
+      else if (curBlock.timeStamp() >= p.endVoteTime) {
         val agreeCount = dataBase.getProposalVoteList().agreeCount(p.proposalID)
         log.info(s"block ${curBlock.height()}, proposal ${p.proposalID} vote time end, agreeCount=${agreeCount}")
-
         if (agreeCount > 2 * consensusSettings.witnessNum / 3) {
           log.info("proposal pass")
-          if (p.proposalType == ProposalType.BlockAward) {
-            val bs = new ByteArrayInputStream(p.proposalValue)
-            val is = new DataInputStream(bs)
-            val newBlockAward = FixedNumber.deserialize(is)
-            log.info(s"new Block Award is ${newBlockAward}")
-            dataBase.setMinerAward(newBlockAward)
+          if (curBlock.timeStamp() >= p.activeTime)
+            activeProposal(p)
+          else {
+            log.info(s"set to PendingActive, active time is ${Helper.timeString(p.activeTime)}")
+            dataBase.setProposal(p.setNewStatus(ProposalStatus.PendingActive))
           }
         }
-        else
+        else {
           log.info("proposal fail")
-
-        dataBase.deleteProposal(p.proposalID)
-        dataBase.deleteProposalVote(p.proposalID)
+          deleteProposal(p)
+        }
       }
     })
+  }
+
+  private def deleteProposal(p: Proposal): Unit = {
+    log.info(s"now delete proposal ${p.proposalID}")
+    dataBase.deleteProposal(p.proposalID)
+    dataBase.deleteProposalVote(p.proposalID)
+  }
+
+  private def activeProposal(p: Proposal) = {
+    log.info(s"now active proposal ${p.proposalID}")
+    if (p.proposalType == ProposalType.BlockAward) {
+      val bs = new ByteArrayInputStream(p.proposalValue)
+      val is = new DataInputStream(bs)
+      val newBlockAward = FixedNumber.deserialize(is)
+      log.info(s"new Block Award is ${newBlockAward}")
+      dataBase.setMinerAward(newBlockAward)
+    }
+    deleteProposal(p)
   }
 
   private def isStartOfNewWeek(prevBlock: Block, curBlock: Block): Boolean = {

@@ -20,6 +20,11 @@ case class Proposal(proposalID: UInt256,
     voters.count(p => p == voter) > 0
   }
 
+  def setNewStatus(newStatus: ProposalStatus.Value): Proposal = {
+    new Proposal(proposalID, proposalType, newStatus, startVoteTime, endVoteTime,
+      activeTime, voters, proposalValue)
+  }
+
   override def serialize(os: DataOutputStream): Unit = {
     import com.apex.common.Serializable._
 
