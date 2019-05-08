@@ -261,9 +261,9 @@ class ModExp extends PrecompiledContract {
       val base = parseArg(data, ARGS_OFFSET, baseLen)
       val exp = parseArg(data, addSafely(ARGS_OFFSET, baseLen), expLen)
       val mod = parseArg(data, addSafely(addSafely(ARGS_OFFSET, baseLen), expLen), modLen)
-      if (mod == 0) {
-        (true, Array.emptyByteArray)
-      } else {
+      if (mod == 0)
+        (true, new Array[Byte](modLen))
+      else {
         val res = base.modPow(exp, mod).toByteArray.stripLeadingZeroes
         // adjust result to the same length as the modulus has
         if (res.length < modLen) {
