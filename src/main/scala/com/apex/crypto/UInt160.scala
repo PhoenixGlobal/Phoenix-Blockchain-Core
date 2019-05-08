@@ -12,6 +12,7 @@ import java.io.DataInputStream
 
 import com.apex.crypto.Ecdsa.PublicKeyHash
 import org.bouncycastle.util.encoders.Hex
+import play.api.libs.json.{JsValue, Json, Writes}
 
 class UInt160(data: Array[Byte]) extends UIntBase(UInt160.Size, data) with Ordered[UInt160] {
 
@@ -51,4 +52,13 @@ object UInt160 {
     is.read(data, 0, UInt160.Size)
     UInt160.fromBytes(data)
   }
+
+  implicit val uint160Writes = new Writes[UInt160] {
+    override def writes(o: UInt160): JsValue = {
+      Json.obj(
+        "address" -> o.address
+      )
+    }
+  }
+
 }

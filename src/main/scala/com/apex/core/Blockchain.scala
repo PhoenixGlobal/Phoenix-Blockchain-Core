@@ -297,7 +297,7 @@ class Blockchain(chainSettings: ChainSettings,
       log.info(s"addTransaction success, txid=${tx.id.toString} ${result.result}")
     }
     else
-      log.error(s"addTransaction error, txid=${tx.id.toString}  ${result.result}")
+      log.error(s"addTransaction error, from=${tx.from.shortAddr} txid=${tx.id.toString}  ${result.result}")
 
     result
   }
@@ -324,7 +324,7 @@ class Blockchain(chainSettings: ChainSettings,
       pendingState.txs.clear()
       pendingState.isProducingBlock = false
       if (tryInsertBlock(block, false)) {
-        log.info(s"block #${block.height} ${block.shortId} produced by ${block.producer.shortAddr} ${block.header.timeString()}")
+        log.info(s"block #${block.height} ${block.shortId} produced by ${block.producer.shortAddr} ${block.header.timeString()} txNum=${block.transactions.size}")
         notification.broadcast(NewBlockProducedNotify(block))
         Some(block)
       } else {
@@ -538,7 +538,7 @@ class Blockchain(chainSettings: ChainSettings,
       case TransactionType.Schedule => txValid = applyScheduleTransaction(tx, blockProducer, stopTime, blockTime, blockIndex)
     }
     if (!txValid.added)
-      log.error(s"applyTransaction fail, txid = ${tx.id.toString}  blockIndex = $blockIndex  reason = ${txValid.result}")
+      log.error(s"applyTransaction fail, from=${tx.from.shortAddr} txid=${tx.id.toString}  blockIndex=$blockIndex  reason=${txValid.result}")
     txValid
   }
 

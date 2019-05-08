@@ -2,7 +2,7 @@ package com.apex.proposal
 
 import java.io.{DataInputStream, DataOutputStream}
 
-import com.apex.common.{ApexLogging, Serializable}
+import com.apex.common.{ApexLogging, Helper, Serializable}
 import com.apex.crypto.{BinaryData, UInt160, UInt256}
 import play.api.libs.json.{JsValue, Json, Writes}
 
@@ -60,10 +60,10 @@ object Proposal {
         "proposalID" -> o.proposalID.toString,
         "proposalType" -> o.proposalType,
         "status" -> o.status,
-        "startVoteTime" -> o.startVoteTime,
-        "endVoteTime" ->  o.endVoteTime,
-        "activeTime" -> o.activeTime,
-        //"voters" -> o.voters,
+        "startVoteTime" -> Helper.timeString(o.startVoteTime),
+        "endVoteTime" ->  Helper.timeString(o.endVoteTime),
+        "activeTime" -> Helper.timeString(o.activeTime),
+        "voters" -> o.voters,
         "proposalValue" -> o.proposalValue.toString
       )
     }

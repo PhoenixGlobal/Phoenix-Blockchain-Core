@@ -316,7 +316,7 @@ class Node(val settings: ApexSettings, config: Config)
     }
     else if (chain.tryInsertBlock(msg.block, true)) {
       broadcastInvMsg(new InventoryPayload(InventoryType.Block, Seq(msg.block.id)))
-      log.info(s"success insert block #${msg.block.height} ${msg.block.shortId} by ${msg.block.producer.shortAddr} ")
+      log.info(s"success insert block #${msg.block.height} ${msg.block.shortId} by ${msg.block.producer.shortAddr} txNum=${msg.block.transactions.size}")
     }
     else {
       log.error(s"failed insert block #${msg.block.height}, ${msg.block.shortId} by ${msg.block.producer.shortAddr} to db")
@@ -338,7 +338,7 @@ class Node(val settings: ApexSettings, config: Config)
         log.info(s"received minor fork block, do nothing, ${block.height} ${block.shortId} by ${block.producer.shortAddr}")
       }
       else if (chain.tryInsertBlock(block, true)) {
-        log.info(s"success insert block #${block.height} (${block.shortId}) by ${block.producer.shortAddr}")
+        log.info(s"success insert block #${block.height} (${block.shortId}) by ${block.producer.shortAddr} txNum=${block.transactions.size}")
         if (msg.blocks.blocks.size == 1) // no need to send INV during sync
           broadcastInvMsg(new InventoryPayload(InventoryType.Block, Seq(block.id)))
       }

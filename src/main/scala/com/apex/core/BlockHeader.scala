@@ -4,6 +4,7 @@ import java.io.{ByteArrayInputStream, ByteArrayOutputStream, DataInputStream, Da
 import java.time.{Instant, ZoneId, ZonedDateTime}
 import java.time.format.DateTimeFormatter
 
+import com.apex.common.Helper
 import com.apex.crypto.Ecdsa.{PrivateKey, PublicKey}
 import com.apex.crypto.{BinaryData, Crypto, UInt160, UInt256}
 import com.apex.vm.DataWord
@@ -24,11 +25,7 @@ class BlockHeader(val index: Long,
     }
   }
 
-  def timeString(): String = {
-    val zonedDateTimeUtc = ZonedDateTime.ofInstant(Instant.ofEpochMilli(timeStamp), ZoneId.of("UTC"))
-    val dateTimeFormatter = DateTimeFormatter.ofPattern("yyyy.MM.dd HH:mm:ss,SSS") // DateTimeFormatter.ISO_OFFSET_DATE_TIME
-    dateTimeFormatter.format(zonedDateTimeUtc)
-  }
+  def timeString(): String = Helper.timeString(timeStamp)
 
   def shortId(): String = {
     id.toString.substring(0, 8)

@@ -151,6 +151,12 @@ object Helper {
     dateTimeFormatter.format(zonedDateTimeUtc).toInt
   }
 
+  def timeString(timeStamp: Long): String = {
+    val zonedDateTimeUtc = ZonedDateTime.ofInstant(Instant.ofEpochMilli(timeStamp), ZoneId.of("UTC"))
+    val dateTimeFormatter = DateTimeFormatter.ofPattern("yyyy.MM.dd HH:mm:ss,SSS") // DateTimeFormatter.ISO_OFFSET_DATE_TIME
+    dateTimeFormatter.format(zonedDateTimeUtc)
+  }
+
 }
 
 

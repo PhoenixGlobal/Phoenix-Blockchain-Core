@@ -98,7 +98,10 @@ class TransactionPool extends ApexLogging {
     val nowTime = Instant.now.toEpochMilli
     val badTxs = ArrayBuffer.empty[Transaction]
     txsSorted.foreach(p => if (nowTime - p.firstSeenTime > maxKeepTime) badTxs.append(p.tx))
-    badTxs.foreach(tx => remove(tx))
+    badTxs.foreach(tx => {
+      log.info(s"tx pool remove timeout tx ${tx.id}")
+      remove(tx)
+    })
   }
 
 }
