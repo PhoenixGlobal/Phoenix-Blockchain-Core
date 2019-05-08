@@ -1,9 +1,9 @@
 package com.apex.proposal
 
-import java.io.{DataInputStream, DataOutputStream}
+import java.io.{ByteArrayInputStream, DataInputStream, DataOutputStream}
 
 import com.apex.common.{ApexLogging, Helper, Serializable}
-import com.apex.crypto.{BinaryData, UInt160, UInt256}
+import com.apex.crypto.{BinaryData, FixedNumber, UInt160, UInt256}
 import play.api.libs.json.{JsValue, Json, Writes}
 
 case class Proposal(proposalID: UInt256,
@@ -23,6 +23,15 @@ case class Proposal(proposalID: UInt256,
   def setNewStatus(newStatus: ProposalStatus.Value): Proposal = {
     new Proposal(proposalID, proposalType, newStatus, startVoteTime, endVoteTime,
       activeTime, voters, proposalValue)
+  }
+
+  def proposalValueString(): String = {
+    val bs = new ByteArrayInputStream(proposalValue)
+    val is = new DataInputStream(bs)
+    if (proposalType == ProposalType.BlockAward)
+      FixedNumber.deserialize(is).toString
+    else
+      proposalValue.toString
   }
 
   override def serialize(os: DataOutputStream): Unit = {
@@ -64,12 +73,12 @@ object Proposal {
       Json.obj(
         "proposalID" -> o.proposalID.toString,
         "proposalType" -> o.proposalType,
+        "proposalValue" -> o.proposalValueString(),
         "status" -> o.status,
         "startVoteTime" -> Helper.timeString(o.startVoteTime),
         "endVoteTime" ->  Helper.timeString(o.endVoteTime),
         "activeTime" -> Helper.timeString(o.activeTime),
-        "voters" -> o.voters,
-        "proposalValue" -> o.proposalValue.toString
+        "voters" -> o.voters
       )
     }
   }
