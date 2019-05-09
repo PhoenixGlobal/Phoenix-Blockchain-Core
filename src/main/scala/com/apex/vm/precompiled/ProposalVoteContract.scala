@@ -23,6 +23,7 @@ class ProposalVoteContract(track: DataBase,
       log.info(s"new proposal vote, voter=${tx.from.shortAddr} agree=${proposalVoteData.agree} proposalID=${proposalVoteData.proposalID}")
       val (valid, errString) = checkValid(proposalVoteData)
       if (valid) {
+        log.info("vote valid, add to databae")
         track.addProposalVote(new ProposalVote(
           proposalVoteData.proposalID,
           tx.from,
@@ -56,6 +57,10 @@ class ProposalVoteContract(track: DataBase,
     if (!proposalExist) {
       valid = false
       errString = ("proposal not exist or time out").getBytes
+    }
+    else if (track.getProposalVoteList().contain(proposalVoteData.proposalID, tx.from)) {
+      valid = false
+      errString = ("voter have already voted this proposal, can NOT vote again").getBytes
     }
     else {
       if (!targetProposal.voterValid(tx.from)) {

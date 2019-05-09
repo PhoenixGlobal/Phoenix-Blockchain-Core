@@ -4,7 +4,7 @@ import java.io.{DataInputStream, DataOutputStream}
 
 import com.apex.common.Serializable
 import com.apex.common.ApexLogging
-import com.apex.crypto.UInt256
+import com.apex.crypto.{UInt160, UInt256}
 import play.api.libs.json.{JsValue, Json, Writes}
 
 class ProposalVoteList(val votes: Array[ProposalVote],
@@ -21,6 +21,10 @@ class ProposalVoteList(val votes: Array[ProposalVote],
 
   def agreeCount(proposalID: UInt256): Int = {
     votes.count(v => {v.proposalID == proposalID && v.agree})
+  }
+
+  def contain(proposalID: UInt256, voter: UInt160): Boolean = {
+    votes.count(v => {v.proposalID == proposalID && v.voter == voter}) > 0
   }
 
   override def serialize(os: DataOutputStream): Unit = {
