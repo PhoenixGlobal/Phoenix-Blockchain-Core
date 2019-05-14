@@ -16,7 +16,7 @@ import akka.pattern.ask
 import akka.stream.ActorMaterializer
 import akka.util.Timeout
 import com.apex.common.ApexLogging
-import com.apex.consensus.{WitnessInfo, WitnessList, WitnessVote}
+import com.apex.consensus.{AddressVoteList, WitnessInfo, WitnessList, WitnessVote}
 import com.apex.core._
 import com.apex.proposal.{Proposal, ProposalList, ProposalVoteList}
 import com.apex.rpc.RpcServer.sussesRes
@@ -251,6 +251,29 @@ object RpcServer extends ApexLogging {
                             case Some(producer) => sussesRes(Json.prettyPrint(WitnessInfo.witnessInfoWrites.writes(producer)))
                             case None => sussesRes("")
                           }
+                        }
+                        case Failure(e) => error500Res(e.getMessage)
+                      })
+                  complete(f)
+                }
+                case e: JsError => {
+                  complete(HttpEntity(ContentTypes.`application/json`, error400Res()))
+                }
+              }
+            }
+          }
+        } ~
+        path("getProducerVotes") {
+          post {
+            entity(as[String]) { data =>
+              Json.parse(data).validate[GetProducerAllVoterCmd] match {
+                case cmd: JsSuccess[GetProducerAllVoterCmd] => {
+                  val f = (nodeRef ? cmd.value)
+                    .mapTo[Try[AddressVoteList]]
+                    .map(s =>
+                      s match {
+                        case Success(votes) => {
+                          sussesRes(Json.prettyPrint(AddressVoteList.addressVoteListWrites.writes(votes)))
                         }
                         case Failure(e) => error500Res(e.getMessage)
                       })

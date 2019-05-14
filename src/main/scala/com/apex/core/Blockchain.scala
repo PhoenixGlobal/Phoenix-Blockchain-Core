@@ -4,9 +4,7 @@ import java.io.{ByteArrayInputStream, DataInputStream}
 import java.time.Instant
 
 import com.apex.common.{ApexLogging, Helper}
-import com.apex.consensus.WitnessVote
-import com.apex.consensus.WitnessList
-import com.apex.consensus.{ProducerUtil, WitnessInfo}
+import com.apex.consensus._
 import com.apex.crypto.Ecdsa.{PrivateKey, PublicKeyHash}
 import com.apex.crypto.{BinaryData, Crypto, FixedNumber, MerkleTree, UInt160, UInt256}
 import com.apex.proposal._
@@ -956,6 +954,10 @@ class Blockchain(chainSettings: ChainSettings,
       }
       case _ => null
     }
+  }
+
+  def getProducerVotes(producer: UInt160): AddressVoteList = {
+    dataBase.getWitnessAllVoter(producer)
   }
 
   def getProposal(id: UInt256): Option[Proposal] = {

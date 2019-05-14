@@ -204,6 +204,12 @@ class Node(val settings: ApexSettings, config: Config)
         }
         sender() ! producer
       }
+      case GetProducerAllVoterCmd(addr) => {
+        val voters = Try {
+          chain.getProducerVotes(addr)
+        }
+        sender() ! voters
+      }
       case GetProposalCmd(id) => {
         val proposal = Try {
           chain.getProposal(id)

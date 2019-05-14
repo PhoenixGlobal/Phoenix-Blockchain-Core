@@ -177,6 +177,21 @@ class DataBase(settings: DataBaseSettings, consensusSettings: ConsensusSettings,
     witnessVoteStore.get(address)
   }
 
+  def getAllWitnessVote(): ArrayBuffer[WitnessVote] = {
+    witnessVoteStore.getLists(Array(StoreType.Data.id.toByte, DataType.WitnessVotes.id.toByte))
+  }
+
+  def getWitnessAllVoter(witness: UInt160): AddressVoteList = {
+    val allVotes = getAllWitnessVote()
+    val voters = ArrayBuffer.empty[AddressVote]
+    allVotes.foreach(v => {
+      if (v.targetMap.contains(witness)) {
+        voters.append(new AddressVote(v.voter, v.targetMap.get(witness).get))
+      }
+    })
+    new AddressVoteList(voters.toArray)
+  }
+
   def createWitnessVote(address: UInt160, vote: WitnessVote): Unit = {
     witnessVoteStore.set(address, vote)
   }
