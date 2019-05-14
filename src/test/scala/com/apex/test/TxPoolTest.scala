@@ -9,18 +9,17 @@
 package com.apex.test
 
 
-import com.apex.core.{Transaction, TransactionPool, TransactionType, TxEntry}
+import com.apex.core._
 import com.apex.crypto.{BinaryData, FixedNumber, UInt160}
 import org.junit.Test
-import play.api.libs.json._
 
 @Test
-class TxPoolTest {   
+class TxPoolTest {
 
   @Test
   def testAdd = {
-     val tx1 = new Transaction(TransactionType.Call, UInt160.Zero, UInt160.Zero, FixedNumber.Zero, 1, BinaryData.empty,
-       FixedNumber(1000), 100, BinaryData.empty, 1, 0)
+    val tx1 = new Transaction(TransactionType.Call, UInt160.Zero, UInt160.Zero, FixedNumber.Zero, 1, BinaryData.empty,
+      FixedNumber(1000), 100, BinaryData.empty, 1, 0)
 
     val tx1same = new Transaction(TransactionType.Call, UInt160.Zero, UInt160.Zero, FixedNumber.Zero, 1, BinaryData.empty,
       FixedNumber(1000), 100, BinaryData.empty, 1, 0)
@@ -28,7 +27,7 @@ class TxPoolTest {
     val tx2 = new Transaction(TransactionType.Call, UInt160.Zero, UInt160.Zero, FixedNumber.Zero, 2, BinaryData.empty,
       FixedNumber(1000), 100, BinaryData.empty, 1, 0)
 
-    val txPool = new TransactionPool()
+    val txPool = new TransactionPool(new Notification)
 
     txPool.add(tx1)
 
@@ -63,7 +62,7 @@ class TxPoolTest {
     val tx3same = new Transaction(TransactionType.Call, UInt160.Zero, UInt160.Zero, FixedNumber.Zero, 3, BinaryData.empty,
       FixedNumber(1000), 100, BinaryData.empty, 1, 0)
 
-    val txPool = new TransactionPool()
+    val txPool = new TransactionPool(new Notification)
 
     txPool.add(tx1)
     txPool.add(tx2)
@@ -147,7 +146,7 @@ class TxPoolTest {
     val tx9 = new Transaction(TransactionType.Call, addr6, UInt160.Zero, FixedNumber.Zero, 10, BinaryData.empty,
       FixedNumber(700), 100, BinaryData.empty, 1, 0)
 
-    val txPool = new TransactionPool()
+    val txPool = new TransactionPool(new Notification)
 
     txPool.add(tx1)
     txPool.add(tx2)
@@ -159,7 +158,7 @@ class TxPoolTest {
     txPool.add(tx8)
     txPool.add(tx9)
 
-    val sort = txPool.getSortedTxs()//txPool.unapplyTxsSorted.toArray
+    val sort = txPool.getSortedTxs() //txPool.unapplyTxsSorted.toArray
 
     //sort.foreach(f => println(Json.toJson(f.tx)))
 
