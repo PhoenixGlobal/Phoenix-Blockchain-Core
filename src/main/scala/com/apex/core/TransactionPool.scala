@@ -34,7 +34,7 @@ case class TxEntry(tx: Transaction,
   }
 }
 
-class TransactionPool extends ApexLogging {
+class TransactionPool(notification: Notification) extends ApexLogging {
 
   val txsMap = mutable.LinkedHashMap.empty[UInt256, Transaction]
   var txsSorted = mutable.SortedSet.empty[TxEntry]
@@ -101,6 +101,7 @@ class TransactionPool extends ApexLogging {
     badTxs.foreach(tx => {
       log.info(s"tx pool remove timeout tx ${tx.id}")
       remove(tx)
+      notification.broadcast(DeleteTransactionNotify(tx))
     })
   }
 

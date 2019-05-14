@@ -81,6 +81,10 @@ class MongodbPlugin(settings: ApexSettings)
     txCol.find(equal("txHash", tx.id.toString)).results().size > 0
   }
 
+  private def findPendingTransaction(tx: Transaction): Boolean = {
+    txCol.find(and(equal("txHash", tx.id.toString), equal("status", "Pending"))).results().size > 0
+  }
+
   private def removeBlock(blockSummary: BlockSummary) = {
     val block = blockSummary.block
     log.info(s"MongodbPlugin remove block ${block.height()} , ${block.shortId()}")
@@ -96,7 +100,8 @@ class MongodbPlugin(settings: ApexSettings)
   }
 
   private def deleteTransaction(tx: Transaction): Unit = {
-    txCol.deleteOne(equal("txHash", tx.id.toString)).results()
+    if (findPendingTransaction(tx)) //only  Pending tx can be deleted
+      txCol.deleteOne(equal("txHash", tx.id.toString)).results()
   }
 
   private def addBlock(blockSummary: BlockSummary) = {

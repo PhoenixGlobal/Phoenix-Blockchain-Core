@@ -70,7 +70,7 @@ class Blockchain(chainSettings: ChainSettings,
 
   private val genesisBlock: Block = buildGenesisBlock()
 
-  private val txPool = new TransactionPool()
+  private val txPool = new TransactionPool(notification)
 
   private var timeoutTx: Option[Transaction] = None
 
