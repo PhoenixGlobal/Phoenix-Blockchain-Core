@@ -188,6 +188,29 @@ object RpcServer extends ApexLogging {
             }
           }
         } ~
+        path("sendrawtransactions") {
+          post {
+            entity(as[String]) { data =>
+              Json.parse(data).validate[SendRawTransactionsCmd] match {
+                case cmd: JsSuccess[SendRawTransactionsCmd] => {
+                  //log.info("send transaction: " + Json.toJson(cmd.value.rawTx).toString())
+                  val f = (nodeRef ? cmd.value)
+                    .mapTo[Try[AddTxResult]]
+                    .map(s =>
+                      s match {
+                        case Success(sendTx) => sussesRes(Json.prettyPrint(AddTxResult.resultWrites.writes(sendTx)))
+                        case Failure(e) => error500Res(e.getMessage)
+                      })
+                  complete(f)
+                }
+                case e: JsError => {
+                  println(e)
+                  complete(HttpEntity(ContentTypes.`application/json`, error400Res))
+                }
+              }
+            }
+          }
+        } ~
         path("getblockheight") {
           post {
             entity(as[String]) { _ =>

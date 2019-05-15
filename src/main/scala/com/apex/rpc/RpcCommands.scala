@@ -78,6 +78,29 @@ object SendRawTransactionCmd {
     ) map (SendRawTransactionCmd.apply _)
 }
 
+//  {"txs" : [
+//     {"rawTx" : "aabbcc"  },
+//     {"rawTx" : "ddeeff"  }
+//  ] }
+case class SendRawTransactionsCmd(rawTxs: List[Transaction]) extends RPCCommand
+
+object SendRawTransactionsCmd {
+  implicit val testReads: Reads[SendRawTransactionsCmd] = (
+    (__ \ "txs").read[List[Map[String, String]]].map(_.map(_("rawTx")))
+    ) map (f => {
+      val txs = ArrayBuffer.empty[Transaction]
+      f.foreach(tx => {
+        try {
+          val is = new DataInputStream(new ByteArrayInputStream(BinaryData(tx)))
+          txs.append(Transaction.deserialize(is))
+        }
+        catch {
+          case e: Throwable => println(e.getMessage)
+        }
+      })
+      SendRawTransactionsCmd(txs.toList)  })
+}
+
 case class GetBlockByHeightCmd(height: Int) extends RPCCommand
 
 //{

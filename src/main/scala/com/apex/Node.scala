@@ -186,6 +186,24 @@ class Node(val settings: ApexSettings, config: Config)
         }
         sender() ! sendTx
       }
+      case SendRawTransactionsCmd(txs) => {
+        val sendTx = Try {
+          var successTxNum = 0
+          txs.foreach(tx => {
+            if (tx.verifySignature()) {
+              val addResult = chain.addTransactionEx(tx)
+              if (addResult.added) {
+                broadcastInvMsg(new InventoryPayload(InventoryType.Tx, Seq(tx.id)))
+                successTxNum += 1
+              }
+              else
+                log.error(s"SendRawTransactionsCmd addTransaction error, txid=${tx.id.toString}  ${addResult.result}")
+            }
+          })
+          new AddTxResult(true, s"added ${successTxNum} of ${txs.size} txs")
+        }
+        sender() ! sendTx
+      }
       case GetContractByIdCmd(id) => {
         val receipt = Try {
           chain.getReceipt(id)
