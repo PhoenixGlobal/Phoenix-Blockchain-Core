@@ -13,6 +13,8 @@ import org.mongodb.scala.model._
 import org.mongodb.scala.bson.BsonDateTime
 import com.apex.plugins.mongodb.Helpers._
 import com.apex.settings.ApexSettings
+
+import scala.collection.mutable.ArrayBuffer
 import scala.concurrent.ExecutionContext
 
 class MongodbPlugin(settings: ApexSettings)
@@ -45,64 +47,51 @@ class MongodbPlugin(settings: ApexSettings)
         txCol.updateOne(equal("txHash", tx.id.toString), set("confirmed", true)).results()
       })
     }
-    case AddTransactionNotify(tx) => {
-      if (findTransaction(tx) == false)
-        addTransaction(tx, None)
-    }
-    case DeleteTransactionNotify(tx) => {
-      deleteTransaction(tx) //remove transaction from txpool
-    }
+//    case AddTransactionNotify(tx) => {
+//      if (findTransaction(tx) == false)
+//        addTransaction(tx, None)
+//    }
+//    case DeleteTransactionNotify(tx) => {
+//      deleteTransaction(tx) //remove transaction from txpool
+//    }
     case ForkSwitchNotify(from, to) => {
       log.info("MongodbPlugin got ForkSwitchNotify")
       from.foreach(block => removeBlock(block))
       to.foreach(block => addBlock(block))
     }
-    case UpdateAverageGasPrice(averageGasPrice) => {
-      updateGasPrice(averageGasPrice)
-    }
+//    case UpdateAverageGasPrice(averageGasPrice) => {
+//      updateGasPrice(averageGasPrice)
+//    }
     case a: Any => {
       log.info(s"${sender().toString}, ${a.toString}")
     }
   }
 
-  def updateGasPrice(gasPrice: String): Unit = {
-    if (gasPriceCol.find(equal("_id", 1)).results().size > 0) {
-      gasPriceCol.updateOne(equal("_id", 1), set("average_gp", gasPrice)).results()
-    } else {
-      val gasDoc: Document = Document("_id" -> 1,
-        "average_gp" -> gasPrice)
-      gasPriceCol.insertOne(gasDoc).results()
-    }
-
-  }
-
-
-  private def findTransaction(tx: Transaction): Boolean = {
-    txCol.find(equal("txHash", tx.id.toString)).results().size > 0
-  }
-
-  private def findPendingTransaction(tx: Transaction): Boolean = {
-    txCol.find(and(equal("txHash", tx.id.toString), equal("status", "Pending"))).results().size > 0
-  }
+//  def updateGasPrice(gasPrice: String): Unit = {
+//    if (gasPriceCol.find(equal("_id", 1)).results().size > 0) {
+//      gasPriceCol.updateOne(equal("_id", 1), set("average_gp", gasPrice)).results()
+//    } else {
+//      val gasDoc: Document = Document("_id" -> 1,
+//        "average_gp" -> gasPrice)
+//      gasPriceCol.insertOne(gasDoc).results()
+//    }
+//
+//  }
+//
+//  private def findTransaction(tx: Transaction): Boolean = {
+//    txCol.find(equal("txHash", tx.id.toString)).results().size > 0
+//  }
 
   private def removeBlock(blockSummary: BlockSummary) = {
     val block = blockSummary.block
     log.info(s"MongodbPlugin remove block ${block.height()} , ${block.shortId()}")
     blockCol.deleteOne(equal("blockHash", block.id().toString)).results()
     block.transactions.foreach(tx => {
-      //txCol.updateOne(equal("txHash", tx.id.toString), set("refBlockHash", "")).results()
-      //txCol.updateOne(equal("txHash", tx.id.toString), set("refBlockHeight", Int.MaxValue)).results()
-      //txCol.updateOne(equal("txHash", tx.id.toString), set("refBlockTime", BsonDateTime(0))).results()
-      //txCol.updateOne(equal("txHash", tx.id.toString), set("confirmed", false)).results()
       txCol.deleteOne(equal("txHash", tx.id.toString)).results()
     })
     updateTps(block, false)
   }
 
-  private def deleteTransaction(tx: Transaction): Unit = {
-    if (findPendingTransaction(tx)) //only  Pending tx can be deleted
-      txCol.deleteOne(equal("txHash", tx.id.toString)).results()
-  }
 
   private def addBlock(blockSummary: BlockSummary) = {
     val block = blockSummary.block
@@ -127,27 +116,7 @@ class MongodbPlugin(settings: ApexSettings)
 
     blockCol.insertOne(newBlock).results()
 
-    val summary = blockSummary.txReceiptsMap
-    block.transactions.foreach(tx => {
-      if (findTransaction(tx)) {
-        val txReceipt = summary.getOrElse(tx.id(), None)
-        if (txReceipt.isDefined) {
-          val gasUsed = txReceipt.get.gasUsed
-          txCol.updateOne(equal("txHash", tx.id.toString), set("gasUsed", gasUsed.longValue())).results()
-          txCol.updateOne(equal("txHash", tx.id.toString), set("fee", (tx.gasPrice * gasUsed).toString)).results()
-
-          val status = if (txReceipt.get.error.isEmpty) "Success" else "Fail"
-          txCol.updateOne(equal("txHash", tx.id.toString), set("status", status)).results()
-        }
-        txCol.updateOne(equal("txHash", tx.id.toString), set("refBlockHash", block.id.toString)).results()
-        txCol.updateOne(equal("txHash", tx.id.toString), set("refBlockHeight", block.height)).results()
-        txCol.updateOne(equal("txHash", tx.id.toString), set("refBlockTime", BsonDateTime(block.timeStamp()))).results()
-      }
-      else
-        addTransaction(tx, Some(blockSummary))
-
-      updateAccout(tx, block)
-    })
+    addTransactions(blockSummary)
 
     updateTps(block, true)
   }
@@ -185,57 +154,57 @@ class MongodbPlugin(settings: ApexSettings)
     }
   }
 
-  private def addTransaction(tx: Transaction, blockSummary: Option[BlockSummary]) = {
-    var newTx: Document = Document(
-      "txHash" -> tx.id.toString,
-      "type" -> tx.txType.toString,
-      "from" -> {
-        if (tx.txType == TransactionType.Miner) "" else tx.from.address
-      },
-      "to" -> {
-        if (tx.txType == TransactionType.Deploy)
-          tx.getContractAddress().get.address
-        else tx.toAddress
-      },
-      "amount" -> tx.amount.toString,
-      "nonce" -> tx.nonce.toString,
-      "data" -> tx.data.toString,
-      "gasPrice" -> tx.gasPrice.toString,
-      "gasLimit" -> tx.gasLimit.longValue(),
-      "signature" -> tx.signature.toString,
-      "version" -> tx.version,
-      "executeTime" -> BsonDateTime(tx.executeTime),
-      "createdAt" -> BsonDateTime(Instant.now.toEpochMilli),
-      "confirmed" -> false)
+  private def addTransactions(blockSummary: BlockSummary): Unit = {
+    val block = blockSummary.block
 
-    var status = "Pending"
-    if (blockSummary.isDefined) {
-      val receiptMap = blockSummary.get.txReceiptsMap;
+    val documents = ArrayBuffer.empty[Document]
+
+    block.transactions.foreach(tx => {
+      var newTx: Document = Document(
+        "txHash" -> tx.id.toString,
+        "type" -> tx.txType.toString,
+        "from" -> {
+          if (tx.txType == TransactionType.Miner) "" else tx.from.address
+        },
+        "to" -> {
+          if (tx.txType == TransactionType.Deploy)
+            tx.getContractAddress().get.address
+          else tx.toAddress
+        },
+        "amount" -> tx.amount.toString,
+        "nonce" -> tx.nonce.toString,
+        "data" -> tx.data.toString,
+        "gasPrice" -> tx.gasPrice.toString,
+        "gasLimit" -> tx.gasLimit.longValue(),
+        "signature" -> tx.signature.toString,
+        "version" -> tx.version,
+        "executeTime" -> BsonDateTime(tx.executeTime),
+        "createdAt" -> BsonDateTime(Instant.now.toEpochMilli),
+        "confirmed" -> false)
+
+      val receiptMap = blockSummary.txReceiptsMap;
       val txReceipt = receiptMap.getOrElse(tx.id(), None)
 
       if (txReceipt.isDefined) {
         val gasUsed = txReceipt.get.gasUsed
-        status = if (txReceipt.get.error.isEmpty) "Success" else "Fail"
+        val status = if (txReceipt.get.error.isEmpty) "Success" else "Fail"
         newTx += ("gasUsed" -> gasUsed.longValue(),
-          "fee" -> (tx.gasPrice * gasUsed).toString)
+          "fee" -> (tx.gasPrice * gasUsed).toString,
+          "status" -> status)
       }
-      val block = blockSummary.get.block
+
       newTx += ("refBlockHash" -> block.id.toString,
         "refBlockHeight" -> block.height,
         "refBlockTime" -> BsonDateTime(block.timeStamp()))
       updateAccout(tx, block)
-    }
-    else {
-      newTx += ("refBlockHeight" -> -1)
-    }
 
-    newTx += ("status" -> status)
-    txCol.insertOne(newTx).results()
+      documents.append(newTx)
+    })
+
+    txCol.insertMany(documents).results()
   }
 
-  private def init()
-
-  = {
+  private def init() = {
     log.info("init mongo")
 
     try {

@@ -101,7 +101,7 @@ class TransactionPool(notification: Notification) extends ApexLogging {
     badTxs.foreach(tx => {
       log.info(s"tx pool remove timeout tx ${tx.id}")
       remove(tx)
-      notification.broadcast(DeleteTransactionNotify(tx))
+      //notification.broadcast(DeleteTransactionNotify(tx))
     })
   }
 

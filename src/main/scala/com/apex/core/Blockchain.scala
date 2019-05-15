@@ -290,11 +290,7 @@ class Blockchain(chainSettings: ChainSettings,
           result = addTransactionToUnapplyTxs(tx)
       }
     }
-    if (result.added) {
-      notification.broadcast(AddTransactionNotify(tx))
-      log.info(s"addTransaction success, txid=${tx.id.toString} ${result.result}")
-    }
-    else
+    if (!result.added)
       log.error(s"addTransaction error, from=${tx.from.shortAddr} txid=${tx.id.toString}  ${result.result}")
 
     result
@@ -560,7 +556,7 @@ class Blockchain(chainSettings: ChainSettings,
   }
 
   private def applyRefundTransaction(tx: Transaction, blockProducer: UInt160,
-                                     blockTime: Long, blockIndex:Long): AddTxResult = {
+                                     blockTime: Long, blockIndex: Long): AddTxResult = {
     if (blockTime >= tx.executeTime && dataBase.getScheduleTx(tx.id()).isDefined) {
       dataBase.transfer(tx.from, tx.toPubKeyHash, tx.amount)
       dataBase.deleteScheduleTx(tx.id())
