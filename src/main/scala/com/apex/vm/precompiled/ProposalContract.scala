@@ -64,9 +64,9 @@ class ProposalContract(track: DataBase,
     var valid = true
     var errString = Array.empty[Byte]
     track.getAllProposal().foreach(p => {
-     if (p.proposalType == proposalData.proposalType) {
+     if (p.proposalType == proposalData.proposalType && p.activeTime == proposalData.activeTime) {
        valid = false
-       errString = ("same proposal type already ongoing").getBytes
+       errString = ("same proposal type with same activeTime already ongoing").getBytes
      }
     })
     if (proposalData.activeTime != 0 && proposalData.activeTime < timeStamp + voteTime) {
