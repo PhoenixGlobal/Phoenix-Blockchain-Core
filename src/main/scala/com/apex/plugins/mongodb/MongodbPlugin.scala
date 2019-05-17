@@ -25,9 +25,10 @@ class MongodbPlugin(settings: ApexSettings)
   private val blockCol: MongoCollection[Document] = database.getCollection("block")
   private val txCol: MongoCollection[Document] = database.getCollection("transaction")
   private val accountCol: MongoCollection[Document] = database.getCollection("account")
+  private val minerCol: MongoCollection[Document] = database.getCollection("miner")
   private val tpsHourCol: MongoCollection[Document] = database.getCollection("tps_hour")
   private val tpsTenSecCol: MongoCollection[Document] = database.getCollection("tps_tensec")
-  private val gasPriceCol: MongoCollection[Document] = database.getCollection("gasprice")
+//  private val gasPriceCol: MongoCollection[Document] = database.getCollection("gasprice")
 
   init()
 
@@ -47,40 +48,40 @@ class MongodbPlugin(settings: ApexSettings)
         txCol.updateOne(equal("txHash", tx.id.toString), set("confirmed", true)).results()
       })
     }
-//    case AddTransactionNotify(tx) => {
-//      if (findTransaction(tx) == false)
-//        addTransaction(tx, None)
-//    }
-//    case DeleteTransactionNotify(tx) => {
-//      deleteTransaction(tx) //remove transaction from txpool
-//    }
+    //    case AddTransactionNotify(tx) => {
+    //      if (findTransaction(tx) == false)
+    //        addTransaction(tx, None)
+    //    }
+    //    case DeleteTransactionNotify(tx) => {
+    //      deleteTransaction(tx) //remove transaction from txpool
+    //    }
     case ForkSwitchNotify(from, to) => {
       log.info("MongodbPlugin got ForkSwitchNotify")
       from.foreach(block => removeBlock(block))
       to.foreach(block => addBlock(block))
     }
-//    case UpdateAverageGasPrice(averageGasPrice) => {
-//      updateGasPrice(averageGasPrice)
-//    }
+    //    case UpdateAverageGasPrice(averageGasPrice) => {
+    //      updateGasPrice(averageGasPrice)
+    //    }
     case a: Any => {
       log.info(s"${sender().toString}, ${a.toString}")
     }
   }
 
-//  def updateGasPrice(gasPrice: String): Unit = {
-//    if (gasPriceCol.find(equal("_id", 1)).results().size > 0) {
-//      gasPriceCol.updateOne(equal("_id", 1), set("average_gp", gasPrice)).results()
-//    } else {
-//      val gasDoc: Document = Document("_id" -> 1,
-//        "average_gp" -> gasPrice)
-//      gasPriceCol.insertOne(gasDoc).results()
-//    }
-//
-//  }
-//
-//  private def findTransaction(tx: Transaction): Boolean = {
-//    txCol.find(equal("txHash", tx.id.toString)).results().size > 0
-//  }
+  //  def updateGasPrice(gasPrice: String): Unit = {
+  //    if (gasPriceCol.find(equal("_id", 1)).results().size > 0) {
+  //      gasPriceCol.updateOne(equal("_id", 1), set("average_gp", gasPrice)).results()
+  //    } else {
+  //      val gasDoc: Document = Document("_id" -> 1,
+  //        "average_gp" -> gasPrice)
+  //      gasPriceCol.insertOne(gasDoc).results()
+  //    }
+  //
+  //  }
+  //
+  //  private def findTransaction(tx: Transaction): Boolean = {
+  //    txCol.find(equal("txHash", tx.id.toString)).results().size > 0
+  //  }
 
   private def removeBlock(blockSummary: BlockSummary) = {
     val block = blockSummary.block
@@ -125,14 +126,14 @@ class MongodbPlugin(settings: ApexSettings)
     val option = UpdateOptions()
     option.upsert(true)
     if (tx.from.address.length > 0) {
-      accountCol.updateOne(equal("address", tx.from.address), set("timeStamp", BsonDateTime(block.timeStamp())), option).results()
+      accountCol.updateOne(equal("addr", tx.from.address), set("timeStamp", BsonDateTime(block.timeStamp())), option).results()
+      accountCol.updateOne(equal("addr", tx.from.address), inc("txCount", 1), option).results()
     }
-    accountCol.updateOne(equal("address", tx.toAddress()), set("timeStamp", BsonDateTime(block.timeStamp())), option).results()
-
+    accountCol.updateOne(equal("addr", tx.toAddress()), set("timeStamp", BsonDateTime(block.timeStamp())), option).results()
+    accountCol.updateOne(equal("addr", tx.toAddress()), inc("txCount", 1), option).results()
     if (tx.txType == TransactionType.Miner && block.height() > 0) {
-      accountCol.updateOne(equal("address", tx.toAddress()), inc("blockCount", 1), option).results()
+      minerCol.updateOne(equal("addr", tx.toAddress()), inc("blockCount", 1), option).results()
     }
-
   }
 
   private def updateTps(block: Block, isIncrease: Boolean) = {
@@ -219,9 +220,9 @@ class MongodbPlugin(settings: ApexSettings)
         txCol.createIndex(ascending("from")).results()
         txCol.createIndex(ascending("to")).results()
 
-        accountCol.createIndex(ascending("address")).results()
+        accountCol.createIndex(ascending("addr")).results()
         accountCol.createIndex(ascending("timeStamp")).results()
-
+        minerCol.createIndex(ascending("addr")).results()
         tpsHourCol.createIndex(ascending("timeStamp")).results()
 
         tpsTenSecCol.createIndex(ascending("timeStamp")).results()
