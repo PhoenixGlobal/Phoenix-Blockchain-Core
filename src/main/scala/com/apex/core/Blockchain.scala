@@ -187,6 +187,9 @@ class Blockchain(chainSettings: ChainSettings,
   def txPoolTxNumber: Int = txPool.txNumber
 
   def startProduceBlock(producerPrivKey: PrivateKey, blockTime: Long, stopProcessTxTime: Long): Unit = {
+    if (isProducingBlock()) {
+      log.error(s"start produce block fail because already in producing, ${blockTime} ${pendingState.blockTime} ${pendingState.blockIndex}")
+    }
     require(!isProducingBlock())
     val producer = producerPrivKey.publicKey.pubKeyHash
     val forkHead = forkBase.head.get
@@ -339,8 +342,10 @@ class Blockchain(chainSettings: ChainSettings,
 
   def tryInsertBlock(block: Block, doApply: Boolean = true): Boolean = {
     var inserted = false
-    if (isProducingBlock())
+    if (isProducingBlock()) {
+      log.info(s"tryInsertBlock ${block.height} ${block.shortId} but we are producing, stop produce block ${pendingState.blockIndex}")
       stopProduceBlock()
+    }
 
     if (forkBase.head.get.block.id.equals(block.id)) {
       inserted = false // same as head
@@ -903,6 +908,7 @@ class Blockchain(chainSettings: ChainSettings,
   // "timeMs": time from 1970 in ms, should be divided evenly with no remainder by settings.produceInterval
   def getWitness(timeMs: Long): UInt160 = {
     require(ProducerUtil.isTimeStampValid(timeMs, consensusSettings.produceInterval))
+    require(getBlock(mCurWitnessList.get.generateInBlock).isDefined)
     require(timeMs > getBlock(mCurWitnessList.get.generateInBlock).get.timeStamp())
     val slot = timeMs / consensusSettings.produceInterval
     var index = slot % (consensusSettings.witnessNum * consensusSettings.producerRepetitions)
