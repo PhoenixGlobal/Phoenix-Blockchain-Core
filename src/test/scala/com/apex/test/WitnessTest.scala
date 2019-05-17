@@ -12,7 +12,8 @@ import java.io.{ByteArrayInputStream, ByteArrayOutputStream, DataInputStream, Da
 
 import com.apex.consensus._
 import com.apex.core.Block.deserialize
-import com.apex.crypto.{Crypto, FixedNumber, UInt160, UInt256}
+import com.apex.crypto.{BinaryData, Crypto, FixedNumber, UInt160, UInt256}
+import com.apex.proposal.{Proposal, ProposalList, ProposalStatus, ProposalType}
 import org.junit.Test
 
 import scala.collection.mutable
@@ -369,5 +370,21 @@ class WitnessTest {
 //
 //    assert(newA.location == "abc")
 //  }
+
+  @Test
+  def testProposalListSort = {
+    val p1 = new Proposal(UInt256.Zero, ProposalType.BlockAward, ProposalStatus.PendingActive,
+      0, 0, 10, Array.empty, BinaryData.empty)
+    val p2 = new Proposal(UInt256.Zero, ProposalType.BlockAward, ProposalStatus.PendingActive,
+      0, 0, 15, Array.empty, BinaryData.empty)
+    val p3 = new Proposal(UInt256.Zero, ProposalType.BlockAward, ProposalStatus.PendingActive,
+      0, 0, 7, Array.empty, BinaryData.empty)
+
+    val sorted = ProposalList.sortByActiveTime(Array(p1, p2, p3))
+
+    assert(sorted(0).activeTime == 7)
+    assert(sorted(1).activeTime == 10)
+    assert(sorted(2).activeTime == 15)
+  }
 
 }
