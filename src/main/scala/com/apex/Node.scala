@@ -78,6 +78,7 @@ class Node(val settings: ApexSettings, config: Config)
   }
 
   if (settings.miner.privKeys.size > 0) {
+    settings.miner.privKeys.foreach(key => {log.info(s"miner: ${key.publicKey.address}")})
     val producer = ProducerRef(settings)
   }
   private val chain = new Blockchain(settings.chain, settings.consensus, settings.runtimeParas, notification)

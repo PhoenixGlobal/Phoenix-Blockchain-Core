@@ -92,7 +92,8 @@ case class RuntimeParas(stopProcessTxTimeSlot: Int, txAcceptGasLimit: Long)
 
 case class MongodbSettings(enabled: Boolean, uri: String)
 
-case class MinerSettings(privKeys: Array[PrivateKey]) {
+case class MinerSettings(privKeys: Array[PrivateKey],
+                         forceStartProduce: Boolean = false) {
 
   def findPrivKey(miner: UInt160): Option[PrivateKey] = {
     privKeys.find(p => p.publicKey.pubKeyHash == miner)

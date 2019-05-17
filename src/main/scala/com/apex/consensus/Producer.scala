@@ -58,6 +58,11 @@ class Producer(apexSettings: ApexSettings)
 
   private var enableProduce = false
 
+  if (apexSettings.miner.forceStartProduce) {
+    log.info("forceStartProduce is set, set enableProduce to true")
+    enableProduce = true
+  }
+
   scheduleBegin()
 
   override def postStop(): Unit = {
