@@ -97,12 +97,11 @@ class TransactionPool(notification: Notification) extends ApexLogging {
   def checkRemoveTimeoutTxs = {
     val nowTime = Instant.now.toEpochMilli
     val badTxs = ArrayBuffer.empty[Transaction]
-    txsSorted.foreach(p => if (nowTime - p.firstSeenTime > maxKeepTime) badTxs.append(p.tx))
-    badTxs.foreach(tx => {
-      log.info(s"tx pool remove timeout tx ${tx.id}")
-      remove(tx)
-      //notification.broadcast(DeleteTransactionNotify(tx))
+    txsSorted.foreach(p => if (nowTime - p.firstSeenTime > maxKeepTime) {
+      log.info(s"tx pool remove timeout tx ${p.tx.id}")
+      badTxs.append(p.tx)
     })
+    remove(badTxs)
   }
 
 }

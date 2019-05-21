@@ -235,8 +235,8 @@ class Blockchain(chainSettings: ChainSettings,
         }
       }
     })
-    pendingState.txs.foreach(tx => txPool.remove(tx))
-    badTxs.foreach(tx => txPool.remove(tx))
+    txPool.remove(pendingState.txs)
+    txPool.remove(badTxs)
   }
 
   def isProducingBlock(): Boolean = {
@@ -376,8 +376,8 @@ class Blockchain(chainSettings: ChainSettings,
     }
     if (inserted) {
       txPool.checkRemoveTimeoutTxs
+      txPool.remove(block.transactions)
       block.transactions.foreach(tx => {
-        txPool.remove(tx)
         if (timeoutTx.isDefined && timeoutTx.get.id() == tx.id())
           timeoutTx = None
       })
