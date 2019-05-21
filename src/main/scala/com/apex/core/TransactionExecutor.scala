@@ -96,8 +96,8 @@ class TransactionExecutor(val tx: Transaction,
 
     val txGasCost = tx.gasPrice * tx.gasLimit
     track.addBalance(tx.sender(), -txGasCost)
-    if (TransactionExecutor.logger.isInfoEnabled)
-      TransactionExecutor.logger.info("Paying: txGasCost: [{}], gasPrice: [{}], gasLimit: [{}]", txGasCost, tx.gasPrice, tx.gasLimit)
+//    if (TransactionExecutor.logger.isInfoEnabled)
+//      TransactionExecutor.logger.info("Paying: txGasCost: [{}], gasPrice: [{}], gasLimit: [{}]", txGasCost, tx.gasPrice, tx.gasLimit)
 
     if (tx.isContractCreation)
       create()
@@ -273,7 +273,7 @@ class TransactionExecutor(val tx: Transaction,
     // Transfer fees to miner
     track.addBalance(coinbase, summary.getFee)
     //touchedAccounts.add(coinbase)
-    TransactionExecutor.logger.info("Pay fees to miner: [{}], feesEarned: [{}]", coinbase.address, summary.getFee.longValue())
+//    TransactionExecutor.logger.info("Pay fees to miner: [{}], feesEarned: [{}]", coinbase.address, summary.getFee.longValue())
     summary
   }
 
