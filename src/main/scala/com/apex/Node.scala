@@ -467,12 +467,12 @@ class Node(val settings: ApexSettings, config: Config)
       count += 1
       if (count > 10)
         step *= 2
-      if (step > 7200)
-        step = 7200
+      if (step > 720)
+        step = 720
       index -= step
     }
     blockLocatorHashes.append(chain.getHeader(confirmedHeight).get.id)
-    log.info(s"send GetBlocksMessage. Current status: ${chain.getHeight()} ${chain.getLatestHeader().shortId}")
+    log.info(s"send GetBlocksMessage. Current status: Height=${chain.getHeight()} ${chain.getLatestHeader().shortId} confirmedHeight=${confirmedHeight}")
     sender() ! GetBlocksMessage(new GetBlocksPayload(blockLocatorHashes, UInt256.Zero)).pack
   }
 
