@@ -463,7 +463,7 @@ class Blockchain(chainSettings: ChainSettings,
     }
     dataBase.witnessBlockCountAdd(curBlock.producer())
 
-    dataBase.getAllProposal().foreach(p => {
+    ProposalList.sortByActiveTime(dataBase.getAllProposal().toArray).foreach(p => {
       if (p.status == ProposalStatus.PendingActive) {
         if (curBlock.timeStamp() >= p.activeTime)
           activeProposal(p)

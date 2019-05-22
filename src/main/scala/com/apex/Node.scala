@@ -465,7 +465,7 @@ class Node(val settings: ApexSettings, config: Config)
     while (index > confirmedHeight) {
       blockLocatorHashes.append(chain.getHeader(index).get.id)
       count += 1
-      if (count > 10)
+      if (count > 20)
         step *= 2
       if (step > 720)
         step = 720
