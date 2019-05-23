@@ -385,6 +385,18 @@ class Blockchain(chainSettings: ChainSettings,
     inserted
   }
 
+  def tryInsertCacheBlock(height: Long): Boolean = {
+    var inserted = false
+    blockBase.cacheGetBlock(height).foreach(b => {
+      log.info(s"found block ${b.height()} ${b.shortId()} in cache")
+      if (tryInsertBlock(b)) {
+        inserted = true
+        log.info(s"success insert cache block #${b.height} ${b.shortId} by ${b.producer.shortAddr} txNum=${b.transactions.size}")
+      }
+    })
+    inserted
+  }
+
   private def blockSummary(block: Block): BlockSummary = {
     val summary = mutable.Map[UInt256, Option[TransactionReceipt]]()
     block.transactions.foreach(tx => {

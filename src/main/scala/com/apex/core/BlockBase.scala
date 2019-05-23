@@ -22,6 +22,8 @@ class BlockBase(settings: BlockBaseSettings) {
   private val headBlockStore = new HeadBlockStore(db)
   private val receiptStore = new ReceiptStore(db, settings.cacheSize)
 
+  private val blockCacheStore = new BlockCacheStore(db, settings.cacheSize)
+
   def head(): Option[BlockHeader] = {
     headBlockStore.get()
   }
@@ -33,7 +35,19 @@ class BlockBase(settings: BlockBaseSettings) {
       blockStore.set(block.id, block, batch)
       heightStore.set(block.height, block.id, batch)
       headBlockStore.set(block.header, batch)
+
+      blockCacheStore.delete(block.height(), batch)
     })
+  }
+
+  def cacheAdd(block: Block): Unit = {
+    require(block.height() > head().get.index)
+
+    blockCacheStore.set(block.height(), block)
+  }
+
+  def cacheGetBlock(height: Long): Option[Block] = {
+    blockCacheStore.get(height)
   }
 
   def getBlock(id: UInt256): Option[Block] = {

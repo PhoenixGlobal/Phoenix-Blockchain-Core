@@ -19,6 +19,12 @@ class BlockStore(db: Storage.raw, capacity: Int)
     with UInt256Key
     with BlockValue
 
+class BlockCacheStore(db: Storage.raw, capacity: Int)
+  extends StoreBase[Long, Block](db, capacity)
+    with BlockCachePrefix
+    with LongKey
+    with BlockValue
+
 class HeaderStore(db: Storage.raw, capacity: Int)
   extends StoreBase[UInt256, BlockHeader](db, capacity)
     with HeaderPrefix
@@ -166,6 +172,7 @@ object DataType extends Enumeration {
   val scheduleTransaction = Value(0x0b)
   val WitnessInfo = Value(0x0c)
   val Proposal = Value(0x0d)
+  val BlockCache = Value(0x0e)
 }
 
 object IndexType extends Enumeration {
@@ -214,6 +221,10 @@ trait StatePrefix extends Prefix {
 
 trait BlockPrefix extends DataPrefix {
   override val dataType: DataType.Value = DataType.Block
+}
+
+trait BlockCachePrefix extends DataPrefix {
+  override val dataType: DataType.Value = DataType.BlockCache
 }
 
 trait HeaderPrefix extends DataPrefix {
