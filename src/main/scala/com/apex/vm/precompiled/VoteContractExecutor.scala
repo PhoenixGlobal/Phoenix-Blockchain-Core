@@ -1,8 +1,8 @@
 package com.apex.vm.precompiled
 
-import com.apex.consensus.{WitnessVote, WitnessVoteData, WitnessInfo}
+import com.apex.consensus.{WitnessInfo, WitnessVote, WitnessVoteData}
 import com.apex.core.{DataBase, OperationType, Transaction, TransactionType}
-import com.apex.crypto.{FixedNumber, UInt160}
+import com.apex.crypto.{BinaryData, FixedNumber, UInt160}
 
 object VoteContractExecutor {
 
@@ -147,7 +147,7 @@ object VoteContractExecutor {
       //note: this scheduleTx from and to address are opposite to tx; amount is the register spend;
       // the tx hash exists in the data filed of scheduleTx
       val scheduleTx = new Transaction(TransactionType.Refund, tx.toPubKeyHash, tx.from, voteData.voterCount, tx.nonce, tx.id.data,
-        tx.gasPrice, tx.gasLimit, tx.signature, tx.version, time)
+        tx.gasPrice, tx.gasLimit, BinaryData.empty, tx.version, time)
       track.setScheduleTx(scheduleTx.id, scheduleTx)
       if (witness.isDefined) {
         val newWitness = witness.get.copy(voteCounts = witness.get.voteCounts - voteData.voterCount)
