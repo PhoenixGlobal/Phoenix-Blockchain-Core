@@ -237,7 +237,7 @@ class Node(val settings: ApexSettings, config: Config)
       }
       case GetVotesCmd(addr) => {
         val votes = Try {
-          chain.getWitnessVote(addr)
+          chain.getWitnessVoteInfo(addr)
         }
         sender() ! votes
       }

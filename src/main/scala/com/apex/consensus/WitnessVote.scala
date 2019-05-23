@@ -10,6 +10,7 @@ package com.apex.consensus
 
 import java.io.{DataInputStream, DataOutputStream}
 
+import com.apex.core.Transaction
 import com.apex.crypto.{FixedNumber, UInt160}
 import play.api.libs.json.{JsValue, Json, Writes}
 
@@ -38,6 +39,11 @@ case class WitnessVote(voter: UInt160,
 
 }
 
+case class WitnessVoteInfo(voter: UInt160,
+                           targetMap: mutable.Map[UInt160, FixedNumber],
+                           pendingRefundTxs: Seq[Transaction],
+                           version: Int = 0x01)
+
 object WitnessVote {
 
   def deserialize(is: DataInputStream): WitnessVote = {
@@ -56,6 +62,17 @@ object WitnessVote {
         "voter" -> o.voter.address,
         "target" -> o.targetMap.map(t => t._1.address +" - "+ t._2.toString()),
         "version" -> o.version
+      )
+    }
+  }
+
+  implicit val witnessVoteInfoWrites = new Writes[WitnessVoteInfo] {
+    override def writes(o: WitnessVoteInfo): JsValue = {
+      Json.obj(
+        "voter" -> o.voter.address,
+        "target" -> o.targetMap.map(t => t._1.address +" - "+ t._2.toString()),
+        "version" -> o.version,
+        "pendingRefundTxs" -> o.pendingRefundTxs
       )
     }
   }

@@ -788,6 +788,12 @@ class Blockchain(chainSettings: ChainSettings,
     dataBase.getWitnessVote(address)
   }
 
+  def getWitnessVoteInfo(address: UInt160): WitnessVoteInfo = {
+    val txs = dataBase.getAllScheduleTx().filter(tx => tx.toPubKeyHash == address)
+    val w = getWitnessVote(address).getOrElse(new WitnessVote(address))
+    new WitnessVoteInfo(w.voter, w.targetMap, txs, w.version)
+  }
+
   def getReceipt(txid: UInt256): Option[TransactionReceipt] = {
     blockBase.getReceipt(txid)
   }
