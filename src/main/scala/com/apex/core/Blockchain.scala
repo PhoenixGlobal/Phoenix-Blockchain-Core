@@ -388,13 +388,20 @@ class Blockchain(chainSettings: ChainSettings,
   def tryInsertCacheBlock(height: Long): Boolean = {
     var inserted = false
     blockBase.cacheGetBlock(height).foreach(b => {
-      log.info(s"found block ${b.height()} ${b.shortId()} in cache")
+      log.info(s"found block ${b.height()} ${b.shortId()} in local cache")
       if (tryInsertBlock(b)) {
         inserted = true
         log.info(s"success insert cache block #${b.height} ${b.shortId} by ${b.producer.shortAddr} txNum=${b.transactions.size}")
       }
     })
     inserted
+  }
+
+  def addBlockToCache(block: Block) = {
+    if (block.height() > getConfirmedHeight()) {
+      log.info(s"add block ${block.height} ${block.shortId} to cache")
+      blockBase.cacheAdd(block)
+    }
   }
 
   private def blockSummary(block: Block): BlockSummary = {

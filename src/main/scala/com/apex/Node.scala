@@ -333,6 +333,13 @@ class Node(val settings: ApexSettings, config: Config)
     }
   }
 
+  private def tryCheckCacheBlock(height: Long) = {
+    var h = height
+    while (chain.tryInsertCacheBlock(h)) {
+      h += 1
+    }
+  }
+
   private def processBlockMessage(msg: BlockMessage) = {
     log.debug(s"received a block #${msg.block.height} (${msg.block.shortId})")
     if (msg.block.height() <= chain.getConfirmedHeight()) {
@@ -342,6 +349,7 @@ class Node(val settings: ApexSettings, config: Config)
     else if (chain.tryInsertBlock(msg.block, true)) {
       broadcastInvMsg(new InventoryPayload(InventoryType.Block, Seq(msg.block.id)))
       log.info(s"success insert block #${msg.block.height} ${msg.block.shortId} by ${msg.block.producer.shortAddr} txNum=${msg.block.transactions.size}")
+      tryCheckCacheBlock(msg.block.height() + 1)
     }
     else {
       log.error(s"failed insert block #${msg.block.height}, ${msg.block.shortId} by ${msg.block.producer.shortAddr} to db")
@@ -350,11 +358,13 @@ class Node(val settings: ApexSettings, config: Config)
         if (msg.block.height - chain.getHeight < 10) // do not send too many request during init sync
           sendGetBlocksMessage()
       }
+      chain.addBlockToCache(msg.block)
     }
   }
 
   private def processBlocksMessage(msg: BlocksMessage) = {
     var isMinorForkChain = false
+    var lastInsertBlock: Long = 0
     log.info(s"received ${msg.blocks.blocks.size} blocks, first is ${msg.blocks.blocks.head.height} ${msg.blocks.blocks.head.shortId}")
     msg.blocks.blocks.foreach(block => {
       if (block.height() <= chain.getConfirmedHeight()) {
@@ -363,14 +373,17 @@ class Node(val settings: ApexSettings, config: Config)
         log.info(s"received minor fork block, do nothing, ${block.height} ${block.shortId} by ${block.producer.shortAddr}")
       }
       else if (chain.tryInsertBlock(block, true)) {
+        lastInsertBlock = block.height()
         log.info(s"success insert block #${block.height} (${block.shortId}) by ${block.producer.shortAddr} txNum=${block.transactions.size}")
         if (msg.blocks.blocks.size == 1) // no need to send INV during sync
           broadcastInvMsg(new InventoryPayload(InventoryType.Block, Seq(block.id)))
       }
       else {
         log.debug(s"failed insert block #${block.height}, (${block.shortId}) by ${block.producer.shortAddr} to db")
+        chain.addBlockToCache(block)
       }
     })
+    tryCheckCacheBlock(lastInsertBlock + 1)
     // continue get more following blocks
     if (msg.blocks.blocks.size > 1 && isMinorForkChain == false)
       sender() ! GetBlocksMessage(new GetBlocksPayload(Seq(msg.blocks.blocks.last.id), UInt256.Zero)).pack
@@ -406,7 +419,7 @@ class Node(val settings: ApexSettings, config: Config)
         sender() ! GetDataMessage(new InventoryPayload(InventoryType.Block, newBlocks)).pack
       }
       else if (inv.hashs.size >= hashCountMax) {
-        log.info(s"all the block hashs in the inv are not new, request more, last hash is ${inv.hashs.last.shortString()} block #${chain.getBlock(inv.hashs.last).get.height()}")
+        log.info(s"all the ${inv.hashs.size} block hashs in the inv are not new, request more, last hash is ${inv.hashs.last.shortString()} block #${chain.getBlock(inv.hashs.last).get.height()}")
         sender() ! GetBlocksMessage(new GetBlocksPayload(Seq(inv.hashs.last), UInt256.Zero)).pack
       }
     }
