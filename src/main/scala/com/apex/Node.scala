@@ -354,11 +354,11 @@ class Node(val settings: ApexSettings, config: Config)
     else {
       log.error(s"failed insert block #${msg.block.height}, ${msg.block.shortId} by ${msg.block.producer.shortAddr} to db")
       if (!chain.containsBlock(msg.block.id)) {
+        chain.addBlockToCache(msg.block)
         // out of sync, or there are fork chains,  to get more blocks
         if (msg.block.height - chain.getHeight < 10) // do not send too many request during init sync
           sendGetBlocksMessage()
       }
-      chain.addBlockToCache(msg.block)
     }
   }
 
@@ -380,7 +380,8 @@ class Node(val settings: ApexSettings, config: Config)
       }
       else {
         log.debug(s"failed insert block #${block.height}, (${block.shortId}) by ${block.producer.shortAddr} to db")
-        chain.addBlockToCache(block)
+        if (!chain.containsBlock(block.id))
+          chain.addBlockToCache(block)
       }
     })
     tryCheckCacheBlock(lastInsertBlock + 1)
