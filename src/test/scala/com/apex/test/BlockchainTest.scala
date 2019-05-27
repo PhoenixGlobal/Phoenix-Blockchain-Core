@@ -936,8 +936,8 @@ class BlockchainTest {
       val block3B = makeBlock(chain, block2B, Seq(makeTx(_acct1, _acct2, FixedNumber.fromDecimal(9999), 2)))
       assert(!tryInsertBlock(chain, block3B))
 
-      assert(chain.containsBlock(block2B.id))
-      assert(!chain.containsBlock(block3B.id))
+      assert(chain.containsBlock(block2B))
+      assert(!chain.containsBlock(block3B))
 
       assert(chain.head.id() == block2A.id())
       assert(chain.getLatestHeader().id() == block2A.id())
@@ -1026,8 +1026,8 @@ class BlockchainTest {
       val block3B = makeBlock(chain, block2B, Seq(makeTx(_acct1, _acct2, FixedNumber.fromDecimal(9), 2)))
       assert(!tryInsertBlock(chain, block3B))
 
-      assert(!chain.containsBlock(block2B.id))
-      assert(!chain.containsBlock(block3B.id))
+      assert(!chain.containsBlock(block2B))
+      assert(!chain.containsBlock(block3B))
 
       assert(chain.head.id() == block2A.id())
       assert(chain.getLatestHeader().id() == block2A.id())

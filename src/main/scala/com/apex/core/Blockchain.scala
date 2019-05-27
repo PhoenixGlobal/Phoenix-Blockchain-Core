@@ -38,9 +38,10 @@ class PendingState {
 class Blockchain(chainSettings: ChainSettings,
                  consensusSettings: ConsensusSettings,
                  runtimeParas: RuntimeParas,
-                 notification: Notification) extends Iterable[Block] with ApexLogging {
+                 notification: Notification,
+                 forceStartProduce: Boolean = false) extends Iterable[Block] with ApexLogging {
 
-  log.info("Blockchain starting")
+  log.info(s"Blockchain starting, forceStartProduce=${forceStartProduce}")
 
   private val genesisProducerPrivKey = new PrivateKey(BinaryData(chainSettings.genesis.privateKey))
 
@@ -168,6 +169,10 @@ class Blockchain(chainSettings: ChainSettings,
     forkBase.contains(id) || blockBase.containBlock(id)
   }
 
+  def containsBlock(block: Block): Boolean = {
+    containsBlock(block.id)
+  }
+
   def blockIsConfirmed(id: UInt256): Boolean = {
     blockBase.containBlock(id)
   }
@@ -191,52 +196,57 @@ class Blockchain(chainSettings: ChainSettings,
       log.error(s"start produce block fail because already in producing, ${blockTime} ${pendingState.blockTime} ${pendingState.blockIndex}")
     }
     require(!isProducingBlock())
-    val producer = producerPrivKey.publicKey.pubKeyHash
     val forkHead = forkBase.head.get
-    pendingState.set(producerPrivKey, blockTime, stopProcessTxTime, forkHead.block.height + 1)
-    log.debug(s"start block at: ${pendingState.startTime}  blockTime=${blockTime}  stopProcessTxTime=${stopProcessTxTime}")
-
-    val minerTx = new Transaction(TransactionType.Miner, minerCoinFrom,
-      producer, dataBase.getMinerAward(), forkHead.block.height + 1,
-      BinaryData(Crypto.randomBytes(8)), // add random bytes to distinct different blocks with same block index during debug in some cases
-      FixedNumber.MinValue, 0, BinaryData.empty)
-
-    dataBase.startSession()
-
-    val applied = applyTransaction(minerTx, producer, stopProcessTxTime, blockTime, forkHead.block.height + 1)
-    require(applied.added)
-    pendingState.txs.append(minerTx)
-    pendingState.isProducingBlock = true
-
-    if (timeoutTx.isDefined) {
-      log.info(s"try again for the old timeout tx ${timeoutTx.get.id().shortString()}")
-      addTransaction(timeoutTx.get)
-      timeoutTx = None // set to None even if addTransaction fail or timeout again.
+    if (forceStartProduce == false && forkBase.forkItemNum() > 10 * consensusSettings.witnessNum * consensusSettings.producerRepetitions) {
+      log.error(s"too many unconfirmed block, abort produce new block. forkItemNum=${forkBase.forkItemNum()} head=${forkHead.block.height()} ${forkHead.block.shortId()}")
     }
-    val scheduleTxs = dataBase.getAllScheduleTx()
-    if (scheduleTxs.nonEmpty) {
-      scheduleTxs.foreach(scheduleTx => {
-        if (blockTime >= scheduleTx.executeTime && Instant.now.toEpochMilli < stopProcessTxTime) {
-          println("schedule execute time is" + scheduleTx.executeTime + "block time   " + blockTime)
-          if (applyTransaction(scheduleTx, producer, stopProcessTxTime, blockTime, forkHead.block.height + 1).added)
-            pendingState.txs.append(scheduleTx)
+    else {
+      val producer = producerPrivKey.publicKey.pubKeyHash
+      pendingState.set(producerPrivKey, blockTime, stopProcessTxTime, forkHead.block.height + 1)
+      log.debug(s"start block at: ${pendingState.startTime}  blockTime=${blockTime}  stopProcessTxTime=${stopProcessTxTime}")
+
+      val minerTx = new Transaction(TransactionType.Miner, minerCoinFrom,
+        producer, dataBase.getMinerAward(), forkHead.block.height + 1,
+        BinaryData(Crypto.randomBytes(8)), // add random bytes to distinct different blocks with same block index during debug in some cases
+        FixedNumber.MinValue, 0, BinaryData.empty)
+
+      dataBase.startSession()
+
+      val applied = applyTransaction(minerTx, producer, stopProcessTxTime, blockTime, forkHead.block.height + 1)
+      require(applied.added)
+      pendingState.txs.append(minerTx)
+      pendingState.isProducingBlock = true
+
+      if (timeoutTx.isDefined) {
+        log.info(s"try again for the old timeout tx ${timeoutTx.get.id().shortString()}")
+        addTransaction(timeoutTx.get)
+        timeoutTx = None // set to None even if addTransaction fail or timeout again.
+      }
+      val scheduleTxs = dataBase.getAllScheduleTx()
+      if (scheduleTxs.nonEmpty) {
+        scheduleTxs.foreach(scheduleTx => {
+          if (blockTime >= scheduleTx.executeTime && Instant.now.toEpochMilli < stopProcessTxTime) {
+            println("schedule execute time is" + scheduleTx.executeTime + "block time   " + blockTime)
+            if (applyTransaction(scheduleTx, producer, stopProcessTxTime, blockTime, forkHead.block.height + 1).added)
+              pendingState.txs.append(scheduleTx)
+          }
+        })
+      }
+      val badTxs = ArrayBuffer.empty[Transaction]
+
+      txPool.getSortedTxs().foreach(p => {
+        if (Instant.now.toEpochMilli < stopProcessTxTime) {
+          val applyResult = applyTransaction(p.tx, producer, stopProcessTxTime, blockTime, forkHead.block.height + 1)
+          applyResult match {
+            case AddTxSucceed => pendingState.txs.append(p.tx)
+            case InvalidNonce(expected, actual) if actual > expected =>
+            case _ => badTxs.append(p.tx)
+          }
         }
       })
+      txPool.remove(pendingState.txs)
+      txPool.remove(badTxs)
     }
-    val badTxs = ArrayBuffer.empty[Transaction]
-
-    txPool.getSortedTxs().foreach(p => {
-      if (Instant.now.toEpochMilli < stopProcessTxTime) {
-        val applyResult = applyTransaction(p.tx, producer, stopProcessTxTime, blockTime, forkHead.block.height + 1)
-        applyResult match {
-          case AddTxSucceed => pendingState.txs.append(p.tx)
-          case InvalidNonce(expected, actual) if actual > expected =>
-          case _ => badTxs.append(p.tx)
-        }
-      }
-    })
-    txPool.remove(pendingState.txs)
-    txPool.remove(badTxs)
   }
 
   def isProducingBlock(): Boolean = {

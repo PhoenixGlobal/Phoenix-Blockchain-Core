@@ -81,7 +81,8 @@ class Node(val settings: ApexSettings, config: Config)
     settings.miner.privKeys.foreach(key => {log.info(s"miner: ${key.publicKey.address}")})
     val producer = ProducerRef(settings)
   }
-  private val chain = new Blockchain(settings.chain, settings.consensus, settings.runtimeParas, notification)
+  private val chain = new Blockchain(settings.chain, settings.consensus, settings.runtimeParas,
+                                     notification, settings.miner.forceStartProduce)
 
   private val peerHandlerManager = PeerHandlerManagerRef(settings.network, timeProvider)
   notification.register(peerHandlerManager)
@@ -353,7 +354,7 @@ class Node(val settings: ApexSettings, config: Config)
     }
     else {
       log.error(s"failed insert block #${msg.block.height}, ${msg.block.shortId} by ${msg.block.producer.shortAddr} to db")
-      if (!chain.containsBlock(msg.block.id)) {
+      if (!chain.containsBlock(msg.block)) {
         chain.addBlockToCache(msg.block)
         // out of sync, or there are fork chains,  to get more blocks
         if (msg.block.height - chain.getHeight < 10) // do not send too many request during init sync
@@ -380,7 +381,7 @@ class Node(val settings: ApexSettings, config: Config)
       }
       else {
         log.debug(s"failed insert block #${block.height}, (${block.shortId}) by ${block.producer.shortAddr} to db")
-        if (!chain.containsBlock(block.id))
+        if (!chain.containsBlock(block))
           chain.addBlockToCache(block)
       }
     })

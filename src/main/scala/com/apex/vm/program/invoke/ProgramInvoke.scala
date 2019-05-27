@@ -25,7 +25,7 @@
 
 package com.apex.vm.program.invoke
 
-import com.apex.core.{BlockBase, Blockchain, DataBase}
+import com.apex.core.{Blockchain, DataBase}
 import com.apex.vm.DataWord
 
 trait ProgramInvoke {

@@ -404,6 +404,8 @@ class ForkBase(settings: ForkBaseSettings,
 
   init()
 
+  def forkItemNum(): Int = indexById.size
+
   // get switch state
   def switchState(): Option[SwitchState] = {
     switchStateStore.get()
