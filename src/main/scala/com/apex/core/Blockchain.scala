@@ -45,9 +45,10 @@ class Blockchain(chainSettings: ChainSettings,
 
   private val genesisProducerPrivKey = new PrivateKey(BinaryData(chainSettings.genesis.privateKey))
 
-  log.info("creating BlockBase")
+  log.info(s"creating BlockBase, lightNodeMode=${chainSettings.lightNode}")
 
-  private val blockBase = new BlockBase(chainSettings.blockBase)
+  private val blockBase = new BlockBase(chainSettings.blockBase,
+    chainSettings.lightNode, consensusSettings.witnessNum * consensusSettings.producerRepetitions)
 
   log.info("creating DataBase")
 
@@ -163,6 +164,10 @@ class Blockchain(chainSettings: ChainSettings,
 
   def getBlock(height: Long): Option[Block] = {
     forkBase.get(height).map(_.block).orElse(blockBase.getBlock(height))
+  }
+
+  def getBlockHash(height: Long): Option[UInt256] = {
+    forkBase.get(height).map(_.block.id).orElse(blockBase.getBlockHash(height))
   }
 
   def containsBlock(id: UInt256): Boolean = {
@@ -424,7 +429,7 @@ class Blockchain(chainSettings: ChainSettings,
   }
 
   private def getWitnessList(block: Block): WitnessList = {
-    if (block.timeStamp() > getBlock(mPendingWitnessList.get.generateInBlock).get.timeStamp())
+    if (block.timeStamp() > mPendingWitnessList.get.generateTime)
       mCurWitnessList.get
     else
       mPrevWitnessList.get
@@ -435,12 +440,12 @@ class Blockchain(chainSettings: ChainSettings,
     val pendingWitnessList = mPendingWitnessList.get
     if (blockIsConfirmed(pendingWitnessList.generateInBlock) &&
       isLastBlockOfProducer(curblock.timeStamp()) &&
-      curblock.timeStamp() - getBlock(pendingWitnessList.generateInBlock).get.timeStamp() >= consensusSettings.electeTime) {
+      curblock.timeStamp() - pendingWitnessList.generateTime >= consensusSettings.electeTime) {
 
       log.info(s"block ${curblock.height()} applied, it's time to electe new producers")
       val currentWitness = mCurWitnessList.get
       val allWitnesses = dataBase.getAllWitness().filter(_.register)
-      new WitnessList(allWitnesses.toArray, UInt256.Zero).logInfo("current all Witness")
+      new WitnessList(allWitnesses.toArray, UInt256.Zero, 0).logInfo("current all Witness")
       currentWitness.logInfo("setPreviousWitnessList")
       dataBase.setPreviousWitnessList(currentWitness)
       mPrevWitnessList = dataBase.getPreviousWitnessList()
@@ -473,7 +478,7 @@ class Blockchain(chainSettings: ChainSettings,
 
       pendingWitnessList.logInfo("setCurrentWitnessList")
       dataBase.setCurrentWitnessList(pendingWitnessList)
-      val newPending = WitnessList.create(newElectedWitnesses.toArray.map(_._2), curblock.id)
+      val newPending = WitnessList.create(newElectedWitnesses.toArray.map(_._2), curblock.id, curblock.timeStamp())
       newPending.logInfo("setPendingWitnessList")
       dataBase.setPendingWitnessList(newPending)
 
@@ -830,7 +835,7 @@ class Blockchain(chainSettings: ChainSettings,
         dataBase.setWitness(initWitness)
       })
       require(dataBase.getAllWitness().count(_.register) == consensusSettings.witnessNum)
-      val witnessList = WitnessList.create(witnesses.toArray, genesisBlock.id())
+      val witnessList = WitnessList.create(witnesses.toArray, genesisBlock.id(), genesisBlock.timeStamp())
       require(witnessList.witnesses.size == consensusSettings.witnessNum)
       dataBase.setPreviousWitnessList(witnessList)
       dataBase.setCurrentWitnessList(witnessList)
@@ -943,8 +948,7 @@ class Blockchain(chainSettings: ChainSettings,
   // "timeMs": time from 1970 in ms, should be divided evenly with no remainder by settings.produceInterval
   def getWitness(timeMs: Long): UInt160 = {
     require(ProducerUtil.isTimeStampValid(timeMs, consensusSettings.produceInterval))
-    require(getBlock(mCurWitnessList.get.generateInBlock).isDefined)
-    require(timeMs > getBlock(mCurWitnessList.get.generateInBlock).get.timeStamp())
+    require(timeMs > mCurWitnessList.get.generateTime)
     val slot = timeMs / consensusSettings.produceInterval
     var index = slot % (consensusSettings.witnessNum * consensusSettings.producerRepetitions)
     index /= consensusSettings.producerRepetitions
@@ -978,7 +982,7 @@ class Blockchain(chainSettings: ChainSettings,
       case "all" => {
         val witnessInfo = dataBase.getAllWitness()
         val liveWitnessInfo = witnessInfo.filter(p => p.register)
-        WitnessList.create(liveWitnessInfo.toArray, UInt256.Zero)
+        WitnessList.create(liveWitnessInfo.toArray, UInt256.Zero, 0)
       }
       case "active" => {
         dataBase.getCurrentWitnessList().get

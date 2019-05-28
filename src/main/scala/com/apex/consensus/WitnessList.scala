@@ -10,7 +10,7 @@ package com.apex.consensus
 
 import java.io.{DataInputStream, DataOutputStream}
 
-import com.apex.common.ApexLogging
+import com.apex.common.{ApexLogging, Helper}
 import com.apex.crypto.{UInt160, UInt256}
 import play.api.libs.json.{JsValue, Json, Writes}
 
@@ -18,6 +18,7 @@ import scala.collection.mutable
 
 class WitnessList(val witnesses: Array[WitnessInfo],  // sorted by Location
                   val generateInBlock: UInt256,
+                  val generateTime: Long,
                   val version: Int = 0x01) extends com.apex.common.Serializable with ApexLogging {
 
   private val addrList = witnesses.map(_.addr).toSet
@@ -28,6 +29,7 @@ class WitnessList(val witnesses: Array[WitnessInfo],  // sorted by Location
     os.writeInt(version)
     os.writeSeq(witnesses)
     os.write(generateInBlock)
+    os.writeLong(generateTime)
   }
 
   def contains(witness: UInt160): Boolean = {
@@ -45,8 +47,9 @@ object WitnessList {
 
   def create(witnesses: Array[WitnessInfo],
              generateInBlock: UInt256,
+             generateTime: Long,
              version: Int = 0x01): WitnessList = {
-    new WitnessList(sortByLocation(witnesses), generateInBlock, version)
+    new WitnessList(sortByLocation(witnesses), generateInBlock, generateTime, version)
   }
 
   def sortByVote(witnesses: Array[WitnessInfo]): Array[WitnessInfo] = {
@@ -100,8 +103,9 @@ object WitnessList {
     val version = is.readInt()
     val witnesses = is.readSeq(WitnessInfo.deserialize)
     val generateInBlock = is.readObj(UInt256.deserialize)
+    val generateTime = is.readLong()
 
-    new WitnessList(witnesses.toArray, generateInBlock, version)
+    new WitnessList(witnesses.toArray, generateInBlock, generateTime, version)
   }
 
   implicit val witnessListWrites = new Writes[WitnessList] {
@@ -109,6 +113,7 @@ object WitnessList {
       Json.obj(
         "witnesses" -> o.witnesses,
         "generateInBlock" -> o.generateInBlock.toString,
+        "generateTime" -> Helper.timeString(o.generateTime),
         "version" -> o.version
       )
     }

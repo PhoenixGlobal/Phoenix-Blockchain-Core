@@ -217,7 +217,7 @@ class Program(settings: ContractSettings, ops: Array[Byte], invoke: ProgramInvok
 
   def getBlockHash(index: Long): DataWord = {
     if (index < getNumber.longValue)
-      DataWord.of(invoke.getChain.getBlock(index).get.id())
+      DataWord.of(invoke.getChain.getBlockHash(index).get)
     else
       DataWord.ZERO
   }

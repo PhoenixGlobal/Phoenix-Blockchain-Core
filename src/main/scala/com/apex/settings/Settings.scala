@@ -84,7 +84,8 @@ case class ChainSettings(blockBase: BlockBaseSettings,
                          dataBase: DataBaseSettings,
                          forkBase: ForkBaseSettings,
                          minerAward: Double,
-                         genesis: GenesisSettings)
+                         genesis: GenesisSettings,
+                         lightNode: Boolean = false)
 
 case class PluginsSettings(mongodb: MongodbSettings)
 

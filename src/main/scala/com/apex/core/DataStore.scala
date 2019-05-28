@@ -73,6 +73,12 @@ class HeightStore(db: Storage.raw, capacity: Int)
     with LongKey
     with UInt256Value
 
+class BlockIdStore(db: Storage.raw, capacity: Int)
+  extends StoreBase[UInt256, Long](db, capacity)
+    with IdToHeightIndexPrefix
+    with UInt256Key
+    with LongValue
+
 class ForkItemStore(db: Storage.raw, capacity: Int)
   extends StoreBase[UInt256, ForkItem](db, capacity)
     with ForkItemPrefix
@@ -177,7 +183,7 @@ object DataType extends Enumeration {
 
 object IndexType extends Enumeration {
   val BlockHeightToId = Value(0x00)
-  //val BlockIdToTxId = Value(0x01)
+  val BlockIdToHeight = Value(0x01)
   //val UTXO = Value(0x02)
   //val NameToAccount = Value(0x03)
 }
@@ -271,6 +277,9 @@ trait HeightToIdIndexPrefix extends IndexPrefix {
   override val indexType: IndexType.Value = IndexType.BlockHeightToId
 }
 
+trait IdToHeightIndexPrefix extends IndexPrefix {
+  override val indexType: IndexType.Value = IndexType.BlockIdToHeight
+}
 
 trait HeadBlockStatePrefix extends StatePrefix {
   override val stateType: StateType.Value = StateType.HeadBlock
@@ -373,6 +382,10 @@ trait ContractStateKey extends KeyConverterProvider[Array[Byte]] {
 
 trait IntValue extends ValueConverterProvider[Int] {
   override val valConverter: Converter[Int] = new IntConverter
+}
+
+trait LongValue extends ValueConverterProvider[Long] {
+  override val valConverter: Converter[Long] = new LongConverter
 }
 
 trait StringValue extends ValueConverterProvider[String] {
