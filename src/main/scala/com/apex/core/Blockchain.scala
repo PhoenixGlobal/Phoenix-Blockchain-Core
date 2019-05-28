@@ -170,6 +170,10 @@ class Blockchain(chainSettings: ChainSettings,
     forkBase.get(height).map(_.block.id).orElse(blockBase.getBlockHash(height))
   }
 
+  def getBlockHeight(id: UInt256): Option[Long] = {
+    forkBase.get(id).map(_.block.height()).orElse(blockBase.getBlockHeight(id))
+  }
+
   def containsBlock(id: UInt256): Boolean = {
     forkBase.contains(id) || blockBase.containBlock(id)
   }

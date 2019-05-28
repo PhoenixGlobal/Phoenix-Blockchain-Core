@@ -83,6 +83,10 @@ class BlockBase(settings: BlockBaseSettings,
     blockIdStore.contains(id)
   }
 
+  def getBlockHeight(id: UInt256): Option[Long] = {
+    blockIdStore.get(id)
+  }
+
   def getBlockHash(height: Long): Option[UInt256] = {
     heightStore.get(height)
   }
