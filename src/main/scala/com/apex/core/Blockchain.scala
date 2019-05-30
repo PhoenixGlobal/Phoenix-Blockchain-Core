@@ -206,7 +206,7 @@ class Blockchain(chainSettings: ChainSettings,
     }
     require(!isProducingBlock())
     val forkHead = forkBase.head.get
-    if (forceStartProduce == false && forkBase.forkItemNum() > 10 * consensusSettings.witnessNum * consensusSettings.producerRepetitions) {
+    if (forceStartProduce == false && forkBase.forkItemNum() > 50 * consensusSettings.witnessNum * consensusSettings.producerRepetitions) {
       log.error(s"too many unconfirmed block, abort produce new block. forkItemNum=${forkBase.forkItemNum()} head=${forkHead.block.height()} ${forkHead.block.shortId()}")
     }
     else {
@@ -407,10 +407,13 @@ class Blockchain(chainSettings: ChainSettings,
   def tryInsertCacheBlock(height: Long): Boolean = {
     var inserted = false
     blockBase.cacheGetBlock(height).foreach(b => {
-      log.info(s"found block ${b.height()} ${b.shortId()} in local cache")
+      //log.info(s"found block ${b.height()} ${b.shortId()} in local cache")
       if (tryInsertBlock(b)) {
         inserted = true
         log.info(s"success insert cache block #${b.height} ${b.shortId} by ${b.producer.shortAddr} txNum=${b.transactions.size}")
+      }
+      else {
+        log.info(s"fail insert cache block #${b.height} ${b.shortId} by ${b.producer.shortAddr} txNum=${b.transactions.size}")
       }
     })
     inserted

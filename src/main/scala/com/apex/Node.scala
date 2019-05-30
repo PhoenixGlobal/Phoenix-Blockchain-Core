@@ -443,15 +443,10 @@ class Node(val settings: ApexSettings, config: Config)
       val blocks = ArrayBuffer.empty[Block]
       msg.inv.hashs.foreach(h => {
         val block = chain.getBlock(h)
-        if (block != None) {
-          if (sentBlockNum < sendBlockNumMax) {
-            //sender() ! BlockMessage(block.get).pack
-            blocks.append(block.get)
-            sentBlockNum += 1
-          }
+        if (block != None && sentBlockNum < sendBlockNumMax) {
+          blocks.append(block.get)
+          sentBlockNum += 1
         }
-        else
-          log.error("received GetDataMessage but block not found")
       })
       if (blocks.size > 0) {
         sender() ! BlocksMessage(new BlocksPayload(blocks)).pack
