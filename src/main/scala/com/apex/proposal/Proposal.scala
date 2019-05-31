@@ -28,7 +28,9 @@ case class Proposal(proposalID: UInt256,
   def proposalValueString(): String = {
     val bs = new ByteArrayInputStream(proposalValue)
     val is = new DataInputStream(bs)
-    if (proposalType == ProposalType.BlockAward)
+    if (proposalType == ProposalType.BlockAward
+      || proposalType == ProposalType.TxMinGasPrice
+      || proposalType == ProposalType.TxMaxGasLimit)
       FixedNumber.deserialize(is).toString
     else
       proposalValue.toString

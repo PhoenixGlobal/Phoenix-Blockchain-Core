@@ -45,6 +45,8 @@ class DataBase(settings: DataBaseSettings, consensusSettings: ConsensusSettings,
   private val witnessBlockCountThisWeekStore = new WitnessBlockCountThisWeekStore(tracking)
 
   private val minerAwardStore = new MinerAwardStore(tracking)
+  private val minGasPriceStore = new MinGasPriceStore(tracking)
+  private val txMaxGasLimitStore = new TxMaxGasLimitStore(tracking)
 
   def this(settings: DataBaseSettings, consensusSettings: ConsensusSettings, db: Storage.lowLevelRaw) = {
     this(settings, consensusSettings, db, Tracking.root(db))
@@ -62,7 +64,7 @@ class DataBase(settings: DataBaseSettings, consensusSettings: ConsensusSettings,
     scheduleTxStore.getLists(Array(StoreType.Data.id.toByte, DataType.scheduleTransaction.id.toByte))
   }
 
-  def setScheduleTx(id: UInt256, tx: Transaction) ={
+  def setScheduleTx(id: UInt256, tx: Transaction) = {
     scheduleTxStore.set(id, tx)
   }
 
@@ -70,7 +72,7 @@ class DataBase(settings: DataBaseSettings, consensusSettings: ConsensusSettings,
     scheduleTxStore.get(id)
   }
 
-  def deleteScheduleTx(id: UInt256): Unit ={
+  def deleteScheduleTx(id: UInt256): Unit = {
     scheduleTxStore.delete(id)
   }
 
@@ -104,8 +106,8 @@ class DataBase(settings: DataBaseSettings, consensusSettings: ConsensusSettings,
 
   // transfer values
   def transfer(from: UInt160, to: UInt160, value: FixedNumber): Unit = {
-    addBalance(from,-value)
-    addBalance(to,value)
+    addBalance(from, -value)
+    addBalance(to, value)
   }
 
   // transfer values
@@ -250,6 +252,12 @@ class DataBase(settings: DataBaseSettings, consensusSettings: ConsensusSettings,
 
   def getMinerAward(): FixedNumber = minerAwardStore.get().getOrElse(FixedNumber.Zero)
   def setMinerAward(award: FixedNumber) = minerAwardStore.set(award)
+
+  def getMinGasPrice(): FixedNumber = minGasPriceStore.get().getOrElse(FixedNumber.Zero)
+  def setMinGasPrice(gp: FixedNumber) = minGasPriceStore.set(gp)
+
+  def getTxMaxGasLimit(): FixedNumber = txMaxGasLimitStore.get().getOrElse(FixedNumber.Zero)
+  def setTxMaxGasLimit(gp: FixedNumber) = txMaxGasLimitStore.set(gp)
 
   def startTracking(): DataBase = {
     new DataBase(settings, consensusSettings, db, tracking.newTracking)

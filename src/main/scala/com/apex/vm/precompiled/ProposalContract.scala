@@ -26,11 +26,13 @@ class ProposalContract(track: DataBase,
     try {
       val proposalData = ProposalData.fromBytes(data)
       log.info(s"new proposal: proposer=${tx.from.shortAddr} type=${proposalData.proposalType} activeTime=${proposalData.activeTime} proposalValue=${proposalData.proposalValue.toString} txid=${tx.id}")
-      if (proposalData.proposalType == ProposalType.BlockAward) {
+      if (proposalData.proposalType == ProposalType.BlockAward
+       || proposalData.proposalType == ProposalType.TxMinGasPrice
+       || proposalData.proposalType == ProposalType.TxMaxGasLimit) {
         val bs = new ByteArrayInputStream(proposalData.proposalValue)
         val is = new DataInputStream(bs)
-        val newBlockAward = FixedNumber.deserialize(is)
-        log.info(s"new Block Award is ${newBlockAward}")
+        val newValue = FixedNumber.deserialize(is)
+        log.info(s"new value is ${newValue}")
       }
       val (valid, errString) = checkValid(proposalData)
       if (valid) {

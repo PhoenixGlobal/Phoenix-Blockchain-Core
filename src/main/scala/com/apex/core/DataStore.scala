@@ -140,6 +140,16 @@ class MinerAwardStore(db: Storage.raw)
     with MinerAwardPrefix
     with FixedNumberValue
 
+class MinGasPriceStore(db: Storage.raw)
+  extends StateStore[FixedNumber](db)
+    with MinGasPricePrefix
+    with FixedNumberValue
+
+class TxMaxGasLimitStore(db: Storage.raw)
+  extends StateStore[FixedNumber](db)
+    with TxMaxGasLimitPrefix
+    with FixedNumberValue
+
 //class WitnessInfoStore(db: Storage.raw)
 //  extends StateStore[WitnessMap](db)
 //    with AllWitnessMapStatePrefix
@@ -201,6 +211,8 @@ object StateType extends Enumeration {
   val BlockCountLastWeek = Value(0x09)
   val BlockCountThisWeek = Value(0x0a)
   val MinerAward = Value(0x0b)
+  val MinGasPrice = Value(0x0c)
+  val TxMaxGasLimit = Value(0x0d)
 }
 
 trait Prefix {
@@ -323,6 +335,14 @@ trait BlockCountThisWeekPrefix extends StatePrefix {
 
 trait MinerAwardPrefix extends StatePrefix {
   override val stateType: StateType.Value = StateType.MinerAward
+}
+
+trait MinGasPricePrefix extends StatePrefix {
+  override val stateType: StateType.Value = StateType.MinGasPrice
+}
+
+trait TxMaxGasLimitPrefix extends StatePrefix {
+  override val stateType: StateType.Value = StateType.TxMaxGasLimit
 }
 
 trait Converter[A] {

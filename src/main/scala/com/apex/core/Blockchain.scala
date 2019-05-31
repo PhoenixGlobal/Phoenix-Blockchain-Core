@@ -278,9 +278,13 @@ class Blockchain(chainSettings: ChainSettings,
     if (tx.gasLimit > runtimeParas.txAcceptGasLimit) {
       log.info(s"tx: ${tx.id()}, set too heigh gas-limit, it should not above ${runtimeParas.txAcceptGasLimit}")
       result = HeighGasLimit(runtimeParas.txAcceptGasLimit)
-    } else if (dataBase.getNonce(tx.sender()) > tx.nonce) {
+    }
+    else if (dataBase.getNonce(tx.sender()) > tx.nonce) {
       result = InvalidNonce(dataBase.getNonce(tx.sender()), tx.nonce)
     }
+    else
+      result = checkTxGas(tx)
+
     result
   }
 
@@ -537,12 +541,22 @@ class Blockchain(chainSettings: ChainSettings,
 
   private def activeProposal(p: Proposal) = {
     log.info(s"now active proposal ${p.proposalID}")
+    val bs = new ByteArrayInputStream(p.proposalValue)
+    val is = new DataInputStream(bs)
     if (p.proposalType == ProposalType.BlockAward) {
-      val bs = new ByteArrayInputStream(p.proposalValue)
-      val is = new DataInputStream(bs)
-      val newBlockAward = FixedNumber.deserialize(is)
-      log.info(s"new Block Award is ${newBlockAward}")
-      dataBase.setMinerAward(newBlockAward)
+      val newValue = FixedNumber.deserialize(is)
+      log.info(s"new Block Award is ${newValue}")
+      dataBase.setMinerAward(newValue)
+    }
+    else if (p.proposalType == ProposalType.TxMinGasPrice) {
+      val newValue = FixedNumber.deserialize(is)
+      log.info(s"new TxMinGasPrice is ${newValue}")
+      dataBase.setMinGasPrice(newValue)
+    }
+    else if (p.proposalType == ProposalType.TxMaxGasLimit) {
+      val newValue = FixedNumber.deserialize(is)
+      log.info(s"new TxMaxGasLimit is ${newValue.value}")
+      dataBase.setTxMaxGasLimit(newValue)
     }
     deleteProposal(p)
   }
@@ -585,16 +599,27 @@ class Blockchain(chainSettings: ChainSettings,
     applied
   }
 
+  private def checkTxGas(tx: Transaction): AddTxResult = {
+    if (dataBase.getMinGasPrice() > tx.gasPrice)
+      GasPriceTooLow(tx.gasPrice)
+    else if (tx.gasLimit > dataBase.getTxMaxGasLimit().value)
+      HeighGasLimit(dataBase.getTxMaxGasLimit().value.toLong)
+    else
+      AddTxSucceed
+  }
+
   private def applyTransaction(tx: Transaction, blockProducer: UInt160,
                                stopTime: Long, blockTime: Long, blockIndex: Long): AddTxResult = {
-    var txValid = new AddTxResult(false, "error")
-    //if tx is a schedule tx and it is time to execute,or tx is a normal transfer or miner tx, start execute tx directly
-    tx.txType match {
-      case TransactionType.Miner => txValid = applyMinerTransaction(tx, blockProducer, blockIndex)
-      case TransactionType.Transfer | TransactionType.Deploy | TransactionType.Call =>
-        txValid = applyContractTransaction(tx, blockProducer, stopTime, blockTime, blockIndex)
-      case TransactionType.Refund => txValid = applyRefundTransaction(tx, blockProducer, blockTime, blockIndex)
-      case TransactionType.Schedule => txValid = applyScheduleTransaction(tx, blockProducer, stopTime, blockTime, blockIndex)
+    var txValid = checkTxGas(tx)
+
+    if (txValid.added) {
+      tx.txType match {
+        case TransactionType.Miner => txValid = applyMinerTransaction(tx, blockProducer, blockIndex)
+        case TransactionType.Transfer | TransactionType.Deploy | TransactionType.Call =>
+          txValid = applyContractTransaction(tx, blockProducer, stopTime, blockTime, blockIndex)
+        case TransactionType.Refund => txValid = applyRefundTransaction(tx, blockProducer, blockTime, blockIndex)
+        case TransactionType.Schedule => txValid = applyScheduleTransaction(tx, blockProducer, stopTime, blockTime, blockIndex)
+      }
     }
     if (!txValid.added)
       log.error(s"applyTransaction fail, from=${tx.from.shortAddr} txid=${tx.id.toString}  blockIndex=$blockIndex  reason=${txValid.result}")
@@ -854,6 +879,8 @@ class Blockchain(chainSettings: ChainSettings,
     log.info("chain populate")
     if (forkBase.head.isEmpty) {
       dataBase.setMinerAward(minerAward)
+      dataBase.setMinGasPrice(FixedNumber.MinValue)
+      dataBase.setTxMaxGasLimit(FixedNumber(9000000))
       initGenesisWitness()
       applyBlock(genesisBlock, false, false)
       blockBase.add(genesisBlock)
