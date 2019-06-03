@@ -14,6 +14,7 @@ package com.apex.network
 
 import java.io.{ByteArrayInputStream, DataInputStream, DataOutputStream}
 import java.net.{InetAddress, InetSocketAddress}
+import java.time.Instant
 
 import com.apex.core.{Block, Transaction}
 import com.apex.crypto.UInt256
@@ -97,20 +98,27 @@ object InventoryType extends Enumeration {
 }
 
 class InventoryPayload(val invType: InventoryType.Value,
+                       val invTime: Long,
                        val hashs: Seq[UInt256]) extends com.apex.common.Serializable {
   def serialize(os: DataOutputStream) = {
     import com.apex.common.Serializable._
     os.writeByte(invType.toByte)
+    os.writeLong(invTime)
     os.writeSeq(hashs)
   }
 }
 
 object InventoryPayload {
+  def create(invType: InventoryType.Value, hashs: Seq[UInt256]): InventoryPayload = {
+    new InventoryPayload(invType, Instant.now.toEpochMilli, hashs)
+  }
+
   def deserialize(is: DataInputStream): InventoryPayload = {
     import com.apex.common.Serializable._
     val invType = InventoryType(is.readByte())
+    val invTime = is.readLong()
     val hashs = is.readSeq(UInt256.deserialize)
-    new InventoryPayload(invType, hashs)
+    new InventoryPayload(invType, invTime, hashs)
   }
 
   def fromBytes(data: Array[Byte]): InventoryPayload = {

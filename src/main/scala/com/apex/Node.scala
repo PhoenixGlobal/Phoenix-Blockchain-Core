@@ -178,7 +178,7 @@ class Node(val settings: ApexSettings, config: Config)
           if (tx.verifySignature()) {
             val addResult = chain.addTransactionEx(tx)
             if (addResult.added)
-              broadcastInvMsg(new InventoryPayload(InventoryType.Tx, Seq(tx.id)))
+              broadcastInvMsg(InventoryPayload.create(InventoryType.Tx, Seq(tx.id)))
             else
               log.error(s"SendRawTransactionCmd addTransaction error, txid=${tx.id.toString}  ${addResult.result}")
 
@@ -195,7 +195,7 @@ class Node(val settings: ApexSettings, config: Config)
             if (tx.verifySignature()) {
               val addResult = chain.addTransactionEx(tx)
               if (addResult.added) {
-                broadcastInvMsg(new InventoryPayload(InventoryType.Tx, Seq(tx.id)))
+                broadcastInvMsg(InventoryPayload.create(InventoryType.Tx, Seq(tx.id)))
                 successTxNum += 1
               }
               else
@@ -313,7 +313,7 @@ class Node(val settings: ApexSettings, config: Config)
     }
     //log.info(s"receive GetBlocksMessage  ${msg.blockHashs.hashStart(0).shortString}")
     if (msg.blockHashs.hashStart(0).equals(UInt256.Zero)) {
-      sender() ! InventoryMessage(new InventoryPayload(InventoryType.Block, Seq(chain.getLatestHeader.id))).pack()
+      sender() ! InventoryMessage(InventoryPayload.create(InventoryType.Block, Seq(chain.getLatestHeader.id))).pack()
     }
     else {
       val (hash, found) = findLatestHash(msg.blockHashs.hashStart)
@@ -329,7 +329,7 @@ class Node(val settings: ApexSettings, config: Config)
           next = chain.getNextBlockId(next.get)
         }
         //log.info(s"send InventoryMessage, block hash count = ${hashs.size}")
-        sender() ! InventoryMessage(new InventoryPayload(InventoryType.Block, hashs)).pack()
+        sender() ! InventoryMessage(InventoryPayload.create(InventoryType.Block, hashs)).pack()
       }
     }
   }
@@ -348,7 +348,7 @@ class Node(val settings: ApexSettings, config: Config)
       log.info(s"received minor fork block, do nothing, ${msg.block.height} ${msg.block.shortId} by ${msg.block.producer.shortAddr}")
     }
     else if (chain.tryInsertBlock(msg.block, true)) {
-      broadcastInvMsg(new InventoryPayload(InventoryType.Block, Seq(msg.block.id)))
+      broadcastInvMsg(InventoryPayload.create(InventoryType.Block, Seq(msg.block.id)))
       log.info(s"success insert block #${msg.block.height} ${msg.block.shortId} by ${msg.block.producer.shortAddr} txNum=${msg.block.transactions.size}")
       tryCheckCacheBlock(msg.block.height() + 1)
     }
@@ -377,7 +377,7 @@ class Node(val settings: ApexSettings, config: Config)
         lastInsertBlock = block.height()
         log.info(s"success insert block #${block.height} (${block.shortId}) by ${block.producer.shortAddr} txNum=${block.transactions.size}")
         if (msg.blocks.blocks.size == 1) // no need to send INV during sync
-          broadcastInvMsg(new InventoryPayload(InventoryType.Block, Seq(block.id)))
+          broadcastInvMsg(InventoryPayload.create(InventoryType.Block, Seq(block.id)))
       }
       else {
         log.debug(s"failed insert block #${block.height}, (${block.shortId}) by ${block.producer.shortAddr} to db")
@@ -404,7 +404,7 @@ class Node(val settings: ApexSettings, config: Config)
       }
     })
     // for the new txs broadcast INV
-    broadcastInvMsg(new InventoryPayload(InventoryType.Tx, newTxs))
+    broadcastInvMsg(InventoryPayload.create(InventoryType.Tx, newTxs))
   }
 
   private def processInventoryMessage(msg: InventoryMessage) = {
@@ -418,7 +418,7 @@ class Node(val settings: ApexSettings, config: Config)
       })
       if (newBlocks.size > 0) {
         log.debug(s"send GetDataMessage to request ${newBlocks.size} new blocks.  ${newBlocks(0).shortString}")
-        sender() ! GetDataMessage(new InventoryPayload(InventoryType.Block, newBlocks)).pack
+        sender() ! GetDataMessage(InventoryPayload.create(InventoryType.Block, newBlocks)).pack
       }
       else if (inv.hashs.size >= hashCountMax) {
         log.info(s"all the ${inv.hashs.size} block hashs in the inv are not new, request more, last hash is ${inv.hashs.last.shortString()} block #${chain.getBlockHeight(inv.hashs.last).get}")
@@ -431,7 +431,7 @@ class Node(val settings: ApexSettings, config: Config)
         if (chain.getTransactionFromMempool(h).isEmpty)
           newTxs.append(h)
       })
-      sender() ! GetDataMessage(new InventoryPayload(InventoryType.Tx, newTxs)).pack
+      sender() ! GetDataMessage(InventoryPayload.create(InventoryType.Tx, newTxs)).pack
     }
   }
 
