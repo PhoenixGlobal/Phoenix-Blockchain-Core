@@ -8,6 +8,8 @@
 
 package com.apex
 
+import java.time.Instant
+
 import akka.actor.{Actor, ActorRef, ActorSystem, Props}
 import akka.dispatch.{PriorityGenerator, UnboundedStablePriorityMailbox}
 import com.apex.common.ApexLogging
@@ -45,7 +47,17 @@ object Node {
         // 'highpriority messages should be treated first if possible
         case task: AsyncTask => 0
 
-        case message: NetworkMessage if message.messageType == MessageType.Block => 1
+        case message: NetworkMessage => {
+          if (message.messageType == MessageType.Block)
+            1
+          else if (message.messageType == MessageType.Inventory) {
+            val invMsg = message.asInstanceOf[InventoryMessage]
+            if (invMsg.inv.invType == InventoryType.Tx)
+              9   // set TX INV to lowest
+            else 2
+          }
+          else 2
+        }
 
         // 'lowpriority messages should be treated last if possible
         //case 'lowpriority ⇒ 2
@@ -426,12 +438,17 @@ class Node(val settings: ApexSettings, config: Config)
       }
     }
     else if (inv.invType == InventoryType.Tx) {
-      val newTxs = ArrayBuffer.empty[UInt256]
-      inv.hashs.foreach(h => {
-        if (chain.getTransactionFromMempool(h).isEmpty)
-          newTxs.append(h)
-      })
-      sender() ! GetDataMessage(InventoryPayload.create(InventoryType.Tx, newTxs)).pack
+      if (Instant.now.toEpochMilli - inv.invTime > 7000) {
+        log.info(s"ignore old tx inv, time gap is ${Instant.now.toEpochMilli - inv.invTime}")
+      }
+      else {
+        val newTxs = ArrayBuffer.empty[UInt256]
+        inv.hashs.foreach(h => {
+          if (chain.getTransactionFromMempool(h).isEmpty)
+            newTxs.append(h)
+        })
+        sender() ! GetDataMessage(InventoryPayload.create(InventoryType.Tx, newTxs)).pack
+      }
     }
   }
 
