@@ -190,19 +190,19 @@ class Node(val settings: ApexSettings, config: Config)
       }
       case SendRawTransactionsCmd(txs) => {
         val sendTx = Try {
-          var successTxNum = 0
+          val newTxs = ArrayBuffer.empty[UInt256]
           txs.foreach(tx => {
             if (tx.verifySignature()) {
               val addResult = chain.addTransactionEx(tx)
-              if (addResult.added) {
-                broadcastInvMsg(InventoryPayload.create(InventoryType.Tx, Seq(tx.id)))
-                successTxNum += 1
-              }
+              if (addResult.added)
+                newTxs.append(tx.id)
               else
                 log.error(s"SendRawTransactionsCmd addTransaction error, txid=${tx.id.toString}  ${addResult.result}")
             }
           })
-          new AddTxResult(true, s"added ${successTxNum} of ${txs.size} txs")
+          if (newTxs.size > 0)
+            broadcastInvMsg(InventoryPayload.create(InventoryType.Tx, newTxs))
+          new AddTxResult(true, s"added ${newTxs.size} of ${txs.size} txs")
         }
         sender() ! sendTx
       }
