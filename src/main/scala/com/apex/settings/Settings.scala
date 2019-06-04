@@ -89,7 +89,7 @@ case class ChainSettings(blockBase: BlockBaseSettings,
 
 case class PluginsSettings(mongodb: MongodbSettings)
 
-case class RuntimeParas(stopProcessTxTimeSlot: Int, txAcceptGasLimit: Long)
+case class RuntimeParas(stopProcessTxTimeSlot: Int)
 
 case class MongodbSettings(enabled: Boolean, uri: String)
 

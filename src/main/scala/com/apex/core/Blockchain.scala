@@ -272,26 +272,10 @@ class Blockchain(chainSettings: ChainSettings,
     else SameTx
   }
 
-  private def validateTransaction(tx: Transaction): AddTxResult = {
-    var result: AddTxResult = new AddTxResult(true, "")
-
-    if (tx.gasLimit > runtimeParas.txAcceptGasLimit) {
-      log.info(s"tx: ${tx.id()}, set too heigh gas-limit, it should not above ${runtimeParas.txAcceptGasLimit}")
-      result = HeighGasLimit(runtimeParas.txAcceptGasLimit)
-    }
-    else if (dataBase.getNonce(tx.sender()) > tx.nonce) {
-      result = InvalidNonce(dataBase.getNonce(tx.sender()), tx.nonce)
-    }
-    else
-      result = checkTxGas(tx)
-
-    result
-  }
-
   def addTransaction(tx: Transaction): Boolean = addTransactionEx(tx).added
 
   def addTransactionEx(tx: Transaction): AddTxResult = {
-    var result = validateTransaction(tx)
+    var result = checkTxGas(tx)
 
     if (result.added) {
       if (tx.txType == TransactionType.Miner || tx.txType == TransactionType.Refund || tx.txType == TransactionType.Schedule) {

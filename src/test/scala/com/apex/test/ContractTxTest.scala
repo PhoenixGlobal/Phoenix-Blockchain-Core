@@ -100,7 +100,7 @@ class ContractTxTest {
 
   val _consensusSettings = ConsensusSettings(_produceInterval, 500, 1, 4, 63000, Array(_witness1, _witness2, _witness3, _witness4))
 
-  val _runtimeParas = RuntimeParas(100, 9000000)
+  val _runtimeParas = RuntimeParas(100)
 
   val _acct1 = Ecdsa.PrivateKey.fromWIF("KwmuSp41VWBtGSWaQQ82ZRRSFzkJVTAyuDLQ9NzP9CPqLWirh4UQ").get
   val _acct2 = Ecdsa.PrivateKey.fromWIF("L32JpLopG2hWjEMSCkAjS1nUnPixVrDTPqFAGYbddQrtUjRfkjEP").get
