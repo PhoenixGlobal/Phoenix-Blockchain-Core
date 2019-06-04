@@ -212,7 +212,7 @@ class Blockchain(chainSettings: ChainSettings,
     else {
       val producer = producerPrivKey.publicKey.pubKeyHash
       pendingState.set(producerPrivKey, blockTime, stopProcessTxTime, forkHead.block.height + 1)
-      log.debug(s"start block at: ${pendingState.startTime}  blockTime=${blockTime}  stopProcessTxTime=${stopProcessTxTime}")
+      log.info(s"start produce block, blockTime=${blockTime}=[${Helper.timeString(blockTime)}] stopProcessTxTime=${stopProcessTxTime} producer=${producer.shortAddr}")
 
       val minerTx = new Transaction(TransactionType.Miner, minerCoinFrom,
         producer, dataBase.getMinerAward(), forkHead.block.height + 1,
@@ -344,7 +344,7 @@ class Blockchain(chainSettings: ChainSettings,
       pendingState.txs.clear()
       pendingState.isProducingBlock = false
       if (tryInsertBlock(block, false)) {
-        log.info(s"block #${block.height} ${block.shortId} produced by ${block.producer.shortAddr} ${block.header.timeString()} txNum=${block.transactions.size}")
+        log.info(s"block success produced: ${block.logInfo}")
         notification.broadcast(NewBlockProducedNotify(block))
         Some(block)
       } else {

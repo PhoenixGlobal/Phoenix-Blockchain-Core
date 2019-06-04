@@ -361,7 +361,7 @@ class Node(val settings: ApexSettings, config: Config)
     }
     else if (chain.tryInsertBlock(msg.block, true)) {
       broadcastInvMsg(InventoryPayload.create(InventoryType.Block, Seq(msg.block.id)))
-      log.info(s"success insert block #${msg.block.height} ${msg.block.shortId} by ${msg.block.producer.shortAddr} txNum=${msg.block.transactions.size}")
+      log.info(s"success insert block ${msg.block.logInfo()}")
       tryCheckCacheBlock(msg.block.height() + 1)
     }
     else {
@@ -387,7 +387,7 @@ class Node(val settings: ApexSettings, config: Config)
       }
       else if (chain.tryInsertBlock(block, true)) {
         lastInsertBlock = block.height()
-        log.info(s"success insert block #${block.height} (${block.shortId}) by ${block.producer.shortAddr} txNum=${block.transactions.size}")
+        log.info(s"success insert block ${block.logInfo()}")
         if (msg.blocks.blocks.size == 1) // no need to send INV during sync
           broadcastInvMsg(InventoryPayload.create(InventoryType.Block, Seq(block.id)))
       }
@@ -439,7 +439,7 @@ class Node(val settings: ApexSettings, config: Config)
     }
     else if (inv.invType == InventoryType.Tx) {
       if (Instant.now.toEpochMilli - inv.invTime > 7000) {
-        log.info(s"ignore old tx inv, time gap is ${Instant.now.toEpochMilli - inv.invTime}")
+        log.info(s"ignore ${inv.hashs.size} old tx inv, time gap is ${Instant.now.toEpochMilli - inv.invTime}")
       }
       else {
         val newTxs = ArrayBuffer.empty[UInt256]

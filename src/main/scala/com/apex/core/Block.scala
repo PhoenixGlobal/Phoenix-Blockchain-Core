@@ -47,6 +47,10 @@ class Block(val header: BlockHeader,
     os.write(header)
     os.writeSeq(transactions)
   }
+
+  def logInfo(): String = {
+    s"$height $shortId by ${producer.shortAddr} ${header.timeString()} txNum=${transactions.size}"
+  }
 }
 
 object Block {
