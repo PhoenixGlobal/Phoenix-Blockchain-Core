@@ -600,7 +600,9 @@ class Blockchain(chainSettings: ChainSettings,
   }
 
   private def checkTxGas(tx: Transaction): AddTxResult = {
-    if (dataBase.getMinGasPrice() > tx.gasPrice)
+    if (tx.txType == TransactionType.Miner)
+      AddTxSucceed
+    else if (dataBase.getMinGasPrice() > tx.gasPrice)
       GasPriceTooLow(tx.gasPrice)
     else if (tx.gasLimit > dataBase.getTxMaxGasLimit().value)
       HeighGasLimit(dataBase.getTxMaxGasLimit().value.toLong)
