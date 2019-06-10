@@ -10,6 +10,7 @@ class FixedNumberTest extends Assert {
 
   @Test
   def testToString = {
+    assert(new FixedNumber(0).toString   == "0")
     assert(new FixedNumber(1).toString   == "0.000000000000000001")
     assert(new FixedNumber(10).toString  == "0.00000000000000001")
     assert(new FixedNumber(111).toString == "0.000000000000000111")
