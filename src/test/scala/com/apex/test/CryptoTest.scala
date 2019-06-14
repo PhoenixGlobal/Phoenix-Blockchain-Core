@@ -10,7 +10,7 @@ package com.apex.test
 
 import java.io.{ByteArrayOutputStream, DataOutputStream}
 
-import com.apex.crypto.Ecdsa.PublicKey
+import com.apex.crypto.Ecdsa.{PrivateKey, PublicKey, Scalar}
 import com.apex.crypto.{Base58, Base58Check, BinaryData, Crypto, Ecdsa}
 import org.junit.Test
 
@@ -82,6 +82,31 @@ class CryptoTest {
     assert(sig sameElements BinaryData("304402207063ae83e7f62bbb171798131b4a0564b956930092b33b07b395615d9ec7e15c022058dfcc1e00a35e1572f366ffe34ba0fc47db1e7189759b9fb233c5b05ab388ea"))
 
   }
+
+  def ethPrivKeyToAddr(pKey: BinaryData): String = {
+    require(pKey.length == 32)
+    val privKey = new PrivateKey(Scalar(pKey), compressed = false) //Ecdsa.PrivateKey(pKey)
+    val pubkey65 = privKey.publicKey
+    val pubKey64 = BinaryData(pubkey65.toBin.drop(1))
+    require(pubKey64.size == 64)
+    val hashKeccak256 = BinaryData(Crypto.sha3(pubKey64))
+    val hash20 = BinaryData(hashKeccak256.takeRight(20))
+    val ethAddr: String = "0x" + hash20.toString
+    ethAddr
+  }
+
+  @Test
+  def testEthAddrGen() = {
+    val a1 = ethPrivKeyToAddr(BinaryData("f8F8a2f43c8376ccb0871305060d7b27b0554d2cc72bccf41b2705608452f315"))
+    assert(a1 == "0x001d3f1ef827552ae1114027Bd3ecf1F086ba0f9".toLowerCase)
+
+    val a2 = ethPrivKeyToAddr(BinaryData("b783d2edc76647afa25b2fb380c0cd4953c153bdd44893bdaab6334720893ae9"))
+    assert(a2 == "0x6750d5b2c624972FA6d59618574E24942543d8Fe".toLowerCase)
+
+    val a3 = ethPrivKeyToAddr(BinaryData("8b98d41945a8a6f4ea2dd777213fa459124430937881ed1f7a608967455251b5"))
+    assert(a3 == "0xb3C4c41B691f182a8C26128A4E880480141e3Ff2".toLowerCase)
+  }
+
   @Test
   def testRecoverPublicKey() = {
     val random = new scala.util.Random()
