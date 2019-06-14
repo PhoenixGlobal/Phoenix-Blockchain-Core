@@ -9,7 +9,7 @@
 package com.apex.test
 
 import com.apex.crypto.Ecdsa.PrivateKey
-import com.apex.crypto.{BinaryData, Crypto, Ecdsa}
+import com.apex.crypto.{Base58Check, BinaryData, Crypto, Ecdsa}
 import org.junit.Test
 
 @Test
@@ -38,6 +38,25 @@ class AddressTest {
 
     assert(address4 == "APQKUqPcJEUwRdwoxpoGQnkrRGstSXkgebk")
 
+  }
+
+  def neoPrivkeyToAddr(pkey: BinaryData): String = {
+    require(pkey.length == 32)
+    val privKey = Ecdsa.PrivateKey(pkey)
+    val pubKey = privKey.publicKey
+    val addrscript = BinaryData(BinaryData("21").toString + pubKey.toBin.toString + BinaryData("ac").toString)
+    val scriptHash = BinaryData(Crypto.hash160(addrscript))
+    val neoAddr = Base58Check.encode(BinaryData("17"), scriptHash)
+    neoAddr
+  }
+
+  //@Test
+  def testNeoAddr() = {
+    val a1 = neoPrivkeyToAddr(BinaryData("72520405d2ab00326dbcacfddd350b01222a7cc9efc5f304f742077ec9ade463"))
+    assert(a1 == "ARPPoLhqsEuEAEeMUXsULEYm6qHys1G6ce")
+
+    val a2 = neoPrivkeyToAddr(BinaryData("f1b16c28bd5faa804591393c94079097c846b13584515ddd9f0ff8bd83028df4"))
+    assert(a2 == "AKzZ8ca4zvmtm78MuF4mbj3kmnzg59xtem")
   }
 
   @Test
