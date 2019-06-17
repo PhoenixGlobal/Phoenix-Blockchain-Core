@@ -9,7 +9,7 @@
 package com.apex.test
 
 import com.apex.crypto.Ecdsa.PrivateKey
-import com.apex.crypto.{Base58Check, BinaryData, Crypto, Ecdsa}
+import com.apex.crypto.{Base58Check, BinaryData, Crypto, Ecdsa, UInt160}
 import org.junit.Test
 
 @Test
@@ -38,6 +38,18 @@ class AddressTest {
 
     assert(address4 == "APQKUqPcJEUwRdwoxpoGQnkrRGstSXkgebk")
 
+  }
+
+  @Test
+  def testFromNeoAddress() = {
+    val h1 = Ecdsa.PublicKeyHash.fromNeoAddress("ARPPoLhqsEuEAEeMUXsULEYm6qHys1G6ce")
+    val h2 = Ecdsa.PublicKeyHash.fromNeoAddress("ARPPoLhqsEuEAEeMUXsULEYm6qHys1G6cc")
+    val h3 = Ecdsa.PublicKeyHash.fromNeoAddress("ARPPoLhqsEuEAEeMUXssULEYm6qHys1G6ce")
+
+    assert(h1.get == UInt160.parse("6970dc57e25c590d6260d4f07da09626d729c0f4").get)
+    assert(h1.get != UInt160.parse("6970dc57e25c590d6260d4f07da09626d722c0f4").get)
+    assert(h2.isEmpty)
+    assert(h3.isEmpty)
   }
 
   def neoPrivkeyToAddr(pkey: BinaryData): String = {

@@ -212,9 +212,7 @@ object Ecdsa {
 
     override def toString = toBin.toString
 
-    def address: String = {
-      PublicKeyHash.toAddress(pubKeyHash.data)
-    }
+    def address: String = pubKeyHash.address
 
     override def serialize(os: DataOutputStream): Unit = {
       import com.apex.common.Serializable._
@@ -230,6 +228,8 @@ object Ecdsa {
 
     private val prefixString = "AP"
     private val prefixBin = BinaryData("0548") // "0548" is for the "AP" prefix
+    
+    private val prefixBinNeo = BinaryData("17")
 
     def toAddress(hash: Array[Byte]): String = {
       assert(hash.length == 20)
@@ -246,6 +246,16 @@ object Ecdsa {
       }
       publicKeyHash
     }
+
+    def fromNeoAddress(address: String): Option[UInt160] = {
+      var publicKeyHash: Option[UInt160] = None
+      val decode = Base58Check.decode(address).getOrElse(Array[Byte]())
+      // 1 bytes prefix + 20 bytes data (+ 4 bytes checksum)
+      if (decode.length == 21 && BinaryData(decode.slice(0, 1)) == prefixBinNeo)
+        publicKeyHash = Some(UInt160.fromBytes(decode.slice(1, 21)))
+      publicKeyHash
+    }
+
   }
 
   def hash(digest: Digest)(input: Seq[Byte]): BinaryData = {
