@@ -9,7 +9,7 @@
 package com.apex.test
 
 import com.apex.core.{Transaction, TransactionType}
-import com.apex.crypto.{BinaryData, Ecdsa, FixedNumber, UInt256}
+import com.apex.crypto.{BinaryData, Ecdsa, FixedNumber, UInt160, UInt256}
 import org.junit.Test
 
 @Test
@@ -19,7 +19,7 @@ class TransactionTest {
   def testSize = {
     val tx = new Transaction(TransactionType.Transfer,
       Ecdsa.PublicKey(BinaryData("0345ffbf8dc9d8ff15785e2c228ac48d98d29b834c2e98fb8cfe6e71474d7f6322")).pubKeyHash,
-      Ecdsa.PublicKeyHash.fromAddress("APGMmPKLYdtTNhiEkDGU6De8gNCk3bTsME9").get,
+      UInt160.fromAddress("APGMmPKLYdtTNhiEkDGU6De8gNCk3bTsME9").get,
       FixedNumber.Ten,
       1,
       BinaryData("1234"),
@@ -45,7 +45,7 @@ class TransactionTest {
 
     val tx = new Transaction(TransactionType.Transfer,
                     Ecdsa.PublicKey(BinaryData("0345ffbf8dc9d8ff15785e2c228ac48d98d29b834c2e98fb8cfe6e71474d7f6322")).pubKeyHash,
-                    Ecdsa.PublicKeyHash.fromAddress("APGMmPKLYdtTNhiEkDGU6De8gNCk3bTsME9").get,
+                    UInt160.fromAddress("APGMmPKLYdtTNhiEkDGU6De8gNCk3bTsME9").get,
                     FixedNumber.Ten,
                     1,
                     BinaryData("1234"),
@@ -81,7 +81,7 @@ class TransactionTest {
   def testZeroDataBytes = {
     val tx1 = new Transaction(TransactionType.Transfer,
       Ecdsa.PublicKey(BinaryData("0345ffbf8dc9d8ff15785e2c228ac48d98d29b834c2e98fb8cfe6e71474d7f6322")).pubKeyHash,
-      Ecdsa.PublicKeyHash.fromAddress("APGMmPKLYdtTNhiEkDGU6De8gNCk3bTsME9").get,
+      UInt160.fromAddress("APGMmPKLYdtTNhiEkDGU6De8gNCk3bTsME9").get,
       FixedNumber.Ten,1,
       BinaryData("1234"), FixedNumber(567),789, BinaryData.empty)
 
@@ -89,7 +89,7 @@ class TransactionTest {
 
     val tx2 = new Transaction(TransactionType.Transfer,
       Ecdsa.PublicKey(BinaryData("0345ffbf8dc9d8ff15785e2c228ac48d98d29b834c2e98fb8cfe6e71474d7f6322")).pubKeyHash,
-      Ecdsa.PublicKeyHash.fromAddress("APGMmPKLYdtTNhiEkDGU6De8gNCk3bTsME9").get,
+      UInt160.fromAddress("APGMmPKLYdtTNhiEkDGU6De8gNCk3bTsME9").get,
       FixedNumber.Ten,1,
       BinaryData("123400"), FixedNumber(567),789, BinaryData.empty)
 
@@ -97,7 +97,7 @@ class TransactionTest {
 
     val tx3 = new Transaction(TransactionType.Transfer,
       Ecdsa.PublicKey(BinaryData("0345ffbf8dc9d8ff15785e2c228ac48d98d29b834c2e98fb8cfe6e71474d7f6322")).pubKeyHash,
-      Ecdsa.PublicKeyHash.fromAddress("APGMmPKLYdtTNhiEkDGU6De8gNCk3bTsME9").get,
+      UInt160.fromAddress("APGMmPKLYdtTNhiEkDGU6De8gNCk3bTsME9").get,
       FixedNumber.Ten,1,
       BinaryData("120034"), FixedNumber(567),789, BinaryData.empty)
 
@@ -105,7 +105,7 @@ class TransactionTest {
 
     val tx4 = new Transaction(TransactionType.Transfer,
       Ecdsa.PublicKey(BinaryData("0345ffbf8dc9d8ff15785e2c228ac48d98d29b834c2e98fb8cfe6e71474d7f6322")).pubKeyHash,
-      Ecdsa.PublicKeyHash.fromAddress("APGMmPKLYdtTNhiEkDGU6De8gNCk3bTsME9").get,
+      UInt160.fromAddress("APGMmPKLYdtTNhiEkDGU6De8gNCk3bTsME9").get,
       FixedNumber.Ten,1,
       BinaryData("00123400"), FixedNumber(567),789, BinaryData.empty)
 
@@ -113,7 +113,7 @@ class TransactionTest {
 
     val tx5 = new Transaction(TransactionType.Transfer,
       Ecdsa.PublicKey(BinaryData("0345ffbf8dc9d8ff15785e2c228ac48d98d29b834c2e98fb8cfe6e71474d7f6322")).pubKeyHash,
-      Ecdsa.PublicKeyHash.fromAddress("APGMmPKLYdtTNhiEkDGU6De8gNCk3bTsME9").get,
+      UInt160.fromAddress("APGMmPKLYdtTNhiEkDGU6De8gNCk3bTsME9").get,
       FixedNumber.Ten, 1,
       BinaryData("00"), FixedNumber(567),789, BinaryData.empty)
 
@@ -121,7 +121,7 @@ class TransactionTest {
 
     val tx6 = new Transaction(TransactionType.Transfer,
       Ecdsa.PublicKey(BinaryData("0345ffbf8dc9d8ff15785e2c228ac48d98d29b834c2e98fb8cfe6e71474d7f6322")).pubKeyHash,
-      Ecdsa.PublicKeyHash.fromAddress("APGMmPKLYdtTNhiEkDGU6De8gNCk3bTsME9").get,
+      UInt160.fromAddress("APGMmPKLYdtTNhiEkDGU6De8gNCk3bTsME9").get,
       FixedNumber.Ten,1,
       BinaryData.empty, FixedNumber(567),789, BinaryData.empty)
 

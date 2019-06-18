@@ -19,18 +19,18 @@ class AddressTest {
   def testHashToAddress = {
 
     //20 bytes data
-    val address1 = Ecdsa.PublicKeyHash.toAddress(BinaryData("0000000000000000000000000000000000000000"))
+    val address1 = UInt160.parse("0000000000000000000000000000000000000000").get.address
 
     //20 bytes data
-    val address2 = Ecdsa.PublicKeyHash.toAddress(BinaryData("654a5851e9372b87810a8e60cdd2e7cfd80b6e31"))
+    val address2 = UInt160.parse("654a5851e9372b87810a8e60cdd2e7cfd80b6e31").get.address
 
     //20 bytes data
-    val address3 = Ecdsa.PublicKeyHash.toAddress(BinaryData("ffffffffffffffffffffffffffffffffffffffff"))
+    val address3 = UInt160.parse("ffffffffffffffffffffffffffffffffffffffff").get.address
 
     var privKey = new Ecdsa.PrivateKey(BinaryData("18e14a7b6a307f426a94f8114701e7c8e774e7f9a47e2c2035db29a206321725"))
     var pubKey = privKey.publicKey
     var pubKeyHash = pubKey.pubKeyHash.data  // f54a5851e9372b87810a8e60cdd2e7cfd80b6e31
-    val address4 = Ecdsa.PublicKeyHash.toAddress(pubKeyHash)
+    val address4 = pubKey.pubKeyHash.address
 
     assert(address1 == "AP1xWDozWvuVah1W86DKtcWzdw1LLHreMGX")
     assert(address2 == "APBC5XmSaD4vooWo3FNho1wGAUyBQo3WCTQ")
@@ -41,15 +41,19 @@ class AddressTest {
   }
 
   @Test
-  def testFromNeoAddress() = {
-    val h1 = Ecdsa.PublicKeyHash.fromNeoAddress("ARPPoLhqsEuEAEeMUXsULEYm6qHys1G6ce")
-    val h2 = Ecdsa.PublicKeyHash.fromNeoAddress("ARPPoLhqsEuEAEeMUXsULEYm6qHys1G6cc")
-    val h3 = Ecdsa.PublicKeyHash.fromNeoAddress("ARPPoLhqsEuEAEeMUXssULEYm6qHys1G6ce")
+  def testNeoAddress() = {
+    val h1 = UInt160.fromNeoAddress("ARPPoLhqsEuEAEeMUXsULEYm6qHys1G6ce")
+    val h2 = UInt160.fromNeoAddress("ARPPoLhqsEuEAEeMUXsULEYm6qHys1G6cc")
+    val h3 = UInt160.fromNeoAddress("ARPPoLhqsEuEAEeMUXssULEYm6qHys1G6ce")
 
     assert(h1.get == UInt160.parse("6970dc57e25c590d6260d4f07da09626d729c0f4").get)
     assert(h1.get != UInt160.parse("6970dc57e25c590d6260d4f07da09626d722c0f4").get)
     assert(h2.isEmpty)
     assert(h3.isEmpty)
+
+    val na1 = UInt160.parse("6970dc57e25c590d6260d4f07da09626d729c0f4").get.neoAddress
+
+    assert(na1 == "ARPPoLhqsEuEAEeMUXsULEYm6qHys1G6ce")
   }
 
   def neoPrivkeyToAddr(pkey: BinaryData): String = {
@@ -64,7 +68,7 @@ class AddressTest {
   }
 
   //@Test
-  def testNeoAddr() = {
+  def testNeoPrivKeyAddr() = {
     val p1 = BinaryData("72520405d2ab00326dbcacfddd350b01222a7cc9efc5f304f742077ec9ade463")
     val a1 = neoPrivkeyToAddr(p1)
     assert(a1 == "ARPPoLhqsEuEAEeMUXsULEYm6qHys1G6ce")
@@ -77,22 +81,22 @@ class AddressTest {
   @Test
   def testAddressToHash = {
 
-    assert(Ecdsa.PublicKeyHash.fromAddress("AP1xWDozWvuVah1W86DKtcWzdw1LLHreMGX").isDefined)
-    assert(Ecdsa.PublicKeyHash.fromAddress("APBC5XmSaD4vooWo3FNho1wGAUyBQo3WCTQ").isDefined)
-    assert(Ecdsa.PublicKeyHash.fromAddress("APRJ7CvHoe5xTWSeD7dfD6eGRZWbGomzDi4").isDefined)
+    assert(UInt160.fromAddress("AP1xWDozWvuVah1W86DKtcWzdw1LLHreMGX").isDefined)
+    assert(UInt160.fromAddress("APBC5XmSaD4vooWo3FNho1wGAUyBQo3WCTQ").isDefined)
+    assert(UInt160.fromAddress("APRJ7CvHoe5xTWSeD7dfD6eGRZWbGomzDi4").isDefined)
 
     // not 0548 prefix
-    assert(Ecdsa.PublicKeyHash.fromAddress("APRJ7CvHoe5xTWSeD7dfD6eGRZWbGwz1inp").isEmpty)
+    assert(UInt160.fromAddress("APRJ7CvHoe5xTWSeD7dfD6eGRZWbGwz1inp").isEmpty)
 
-    val hash = Ecdsa.PublicKeyHash.fromAddress("APBC5XmSaD4vooWo3FNho1wGAUyBQo3WCTQ").get
+    val hash = UInt160.fromAddress("APBC5XmSaD4vooWo3FNho1wGAUyBQo3WCTQ").get
 
     assert(hash.data sameElements BinaryData("654a5851e9372b87810a8e60cdd2e7cfd80b6e31"))
 
-    assert(Ecdsa.PublicKeyHash.fromAddress("APBC5XmSaD4vooWo3FNho1wGAUyBQo3WCTQ").isDefined)
-    assert(Ecdsa.PublicKeyHash.fromAddress("APBC5XmSaD4vooWo1FNho1wGAUyBQo3WCTQ").isEmpty)
-    assert(Ecdsa.PublicKeyHash.fromAddress("aPBC5XmSaD4vooWo3FNho1wGAUyBQo3WCTQ").isEmpty)
-    assert(Ecdsa.PublicKeyHash.fromAddress("APBC5XmSaD4vooWo3FNho1wGAUy3BQo3WCTQ").isEmpty)
-    assert(Ecdsa.PublicKeyHash.fromAddress("APBC5XmSaD4voWo3FNho1wGAUyBQo3WCTQ").isEmpty)
+    assert(UInt160.fromAddress("APBC5XmSaD4vooWo3FNho1wGAUyBQo3WCTQ").isDefined)
+    assert(UInt160.fromAddress("APBC5XmSaD4vooWo1FNho1wGAUyBQo3WCTQ").isEmpty)
+    assert(UInt160.fromAddress("aPBC5XmSaD4vooWo3FNho1wGAUyBQo3WCTQ").isEmpty)
+    assert(UInt160.fromAddress("APBC5XmSaD4vooWo3FNho1wGAUy3BQo3WCTQ").isEmpty)
+    assert(UInt160.fromAddress("APBC5XmSaD4voWo3FNho1wGAUyBQo3WCTQ").isEmpty)
   }
 
   @Test

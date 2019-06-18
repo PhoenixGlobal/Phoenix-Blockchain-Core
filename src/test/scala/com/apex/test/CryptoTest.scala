@@ -58,11 +58,15 @@ class CryptoTest {
   }
   @Test
   def testEcdsaKey = {
-     var privKey = new Ecdsa.PrivateKey(BinaryData("18e14a7b6a307f426a94f8114701e7c8e774e7f9a47e2c2035db29a206321725"))
-     var pubKey = privKey.publicKey
+    val privKey = new Ecdsa.PrivateKey(BinaryData("18e14a7b6a307f426a94f8114701e7c8e774e7f9a47e2c2035db29a206321725"))
+    val pubKey = privKey.publicKey
+    val pubKeyUncompressed = privKey.publicKeyUncompressed.toBin
 
-     //  compressed pub key:  02 50863ad64a87ae8a2fe83c1af1a8403cb53f53e486d8511dad8a04887e5b2352    
-     assert(pubKey.toBin.data.toArray sameElements BinaryData("0250863ad64a87ae8a2fe83c1af1a8403cb53f53e486d8511dad8a04887e5b2352"))
+    //  compressed pub key:  02 50863ad64a87ae8a2fe83c1af1a8403cb53f53e486d8511dad8a04887e5b2352
+    assert(pubKey.toBin.data.toArray sameElements BinaryData("0250863ad64a87ae8a2fe83c1af1a8403cb53f53e486d8511dad8a04887e5b2352"))
+
+    // uncompressed pub key: 04 50863AD64A87AE8A2FE83C1AF1A8403CB53F53E486D8511DAD8A04887E5B2352 2CD470243453A299FA9E77237716103ABC11A1DF38855ED6F2EE187E9C582BA6
+    assert(pubKeyUncompressed sameElements BinaryData("0450863AD64A87AE8A2FE83C1AF1A8403CB53F53E486D8511DAD8A04887E5B23522CD470243453A299FA9E77237716103ABC11A1DF38855ED6F2EE187E9C582BA6"))
      
   }
   @Test

@@ -121,6 +121,8 @@ object Ecdsa {
 
     def publicKey: PublicKey = PublicKey(value.toPoint, compressed)
 
+    def publicKeyUncompressed: PublicKey = new PublicKey(value.toPoint, false)
+
     // 32 or 33 bytes
     //def toBin: BinaryData = if (compressed) value.toBin :+ 1.toByte else value.toBin
 
@@ -223,40 +225,6 @@ object Ecdsa {
   implicit def publickey2point(pub: PublicKey): Point = pub.value
 
   implicit def publickey2bin(pub: PublicKey): BinaryData = pub.toBin
-
-  object PublicKeyHash {
-
-    private val prefixString = "AP"
-    private val prefixBin = BinaryData("0548") // "0548" is for the "AP" prefix
-    
-    private val prefixBinNeo = BinaryData("17")
-
-    def toAddress(hash: Array[Byte]): String = {
-      assert(hash.length == 20)
-      Base58Check.encode(prefixBin, hash)
-    }
-
-    def fromAddress(address: String): Option[UInt160] = {
-      var publicKeyHash: Option[UInt160] = None
-      if (address.startsWith(prefixString) && address.length == 35) {
-        val decode = Base58Check.decode(address).getOrElse(Array[Byte]())
-        // 2 bytes prefix + 20 bytes data (+ 4 bytes checksum)
-        if (decode.length == 22 && BinaryData(decode.slice(0, 2)) == prefixBin)
-          publicKeyHash = Some(UInt160.fromBytes(decode.slice(2, 22)))
-      }
-      publicKeyHash
-    }
-
-    def fromNeoAddress(address: String): Option[UInt160] = {
-      var publicKeyHash: Option[UInt160] = None
-      val decode = Base58Check.decode(address).getOrElse(Array[Byte]())
-      // 1 bytes prefix + 20 bytes data (+ 4 bytes checksum)
-      if (decode.length == 21 && BinaryData(decode.slice(0, 1)) == prefixBinNeo)
-        publicKeyHash = Some(UInt160.fromBytes(decode.slice(1, 21)))
-      publicKeyHash
-    }
-
-  }
 
   def hash(digest: Digest)(input: Seq[Byte]): BinaryData = {
     digest.update(input.toArray, 0, input.length)

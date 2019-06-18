@@ -5,7 +5,7 @@ import java.time.Instant
 
 import com.apex.common.{ApexLogging, Helper}
 import com.apex.consensus._
-import com.apex.crypto.Ecdsa.{PrivateKey, PublicKeyHash}
+import com.apex.crypto.Ecdsa.PrivateKey
 import com.apex.crypto.{BinaryData, Crypto, FixedNumber, MerkleTree, UInt160, UInt256}
 import com.apex.proposal._
 import com.apex.settings.{ChainSettings, ConsensusSettings, RuntimeParas}
@@ -89,7 +89,7 @@ class Blockchain(chainSettings: ChainSettings,
 
     chainSettings.genesis.genesisCoinAirdrop.foreach(airdrop => {
       genesisTxs.append(new Transaction(TransactionType.Miner, minerCoinFrom,
-        PublicKeyHash.fromAddress(airdrop.addr).get, FixedNumber.fromDecimal(airdrop.coins),
+        UInt160.fromAddress(airdrop.addr).get, FixedNumber.fromDecimal(airdrop.coins),
         0, consensusSettings.fingerprint(), FixedNumber.MinValue, 0, BinaryData.empty))
     })
 
