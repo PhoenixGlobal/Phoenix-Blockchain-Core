@@ -24,12 +24,16 @@ import scala.reflect.io.Directory
 
 @Test
 class ForkBaseTest {
-  private val PubA = PublicKey("022ac01a1ea9275241615ea6369c85b41e2016abc47485ec616c3c583f1b92a5c8").pubKeyHash
+
   private val PriA = new PrivateKey(BinaryData("efc382ccc0358f468c2a80f3738211be98e5ae419fc0907cb2f51d3334001471"))
-  private val PubB = PublicKey("0238eb90b322fac718ce10b21d451d00b7003a2a1de2a1d584a158d7b7ffee297b").pubKeyHash
+  private val PubA = PriA.publicKey.pubKeyHash
+
   private val PriB = new PrivateKey(BinaryData("485cfb9f743d9997e316f5dca216b1c6adf12aa301c1d520e020269debbebbf0"))
-  private val PubC = PublicKey("0234b9b7d2909231d143a6693082665837965438fc273fbc4c507996e41394c8c1").pubKeyHash
+  private val PubB = PriB.publicKey.pubKeyHash
+
   private val PriC = new PrivateKey(BinaryData("5dfee6af4775e9635c67e1cea1ed617efb6d22ca85abfa97951771d47934aaa0"))
+  private val PubC = PriC.publicKey.pubKeyHash
+
   //private val witnesses = Array(Witness("A", PubA), Witness("B", PubB))
   private val witnessesAB = WitnessList.create(Array(WitnessInfo(PubA), WitnessInfo(PubB)), UInt256.Zero, 0)
   private val witnessesABC = WitnessList.create(Array(WitnessInfo(PubA), WitnessInfo(PubB), WitnessInfo(PubC)), UInt256.Zero, 0)

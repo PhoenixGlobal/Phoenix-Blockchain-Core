@@ -12,7 +12,7 @@ package com.apex.test
 
 import com.apex.core.DataBase
 import com.apex.crypto.Ecdsa.{PrivateKey, PublicKey}
-import com.apex.crypto.{BinaryData, Crypto, UInt160}
+import com.apex.crypto.{BinaryData, Crypto, Ecdsa, UInt160}
 import com.apex.settings._
 import com.apex.solidity.Abi
 import com.apex.test.VMTest.author
@@ -387,27 +387,21 @@ object VMOpTest {
   private val settings = DataBaseSettings(dir, true, 10, DBType.LevelDB)
   //  private val dataBase = new DataBase(settings)
 
-  val caller = PublicKey("0345ffbf8dc9d8ff15785e2c228ac48d98d29b834c2e98fb8cfe6e71474d7f6322").pubKeyHash
-  val author = PublicKey("022ac01a1ea9275241615ea6369c85b41e2016abc47485ec616c3c583f1b92a5c8").pubKeyHash
-  val contractAddress = Crypto.calcNewAddr(author, BigInt(1).toByteArray)
+  val caller = new Ecdsa.PrivateKey(BinaryData("5ec03da4ea5e188897a2994a391f31b1a2ceb060cdcd74bff3643ef614e650c6")).publicKey.pubKeyHash
+  val author = new Ecdsa.PrivateKey(BinaryData("b91bb4c32f4b4f2e589e1e8e7299017a2e1892de98a08a060f6807d0bd1f184d")).publicKey.pubKeyHash
+  val contractAddress = Crypto.calcNewAddr(author, 1)
   val vmSettings = ContractSettings(0, false, Int.MaxValue)
 
 
-  private val _witness1 = InitWitness("init1",
-    PublicKey("022ac01a1ea9275241615ea6369c85b41e2016abc47485ec616c3c583f1b92a5c8").pubKeyHash)
-  //Some(new PrivateKey(BinaryData("efc382ccc0358f468c2a80f3738211be98e5ae419fc0907cb2f51d3334001471"))))
+  private val _witAcct1 = Ecdsa.PrivateKey.fromWIF("Kzgt5pr3a7ZFoz1sA7mtqHQsL7iFXvxWRSPF2NBwqCdBgvpyYFRL").get
+  private val _witAcct2 = Ecdsa.PrivateKey.fromWIF("L5UB3ejT6kiYKfue8G2YkGz5FCNxyLZ3AuK2NBPgHbBniTqQ2M6s").get
+  private val _witAcct3 = Ecdsa.PrivateKey.fromWIF("KyAHDybvf2dSoiKbfEgdNvMLsJjn67w3HYMPLAcVpVTBhfhGF3gB").get
+  private val _witAcct4 = Ecdsa.PrivateKey.fromWIF("KyWL2DuAosLkSzuVaGb3RkGWrAr26sdbkLVAZ6FNPBrCBD7cMCGo").get
 
-  private val _witness2 = InitWitness("init2",
-    PublicKey("03c3333373adc0636b1d67d4bca3d8b34a53d663698119369981e67866250d3a74").pubKeyHash)
-  //Some(new PrivateKey(BinaryData("cc7b7fa6e706944fa2d75652065f95ef2f364316e172601320655aac0e648165"))))
-
-  private val _witness3 = InitWitness("init3",
-    PublicKey("020550de6ce7ed53ff018cccf1095893edba43f798252d6983e0fd2ca5af3ee0da").pubKeyHash)
-  //Some(new PrivateKey(BinaryData("db71fe7c0ac4ca3e8cef95bf55cf535eaa8fe0c80d18e0cb19af8d7071b8a184"))))
-
-  private val _witness4 = InitWitness("init4", // APPnx5YahVg1dTgeWkp1fE33ftvAaGbeQaR  L2C4Za8VSx2iBgszQarHx4YzqHvfumkHjbi6bNqvqst6mc8QcuZ7
-    PublicKey("0246f896de22582786884d7d7ae27ef00cc8fed167bcdb8c305fbbc3dd9cca696c").pubKeyHash)
-  //Some(new PrivateKey(BinaryData("9456beec947b368eda4be03f6c306703d9b2eda49f661285944b4e1f07ae18f3"))))
+  private val _witness1 = InitWitness("init1", _witAcct1.publicKey.pubKeyHash)
+  private val _witness2 = InitWitness("init2", _witAcct2.publicKey.pubKeyHash)
+  private val _witness3 = InitWitness("init3", _witAcct3.publicKey.pubKeyHash)
+  private val _witness4 = InitWitness("init4", _witAcct4.publicKey.pubKeyHash)
 
   private val _consensusSettings = ConsensusSettings(500, 500, 1, 4, 63000, Array(_witness1, _witness2, _witness3, _witness4))
 

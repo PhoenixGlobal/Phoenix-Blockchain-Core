@@ -9,6 +9,7 @@
 package com.apex.test
 
 import com.apex.core.{Transaction, TransactionType}
+import com.apex.crypto.Ecdsa.PrivateKey
 import com.apex.crypto.{BinaryData, Ecdsa, FixedNumber, UInt160, UInt256}
 import org.junit.Test
 
@@ -18,7 +19,7 @@ class TransactionTest {
   @Test
   def testSize = {
     val tx = new Transaction(TransactionType.Transfer,
-      Ecdsa.PublicKey(BinaryData("0345ffbf8dc9d8ff15785e2c228ac48d98d29b834c2e98fb8cfe6e71474d7f6322")).pubKeyHash,
+      PrivateKey(BinaryData("efc382ccc0358f468c2a80f3738211be98e5ae419fc0907cb2f51d3334001471")).publicKey.pubKeyHash,
       UInt160.fromAddress("APGMmPKLYdtTNhiEkDGU6De8gNCk3bTsME9").get,
       FixedNumber.Ten,
       1,
@@ -44,7 +45,7 @@ class TransactionTest {
     val privKeyWrong = new Ecdsa.PrivateKey(BinaryData("d39d51a8d40331b0c73af180208fe0e4ee357e45a59e8afeebf6895ddf78aa2f"))
 
     val tx = new Transaction(TransactionType.Transfer,
-                    Ecdsa.PublicKey(BinaryData("0345ffbf8dc9d8ff15785e2c228ac48d98d29b834c2e98fb8cfe6e71474d7f6322")).pubKeyHash,
+                    privKey.publicKey.pubKeyHash,
                     UInt160.fromAddress("APGMmPKLYdtTNhiEkDGU6De8gNCk3bTsME9").get,
                     FixedNumber.Ten,
                     1,
@@ -79,48 +80,45 @@ class TransactionTest {
   
   @Test
   def testZeroDataBytes = {
-    val tx1 = new Transaction(TransactionType.Transfer,
-      Ecdsa.PublicKey(BinaryData("0345ffbf8dc9d8ff15785e2c228ac48d98d29b834c2e98fb8cfe6e71474d7f6322")).pubKeyHash,
+
+    val fromAddr = PrivateKey(BinaryData("efc382ccc0358f468c2a80f3738211be98e5ae419fc0907cb2f51d3334001471")).publicKey.pubKeyHash
+
+    val tx1 = new Transaction(TransactionType.Transfer, fromAddr,
       UInt160.fromAddress("APGMmPKLYdtTNhiEkDGU6De8gNCk3bTsME9").get,
       FixedNumber.Ten,1,
       BinaryData("1234"), FixedNumber(567),789, BinaryData.empty)
 
     assert(tx1.zeroDataBytes() == (0, 2))
 
-    val tx2 = new Transaction(TransactionType.Transfer,
-      Ecdsa.PublicKey(BinaryData("0345ffbf8dc9d8ff15785e2c228ac48d98d29b834c2e98fb8cfe6e71474d7f6322")).pubKeyHash,
+    val tx2 = new Transaction(TransactionType.Transfer, fromAddr,
       UInt160.fromAddress("APGMmPKLYdtTNhiEkDGU6De8gNCk3bTsME9").get,
       FixedNumber.Ten,1,
       BinaryData("123400"), FixedNumber(567),789, BinaryData.empty)
 
     assert(tx2.zeroDataBytes() == (1, 2))
 
-    val tx3 = new Transaction(TransactionType.Transfer,
-      Ecdsa.PublicKey(BinaryData("0345ffbf8dc9d8ff15785e2c228ac48d98d29b834c2e98fb8cfe6e71474d7f6322")).pubKeyHash,
+    val tx3 = new Transaction(TransactionType.Transfer, fromAddr,
       UInt160.fromAddress("APGMmPKLYdtTNhiEkDGU6De8gNCk3bTsME9").get,
       FixedNumber.Ten,1,
       BinaryData("120034"), FixedNumber(567),789, BinaryData.empty)
 
     assert(tx3.zeroDataBytes() == (1, 2))
 
-    val tx4 = new Transaction(TransactionType.Transfer,
-      Ecdsa.PublicKey(BinaryData("0345ffbf8dc9d8ff15785e2c228ac48d98d29b834c2e98fb8cfe6e71474d7f6322")).pubKeyHash,
+    val tx4 = new Transaction(TransactionType.Transfer, fromAddr,
       UInt160.fromAddress("APGMmPKLYdtTNhiEkDGU6De8gNCk3bTsME9").get,
       FixedNumber.Ten,1,
       BinaryData("00123400"), FixedNumber(567),789, BinaryData.empty)
 
     assert(tx4.zeroDataBytes() == (2, 2))
 
-    val tx5 = new Transaction(TransactionType.Transfer,
-      Ecdsa.PublicKey(BinaryData("0345ffbf8dc9d8ff15785e2c228ac48d98d29b834c2e98fb8cfe6e71474d7f6322")).pubKeyHash,
+    val tx5 = new Transaction(TransactionType.Transfer, fromAddr,
       UInt160.fromAddress("APGMmPKLYdtTNhiEkDGU6De8gNCk3bTsME9").get,
       FixedNumber.Ten, 1,
       BinaryData("00"), FixedNumber(567),789, BinaryData.empty)
 
     assert(tx5.zeroDataBytes() == (1, 0))
 
-    val tx6 = new Transaction(TransactionType.Transfer,
-      Ecdsa.PublicKey(BinaryData("0345ffbf8dc9d8ff15785e2c228ac48d98d29b834c2e98fb8cfe6e71474d7f6322")).pubKeyHash,
+    val tx6 = new Transaction(TransactionType.Transfer, fromAddr,
       UInt160.fromAddress("APGMmPKLYdtTNhiEkDGU6De8gNCk3bTsME9").get,
       FixedNumber.Ten,1,
       BinaryData.empty, FixedNumber(567),789, BinaryData.empty)

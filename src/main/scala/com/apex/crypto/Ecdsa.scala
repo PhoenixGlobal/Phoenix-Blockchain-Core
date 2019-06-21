@@ -34,7 +34,7 @@ case class BinaryData(data: Seq[Byte]) {
 }
 
 object Ecdsa {
-  val params = SECNamedCurves.getByName("secp256k1")  // secp256r1
+  val params = SECNamedCurves.getByName("secp256r1")  // secp256k1
   val curve = new ECDomainParameters(params.getCurve, params.getG, params.getN, params.getH)
   val halfCurveOrder = params.getN().shiftRight(1)
   val zero = BigInteger.valueOf(0)
@@ -210,11 +210,15 @@ object Ecdsa {
 
     //def hash160: BinaryData = Ecdsa.hash160(toBin)
 
-    def pubKeyHash: UInt160 = UInt160.fromBytes(Ecdsa.hash160(toBin))
+    def pubKeyScript: BinaryData = BinaryData("21") ++ toBin ++ BinaryData("ac")
+
+    //TODO: rename to scriptHash
+    def pubKeyHash: UInt160 = UInt160.fromBytes(Ecdsa.hash160(pubKeyScript))
 
     override def toString = toBin.toString
 
     def address: String = pubKeyHash.address
+    def neoAddress: String = pubKeyHash.neoAddress
 
     override def serialize(os: DataOutputStream): Unit = {
       import com.apex.common.Serializable._

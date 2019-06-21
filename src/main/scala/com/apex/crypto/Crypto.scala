@@ -118,8 +118,8 @@ object Crypto {
     UInt160.fromBytes(hash160(addr ++ nonce))
   }
 
-  def calcNewAddr(addr: UInt160, nonce: Array[Byte]): UInt160 = {
-    calcNewAddr(addr.data, nonce)
+  def calcNewAddr(addr: UInt160, nonce: Long): UInt160 = {
+    calcNewAddr(addr.data, BigInt(nonce).toByteArray)
   }
 
   def calcSaltAddr(addr: UInt160, initCode: Array[Byte], salt: Array[Byte]): UInt160 = {

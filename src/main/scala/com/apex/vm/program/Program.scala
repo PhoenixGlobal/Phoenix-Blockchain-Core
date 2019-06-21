@@ -258,7 +258,7 @@ class Program(settings: ContractSettings, ops: Array[Byte], invoke: ProgramInvok
     val senderAddress = getOwnerAddress.toUInt160
     val endowment = value.value
     if (verifyCall(senderAddress, endowment)) {
-      val nonce = getStorage.getNonce(senderAddress).toBytes
+      val nonce = getStorage.getNonce(senderAddress)
       val contractAddress = Crypto.calcNewAddr(senderAddress, nonce)
       val programCode = memoryChunk(memStart.intValue, memSize.intValue)
       createContractImpl(value, programCode, contractAddress)

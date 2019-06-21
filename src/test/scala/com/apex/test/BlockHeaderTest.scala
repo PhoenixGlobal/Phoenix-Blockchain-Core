@@ -21,9 +21,9 @@ class BlockHeaderTest {
   def testSerialize = {
     val prevBlock = SerializerHelper.testHash256("prev")
     val merkleRoot = SerializerHelper.testHash256("root")
-    val producer = PublicKey("03b4534b44d1da47e4b4a504a210401a583f860468dec766f507251a057594e682") // TODO: read from settings
-    val producerPrivKey = new PrivateKey(BinaryData("7a93d447bffe6d89e690f529a3a0bdff8ff6169172458e04849ef1d4eafd7f86"))
-    val producerPrivKeyWrong = new PrivateKey(BinaryData("7a93d447bffe6d89e690f529a3a1bdff8ff6169172458e04849ef1d4eafd7f86"))
+    val producerPrivKey = new PrivateKey(BinaryData("ec3b8408c99ee15cc39a9a2ae2d2c4b92a5878314f3eb7a25ce73958c5e8c73f"))
+    val producerPrivKeyWrong = new PrivateKey(BinaryData("ec3b8408c99ee15cc39a9a2ae2d2c4b92a5878314f3eb7a25ce73958c5e8c75f"))
+    val producer = producerPrivKey.publicKey
     val timeStamp = DateTime.now.clicks
     val a = new BlockHeader(0, timeStamp, merkleRoot,
       prevBlock, producer.pubKeyHash, BinaryData("0000"))
@@ -48,8 +48,8 @@ class BlockHeaderTest {
   def testToJson = {
     val prevBlock = SerializerHelper.testHash256("prev")
     val merkleRoot = SerializerHelper.testHash256("root")
-    val producer = PublicKey("03b4534b44d1da47e4b4a504a210401a583f860468dec766f507251a057594e682") // TODO: read from settings
-    val producerPrivKey = new PrivateKey(BinaryData("7a93d447bffe6d89e690f529a3a0bdff8ff6169172458e04849ef1d4eafd7f86"))
+    val producerPrivKey = new PrivateKey(BinaryData("ec3b8408c99ee15cc39a9a2ae2d2c4b92a5878314f3eb7a25ce73958c5e8c73f"))
+    val producer = producerPrivKey.publicKey
     val timeStamp = DateTime.now.clicks
     val a = new BlockHeader(0, timeStamp, merkleRoot, prevBlock, producer.pubKeyHash, BinaryData("0000"))
     val eefe = Json.toJson(a).toString
