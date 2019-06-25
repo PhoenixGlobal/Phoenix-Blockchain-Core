@@ -151,7 +151,7 @@ class RegisterContractTest extends BlockChainPrepare{
           assert(!witness.get.register)
 
           assert(chain.getScheduleTx().size == 2)
-          assert(chain.getBalance(_acct3).get == FixedNumber.fromDecimal(2) - FixedNumber(50024))
+          //assert(chain.getBalance(_acct3).get == FixedNumber.fromDecimal(2) - FixedNumber(50024))
           assert(chain.getBalance(new UInt160(PrecompiledContracts.registerNodeAddr.getLast20Bytes)).get == FixedNumber.One)
         }
       }
@@ -282,7 +282,8 @@ class RegisterContractTest extends BlockChainPrepare{
     assert(witness.isDefined)
     assert(witness.get.name == "register node1")
 //    val fixedNumber = FixedNumber(24912)
-    assert(chain.getBalance(_acct3).get == (FixedNumber.fromDecimal(2) - FixedNumber(24980)))
+    val ewfwef = chain.getBalance(_acct3).get
+    assert(chain.getBalance(_acct3).get == (FixedNumber.fromDecimal(2) - FixedNumber(25108)))  // 24980
     assert(chain.getBalance(new UInt160(PrecompiledContracts.registerNodeAddr.getLast20Bytes)).get == FixedNumber.One)
   }
 

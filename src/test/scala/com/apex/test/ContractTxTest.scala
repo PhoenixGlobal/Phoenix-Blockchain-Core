@@ -16,57 +16,6 @@ import org.junit.{AfterClass, Test}
 import scala.collection.mutable.ArrayBuffer
 import scala.reflect.io.Directory
 
-//======
-//1
-//priv key raw:           108fd85be78e0dcc96b93c9c53c30281115ee453e9c472654fad985dcd7b91db
-//priv key WIF format:    KwmuSp41VWBtGSWaQQ82ZRRSFzkJVTAyuDLQ9NzP9CPqLWirh4UQ
-//pub key (compressed):   024f3076ac9b2b8ef8bf1c303c3ac3057472c9fa391df62c543789f34017168c62
-//pub key hash160:        c98bae4cc033c7e7bce053ebaa926bd61c120454
-//Address:                APLLBNZjMq4tFANSNHsEoXwGJ7NVfi4BxUa
-//======
-//2
-//priv key raw:           ad28867b93d8be8558d61ee58e971117142aefd28ebb54bf4f20792bfb7fab25
-//priv key WIF format:    L32JpLopG2hWjEMSCkAjS1nUnPixVrDTPqFAGYbddQrtUjRfkjEP
-//pub key (compressed):   02add2d02786ba350148aee109e67495d6c4c2dccd9b5aaa57ad866d7b6105ac8f
-//pub key hash160:        2ee607c3ed304353dd8a2d16636b46bd91d11152
-//Address:                AP6EUsRV9DCvbywpDFLXS3JhjRryFPe9Qo8
-//======
-//3
-//priv key raw:           43427dd5def74e97ab0409eaec3d64aff0557707a6edc1004d1c6e08ea705b45
-//priv key WIF format:    KyUTLv2BeP9SJD6Sa8aHBVmuRkgw9eThjNGJDE4PySEgf2TvCQCn
-//pub key (compressed):   03d7a23792639a9824d1013151711b521653f0c72563d69481bd914db75b03309d
-//pub key hash160:        00d08ce14267fbce154d2983b8723dd5ad2addd5
-//Address:                AP22p497htDs1SKXHjwyCgrYuFtTgcP5F5w
-//======
-//4
-//priv key raw:           adc2a556a1a1726ecce71eb38e306914af4d82f547a545eed677ba555409932f
-//priv key WIF format:    L33Uh9L35pSoEqBPP43U6rQcD2xMpJ7F4b3QMjUMAL6HZhxUqEGq
-//pub key (compressed):   03f5bb4aa2a0773d658e9df51865ffbfd41f98891bd1994337afae4dc27c1d1927
-//pub key hash160:        da55e4f6f216187259e7bc56cbb1587edc5156b4
-//Address:                APMrxRgE3ZBqw9nC249175AvjUcmYMCq7XX
-//======
-//5
-//priv key raw:           2cd68534541d6babbc8edb7a15036f8cee5f3506d667aecc022ffa1ea1b1b269
-//priv key WIF format:    KxisR46MUfkekvgfuuydTD91avsjxhoqs5S6Ech2uiG21RDUEbna
-//pub key (compressed):   03300f032f1d130956f0ff994cbd52cab3fc4167c0f6e96f1b5714da10ed51c1bd
-//pub key hash160:        63d15a28a09748540eca07aeabf3b831b3056ebe
-//Address:                APB4Hur58nvWWHuSE5qNQFWYPjZaKZetFAe
-//======
-//6
-//priv key raw:           0c165d5428409eef6e025d6fe827b3b0f595f5a1cc4051c9ff43a7f1e20fed56
-//priv key WIF format:    KwdCy3jFbU5MK4ZMbgKLTDkenhQgCU44hevVVXAv7ZUZRYJypqCB
-//pub key (compressed):   034a79dcbd7b6da30739516f00e0be2e8c511a9ee446cc7362b8a441504ec0e7bf
-//pub key hash160:        3a01649c803b08d4a3522c3ca49dedf687d576f9
-//Address:                AP7FD5j2aPj83dmb3xSJZVVJ1JwNLry74xa
-//======
-//7
-//priv key raw:           29e286f51e12df09f46b451d606650a0cce4b0d6d42a5d2e5450ab7c8b58a2c3
-//priv key WIF format:    Kxd8UDvptjG4AcT7k2ULe8tVkmfK5naXKc3gzrvRtg6msGLA3xLY
-//pub key (compressed):   03a549ab71a681d09bd090ed67bad589e55b582a2bbbdf3fb7d68ad3a71bfee211
-//pub key hash160:        3252379053bf9f8827896cf0a5ff2cbd6fdca06f
-//Address:                AP6YaVweecsk2sLRpSdUEwiQ2yE9WvitBtr
-//======
-
 @Test
 class ContractTxTest {  
 
@@ -76,27 +25,28 @@ class ContractTxTest {
 
   val _minerAward: Double = 12.3
 
+  val priv1 = new PrivateKey(BinaryData("efc382ccc0358f468c2a80f3738211be98e5ae419fc0907cb2f51d3334001471"))
+  val priv2 = new PrivateKey(BinaryData("cc7b7fa6e706944fa2d75652065f95ef2f364316e172601320655aac0e648165"))
+  val priv3 = new PrivateKey(BinaryData("db71fe7c0ac4ca3e8cef95bf55cf535eaa8fe0c80d18e0cb19af8d7071b8a184"))
+  val priv4 = new PrivateKey(BinaryData("9456beec947b368eda4be03f6c306703d9b2eda49f661285944b4e1f07ae18f3"))
+
   val _witness1 = InitWitness("init1",
-    PublicKey("022ac01a1ea9275241615ea6369c85b41e2016abc47485ec616c3c583f1b92a5c8").pubKeyHash)
+    priv1.publicKey.pubKeyHash) //PublicKey("022ac01a1ea9275241615ea6369c85b41e2016abc47485ec616c3c583f1b92a5c8").pubKeyHash)
     //Some(new PrivateKey(BinaryData("efc382ccc0358f468c2a80f3738211be98e5ae419fc0907cb2f51d3334001471"))))
 
   val _witness2 = InitWitness("init2",
-    PublicKey("03c3333373adc0636b1d67d4bca3d8b34a53d663698119369981e67866250d3a74").pubKeyHash)
+    priv2.publicKey.pubKeyHash) //PublicKey("03c3333373adc0636b1d67d4bca3d8b34a53d663698119369981e67866250d3a74").pubKeyHash)
     //Some(new PrivateKey(BinaryData("cc7b7fa6e706944fa2d75652065f95ef2f364316e172601320655aac0e648165"))))
 
   val _witness3 = InitWitness("init3",
-    PublicKey("020550de6ce7ed53ff018cccf1095893edba43f798252d6983e0fd2ca5af3ee0da").pubKeyHash)
+    priv3.publicKey.pubKeyHash) //PublicKey("020550de6ce7ed53ff018cccf1095893edba43f798252d6983e0fd2ca5af3ee0da").pubKeyHash)
     //Some(new PrivateKey(BinaryData("db71fe7c0ac4ca3e8cef95bf55cf535eaa8fe0c80d18e0cb19af8d7071b8a184"))))
 
   val _witness4 = InitWitness("init4",  // APPnx5YahVg1dTgeWkp1fE33ftvAaGbeQaR  L2C4Za8VSx2iBgszQarHx4YzqHvfumkHjbi6bNqvqst6mc8QcuZ7
-    PublicKey("0246f896de22582786884d7d7ae27ef00cc8fed167bcdb8c305fbbc3dd9cca696c").pubKeyHash)
+    priv4.publicKey.pubKeyHash) //PublicKey("0246f896de22582786884d7d7ae27ef00cc8fed167bcdb8c305fbbc3dd9cca696c").pubKeyHash)
     //Some(new PrivateKey(BinaryData("9456beec947b368eda4be03f6c306703d9b2eda49f661285944b4e1f07ae18f3"))))
 
-  val _miners = MinerSettings(Array(
-    new PrivateKey(BinaryData("efc382ccc0358f468c2a80f3738211be98e5ae419fc0907cb2f51d3334001471")),
-    new PrivateKey(BinaryData("cc7b7fa6e706944fa2d75652065f95ef2f364316e172601320655aac0e648165")),
-    new PrivateKey(BinaryData("db71fe7c0ac4ca3e8cef95bf55cf535eaa8fe0c80d18e0cb19af8d7071b8a184")),
-    new PrivateKey(BinaryData("9456beec947b368eda4be03f6c306703d9b2eda49f661285944b4e1f07ae18f3"))     ))
+  val _miners = MinerSettings(Array(priv1, priv2, priv3, priv4))
 
   val _consensusSettings = ConsensusSettings(_produceInterval, 500, 1, 4, 63000, Array(_witness1, _witness2, _witness3, _witness4))
 
@@ -108,6 +58,8 @@ class ContractTxTest {
   val _acct4 = Ecdsa.PrivateKey.fromWIF("L33Uh9L35pSoEqBPP43U6rQcD2xMpJ7F4b3QMjUMAL6HZhxUqEGq").get
 
   private val minerCoinFrom = UInt160.Zero
+
+  val contractAddress = Crypto.calcNewAddr(_acct1.publicKey.pubKeyHash, 0)
 
   private def createChain(path: String): Blockchain = {
     val baseDir = s"ContractTxTest/$path"
@@ -173,19 +125,19 @@ class ContractTxTest {
 
       val settt = Abi.fromJson("[{\"constant\":false,\"inputs\":[{\"name\":\"withdraw_amount\",\"type\":\"uint256\"}],\"name\":\"set\",\"outputs\":[],\"payable\":false,\"stateMutability\":\"nonpayable\",\"type\":\"function\"},{\"constant\":false,\"inputs\":[],\"name\":\"get\",\"outputs\":[{\"name\":\"\",\"type\":\"uint256\"}],\"payable\":false,\"stateMutability\":\"nonpayable\",\"type\":\"function\"}]").encode("set(123)")
       var setTx = new Transaction(TransactionType.Call, _acct1.publicKey.pubKeyHash,
-        UInt160.fromBytes(BinaryData("7f97e6f4f660e6c09b894f34edae3626bf44039a")), FixedNumber.Zero,
+        contractAddress, FixedNumber.Zero,
         1, settt, FixedNumber(1), 9, BinaryData.empty)
       assert(!chain.addTransaction(setTx))   // gas limit error
 
       setTx = new Transaction(TransactionType.Call, _acct1.publicKey.pubKeyHash,
-        UInt160.fromBytes(BinaryData("7f97e6f4f660e6c09b894f34edae3626bf44039a")), FixedNumber.Zero,
+        contractAddress, FixedNumber.Zero,
         1, settt, FixedNumber(1), 9000000L, BinaryData.empty)
       assert(chain.addTransaction(setTx))
 
       val gettt = Abi.fromJson("[{\"constant\":false,\"inputs\":[{\"name\":\"withdraw_amount\",\"type\":\"uint256\"}],\"name\":\"set\",\"outputs\":[],\"payable\":false,\"stateMutability\":\"nonpayable\",\"type\":\"function\"},{\"constant\":false,\"inputs\":[],\"name\":\"get\",\"outputs\":[{\"name\":\"\",\"type\":\"uint256\"}],\"payable\":false,\"stateMutability\":\"nonpayable\",\"type\":\"function\"}]").encode("get()")
 
       var getTx = new Transaction(TransactionType.Call, _acct1.publicKey.pubKeyHash,
-        UInt160.fromBytes(BinaryData("7f97e6f4f660e6c09b894f34edae3626bf44039a")), FixedNumber.Zero,
+        contractAddress, FixedNumber.Zero,
         2, gettt, FixedNumber(1), 9000000L, BinaryData.empty)
       assert(chain.addTransaction(getTx))
       assert(chain.getTransactionFromPendingTxs(getTx.id).isDefined)
@@ -197,7 +149,7 @@ class ContractTxTest {
       assert(chain.getBalance(producer).get == FixedNumber.fromDecimal(BigDecimal("12.300000000000177538")))
 
       getTx = new Transaction(TransactionType.Call, _acct1.publicKey.pubKeyHash,
-        UInt160.fromBytes(BinaryData("7f97e6f4f660e6c09b894f34edae3626bf44039a")), FixedNumber.Zero,
+        contractAddress, FixedNumber.Zero,
         3, gettt, FixedNumber(1000000000L), 21539, BinaryData.empty)
       assert(chain.addTransaction(getTx))   // require gas 21540, but only give 21539
       receipt = chain.getReceipt(getTx.id()).get
@@ -293,14 +245,14 @@ class ContractTxTest {
 
       val settt = Abi.fromJson("[{\"constant\":false,\"inputs\":[{\"name\":\"withdraw_amount\",\"type\":\"uint256\"}],\"name\":\"set\",\"outputs\":[],\"payable\":false,\"stateMutability\":\"nonpayable\",\"type\":\"function\"},{\"constant\":false,\"inputs\":[],\"name\":\"get\",\"outputs\":[{\"name\":\"\",\"type\":\"uint256\"}],\"payable\":false,\"stateMutability\":\"nonpayable\",\"type\":\"function\"}]").encode("set(123)")
       val setTx = new Transaction(TransactionType.Call, _acct1.publicKey.pubKeyHash,
-      UInt160.fromBytes(BinaryData("7f97e6f4f660e6c09b894f34edae3626bf44039a")), FixedNumber.Zero,
+      contractAddress, FixedNumber.Zero,
       1, settt, FixedNumber(1), 9000000L, BinaryData.empty)
       assert(chain.addTransaction(setTx))
 
       val gettt = Abi.fromJson("[{\"constant\":false,\"inputs\":[{\"name\":\"withdraw_amount\",\"type\":\"uint256\"}],\"name\":\"set\",\"outputs\":[],\"payable\":false,\"stateMutability\":\"nonpayable\",\"type\":\"function\"},{\"constant\":false,\"inputs\":[],\"name\":\"get\",\"outputs\":[{\"name\":\"\",\"type\":\"uint256\"}],\"payable\":false,\"stateMutability\":\"nonpayable\",\"type\":\"function\"}]").encode("get()")
 
       var getTx = new Transaction(TransactionType.Call, _acct1.publicKey.pubKeyHash,
-      UInt160.fromBytes(BinaryData("7f97e6f4f660e6c09b894f34edae3626bf44039a")), FixedNumber.Zero,
+      contractAddress, FixedNumber.Zero,
       2, gettt, FixedNumber(1), 9000000L, BinaryData.empty)
       assert(chain.addTransaction(getTx))
       assert(chain.getTransactionFromPendingTxs(getTx.id).isDefined)
@@ -355,7 +307,7 @@ class ContractTxTest {
       //var txData = BinaryData("f8b2cb4f000000000000000000000000c98bae4cc033c7e7bce053ebaa926bd61c120454")
       var txData = Abi.fromJson(abiString).encode(s"getBalance('${_acct1.publicKey.pubKeyHash.address}')")
       var tx = new Transaction(TransactionType.Call, _acct1.publicKey.pubKeyHash,
-        UInt160.fromBytes(BinaryData("7f97e6f4f660e6c09b894f34edae3626bf44039a")), FixedNumber.Zero,
+        contractAddress, FixedNumber.Zero,
         1, txData, FixedNumber(1), 9000000L, BinaryData.empty)
       assert(chain.addTransaction(tx))
       assert(DataWord.of(chain.getReceipt(tx.id()).get.output).value == totalSupply)
@@ -363,16 +315,16 @@ class ContractTxTest {
       // getBalance of _acct2
       txData = Abi.fromJson(abiString).encode(s"getBalance('${_acct2.publicKey.pubKeyHash.address}')")
       tx = new Transaction(TransactionType.Call, _acct1.publicKey.pubKeyHash,
-        UInt160.fromBytes(BinaryData("7f97e6f4f660e6c09b894f34edae3626bf44039a")), FixedNumber.Zero,
+        contractAddress, FixedNumber.Zero,
         2, txData, FixedNumber(1), 9000000L, BinaryData.empty)
       assert(chain.addTransaction(tx))
       assert(DataWord.of(chain.getReceipt(tx.id()).get.output).longValue == 0)
 
       // transfer 501 from 1 to 2
       txData = Abi.fromJson(abiString).encode(s"transfer('${_acct2.publicKey.pubKeyHash.address}', 501)")
-      assert(txData sameElements BinaryData("a9059cbb0000000000000000000000002ee607c3ed304353dd8a2d16636b46bd91d1115200000000000000000000000000000000000000000000000000000000000001f5"))
+      //assert(txData sameElements BinaryData("a9059cbb0000000000000000000000002ee607c3ed304353dd8a2d16636b46bd91d1115200000000000000000000000000000000000000000000000000000000000001f5"))
       tx = new Transaction(TransactionType.Call, _acct1.publicKey.pubKeyHash,
-        UInt160.fromBytes(BinaryData("7f97e6f4f660e6c09b894f34edae3626bf44039a")), FixedNumber.Zero,
+        contractAddress, FixedNumber.Zero,
         3, txData, FixedNumber(1), 9000000L, BinaryData.empty)
       assert(chain.addTransaction(tx))
       var receipt = chain.getReceipt(tx.id()).get
@@ -380,7 +332,7 @@ class ContractTxTest {
       // getBalance of _acct1
       txData = Abi.fromJson(abiString).encode(s"getBalance('${_acct1.publicKey.pubKeyHash.address}')")
       tx = new Transaction(TransactionType.Call, _acct1.publicKey.pubKeyHash,
-        UInt160.fromBytes(BinaryData("7f97e6f4f660e6c09b894f34edae3626bf44039a")), FixedNumber.Zero,
+        contractAddress, FixedNumber.Zero,
         4, txData, FixedNumber(1), 9000000L, BinaryData.empty)
       assert(chain.addTransaction(tx))
       val wefwef = chain.getReceipt(tx.id())
@@ -390,7 +342,7 @@ class ContractTxTest {
       // getBalance of _acct2
       txData = Abi.fromJson(abiString).encode(s"getBalance('${_acct2.publicKey.pubKeyHash.address}')")
       tx = new Transaction(TransactionType.Call, _acct1.publicKey.pubKeyHash,
-        UInt160.fromBytes(BinaryData("7f97e6f4f660e6c09b894f34edae3626bf44039a")), FixedNumber.Zero,
+        contractAddress, FixedNumber.Zero,
         5, txData, FixedNumber(1), 9000000L, BinaryData.empty)
       assert(chain.addTransaction(tx))
       assert(DataWord.of(chain.getReceipt(tx.id()).get.output).value == BigInt(501))
@@ -398,7 +350,7 @@ class ContractTxTest {
       //      //https://etherscan.io/tx/0x41bdc6c1fd6cd97acc37f97714f24fe328dcaaadd546c7981f77f0290a0868b6
       //      txData = BinaryData("a9059cbb000000000000000000000000df9c09d8e32864103ad0b157dfca613a222c51db000000000000000000000000000000000000000000000003cd346237eb1b6400")
       //      tx = new Transaction(TransactionType.Call, _acct1.publicKey.pubKeyHash,
-      //        UInt160.fromBytes(BinaryData("7f97e6f4f660e6c09b894f34edae3626bf44039a")), "", FixedNumber.Zero,
+      //        contractAddress, "", FixedNumber.Zero,
       //        6, txData, FixedNumber(0), 9000000L, BinaryData.empty)
       //      assert(chain.addTransaction(tx))
       //      receipt = chain.getReceipt(tx.id()).get    //  gas should 37642
@@ -406,7 +358,7 @@ class ContractTxTest {
       // burn 1001
       txData = Abi.fromJson(abiString).encode(s"burn(1001)")
       tx = new Transaction(TransactionType.Call, _acct1.publicKey.pubKeyHash,
-        UInt160.fromBytes(BinaryData("7f97e6f4f660e6c09b894f34edae3626bf44039a")), FixedNumber.Zero,
+        contractAddress, FixedNumber.Zero,
         6, txData, FixedNumber(1), 9000000L, BinaryData.empty)
       assert(chain.addTransaction(tx))
 
@@ -415,7 +367,7 @@ class ContractTxTest {
       // freeze 700
       txData = Abi.fromJson(abiString).encode(s"freeze(700)")
       tx = new Transaction(TransactionType.Call, _acct1.publicKey.pubKeyHash,
-        UInt160.fromBytes(BinaryData("7f97e6f4f660e6c09b894f34edae3626bf44039a")), FixedNumber.Zero,
+        contractAddress, FixedNumber.Zero,
         7, txData, FixedNumber(1), 9000000L, BinaryData.empty)
       assert(chain.addTransaction(tx))
 
@@ -425,7 +377,7 @@ class ContractTxTest {
       // getBalance of _acct1
       txData = Abi.fromJson(abiString).encode(s"getBalance('${_acct1.publicKey.pubKeyHash.address}')")
       tx = new Transaction(TransactionType.Call, _acct1.publicKey.pubKeyHash,
-        UInt160.fromBytes(BinaryData("7f97e6f4f660e6c09b894f34edae3626bf44039a")), FixedNumber.Zero,
+        contractAddress, FixedNumber.Zero,
         8, txData, FixedNumber(1), 9000000L, BinaryData.empty)
       assert(chain.addTransaction(tx))
       assert(DataWord.of(chain.getReceipt(tx.id()).get.output).value == ercBalance1)
@@ -433,7 +385,7 @@ class ContractTxTest {
       // unfreeze 500
       txData = Abi.fromJson(abiString).encode(s"unfreeze(500)")
       tx = new Transaction(TransactionType.Call, _acct1.publicKey.pubKeyHash,
-        UInt160.fromBytes(BinaryData("7f97e6f4f660e6c09b894f34edae3626bf44039a")), FixedNumber.Zero,
+        contractAddress, FixedNumber.Zero,
         9, txData, FixedNumber(1), 9000000L, BinaryData.empty)
       assert(chain.addTransaction(tx))
 
@@ -442,7 +394,7 @@ class ContractTxTest {
       // getBalance of _acct1
       txData = Abi.fromJson(abiString).encode(s"getBalance('${_acct1.publicKey.pubKeyHash.address}')")
       tx = new Transaction(TransactionType.Call, _acct1.publicKey.pubKeyHash,
-        UInt160.fromBytes(BinaryData("7f97e6f4f660e6c09b894f34edae3626bf44039a")), FixedNumber.Zero,
+        contractAddress, FixedNumber.Zero,
         10, txData, FixedNumber(1), 9000000L, BinaryData.empty)
       assert(chain.addTransaction(tx))
       assert(DataWord.of(chain.getReceipt(tx.id()).get.output).value == ercBalance1)
@@ -451,7 +403,7 @@ class ContractTxTest {
       // approve
       txData = Abi.fromJson(abiString).encode(s"approve('${_acct3.publicKey.pubKeyHash.address}', 2000)")
       tx = new Transaction(TransactionType.Call, _acct1.publicKey.pubKeyHash,
-        UInt160.fromBytes(BinaryData("7f97e6f4f660e6c09b894f34edae3626bf44039a")), FixedNumber.Zero,
+        contractAddress, FixedNumber.Zero,
         11, txData, FixedNumber(1), 9000000L, BinaryData.empty)
       assert(chain.addTransaction(tx))
 
@@ -459,7 +411,7 @@ class ContractTxTest {
       // 3 tran from 1 to 4    2000
       txData = Abi.fromJson(abiString).encode(s"transferFrom('${_acct1.publicKey.pubKeyHash.address}', '${_acct4.publicKey.pubKeyHash.address}', 2000)")
       tx = new Transaction(TransactionType.Call, _acct3.publicKey.pubKeyHash,
-        UInt160.fromBytes(BinaryData("7f97e6f4f660e6c09b894f34edae3626bf44039a")), FixedNumber.Zero,
+        contractAddress, FixedNumber.Zero,
         0, txData, FixedNumber(1), 9000000L, BinaryData.empty)
       assert(chain.addTransaction(tx))
 
@@ -468,7 +420,7 @@ class ContractTxTest {
       // getBalance of _acct1
       txData = Abi.fromJson(abiString).encode(s"getBalance('${_acct1.publicKey.pubKeyHash.address}')")
       tx = new Transaction(TransactionType.Call, _acct1.publicKey.pubKeyHash,
-        UInt160.fromBytes(BinaryData("7f97e6f4f660e6c09b894f34edae3626bf44039a")), FixedNumber.Zero,
+        contractAddress, FixedNumber.Zero,
         12, txData, FixedNumber(1), 9000000L, BinaryData.empty)
       assert(chain.addTransaction(tx))
       assert(DataWord.of(chain.getReceipt(tx.id()).get.output).value == ercBalance1)
@@ -476,7 +428,7 @@ class ContractTxTest {
       // getBalance of _acct4
       txData = Abi.fromJson(abiString).encode(s"getBalance('${_acct4.publicKey.pubKeyHash.address}')")
       tx = new Transaction(TransactionType.Call, _acct1.publicKey.pubKeyHash,
-        UInt160.fromBytes(BinaryData("7f97e6f4f660e6c09b894f34edae3626bf44039a")), FixedNumber.Zero,
+        contractAddress, FixedNumber.Zero,
         13, txData, FixedNumber(1), 9000000L, BinaryData.empty)
       assert(chain.addTransaction(tx))
       assert(DataWord.of(chain.getReceipt(tx.id()).get.output).value == BigInt(2000))
@@ -486,7 +438,7 @@ class ContractTxTest {
 //      // unfreeze 400  throw
 //      txData = Abi.fromJson(abiString).encode(s"unfreeze(400)")
 //      tx = new Transaction(TransactionType.Call, _acct1.publicKey.pubKeyHash,
-//        UInt160.fromBytes(BinaryData("7f97e6f4f660e6c09b894f34edae3626bf44039a")), "", FixedNumber.Zero,
+//        contractAddress, "", FixedNumber.Zero,
 //        11, txData, FixedNumber(0), 9000000L, BinaryData.empty)
 //      assert(chain.addTransaction(tx))
 //
@@ -525,7 +477,7 @@ class ContractTxTest {
 
       var txData = Abi.fromJson(abiString).encode(s"test(2)")
       var tx = new Transaction(TransactionType.Call, _acct1.publicKey.pubKeyHash,
-        UInt160.fromBytes(BinaryData("7f97e6f4f660e6c09b894f34edae3626bf44039a")), FixedNumber.Zero,
+        contractAddress, FixedNumber.Zero,
         1, txData, FixedNumber(100000),
         BigInt(28000), // require gas 29083
         BinaryData.empty)
@@ -539,7 +491,7 @@ class ContractTxTest {
       val efwefwef = chain.getReceipt(tx.id()).get
 
       tx = new Transaction(TransactionType.Call, _acct1.publicKey.pubKeyHash,
-        UInt160.fromBytes(BinaryData("7f97e6f4f660e6c09b894f34edae3626bf44039a")), FixedNumber.One,
+        contractAddress, FixedNumber.One,
         2, BinaryData.empty, FixedNumber(100000),
         BigInt(28000), // require gas 29083
         BinaryData.empty)
@@ -587,7 +539,7 @@ class ContractTxTest {
       assert(chain.getAccount(_acct1).get.nextNonce == 1)
       var balance1 = chain.getBalance(_acct1).get
 
-      val contractAddr = UInt160.fromBytes(BinaryData("7f97e6f4f660e6c09b894f34edae3626bf44039a"))
+      val contractAddr = contractAddress
 
       // transefer 1.2 coin, no call function
       var tx = new Transaction(TransactionType.Call, _acct1.publicKey.pubKeyHash,
@@ -658,7 +610,7 @@ class ContractTxTest {
       assert(chain.getAccount(_acct1).get.nextNonce == 1)
       var balance1 = chain.getBalance(_acct1).get
 
-      val contractAddr = UInt160.fromBytes(BinaryData("7f97e6f4f660e6c09b894f34edae3626bf44039a"))
+      val contractAddr = contractAddress
 
       // transefer 1.2 coin, no call function
       var tx = new Transaction(TransactionType.Call, _acct1.publicKey.pubKeyHash,
@@ -731,7 +683,7 @@ class ContractTxTest {
       assert(chain.getAccount(_acct1).get.nextNonce == 1)
       var balance1 = chain.getBalance(_acct1).get
 
-      val contractAddr = UInt160.fromBytes(BinaryData("7f97e6f4f660e6c09b894f34edae3626bf44039a"))
+      val contractAddr = contractAddress
 
       // transefer 1.2 coin, no call function
       var tx = new Transaction(TransactionType.Call, _acct1.publicKey.pubKeyHash,

@@ -15,56 +15,6 @@ import org.junit.{AfterClass, Test}
 import scala.collection.mutable.ArrayBuffer
 import scala.reflect.io.Directory
 
-//======
-//1
-//priv key raw:           108fd85be78e0dcc96b93c9c53c30281115ee453e9c472654fad985dcd7b91db
-//priv key WIF format:    KwmuSp41VWBtGSWaQQ82ZRRSFzkJVTAyuDLQ9NzP9CPqLWirh4UQ
-//pub key (compressed):   024f3076ac9b2b8ef8bf1c303c3ac3057472c9fa391df62c543789f34017168c62
-//pub key hash160:        c98bae4cc033c7e7bce053ebaa926bd61c120454
-//Address:                APLLBNZjMq4tFANSNHsEoXwGJ7NVfi4BxUa
-//======
-//2
-//priv key raw:           ad28867b93d8be8558d61ee58e971117142aefd28ebb54bf4f20792bfb7fab25
-//priv key WIF format:    L32JpLopG2hWjEMSCkAjS1nUnPixVrDTPqFAGYbddQrtUjRfkjEP
-//pub key (compressed):   02add2d02786ba350148aee109e67495d6c4c2dccd9b5aaa57ad866d7b6105ac8f
-//pub key hash160:        2ee607c3ed304353dd8a2d16636b46bd91d11152
-//Address:                AP6EUsRV9DCvbywpDFLXS3JhjRryFPe9Qo8
-//======
-//3
-//priv key raw:           43427dd5def74e97ab0409eaec3d64aff0557707a6edc1004d1c6e08ea705b45
-//priv key WIF format:    KyUTLv2BeP9SJD6Sa8aHBVmuRkgw9eThjNGJDE4PySEgf2TvCQCn
-//pub key (compressed):   03d7a23792639a9824d1013151711b521653f0c72563d69481bd914db75b03309d
-//pub key hash160:        00d08ce14267fbce154d2983b8723dd5ad2addd5
-//Address:                AP22p497htDs1SKXHjwyCgrYuFtTgcP5F5w
-//======
-//4
-//priv key raw:           adc2a556a1a1726ecce71eb38e306914af4d82f547a545eed677ba555409932f
-//priv key WIF format:    L33Uh9L35pSoEqBPP43U6rQcD2xMpJ7F4b3QMjUMAL6HZhxUqEGq
-//pub key (compressed):   03f5bb4aa2a0773d658e9df51865ffbfd41f98891bd1994337afae4dc27c1d1927
-//pub key hash160:        da55e4f6f216187259e7bc56cbb1587edc5156b4
-//Address:                APMrxRgE3ZBqw9nC249175AvjUcmYMCq7XX
-//======
-//5
-//priv key raw:           2cd68534541d6babbc8edb7a15036f8cee5f3506d667aecc022ffa1ea1b1b269
-//priv key WIF format:    KxisR46MUfkekvgfuuydTD91avsjxhoqs5S6Ech2uiG21RDUEbna
-//pub key (compressed):   03300f032f1d130956f0ff994cbd52cab3fc4167c0f6e96f1b5714da10ed51c1bd
-//pub key hash160:        63d15a28a09748540eca07aeabf3b831b3056ebe
-//Address:                APB4Hur58nvWWHuSE5qNQFWYPjZaKZetFAe
-//======
-//6
-//priv key raw:           0c165d5428409eef6e025d6fe827b3b0f595f5a1cc4051c9ff43a7f1e20fed56
-//priv key WIF format:    KwdCy3jFbU5MK4ZMbgKLTDkenhQgCU44hevVVXAv7ZUZRYJypqCB
-//pub key (compressed):   034a79dcbd7b6da30739516f00e0be2e8c511a9ee446cc7362b8a441504ec0e7bf
-//pub key hash160:        3a01649c803b08d4a3522c3ca49dedf687d576f9
-//Address:                AP7FD5j2aPj83dmb3xSJZVVJ1JwNLry74xa
-//======
-//7
-//priv key raw:           29e286f51e12df09f46b451d606650a0cce4b0d6d42a5d2e5450ab7c8b58a2c3
-//priv key WIF format:    Kxd8UDvptjG4AcT7k2ULe8tVkmfK5naXKc3gzrvRtg6msGLA3xLY
-//pub key (compressed):   03a549ab71a681d09bd090ed67bad589e55b582a2bbbdf3fb7d68ad3a71bfee211
-//pub key hash160:        3252379053bf9f8827896cf0a5ff2cbd6fdca06f
-//Address:                AP6YaVweecsk2sLRpSdUEwiQ2yE9WvitBtr
-//======
 
 @Test
 class ProposalVoteTest {
@@ -75,33 +25,22 @@ class ProposalVoteTest {
 
   val _minerAward: Double = 12.3
 
-  val _witness1 = InitWitness("init1",
-    PublicKey("024f3076ac9b2b8ef8bf1c303c3ac3057472c9fa391df62c543789f34017168c62").pubKeyHash)
-  //Some(new PrivateKey(BinaryData("efc382ccc0358f468c2a80f3738211be98e5ae419fc0907cb2f51d3334001471"))))
+  val priv1 = new PrivateKey(BinaryData("108fd85be78e0dcc96b93c9c53c30281115ee453e9c472654fad985dcd7b91db"))
+  val priv2 = new PrivateKey(BinaryData("ad28867b93d8be8558d61ee58e971117142aefd28ebb54bf4f20792bfb7fab25"))
+  val priv3 = new PrivateKey(BinaryData("43427dd5def74e97ab0409eaec3d64aff0557707a6edc1004d1c6e08ea705b45"))
+  val priv4 = new PrivateKey(BinaryData("adc2a556a1a1726ecce71eb38e306914af4d82f547a545eed677ba555409932f"))
 
-  val _witness2 = InitWitness("init2",
-    PublicKey("02add2d02786ba350148aee109e67495d6c4c2dccd9b5aaa57ad866d7b6105ac8f").pubKeyHash)
-  //Some(new PrivateKey(BinaryData("cc7b7fa6e706944fa2d75652065f95ef2f364316e172601320655aac0e648165"))))
-
-  val _witness3 = InitWitness("init3",
-    PublicKey("03d7a23792639a9824d1013151711b521653f0c72563d69481bd914db75b03309d").pubKeyHash)
-  //Some(new PrivateKey(BinaryData("db71fe7c0ac4ca3e8cef95bf55cf535eaa8fe0c80d18e0cb19af8d7071b8a184"))))
-
-  val _witness4 = InitWitness("init4",  // APPnx5YahVg1dTgeWkp1fE33ftvAaGbeQaR  L2C4Za8VSx2iBgszQarHx4YzqHvfumkHjbi6bNqvqst6mc8QcuZ7
-    PublicKey("03f5bb4aa2a0773d658e9df51865ffbfd41f98891bd1994337afae4dc27c1d1927").pubKeyHash)
-  //Some(new PrivateKey(BinaryData("9456beec947b368eda4be03f6c306703d9b2eda49f661285944b4e1f07ae18f3"))))
+  val _witness1 = InitWitness("init1", priv1.publicKey.pubKeyHash)
+  val _witness2 = InitWitness("init2", priv2.publicKey.pubKeyHash)
+  val _witness3 = InitWitness("init3", priv3.publicKey.pubKeyHash)
+  val _witness4 = InitWitness("init4", priv4.publicKey.pubKeyHash)
 
   val _acct1 = Ecdsa.PrivateKey.fromWIF("KwmuSp41VWBtGSWaQQ82ZRRSFzkJVTAyuDLQ9NzP9CPqLWirh4UQ").get
   val _acct2 = Ecdsa.PrivateKey.fromWIF("L32JpLopG2hWjEMSCkAjS1nUnPixVrDTPqFAGYbddQrtUjRfkjEP").get
   val _acct3 = Ecdsa.PrivateKey.fromWIF("KyUTLv2BeP9SJD6Sa8aHBVmuRkgw9eThjNGJDE4PySEgf2TvCQCn").get
   val _acct4 = Ecdsa.PrivateKey.fromWIF("L33Uh9L35pSoEqBPP43U6rQcD2xMpJ7F4b3QMjUMAL6HZhxUqEGq").get
 
-  val _miners = MinerSettings(Array(
-    new PrivateKey(BinaryData("108fd85be78e0dcc96b93c9c53c30281115ee453e9c472654fad985dcd7b91db")),
-    new PrivateKey(BinaryData("ad28867b93d8be8558d61ee58e971117142aefd28ebb54bf4f20792bfb7fab25")),
-    new PrivateKey(BinaryData("43427dd5def74e97ab0409eaec3d64aff0557707a6edc1004d1c6e08ea705b45")),
-    new PrivateKey(BinaryData("adc2a556a1a1726ecce71eb38e306914af4d82f547a545eed677ba555409932f")),
-    _acct1))
+  val _miners = MinerSettings(Array(priv1, priv2, priv3, priv4, _acct1))
 
   val _consensusSettings  = ConsensusSettings(_produceInterval, 500, 1, 4, 4000, Array(_witness1, _witness2, _witness3, _witness4))
   //val _consensusSettings2 = ConsensusSettings(_produceInterval, 500, 3, 4, 63000, Array(_witness1, _witness2, _witness3, _witness4))

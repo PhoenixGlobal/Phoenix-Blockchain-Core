@@ -12,7 +12,6 @@ import java.io.{ByteArrayInputStream, DataInputStream}
 
 import com.apex.core.Transaction
 import com.apex.crypto.{BinaryData, UInt160, UInt256}
-import com.apex.crypto.Ecdsa.PublicKeyHash
 import play.api.libs.json.Reads._
 import play.api.libs.json._
 
@@ -23,7 +22,7 @@ object Validators {
 
   def amountValidator = Reads.StringReads.filter(JsonValidationError("invalid amount"))(d => BigDecimal(d).signum > 0)
 
-  def addressValidator = Reads.StringReads.filter(JsonValidationError("invalid Address"))(PublicKeyHash.fromAddress(_).isDefined)
+  def addressValidator = Reads.StringReads.filter(JsonValidationError("invalid Address"))(UInt160.fromAddress(_).isDefined)
 
   // TODO
   def HexValidator = Reads.StringReads.filter(JsonValidationError("invalid Address"))(d => true)
@@ -58,7 +57,7 @@ object GetAccountCmd {
     )
   }
   implicit val testReads: Reads[GetAccountCmd] = (
-    (__ \ "address").read[String](Validators.addressValidator).map(c => PublicKeyHash.fromAddress(c).get)
+    (__ \ "address").read[String](Validators.addressValidator).map(c => UInt160.fromAddress(c).get)
     ) map (GetAccountCmd.apply _)
 }
 
@@ -175,7 +174,7 @@ object GetProducerCmd {
     )
   }
   implicit val testReads: Reads[GetProducerCmd] = (
-    (__ \ "address").read[String](Validators.addressValidator).map(c => PublicKeyHash.fromAddress(c).get)
+    (__ \ "address").read[String](Validators.addressValidator).map(c => UInt160.fromAddress(c).get)
     ) map (GetProducerCmd.apply _)
 }
 
@@ -188,7 +187,7 @@ object GetProducerAllVoterCmd {
     )
   }
   implicit val testReads: Reads[GetProducerAllVoterCmd] = (
-    (__ \ "address").read[String](Validators.addressValidator).map(c => PublicKeyHash.fromAddress(c).get)
+    (__ \ "address").read[String](Validators.addressValidator).map(c => UInt160.fromAddress(c).get)
     ) map (GetProducerAllVoterCmd.apply _)
 }
 
@@ -213,7 +212,7 @@ object GetVotesCmd {
     )
   }
   implicit val testReads: Reads[GetVotesCmd] = (
-    (__ \ "address").read[String](Validators.addressValidator).map(c => PublicKeyHash.fromAddress(c).get)
+    (__ \ "address").read[String](Validators.addressValidator).map(c => UInt160.fromAddress(c).get)
     ) map (GetVotesCmd.apply _)
 }
 

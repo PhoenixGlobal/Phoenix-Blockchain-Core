@@ -1,17 +1,14 @@
 package com.apex.solidity
 
-import com.apex.crypto.Ecdsa.PublicKeyHash
+import com.apex.crypto.UInt160
 import com.apex.utils.ByteUtil
 import com.fasterxml.jackson.annotation.JsonCreator
 import com.fasterxml.jackson.annotation.JsonValue
-import com.apex.vm.DataWord
-//import java.lang.reflect.Array
 import java.math.BigInteger
 import java.nio.charset.StandardCharsets
 import java.util.ArrayList
 import java.util.Arrays
 import java.util.List
-import scala.collection.JavaConversions._
 
 object SolidityType {
 
@@ -271,7 +268,7 @@ object SolidityType {
 
     override def encode(value_input: AnyRef): Array[Byte] = {
       var value = value_input
-      val pubKeyHash = PublicKeyHash.fromAddress(value.asInstanceOf[String])
+      val pubKeyHash = UInt160.fromAddress(value.asInstanceOf[String])
       if (pubKeyHash.isEmpty)
         throw new RuntimeException("invalid address format")
       val ret: Array[Byte] = Array.ofDim[Byte](32)

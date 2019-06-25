@@ -35,7 +35,7 @@ class Transaction(val txType: TransactionType.Value,
 
   def getContractAddress(): Option[UInt160] = {
     if (isContractCreation()) {
-      Some(Crypto.calcNewAddr(from, BigInt(nonce).toByteArray))
+      Some(Crypto.calcNewAddr(from, nonce))
     }
     else
       None
