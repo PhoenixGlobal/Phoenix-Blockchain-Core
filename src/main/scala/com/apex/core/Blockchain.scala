@@ -97,6 +97,8 @@ class Blockchain(chainSettings: ChainSettings,
       chainSettings.genesis.timeStamp.toEpochMilli, MerkleTree.root(genesisTxs.map(_.id)),
       UInt256.Zero, genesisProducerPrivKey)
 
+    log.info(s"genesis timeStamp ${chainSettings.genesis.timeStamp}")
+
     Block.build(genesisBlockHeader, genesisTxs)
   }
 

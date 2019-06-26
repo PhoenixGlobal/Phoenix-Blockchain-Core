@@ -141,6 +141,8 @@ class PeerConnectionManager(settings: NetworkSettings,
   private def handleHandshake(handshakeMsg: Handshake): Unit = {
     if (!chainInfo.id.equals(handshakeMsg.chainId)) {
       log.error(f"Peer on a different chain. Closing connection")
+      log.error(s"  local: ${chainInfo.id}")
+      log.error(s"  peer:  ${handshakeMsg.chainId}")
       self ! CloseConnection
     } else {
       val myTime = System.currentTimeMillis()
