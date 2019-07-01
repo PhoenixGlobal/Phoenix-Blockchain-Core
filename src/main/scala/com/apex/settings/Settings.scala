@@ -162,6 +162,7 @@ object ApexSettings extends SettingsReaders with ApexLogging {
   }
 
   def read(configFilePath: String): (ApexSettings, Config) = {
+    log.info(s"read config file ${configFilePath}")
     val conf = readConfigFromPath(Some(configFilePath), configPath)
     (conf.as[ApexSettings](configPath), conf)
   }
