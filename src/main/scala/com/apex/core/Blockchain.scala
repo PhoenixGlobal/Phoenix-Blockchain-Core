@@ -214,7 +214,7 @@ class Blockchain(chainSettings: ChainSettings,
     else {
       val producer = producerPrivKey.publicKey.pubKeyHash
       pendingState.set(producerPrivKey, blockTime, stopProcessTxTime, forkHead.block.height + 1)
-      log.info(s"start produce block, blockTime=${blockTime}=[${Helper.timeString(blockTime)}] stopProcessTxTime=${stopProcessTxTime} producer=${producer.shortAddr}")
+      //log.info(s"start produce block, blockTime=${blockTime}=[${Helper.timeString(blockTime)}] stopProcessTxTime=${stopProcessTxTime} producer=${producer.shortAddr}")
 
       val minerTx = new Transaction(TransactionType.Miner, minerCoinFrom,
         producer, dataBase.getMinerAward(), forkHead.block.height + 1,

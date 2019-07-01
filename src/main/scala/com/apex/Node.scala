@@ -403,7 +403,7 @@ class Node(val settings: ApexSettings, config: Config)
     tryCheckCacheBlock(lastInsertBlock + 1)
 
     // continue get more following blocks
-    if (isSyncingBlocks() || msg.blocks.blocks.size > 1) // if (msg.blocks.blocks.size > 1 && isMinorForkChain == false)
+    if (msg.blocks.blocks.size > 1) // if (msg.blocks.blocks.size > 1 && isMinorForkChain == false)
       sender() ! GetBlocksMessage(new GetBlocksPayload(Seq(msg.blocks.blocks.last.id), UInt256.Zero)).pack
   }
 
