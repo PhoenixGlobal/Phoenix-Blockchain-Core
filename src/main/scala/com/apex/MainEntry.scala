@@ -34,7 +34,7 @@ object MainEntry extends ApexLogging {
 
     //val pid: Long = Seq("sh", "-c", "echo $PPID").!!.trim.toLong
 
-    log.info(s"main pid ${getProcessID}")
+    log.info(s"version=2019.07.01.A   main pid ${getProcessID}")
 
     Thread.setDefaultUncaughtExceptionHandler((t, e) => {
       log.error(s"Thread [${t.getId}], there is an unhandled exception", e)

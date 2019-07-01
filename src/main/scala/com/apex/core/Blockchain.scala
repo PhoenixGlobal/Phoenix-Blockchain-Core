@@ -411,7 +411,7 @@ class Blockchain(chainSettings: ChainSettings,
 
   def addBlockToCache(block: Block) = {
     if (block.height() > getConfirmedHeight()) {
-      log.info(s"add block ${block.height} ${block.shortId} to cache")
+      //log.info(s"add block ${block.height} ${block.shortId} to cache")
       blockBase.cacheAdd(block)
     }
   }

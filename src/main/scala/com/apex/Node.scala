@@ -347,9 +347,12 @@ class Node(val settings: ApexSettings, config: Config)
   }
 
   private def tryCheckCacheBlock(height: Long) = {
+    val maxBlock = 100
+    var blockCount = 0
     var h = height
-    while (chain.tryInsertCacheBlock(h)) {
+    while (chain.tryInsertCacheBlock(h) && blockCount < maxBlock) {
       h += 1
+      blockCount += 1
     }
   }
 
@@ -398,8 +401,9 @@ class Node(val settings: ApexSettings, config: Config)
       }
     })
     tryCheckCacheBlock(lastInsertBlock + 1)
+
     // continue get more following blocks
-    if (msg.blocks.blocks.size > 1 && isMinorForkChain == false)
+    if (isSyncingBlocks() || msg.blocks.blocks.size > 1) // if (msg.blocks.blocks.size > 1 && isMinorForkChain == false)
       sender() ! GetBlocksMessage(new GetBlocksPayload(Seq(msg.blocks.blocks.last.id), UInt256.Zero)).pack
   }
 
@@ -438,7 +442,10 @@ class Node(val settings: ApexSettings, config: Config)
       }
     }
     else if (inv.invType == InventoryType.Tx) {
-      if (Instant.now.toEpochMilli - inv.invTime > 7000) {
+      if (isSyncingBlocks()) {
+        //log.info("isSyncingBlocks, ignore tx inventory")
+      }
+      else if (Instant.now.toEpochMilli - inv.invTime > 7000) {
         log.info(s"ignore ${inv.hashs.size} old tx inv, time gap is ${Instant.now.toEpochMilli - inv.invTime}")
       }
       else {
@@ -507,6 +514,11 @@ class Node(val settings: ApexSettings, config: Config)
     // broadcast to all connected peers
     peerHandlerManager ! InventoryMessage(invPayload)
   }
+
+  private def isSyncingBlocks(): Boolean = {
+    Instant.now.toEpochMilli - chain.getLatestHeader().timeStamp > 5000
+  }
+
 }
 
 object NodeRef {
