@@ -357,7 +357,7 @@ class Node(val settings: ApexSettings, config: Config)
   }
 
   private def processBlockMessage(msg: BlockMessage) = {
-    log.debug(s"received a block #${msg.block.height} (${msg.block.shortId})")
+    log.info(s"received a block ${msg.block.height} (${msg.block.shortId})")
     if (msg.block.height() <= chain.getConfirmedHeight()) {
       // minor fork chain, do nothing, should disconnect peer
       log.info(s"received minor fork block, do nothing, ${msg.block.height} ${msg.block.shortId} by ${msg.block.producer.shortAddr}")
@@ -368,7 +368,7 @@ class Node(val settings: ApexSettings, config: Config)
       tryCheckCacheBlock(msg.block.height() + 1)
     }
     else {
-      log.error(s"failed insert block #${msg.block.height}, ${msg.block.shortId} by ${msg.block.producer.shortAddr} to db")
+      //log.error(s"failed insert block #${msg.block.height}, ${msg.block.shortId} by ${msg.block.producer.shortAddr} to db")
       if (!chain.containsBlock(msg.block)) {
         chain.addBlockToCache(msg.block)
         // out of sync, or there are fork chains,  to get more blocks
@@ -403,7 +403,7 @@ class Node(val settings: ApexSettings, config: Config)
     tryCheckCacheBlock(lastInsertBlock + 1)
 
     // continue get more following blocks
-    if (msg.blocks.blocks.size > 1) // if (msg.blocks.blocks.size > 1 && isMinorForkChain == false)
+    //if (msg.blocks.blocks.size > 1) // if (msg.blocks.blocks.size > 1 && isMinorForkChain == false)
       sender() ! GetBlocksMessage(new GetBlocksPayload(Seq(msg.blocks.blocks.last.id), UInt256.Zero)).pack
   }
 
@@ -434,6 +434,10 @@ class Node(val settings: ApexSettings, config: Config)
       })
       if (newBlocks.size > 0) {
         log.debug(s"send GetDataMessage to request ${newBlocks.size} new blocks.  ${newBlocks(0).shortString}")
+        if (inv.hashs.size > 1 && newBlocks.size == 1) {
+          // ugly hack to make sure newBlocks.size always > 1 to prevent sync stop in some cases
+          newBlocks.append(UInt256.Zero)
+        }
         sender() ! GetDataMessage(InventoryPayload.create(InventoryType.Block, newBlocks)).pack
       }
       else if (inv.hashs.size >= hashCountMax) {
@@ -473,7 +477,12 @@ class Node(val settings: ApexSettings, config: Config)
         }
       })
       if (blocks.size > 0) {
-        sender() ! BlocksMessage(new BlocksPayload(blocks)).pack
+        if (msg.inv.hashs.size == 1) {
+          sender() ! BlockMessage(blocks.head).pack
+        }
+        else {
+          sender() ! BlocksMessage(new BlocksPayload(blocks)).pack
+        }
       }
     }
     else if (msg.inv.invType == InventoryType.Tx) {
