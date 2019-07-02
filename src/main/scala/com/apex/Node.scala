@@ -357,7 +357,7 @@ class Node(val settings: ApexSettings, config: Config)
   }
 
   private def processBlockMessage(msg: BlockMessage) = {
-    log.info(s"received a block ${msg.block.height} (${msg.block.shortId})")
+    log.info(s"received a block ${msg.block.height} ${msg.block.shortId} by ${msg.block.producer().shortAddr}")
     if (msg.block.height() <= chain.getConfirmedHeight()) {
       // minor fork chain, do nothing, should disconnect peer
       log.info(s"received minor fork block, do nothing, ${msg.block.height} ${msg.block.shortId} by ${msg.block.producer.shortAddr}")
@@ -419,8 +419,8 @@ class Node(val settings: ApexSettings, config: Config)
           log.error(s"processTransactionsMessage addTransaction error, txid=${tx.id.toString} ${addResult.result}")
       }
     })
-    // for the new txs broadcast INV
-    broadcastInvMsg(InventoryPayload.create(InventoryType.Tx, newTxs))
+    if (newTxs.size > 0) // for the new txs broadcast INV
+      broadcastInvMsg(InventoryPayload.create(InventoryType.Tx, newTxs))
   }
 
   private def processInventoryMessage(msg: InventoryMessage) = {
