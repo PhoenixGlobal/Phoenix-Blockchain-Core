@@ -377,11 +377,11 @@ class Blockchain(chainSettings: ChainSettings,
       }
     }
     else {
-      log.info(s"try add received block to minor fork chain. block ${block.height} ${block.shortId}")
+      //log.info(s"try add received block to minor fork chain. block ${block.height} ${block.shortId}")
       if (forkBase.add(block, getWitnessList(block)) && forkBase.contains(block.id))
         inserted = true
-      else
-        log.error(s"fail add block ${block.height} ${block.shortId} to minor fork chain")
+      //else
+        //log.error(s"fail add block ${block.height} ${block.shortId} to minor fork chain")
     }
     if (inserted) {
       txPool.checkRemoveTimeoutTxs
