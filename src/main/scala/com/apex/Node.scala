@@ -315,7 +315,7 @@ class Node(val settings: ApexSettings, config: Config)
     // first msg, start to sync
 
     if (Instant.now.toEpochMilli - chain.getLatestHeader().timeStamp > 100000)
-      sendGetNextBlocksMessage() // new
+      sendGetBlocksMessage() //sendGetNextBlocksMessage() // new
     else
       sendGetBlocksMessage()
   }
