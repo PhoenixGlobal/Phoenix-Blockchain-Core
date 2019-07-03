@@ -297,6 +297,12 @@ class Node(val settings: ApexSettings, config: Config)
       case PeerInfoMessage(peerInfoPayload) => {
         processPeerInfoMessage(message.asInstanceOf[PeerInfoMessage])
       }
+      case GetNextBlocksMessage(inv) => {
+        processGetNextBlocksMessage(message.asInstanceOf[GetNextBlocksMessage])
+      }
+      case NextBlocksMessage(blocksPayload) => {
+        processNextBlocksMessage(message.asInstanceOf[NextBlocksMessage])
+      }
     }
   }
 
@@ -307,7 +313,11 @@ class Node(val settings: ApexSettings, config: Config)
 
   private def processVersionMessage(msg: VersionMessage) = {
     // first msg, start to sync
-    sendGetBlocksMessage()
+
+    if (Instant.now.toEpochMilli - chain.getLatestHeader().timeStamp > 100000)
+      sendGetNextBlocksMessage() // new
+    else
+      sendGetBlocksMessage()
   }
 
   private def processGetBlocksMessage(msg: GetBlocksMessage) = {
@@ -346,8 +356,42 @@ class Node(val settings: ApexSettings, config: Config)
     }
   }
 
+  private def processGetNextBlocksMessage(msg: GetNextBlocksMessage) = {
+    val blockNum = 20
+    var blockCount = 0
+    val blocks = ArrayBuffer.empty[Block]
+    val peerBlock = chain.getBlock(msg.inv.hashs.head)
+    if (peerBlock.isDefined) {
+      var height = peerBlock.get.height() + 1
+      var block = chain.getBlock(height)
+      while (block.isDefined && blockCount < blockNum) {
+        blocks.append(block.get)
+        blockCount += 1
+        height += 1
+        block = chain.getBlock(height)
+      }
+    }
+    if (blocks.size > 0) {
+      log.info(s"send out ${blocks.size} blocks, from ${blocks.head.height()}")
+      sender() ! NextBlocksMessage(new BlocksPayload(blocks))
+    }
+  }
+
+  private def processNextBlocksMessage(msg: NextBlocksMessage) = {
+    var lastInsertBlock: Long = 0
+    log.info(s"received ${msg.blocks.blocks.size} blocks, from ${msg.blocks.blocks.head.height}")
+    msg.blocks.blocks.foreach(block => {
+      if (chain.tryInsertBlock(block, true)) {
+        lastInsertBlock = block.height()
+        log.info(s"success insert block ${block.logInfo()}")
+      }
+    })
+    tryCheckCacheBlock(lastInsertBlock + 1)
+    sendGetNextBlocksMessage()
+  }
+
   private def tryCheckCacheBlock(height: Long) = {
-    val maxBlock = 100
+    val maxBlock = 500
     var blockCount = 0
     var h = height
     while (chain.tryInsertCacheBlock(h) && blockCount < maxBlock) {
@@ -440,7 +484,7 @@ class Node(val settings: ApexSettings, config: Config)
         }
         sender() ! GetDataMessage(InventoryPayload.create(InventoryType.Block, newBlocks)).pack
       }
-      else if (inv.hashs.size >= hashCountMax) {
+      else if (inv.hashs.size > 1) { // >= hashCountMax
         log.info(s"all the ${inv.hashs.size} block hashs in the inv are not new, request more, last hash is ${inv.hashs.last.shortString()} block #${chain.getBlockHeight(inv.hashs.last).get}")
         sender() ! GetBlocksMessage(new GetBlocksPayload(Seq(inv.hashs.last), UInt256.Zero)).pack
       }
@@ -519,13 +563,18 @@ class Node(val settings: ApexSettings, config: Config)
     sender() ! GetBlocksMessage(new GetBlocksPayload(blockLocatorHashes, UInt256.Zero)).pack
   }
 
+  private def sendGetNextBlocksMessage() = {
+    val latestBlock = chain.getLatestHeader().id
+    sender() ! GetNextBlocksMessage(InventoryPayload.create(InventoryType.Block, Seq(latestBlock))).pack
+  }
+
   private def broadcastInvMsg(invPayload: InventoryPayload) = {
     // broadcast to all connected peers
     peerHandlerManager ! InventoryMessage(invPayload)
   }
 
   private def isSyncingBlocks(): Boolean = {
-    Instant.now.toEpochMilli - chain.getLatestHeader().timeStamp > 5000
+    Instant.now.toEpochMilli - chain.getLatestHeader().timeStamp > 10000
   }
 
 }

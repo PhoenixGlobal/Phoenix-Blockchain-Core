@@ -29,6 +29,8 @@ object MessageType extends Enumeration {
   val Getdata = Value(6)
   val Transactions = Value(7)
   val PeerInfos = Value(8)
+  val GetNextBlocks = Value(9)
+  val NextBlocks = Value(10)
 }
 
 trait PackMessage {
@@ -84,6 +86,18 @@ case class GetDataMessage(inv: InventoryPayload) extends NetworkMessage(MessageT
 case class PeerInfoMessage(peers: PeerInfoPayload) extends NetworkMessage(MessageType.PeerInfos) {
   override def pack(): MessagePack = {
     MessagePack(messageType, peers.toBytes)
+  }
+}
+
+case class GetNextBlocksMessage(inv: InventoryPayload) extends NetworkMessage(MessageType.GetNextBlocks) {
+  override def pack(): MessagePack = {
+    MessagePack(messageType, inv.toBytes)
+  }
+}
+
+case class NextBlocksMessage(blocks: BlocksPayload) extends NetworkMessage(MessageType.NextBlocks) {
+  override def pack(): MessagePack = {
+    MessagePack(messageType, blocks.toBytes)
   }
 }
 
@@ -247,6 +261,12 @@ object MessagePack {
         }
         case MessageType.PeerInfos => {
           Some(PeerInfoMessage(PeerInfoPayload.fromBytes(data)))
+        }
+        case MessageType.GetNextBlocks => {
+          Some(GetNextBlocksMessage(InventoryPayload.fromBytes(data)))
+        }
+        case MessageType.NextBlocks => {
+          Some(NextBlocksMessage(BlocksPayload.fromBytes(data)))
         }
       }
     }
