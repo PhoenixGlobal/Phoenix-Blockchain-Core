@@ -10,7 +10,8 @@ import scala.util.Try
 
 class Block(val header: BlockHeader,
             val transactions: Seq[Transaction]) extends Serializable {
-  private val txMp: Map[UInt256, Transaction] = transactions.map(tx => tx.id -> tx).toMap
+
+  //private val txMp: Map[UInt256, Transaction] = transactions.map(tx => tx.id -> tx).toMap
 
   def producer(): UInt160 = header.producer
 
@@ -38,9 +39,9 @@ class Block(val header: BlockHeader,
     MerkleTree.root(transactions.map(_.id))
   }
 
-  def getTransaction(id: UInt256): Option[Transaction] = {
-    txMp.get(id)
-  }
+  //  def getTransaction(id: UInt256): Option[Transaction] = {
+  //    txMp.get(id)
+  //  }
 
   override def serialize(os: DataOutputStream): Unit = {
     import com.apex.common.Serializable._

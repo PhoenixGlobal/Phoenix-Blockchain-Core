@@ -908,7 +908,7 @@ class Blockchain(chainSettings: ChainSettings,
 
   private def onConfirmed(block: Block): Unit = {
     if (block.height > 0) {
-      log.info(s"confirm block ${block.height} (${block.shortId})")
+      log.info(s"confirm block ${block.height} ${block.shortId}")
       dataBase.commit(block.height)
       blockBase.add(block)
     }
