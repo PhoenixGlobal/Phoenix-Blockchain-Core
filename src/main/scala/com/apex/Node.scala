@@ -373,7 +373,7 @@ class Node(val settings: ApexSettings, config: Config)
     }
     if (blocks.size > 0) {
       log.info(s"send out ${blocks.size} blocks, from ${blocks.head.height()}")
-      sender() ! NextBlocksMessage(new BlocksPayload(blocks))
+      sender() ! NextBlocksMessage(new BlocksPayload(blocks)).pack
     }
   }
 
