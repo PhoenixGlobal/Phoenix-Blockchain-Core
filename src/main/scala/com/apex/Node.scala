@@ -77,7 +77,8 @@ class Node(val settings: ApexSettings, config: Config)
 
   log.info("Node starting")
 
-  private val hashCountMax = 10
+  private val hashCountMax = 20
+  //private val sendBlockNumMax: Int = 20
 
   private val notification = Notification()
 
@@ -331,7 +332,6 @@ class Node(val settings: ApexSettings, config: Config)
       val (hash, found) = findLatestHash(msg.blockHashs.hashStart)
       if (found) {
         val hashs = ArrayBuffer.empty[UInt256]
-        //val hashCountMax = 10
         var hashCount = 1
         hashs.append(hash)
         var next = chain.getNextBlockId(hash)
@@ -466,12 +466,11 @@ class Node(val settings: ApexSettings, config: Config)
   private def processGetDataMessage(msg: GetDataMessage) = {
     //log.info(s"received GetDataMessage")
     if (msg.inv.invType == InventoryType.Block) {
-      val sendBlockNumMax: Int = 10
       var sentBlockNum: Int = 0
       val blocks = ArrayBuffer.empty[Block]
       msg.inv.hashs.foreach(h => {
         val block = chain.getBlock(h)
-        if (block != None && sentBlockNum < sendBlockNumMax) {
+        if (block != None) { // && sentBlockNum < sendBlockNumMax
           blocks.append(block.get)
           sentBlockNum += 1
         }
@@ -481,6 +480,7 @@ class Node(val settings: ApexSettings, config: Config)
           sender() ! BlockMessage(blocks.head).pack
         }
         else {
+          log.info(s"send out ${blocks.size} blocks, first is ${blocks.head.height()}")
           sender() ! BlocksMessage(new BlocksPayload(blocks)).pack
         }
       }
