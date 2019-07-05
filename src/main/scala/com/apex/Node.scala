@@ -97,6 +97,9 @@ class Node(val settings: ApexSettings, config: Config)
   private val chain = new Blockchain(settings.chain, settings.consensus, settings.runtimeParas,
                                      notification, settings.miner.forceStartProduce)
 
+  if (!chain.checkInitSuccess())
+    context.stop(self)
+
   private val peerHandlerManager = PeerHandlerManagerRef(settings.network, timeProvider)
   notification.register(peerHandlerManager)
 
@@ -128,11 +131,13 @@ class Node(val settings: ApexSettings, config: Config)
   }
 
   override def postStop(): Unit = {
+    log.info("node postStop")
     //    if (settings.rpc.enabled) {
     //      RpcServer.stop()
     //    }
     chain.close()
     super.postStop()
+    context.system.terminate()
   }
 
   private def processAsyncTask(asyncTask: AsyncTask): Unit = {

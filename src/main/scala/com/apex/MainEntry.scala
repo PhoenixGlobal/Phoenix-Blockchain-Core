@@ -34,7 +34,7 @@ object MainEntry extends ApexLogging {
 
     //val pid: Long = Seq("sh", "-c", "echo $PPID").!!.trim.toLong
 
-    log.info(s"version=2019.07.03.D   main pid ${getProcessID}")
+    log.info(s"version=2019.07.05.A   main pid ${getProcessID}")
 
     Thread.setDefaultUncaughtExceptionHandler((t, e) => {
       log.error(s"Thread [${t.getId}], there is an unhandled exception", e)
@@ -45,9 +45,13 @@ object MainEntry extends ApexLogging {
 
     implicit val system = ActorSystem("APEX-NETWORK", config)
     implicit val executionContext: ExecutionContext = system.dispatcher
-    system.registerOnTermination(log.info("node terminated"))
+    system.registerOnTermination({
+      log.info("node terminated")
+      System.exit(0)
+    })
 
     NodeRef(settings, config)
+    //log.info("main() end")
   }
 
   private def parseArgs(args: Array[String]): Namespace = {

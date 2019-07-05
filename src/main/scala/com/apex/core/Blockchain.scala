@@ -840,6 +840,16 @@ class Blockchain(chainSettings: ChainSettings,
     blockBase.getReceipt(txid)
   }
 
+  def checkInitSuccess(): Boolean = {
+    val initSuccess = (genesisBlock.id == getBlock(0).get.id)
+    if (!initSuccess) {
+      log.info(s"genesisBlock ${genesisBlock.id}")
+      log.info(s"block 0      ${getBlock(0).get.id}")
+      log.error("genesisBlock Not same as database, config file changed ???")
+    }
+    initSuccess
+  }
+
   private def updateWitnessLists() = {
     mPrevWitnessList = dataBase.getPreviousWitnessList()
     mCurWitnessList = dataBase.getCurrentWitnessList()
