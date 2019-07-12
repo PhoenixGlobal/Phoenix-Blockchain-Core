@@ -489,7 +489,7 @@ class Blockchain(chainSettings: ChainSettings,
   private def checkUpdateProposalVote(curBlock: Block) = {
     val prevBlock = getBlock(curBlock.prev()).get
 
-    if (isStartOfNewMinutes(prevBlock, curBlock)) {
+    if (isStartOfNewWeek(prevBlock, curBlock)) { // isStartOfNewMinutes
       log.info(s"block ${curBlock.height()} ${curBlock.header.timeString()} is start of new week")
       dataBase.setWitnessBlockCountNewWeek()
     }
