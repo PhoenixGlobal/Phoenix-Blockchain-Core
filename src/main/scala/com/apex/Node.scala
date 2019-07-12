@@ -308,6 +308,9 @@ class Node(val settings: ApexSettings, config: Config)
       case NextBlocksMessage(blocksPayload) => {
         processNextBlocksMessage(message.asInstanceOf[NextBlocksMessage])
       }
+      case BlocksSendStopMessage(block) => {
+        processBlocksSendStopMessage(message.asInstanceOf[BlocksSendStopMessage])
+      }
     }
   }
 
@@ -320,7 +323,7 @@ class Node(val settings: ApexSettings, config: Config)
     // first msg, start to sync
 
     if (Instant.now.toEpochMilli - chain.getLatestHeader().timeStamp > 100000)
-      sendGetBlocksMessage() //sendGetNextBlocksMessage() // new
+      sendGetNextBlocksMessage() // new
     else
       sendGetBlocksMessage()
   }
@@ -361,25 +364,32 @@ class Node(val settings: ApexSettings, config: Config)
     }
   }
 
-  private def processGetNextBlocksMessage(msg: GetNextBlocksMessage) = {
-    val blockNum = 20
+  private def sendBlocks(from: Long, blockNum: Int) = {
     var blockCount = 0
     val blocks = ArrayBuffer.empty[Block]
-    val peerBlock = chain.getBlock(msg.inv.hashs.head)
-    if (peerBlock.isDefined) {
-      var height = peerBlock.get.height() + 1
-      var block = chain.getBlock(height)
-      while (block.isDefined && blockCount < blockNum) {
-        blocks.append(block.get)
-        blockCount += 1
-        height += 1
-        block = chain.getBlock(height)
-      }
+    var height = from
+    var block = chain.getBlock(height)
+    while (block.isDefined && blockCount < blockNum) {
+      blocks.append(block.get)
+      blockCount += 1
+      height += 1
+      block = chain.getBlock(height)
     }
     if (blocks.size > 0) {
       log.info(s"send out ${blocks.size} blocks, from ${blocks.head.height()}")
       sender() ! NextBlocksMessage(new BlocksPayload(blocks)).pack
     }
+  }
+
+  private def processGetNextBlocksMessage(msg: GetNextBlocksMessage) = {
+    var from = msg.from
+    val blockNum = 20
+
+    for (i <- 1 to 10) {
+      sendBlocks(from, blockNum)
+      from += blockNum
+    }
+    sender() ! BlocksSendStopMessage(from - 1).pack
   }
 
   private def processNextBlocksMessage(msg: NextBlocksMessage) = {
@@ -392,7 +402,15 @@ class Node(val settings: ApexSettings, config: Config)
       }
     })
     tryCheckCacheBlock(lastInsertBlock + 1)
-    sendGetNextBlocksMessage()
+  }
+
+  private def processBlocksSendStopMessage(msg: BlocksSendStopMessage) = {
+    if (isSyncingBlocks()) {
+      log.info(s"recv BlocksSendStopMessage, continue sync, msg=${msg.block} head=${chain.getLatestHeader().index}")
+      sendGetNextBlocksMessage()
+    }
+    else
+      log.info(s"recv BlocksSendStopMessage, stop sync, msg=${msg.block}  head=${chain.getLatestHeader().index}")
   }
 
   private def tryCheckCacheBlock(height: Long) = {
@@ -406,18 +424,18 @@ class Node(val settings: ApexSettings, config: Config)
   }
 
   private def processBlockMessage(msg: BlockMessage) = {
-    log.info(s"received a block ${msg.block.height} ${msg.block.shortId} by ${msg.block.producer().shortAddr}")
+    //log.info(s"received a block ${msg.block.height} ${msg.block.shortId} by ${msg.block.producer().shortAddr}")
     if (msg.block.height() <= chain.getConfirmedHeight()) {
       // minor fork chain, do nothing, should disconnect peer
       log.info(s"received minor fork block, do nothing, ${msg.block.height} ${msg.block.shortId} by ${msg.block.producer.shortAddr}")
     }
     else if (chain.tryInsertBlock(msg.block, true)) {
       broadcastInvMsg(InventoryPayload.create(InventoryType.Block, Seq(msg.block.id)))
-      log.info(s"success insert block ${msg.block.logInfo()}")
+      log.info(s"success insert a block ${msg.block.logInfo()}")
       tryCheckCacheBlock(msg.block.height() + 1)
     }
     else {
-      //log.error(s"failed insert block #${msg.block.height}, ${msg.block.shortId} by ${msg.block.producer.shortAddr} to db")
+      log.info(s"failed insert a block #${msg.block.height}, ${msg.block.shortId} by ${msg.block.producer.shortAddr} to db")
       if (!chain.containsBlock(msg.block)) {
         chain.addBlockToCache(msg.block)
         // out of sync, or there are fork chains,  to get more blocks
@@ -569,8 +587,8 @@ class Node(val settings: ApexSettings, config: Config)
   }
 
   private def sendGetNextBlocksMessage() = {
-    val latestBlock = chain.getLatestHeader().id
-    sender() ! GetNextBlocksMessage(InventoryPayload.create(InventoryType.Block, Seq(latestBlock))).pack
+    val latestBlock = chain.getLatestHeader()
+    sender() ! GetNextBlocksMessage(latestBlock.index + 1).pack
   }
 
   private def broadcastInvMsg(invPayload: InventoryPayload) = {
@@ -579,7 +597,7 @@ class Node(val settings: ApexSettings, config: Config)
   }
 
   private def isSyncingBlocks(): Boolean = {
-    Instant.now.toEpochMilli - chain.getLatestHeader().timeStamp > 10000
+    Instant.now.toEpochMilli - chain.getLatestHeader().timeStamp > 5000
   }
 
 }

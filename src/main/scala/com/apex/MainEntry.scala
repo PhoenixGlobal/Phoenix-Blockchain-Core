@@ -17,8 +17,6 @@ import net.sourceforge.argparse4j.inf.{ArgumentParser, ArgumentParserException, 
 
 import scala.concurrent.ExecutionContext
 
-import sys.process._
-
 object MainEntry extends ApexLogging {
 
   import java.lang.management.ManagementFactory
@@ -34,7 +32,7 @@ object MainEntry extends ApexLogging {
 
     //val pid: Long = Seq("sh", "-c", "echo $PPID").!!.trim.toLong
 
-    log.info(s"version=2019.07.05.A   main pid ${getProcessID}")
+    log.info(s"version=2019.07.12.A   main pid ${getProcessID}")
 
     Thread.setDefaultUncaughtExceptionHandler((t, e) => {
       log.error(s"Thread [${t.getId}], there is an unhandled exception", e)
