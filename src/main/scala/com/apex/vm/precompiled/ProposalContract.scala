@@ -12,7 +12,7 @@ class ProposalContract(track: DataBase,
                        tx: Transaction,
                        timeStamp: Long) extends PrecompiledContract with ApexLogging {
   // 72 hour
-  private val voteTime: Long = 1800 * 1000 //72 * 3600 * 1000
+  private val voteTime: Long = 72 * 3600 * 1000  // 1800 * 1000
 
   override def getGasForData(data: Array[Byte]): Long = {
     if (data == null) {

@@ -426,6 +426,7 @@ class Blockchain(chainSettings: ChainSettings,
   }
 
   private def getWitnessList(block: Block): WitnessList = {
+    require(mPendingWitnessList.isDefined)
     if (block.timeStamp() > mPendingWitnessList.get.generateTime)
       mCurWitnessList.get
     else
@@ -488,7 +489,7 @@ class Blockchain(chainSettings: ChainSettings,
   private def checkUpdateProposalVote(curBlock: Block) = {
     val prevBlock = getBlock(curBlock.prev()).get
 
-    if (isStartOfNewMinutes(prevBlock, curBlock)) {
+    if (isStartOfNewWeek(prevBlock, curBlock)) { // isStartOfNewMinutes
       log.info(s"block ${curBlock.height()} ${curBlock.header.timeString()} is start of new week")
       dataBase.setWitnessBlockCountNewWeek()
     }
@@ -980,6 +981,7 @@ class Blockchain(chainSettings: ChainSettings,
   // "timeMs": time from 1970 in ms, should be divided evenly with no remainder by settings.produceInterval
   def getWitness(timeMs: Long): UInt160 = {
     require(ProducerUtil.isTimeStampValid(timeMs, consensusSettings.produceInterval))
+    require(mCurWitnessList.isDefined)
     require(timeMs > mCurWitnessList.get.generateTime)
     val slot = timeMs / consensusSettings.produceInterval
     var index = slot % (consensusSettings.witnessNum * consensusSettings.producerRepetitions)
