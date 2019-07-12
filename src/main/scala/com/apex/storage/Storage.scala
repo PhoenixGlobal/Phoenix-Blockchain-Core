@@ -1,6 +1,7 @@
 package com.apex.storage
 
 import java.io.DataOutputStream
+import java.nio.file.{Files, Paths}
 import java.util
 import java.util.Map.Entry
 
@@ -13,9 +14,14 @@ object Storage {
 
   type lowLevelRaw = LowLevelStorage[Array[Byte], Array[Byte]]
 
+    def openTemp(dbType: DBType.Value, path: String): StorageOperator = {
+        StorageOperator.open(dbType,path)
+    }
+
   def open(dbType: DBType.Value, path: String): lowLevelRaw = {
     dbType match {
       case DBType.LevelDB => LevelDbStorage.open(path)
+      case DBType.RocksDB => RocksDBStorage.open(path)
       case _ => throw new NotImplementedError
     }
   }
@@ -58,7 +64,7 @@ trait LowLevelStorage[Key, Value] extends Storage[Key, Value] {
   def batchWrite(action: Batch => Unit): Boolean
 
   // return last element
-  def last(): Option[Entry[Array[Byte], Array[Byte]]]
+  def last(): (Array[Byte], Array[Byte])
 
   // apply func to all key/value pairs
   def scan(func: (Key, Value) => Unit): Unit
@@ -84,6 +90,12 @@ trait LowLevelDBIterator {
   def next(): (Array[Byte], Array[Byte])
 
   def hasNext(): Boolean
+
+  def close(): Unit
+
+  def seekToLast(): Unit
+
+  def seekToFirst(): Unit
 }
 
 // low level db batch adapter
@@ -93,6 +105,7 @@ trait LowLevelWriteBatch {
   def delete(key: Array[Byte]): Unit
 
   def close(): Unit
+
 }
 
 // low level db adapter
@@ -106,6 +119,16 @@ trait LowLevelDB {
   def iterator(): LowLevelDBIterator
 
   def batchWrite(action: LowLevelWriteBatch => Unit)
+
+  def createWriteBatch(): LowLevelWriteBatch
+
+  def write(batch: LowLevelWriteBatch): Unit
+
+  def close(): Unit
+
+  def addToBatch(): LowLevelWriteBatch
+
+  def writeBatchToDB(batch: Batch):Boolean
 }
 
 trait BatchItem

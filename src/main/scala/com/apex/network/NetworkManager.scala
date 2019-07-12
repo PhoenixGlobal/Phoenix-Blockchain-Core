@@ -2,7 +2,6 @@ package com.apex.network
 
 import java.net.InetSocketAddress
 
-import scala.collection.mutable
 import akka.actor.{Actor, ActorContext, ActorRef, ActorSystem, Props, actorRef2Scala}
 import akka.io.Tcp.SO.KeepAlive
 import akka.pattern.ask
@@ -11,12 +10,12 @@ import akka.io.{IO, Tcp}
 import akka.util.Timeout
 import com.apex.common.ApexLogging
 import com.apex.core.ChainInfo
-import com.apex.network.peer.PeerHandlerManager.ReceivableMessages.{PeerHandler, RandomPeerToConnect}
+import com.apex.network.peer.PeerHandlerManager.ReceivableMessages._
 import com.apex.settings.NetworkSettings
 import com.apex.utils.NetworkTimeProvider
 
 import scala.collection.mutable
-import scala.concurrent.{ExecutionContext}
+import scala.concurrent.{ExecutionContext, Future}
 import scala.concurrent.duration.DurationInt
 
 
@@ -146,15 +145,21 @@ class NetworkManager(settings: NetworkSettings,
     */
   private def scheduleConnectToPeer(): Unit = {
     context.system.scheduler.schedule(5.seconds, 5.seconds) {
-      val randomPeerF = peerHandlerManager ? RandomPeerToConnect()
-      randomPeerF.mapTo[Option[InetSocketAddress]].foreach { peerInfoOpt =>
+      var selectStrategy: Any = None
+      if (settings.acceptOtherPeers)
+        selectStrategy = RandomNodeInfo
+      else
+        selectStrategy = RandomTrustNodeInfo
+
+      val randomPeerF = peerHandlerManager ? selectStrategy
+      randomPeerF.mapTo[Option[NodeInfo]].foreach { peerInfoOpt =>
         peerInfoOpt.foreach(peerInfo => {
-          if (failConnectedMap.getOrElse(peerInfo, 0) > 1) { //if connected fail 2 times,sleep 12 times
-            val times = failConnectedMap.get(peerInfo).get + 1
-            failConnectedMap += peerInfo -> times
-            if (times % 12 == 0) self ! ConnectTo(peerInfo)
+          val sAddress = new InetSocketAddress(peerInfo.address, peerInfo.port)
+          if (failConnectedMap.getOrElse(sAddress, 0) > 5 && peerInfo.nodeType != NodeType.SEED) { //if connected fail 5 times,remove this peer
+            failConnectedMap.remove(sAddress)
+            peerHandlerManager ! RemovePeer(sAddress)
           } else {
-            self ! ConnectTo(peerInfo)
+            self ! ConnectTo(sAddress)
           }
         }
         )

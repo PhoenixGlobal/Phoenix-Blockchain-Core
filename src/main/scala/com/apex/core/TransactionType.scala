@@ -14,7 +14,7 @@ object TransactionType extends Enumeration {
 
 }
 
-object OperationType extends Enumeration{
+object OperationType extends Enumeration {
   val register = Value(0x00)
   val resisterCancel = Value(0x01)
 

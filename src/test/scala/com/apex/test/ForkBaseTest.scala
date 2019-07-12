@@ -16,7 +16,7 @@ import com.apex.consensus.{WitnessInfo, WitnessList}
 import com.apex.core._
 import com.apex.crypto.{BinaryData, UInt256}
 import com.apex.crypto.Ecdsa.{PrivateKey, PublicKey}
-import com.apex.settings.{DBType, ForkBaseSettings, Witness}
+import com.apex.settings.{DBType, ForkBaseSettings}
 import org.junit.{AfterClass, Test}
 
 import scala.collection.mutable.{ListBuffer, Seq}
@@ -24,15 +24,19 @@ import scala.reflect.io.Directory
 
 @Test
 class ForkBaseTest {
-  private val PubA = PublicKey("022ac01a1ea9275241615ea6369c85b41e2016abc47485ec616c3c583f1b92a5c8").pubKeyHash
+
   private val PriA = new PrivateKey(BinaryData("efc382ccc0358f468c2a80f3738211be98e5ae419fc0907cb2f51d3334001471"))
-  private val PubB = PublicKey("0238eb90b322fac718ce10b21d451d00b7003a2a1de2a1d584a158d7b7ffee297b").pubKeyHash
+  private val PubA = PriA.publicKey.pubKeyHash
+
   private val PriB = new PrivateKey(BinaryData("485cfb9f743d9997e316f5dca216b1c6adf12aa301c1d520e020269debbebbf0"))
-  private val PubC = PublicKey("0234b9b7d2909231d143a6693082665837965438fc273fbc4c507996e41394c8c1").pubKeyHash
+  private val PubB = PriB.publicKey.pubKeyHash
+
   private val PriC = new PrivateKey(BinaryData("5dfee6af4775e9635c67e1cea1ed617efb6d22ca85abfa97951771d47934aaa0"))
+  private val PubC = PriC.publicKey.pubKeyHash
+
   //private val witnesses = Array(Witness("A", PubA), Witness("B", PubB))
-  private val witnessesAB = WitnessList.create(Array(WitnessInfo(PubA), WitnessInfo(PubB)), UInt256.Zero)
-  private val witnessesABC = WitnessList.create(Array(WitnessInfo(PubA), WitnessInfo(PubB), WitnessInfo(PubC)), UInt256.Zero)
+  private val witnessesAB = WitnessList.create(Array(WitnessInfo(PubA), WitnessInfo(PubB)), UInt256.Zero, 0)
+  private val witnessesABC = WitnessList.create(Array(WitnessInfo(PubA), WitnessInfo(PubB), WitnessInfo(PubC)), UInt256.Zero, 0)
   private val genesis = BlockBuilder.genesisBlock
 
   @Test
@@ -172,7 +176,7 @@ class ForkBaseTest {
       !blk.header.producer.equals(PubC)
     }
 
-    def onSwitch(a: Seq[ForkItem], b: Seq[ForkItem], c: SwitchState) = {
+    def onSwitch(a: Seq[ForkItem], b: Seq[ForkItem], c: SwitchState, d: Boolean) = {
       var i = 0
       for (blk <- b.map(_.block) if applyBlock(blk)) {
         i += 1
@@ -294,7 +298,7 @@ class ForkBaseTest {
 }
 
 object ForkBaseTest {
-  type SwitchCallback = (Seq[ForkItem], Seq[ForkItem], SwitchState) => SwitchResult
+  type SwitchCallback = (Seq[ForkItem], Seq[ForkItem], SwitchState, Boolean) => SwitchResult
 
   private final val dirs = ListBuffer.empty[String]
   private final val dbs = ListBuffer.empty[ForkBase]
@@ -307,19 +311,19 @@ object ForkBaseTest {
 
   def open(dir: String, onSwitch: SwitchCallback = null): ForkBase = {
     def forkStr(title: String, fork: Seq[ForkItem]): String = {
-      s"  $title: ${fork.map(blk => s"${blk.block.height}(${blk.block.id.toString.substring(0, 6)})").mkString(" <- ")}"
+      s"  $title: ${fork.map(blk => s"${blk.block.height}(${blk.block.shortId()})").mkString(" <- ")}"
     }
 
     var switchCallback: SwitchCallback = null
     if (onSwitch == null) {
-      switchCallback = (from, to, _) => {
+      switchCallback = (from, to, _, _) => {
         println(s"switch\n${forkStr("from", from)}\n${forkStr("to", to)}")
         SwitchResult(true)
       }
     } else {
-      switchCallback = (from, to, state) => {
+      switchCallback = (from, to, state, _) => {
         println(s"switch\n${forkStr("from", from)}\n${forkStr("to", to)}")
-        onSwitch(from, to, state)
+        onSwitch(from, to, state, false)
       }
     }
 

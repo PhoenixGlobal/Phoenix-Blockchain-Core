@@ -1,17 +1,14 @@
 package com.apex.solidity
 
-import com.apex.crypto.Ecdsa.PublicKeyHash
+import com.apex.crypto.UInt160
 import com.apex.utils.ByteUtil
 import com.fasterxml.jackson.annotation.JsonCreator
 import com.fasterxml.jackson.annotation.JsonValue
-import com.apex.vm.DataWord
-//import java.lang.reflect.Array
 import java.math.BigInteger
 import java.nio.charset.StandardCharsets
 import java.util.ArrayList
 import java.util.Arrays
 import java.util.List
-import scala.collection.JavaConversions._
 
 object SolidityType {
 
@@ -188,10 +185,11 @@ object SolidityType {
       }
       ret
     }
+
     override def isDynamicType(): Boolean = true
   }
 
-  class BytesType protected (name: String) extends SolidityType(name) {
+  class BytesType protected(name: String) extends SolidityType(name) {
 
     def this() = this("bytes")
 
@@ -218,6 +216,7 @@ object SolidityType {
       offset += 32
       Arrays.copyOfRange(encoded, offset, offset + len)
     }
+
     override def isDynamicType(): Boolean = true
   }
 
@@ -228,6 +227,7 @@ object SolidityType {
         throw new RuntimeException("String value expected for type 'string'")
       super.encode(value.asInstanceOf[String].getBytes(StandardCharsets.UTF_8))
     }
+
     override def decode(encoded: Array[Byte], offset: Int): AnyRef =
       new String(super.decode(encoded, offset).asInstanceOf[Array[Byte]],
         StandardCharsets.UTF_8)
@@ -256,8 +256,8 @@ object SolidityType {
         val ret: Array[Byte] = Array.ofDim[Byte](32)
         System.arraycopy(bytes, 0, ret, 32 - bytes.length, bytes.length)
         ret
-      }
-      throw new RuntimeException("Can't encode java type " + value.getClass + " to bytes32")
+      } else
+        throw new RuntimeException("Can't encode java type " + value.getClass + " to bytes32")
     }
 
     override def decode(encoded: Array[Byte], offset: Int): AnyRef =
@@ -268,7 +268,7 @@ object SolidityType {
 
     override def encode(value_input: AnyRef): Array[Byte] = {
       var value = value_input
-      val pubKeyHash = PublicKeyHash.fromAddress(value.asInstanceOf[String])
+      val pubKeyHash = UInt160.fromAddress(value.asInstanceOf[String])
       if (pubKeyHash.isEmpty)
         throw new RuntimeException("invalid address format")
       val ret: Array[Byte] = Array.ofDim[Byte](32)
@@ -404,6 +404,7 @@ object SolidityType {
         ByteUtil.merge(Array(value.asInstanceOf[Array[Byte]], Array.ofDim[Byte](8))))
     }
   }
+
 }
 
 abstract class SolidityType(protected var name: String) {
@@ -433,7 +434,7 @@ abstract class SolidityType(protected var name: String) {
 
   /**
     * @return fixed size in bytes. For the dynamic types returns IntType.getFixedSize()
-    * which is effectively the int offset to dynamic data
+    *         which is effectively the int offset to dynamic data
     */
   def getFixedSize(): Int = 32
 

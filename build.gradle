@@ -66,7 +66,7 @@ dependencies {
     compile group: 'org.mongodb.scala', name: 'mongo-scala-driver_2.12', version: '2.4.2'
     compile group: 'org.iq80.leveldb', name: 'leveldb', version: '0.10'
     compile group: 'org.iq80.leveldb', name: 'leveldb-api', version: '0.10'
-    compile group: 'org.rocksdb', name: 'rocksdbjni', version: '5.5.1'
+    compile group: 'org.rocksdb', name: 'rocksdbjni', version: '5.6.1'
     compile group: 'org.fusesource.leveldbjni', name: 'leveldbjni-all', version: '1.8'
     compile group: 'com.typesafe.play', name: 'play-json_2.12', version: '2.6.9'
     compile group: 'org.scala-lang.modules', name: 'scala-xml_2.12', version: '1.0.6'

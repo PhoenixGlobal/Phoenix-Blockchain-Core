@@ -4,10 +4,11 @@ import java.io.{ByteArrayInputStream, DataInputStream}
 
 import com.apex.consensus.RegisterData
 import com.apex.crypto.{BinaryData, FixedNumber, UInt160, UInt256}
-import com.apex.settings.ContractSettings
+import com.apex.settings.{ConsensusSettings, ContractSettings}
 import com.apex.vm.hook.VMHook
 import com.apex.vm._
 import com.apex.vm.hook.VMHook
+import com.apex.vm.precompiled.{PrecompiledContract, PrecompiledContracts}
 import com.apex.vm.program.Program
 import com.apex.vm.program.ProgramResult
 import com.apex.vm.program.invoke.{ProgramInvoke, ProgramInvokeImpl}
@@ -30,6 +31,7 @@ class TransactionExecutor(val tx: Transaction,
                           val blockTime: Long,
                           val blockIndex: Long,
                           val chain: Blockchain,
+                          //val consensusSettings: ConsensusSettings,
                           val isScheduleTx: Boolean = false) {
 
   private val vmSettings = ContractSettings(0, false, Int.MaxValue)
@@ -37,6 +39,7 @@ class TransactionExecutor(val tx: Transaction,
   private val cacheTrack = track.startTracking
   private var readyToExecute = false
   private var execError: String = ""
+  var executorResult: AddTxResult = AddTxSucceed
   private var receipt: TransactionReceipt = null
   private var result = new ProgramResult
   private var vm: VM = null
@@ -66,9 +69,13 @@ class TransactionExecutor(val tx: Transaction,
     }
     if (!isScheduleTx) {
       val reqNonce = track.getNonce(tx.sender())
-      val txNonce = tx.nonce
-      if (reqNonce != txNonce) {
-        execError(s"Invalid nonce: required: $reqNonce , tx.nonce: $txNonce")
+      if (reqNonce != tx.nonce) {
+        if (tx.nonce > reqNonce) {
+          execError(s"Invalid nonce: nonce too big, required: $reqNonce, tx.nonce: ${tx.nonce}")
+          executorResult = InvalidNonce(reqNonce, tx.nonce)
+        }
+        else
+          execError(s"Invalid nonce: required: $reqNonce, tx.nonce: ${tx.nonce}")
         return
       }
     }
@@ -89,8 +96,8 @@ class TransactionExecutor(val tx: Transaction,
 
     val txGasCost = tx.gasPrice * tx.gasLimit
     track.addBalance(tx.sender(), -txGasCost)
-    if (TransactionExecutor.logger.isInfoEnabled)
-      TransactionExecutor.logger.info("Paying: txGasCost: [{}], gasPrice: [{}], gasLimit: [{}]", txGasCost, tx.gasPrice, tx.gasLimit)
+//    if (TransactionExecutor.logger.isInfoEnabled)
+//      TransactionExecutor.logger.info("Paying: txGasCost: [{}], gasPrice: [{}], gasLimit: [{}]", txGasCost, tx.gasPrice, tx.gasLimit)
 
     if (tx.isContractCreation)
       create()
@@ -266,7 +273,7 @@ class TransactionExecutor(val tx: Transaction,
     // Transfer fees to miner
     track.addBalance(coinbase, summary.getFee)
     //touchedAccounts.add(coinbase)
-    TransactionExecutor.logger.info("Pay fees to miner: [{}], feesEarned: [{}]", coinbase.address, summary.getFee.longValue())
+//    TransactionExecutor.logger.info("Pay fees to miner: [{}], feesEarned: [{}]", coinbase.address, summary.getFee.longValue())
     summary
   }
 
@@ -275,7 +282,7 @@ class TransactionExecutor(val tx: Transaction,
       receipt = TransactionReceipt(tx.id(),
         tx.txType,
         tx.from,
-        tx.toPubKeyHash,
+        tx.getContractAddress().getOrElse(tx.toPubKeyHash),
         blockIndex,
         getGasUsed,
         //gasUsedInTheBlock + getGasUsed,

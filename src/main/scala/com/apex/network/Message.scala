@@ -14,6 +14,7 @@ package com.apex.network
 
 import java.io.{ByteArrayInputStream, DataInputStream, DataOutputStream}
 import java.net.{InetAddress, InetSocketAddress}
+import java.time.Instant
 
 import com.apex.core.{Block, Transaction}
 import com.apex.crypto.UInt256
@@ -28,6 +29,9 @@ object MessageType extends Enumeration {
   val Getdata = Value(6)
   val Transactions = Value(7)
   val PeerInfos = Value(8)
+  val GetNextBlocks = Value(11)
+  val NextBlocks = Value(12)
+  val BlocksSendStop = Value(13)
 }
 
 trait PackMessage {
@@ -86,6 +90,24 @@ case class PeerInfoMessage(peers: PeerInfoPayload) extends NetworkMessage(Messag
   }
 }
 
+case class GetNextBlocksMessage(from: Long) extends NetworkMessage(MessageType.GetNextBlocks) {
+  override def pack(): MessagePack = {
+    MessagePack(messageType, BigInt(from).toByteArray)
+  }
+}
+
+case class NextBlocksMessage(blocks: BlocksPayload) extends NetworkMessage(MessageType.NextBlocks) {
+  override def pack(): MessagePack = {
+    MessagePack(messageType, blocks.toBytes)
+  }
+}
+
+case class BlocksSendStopMessage(block: Long) extends NetworkMessage(MessageType.BlocksSendStop) {
+  override def pack(): MessagePack = {
+    MessagePack(messageType, BigInt(block).toByteArray)
+  }
+}
+
 object InventoryType extends Enumeration {
   val Block = Value(0x00)
   val Tx = Value(0x01)
@@ -97,20 +119,27 @@ object InventoryType extends Enumeration {
 }
 
 class InventoryPayload(val invType: InventoryType.Value,
+                       val invTime: Long,
                        val hashs: Seq[UInt256]) extends com.apex.common.Serializable {
   def serialize(os: DataOutputStream) = {
     import com.apex.common.Serializable._
     os.writeByte(invType.toByte)
+    os.writeLong(invTime)
     os.writeSeq(hashs)
   }
 }
 
 object InventoryPayload {
+  def create(invType: InventoryType.Value, hashs: Seq[UInt256]): InventoryPayload = {
+    new InventoryPayload(invType, Instant.now.toEpochMilli, hashs)
+  }
+
   def deserialize(is: DataInputStream): InventoryPayload = {
     import com.apex.common.Serializable._
     val invType = InventoryType(is.readByte())
+    val invTime = is.readLong()
     val hashs = is.readSeq(UInt256.deserialize)
-    new InventoryPayload(invType, hashs)
+    new InventoryPayload(invType, invTime, hashs)
   }
 
   def fromBytes(data: Array[Byte]): InventoryPayload = {
@@ -239,6 +268,15 @@ object MessagePack {
         }
         case MessageType.PeerInfos => {
           Some(PeerInfoMessage(PeerInfoPayload.fromBytes(data)))
+        }
+        case MessageType.GetNextBlocks => {
+          Some(GetNextBlocksMessage(BigInt(data).toLong))
+        }
+        case MessageType.NextBlocks => {
+          Some(NextBlocksMessage(BlocksPayload.fromBytes(data)))
+        }
+        case MessageType.BlocksSendStop => {
+          Some(BlocksSendStopMessage(BigInt(data).toLong))
         }
       }
     }

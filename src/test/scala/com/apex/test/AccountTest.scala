@@ -26,7 +26,7 @@ class AccountTest {
     Random.nextBytes(codeHash)
     val a = new Account(UInt160.Zero, false, "iiruf", FixedNumber(567), 123, codeHash)
 
-    assert(a.address == Ecdsa.PublicKeyHash.toAddress(UInt160.Zero.data))
+    assert(a.address == UInt160.Zero.address)
     assert(!a.isEmpty)
 
     val o = new SerializerHelper[Account](

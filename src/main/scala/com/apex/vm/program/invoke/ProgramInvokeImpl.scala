@@ -10,7 +10,7 @@
 
 package com.apex.vm.program.invoke
 
-import com.apex.core.{BlockBase, DataBase, Blockchain}
+import com.apex.core.{DataBase, Blockchain}
 import com.apex.vm.DataWord
 
 class ProgramInvokeImpl(address: DataWord,

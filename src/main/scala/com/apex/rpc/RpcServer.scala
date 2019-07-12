@@ -16,12 +16,14 @@ import akka.pattern.ask
 import akka.stream.ActorMaterializer
 import akka.util.Timeout
 import com.apex.common.ApexLogging
-import com.apex.consensus.{Vote, WitnessInfo, WitnessList}
-import com.apex.core.{Account, Block, BlockHeader, TransactionReceipt}
+import com.apex.consensus._
+import com.apex.core._
+import com.apex.proposal.{Proposal, ProposalList, ProposalVoteList}
 import com.apex.rpc.RpcServer.sussesRes
 import com.apex.settings.ApexSettings
 import com.typesafe.config.Config
 import play.api.libs.json._
+
 import scala.collection.mutable.ArrayBuffer
 import scala.concurrent.duration._
 import scala.concurrent.{ExecutionContextExecutor, Future}
@@ -36,16 +38,15 @@ object RpcServer extends ApexLogging {
   private implicit var dispatcher: ExecutionContextExecutor = _
 
   private var bindingFuture: Future[Http.ServerBinding] = _
-  private var secretBindingFuture: Future[Http.ServerBinding] = _
 
-  def run(settings: ApexSettings, config: Config, nodeRef: ActorRef) = {
+  def run(settings: ApexSettings, config: Config, nodeRef: ActorRef, gasPricePlugin: ActorRef) = {
+
     system = ActorSystem("RPC", config)
     materializer = ActorMaterializer()
     dispatcher = getDispatcher("apex.actor.rpc-dispatcher")
     system.registerOnTermination(log.info("rpc terminated"))
 
     val rpcSettings = settings.rpc
-    val secretRPCSettings = settings.secretRpc
     val route =
       path("getblock") {
         post {
@@ -58,7 +59,7 @@ object RpcServer extends ApexLogging {
                     s match {
                       case Success(blockOption) => {
                         blockOption match {
-                          case Some(block) => sussesRes(Block.blockWrites.writes(block).toString())
+                          case Some(block) => sussesRes(Json.prettyPrint(Block.blockWrites.writes(block)))
                           case None => sussesRes("")
                         }
                       }
@@ -75,7 +76,7 @@ object RpcServer extends ApexLogging {
                         s match {
                           case Success(blockOption) => {
                             blockOption match {
-                              case Some(block) => sussesRes(Block.blockWrites.writes(block).toString())
+                              case Some(block) => sussesRes(Json.prettyPrint(Block.blockWrites.writes(block)))
                               case None => sussesRes("")
                             }
                           }
@@ -101,7 +102,7 @@ object RpcServer extends ApexLogging {
                 .map(s =>
                   s match {
                     case Success(blocks) => {
-                      sussesRes(Json.toJson(blocks).toString())
+                      sussesRes(Json.prettyPrint(Json.toJson(blocks)))
                     }
                     case Failure(e) => error500Res(e.getMessage)
                   }
@@ -121,7 +122,7 @@ object RpcServer extends ApexLogging {
                       s match {
                         case Success(accountOption) => {
                           accountOption match {
-                            case Some(account) => sussesRes(Account.accountWrites.writes(account).toString())
+                            case Some(account) => sussesRes(Json.prettyPrint(Account.accountWrites.writes(account)))
                             case None => sussesRes("")
                           }
                         }
@@ -148,7 +149,7 @@ object RpcServer extends ApexLogging {
                       s match {
                         case Success(contractOption) => {
                           contractOption match {
-                            case Some(contract) => sussesRes(TransactionReceipt.TransactionReceiptWrites.writes(contract).toString())
+                            case Some(contract) => sussesRes(Json.prettyPrint(TransactionReceipt.TransactionReceiptWrites.writes(contract)))
                             case None => sussesRes("")
                           }
                         }
@@ -171,10 +172,33 @@ object RpcServer extends ApexLogging {
                 case cmd: JsSuccess[SendRawTransactionCmd] => {
                   log.info("send transaction: " + Json.toJson(cmd.value.rawTx).toString())
                   val f = (nodeRef ? cmd.value)
-                    .mapTo[Try[Boolean]]
+                    .mapTo[Try[AddTxResult]]
                     .map(s =>
                       s match {
-                        case Success(sendTx) => sussesRes(sendTx.toString())
+                        case Success(sendTx) => sussesRes(Json.prettyPrint(AddTxResult.resultWrites.writes(sendTx)))
+                        case Failure(e) => error500Res(e.getMessage)
+                      })
+                  complete(f)
+                }
+                case e: JsError => {
+                  println(e)
+                  complete(HttpEntity(ContentTypes.`application/json`, error400Res))
+                }
+              }
+            }
+          }
+        } ~
+        path("sendrawtransactions") {
+          post {
+            entity(as[String]) { data =>
+              Json.parse(data).validate[SendRawTransactionsCmd] match {
+                case cmd: JsSuccess[SendRawTransactionsCmd] => {
+                  //log.info("send transaction: " + Json.toJson(cmd.value.rawTx).toString())
+                  val f = (nodeRef ? cmd.value)
+                    .mapTo[Try[AddTxResult]]
+                    .map(s =>
+                      s match {
+                        case Success(sendTx) => sussesRes(Json.prettyPrint(AddTxResult.resultWrites.writes(sendTx)))
                         case Failure(e) => error500Res(e.getMessage)
                       })
                   complete(f)
@@ -194,7 +218,7 @@ object RpcServer extends ApexLogging {
                 .mapTo[Try[Long]]
                 .map(s =>
                   s match {
-                    case Success(blockheight) => sussesRes(blockheight.toString())
+                    case Success(blockheight) => sussesRes(blockheight.toString)
                     case Failure(e) => error500Res(e.getMessage)
                   })
               complete(f)
@@ -208,7 +232,7 @@ object RpcServer extends ApexLogging {
                 .mapTo[Try[BlockHeader]]
                 .map(s =>
                   s match {
-                    case Success(blockHeader) => sussesRes(BlockHeader.blockHeaderWrites.writes(blockHeader).toString())
+                    case Success(blockHeader) => sussesRes(Json.prettyPrint(BlockHeader.blockHeaderWrites.writes(blockHeader)))
                     case Failure(e) => error500Res(e.getMessage)
                   })
               complete(f)
@@ -224,7 +248,7 @@ object RpcServer extends ApexLogging {
                     .mapTo[Try[WitnessList]]
                     .map(s =>
                       s match {
-                        case Success(witnessList) => sussesRes(WitnessList.witnessListWrites.writes(witnessList).toString())
+                        case Success(witnessList) => sussesRes(Json.prettyPrint(WitnessList.witnessListWrites.writes(witnessList)))
                         case Failure(e) => error500Res(e.getMessage)
                       })
                   complete(f)
@@ -247,7 +271,56 @@ object RpcServer extends ApexLogging {
                       s match {
                         case Success(producerOption) => {
                           producerOption match {
-                            case Some(producer) => sussesRes(WitnessInfo.witnessInfoWrites.writes(producer).toString())
+                            case Some(producer) => sussesRes(Json.prettyPrint(WitnessInfo.witnessInfoWrites.writes(producer)))
+                            case None => sussesRes("")
+                          }
+                        }
+                        case Failure(e) => error500Res(e.getMessage)
+                      })
+                  complete(f)
+                }
+                case e: JsError => {
+                  complete(HttpEntity(ContentTypes.`application/json`, error400Res()))
+                }
+              }
+            }
+          }
+        } ~
+        path("getProducerVotes") {
+          post {
+            entity(as[String]) { data =>
+              Json.parse(data).validate[GetProducerAllVoterCmd] match {
+                case cmd: JsSuccess[GetProducerAllVoterCmd] => {
+                  val f = (nodeRef ? cmd.value)
+                    .mapTo[Try[AddressVoteList]]
+                    .map(s =>
+                      s match {
+                        case Success(votes) => {
+                          sussesRes(Json.prettyPrint(AddressVoteList.addressVoteListWrites.writes(votes)))
+                        }
+                        case Failure(e) => error500Res(e.getMessage)
+                      })
+                  complete(f)
+                }
+                case e: JsError => {
+                  complete(HttpEntity(ContentTypes.`application/json`, error400Res()))
+                }
+              }
+            }
+          }
+        } ~
+        path("getProposal") {
+          post {
+            entity(as[String]) { data =>
+              Json.parse(data).validate[GetProposalCmd] match {
+                case cmd: JsSuccess[GetProposalCmd] => {
+                  val f = (nodeRef ? cmd.value)
+                    .mapTo[Try[Option[Proposal]]]
+                    .map(s =>
+                      s match {
+                        case Success(proposalOption) => {
+                          proposalOption match {
+                            case Some(proposal) => sussesRes(Json.prettyPrint(Proposal.proposalWrites.writes(proposal)))
                             case None => sussesRes("")
                           }
                         }
@@ -268,14 +341,11 @@ object RpcServer extends ApexLogging {
               Json.parse(data).validate[GetVotesCmd] match {
                 case cmd: JsSuccess[GetVotesCmd] => {
                   val f = (nodeRef ? cmd.value)
-                    .mapTo[Try[Option[Vote]]]
+                    .mapTo[Try[WitnessVoteInfo]]
                     .map(s =>
                       s match {
-                        case Success(producerOption) => {
-                          producerOption match {
-                            case Some(vote) => sussesRes(Vote.voteWrites.writes(vote).toString())
-                            case None => sussesRes("")
-                          }
+                        case Success(infos) => {
+                          sussesRes(Json.prettyPrint(WitnessVote.witnessVoteInfoWrites.writes(infos)))
                         }
                         case Failure(e) => error500Res(e.getMessage)
                       })
@@ -287,47 +357,52 @@ object RpcServer extends ApexLogging {
               }
             }
           }
-        }
-
-    val secretRoute =
-      path("getGasLimit") {
-        post {
-          entity(as[String]) { _ =>
-            val f = (nodeRef ? GetGasLimitCmd())
-              .mapTo[Try[Long]]
-              .map(s =>
-                s match {
-                  case Success(gasLimit) => sussesRes(gasLimit.toString())
-                  case Failure(e) => error500Res(e.getMessage)
-                })
-            complete(f)
-          }
-        }
-      } ~
-        path("setGasLimit") {
+        } ~
+        path("getAllProposalVote") {
           post {
             entity(as[String]) { data =>
-              Json.parse(data).validate[SetGasLimitCmd] match {
-                case cmd: JsSuccess[SetGasLimitCmd] => {
-                  val f = (nodeRef ? cmd.get)
-                    .mapTo[Try[Boolean]]
-                    .map(s =>
-                      s match {
-                        case Success(gasLimit) => sussesRes(gasLimit.toString())
-                        case Failure(e) => error500Res(e.getMessage)
-                      })
-                  complete(f)
-                }
-                case _: JsError => {
-                  complete(HttpEntity(ContentTypes.`application/json`, error400Res))
-                }
-              }
+              val f = (nodeRef ? GetAllProposalVotesCmd()).mapTo[Try[ProposalVoteList]]
+                  .map(s =>
+                  s match {
+                    case Success(voteList) => {
+                      sussesRes(Json.prettyPrint(ProposalVoteList.proposalVoteListWrites.writes(voteList)))
+                    }
+                    case Failure(e) => error500Res(e.getMessage)
+                  })
+              complete(f)
+            }
+          }
+        } ~
+        path("getAllProposal") {
+          post {
+            entity(as[String]) { data =>
+              val f = (nodeRef ? GetAllProposalCmd()).mapTo[Try[ProposalList]]
+                .map(s =>
+                  s match {
+                    case Success(ps) => {
+                      sussesRes(Json.prettyPrint(ProposalList.proposalListWrites.writes(ps)))
+                    }
+                    case Failure(e) => error500Res(e.getMessage)
+                  })
+              complete(f)
+            }
+          }
+        } ~
+        path("getAverageGasPrice") {
+          post {
+            entity(as[String]) { _ =>
+              val f = (gasPricePlugin ? GetAverageCmd)
+                .mapTo[Try[String]]
+                .map(s => s match {
+                  case Success(average) => sussesRes(average)
+                  case Failure(e) => error500Res(e.getMessage)
+                })
+              complete(f)
             }
           }
         }
 
     bindingFuture = Http().bindAndHandle(route, rpcSettings.host, rpcSettings.port)
-    secretBindingFuture = Http().bindAndHandle(secretRoute, secretRPCSettings.host, secretRPCSettings.port)
     //    println(s"Server online at http://${rpcSettings.host}:${rpcSettings.port}/\n")
     //  StdIn.readLine() // let it run until user presses return
   }
@@ -345,7 +420,17 @@ object RpcServer extends ApexLogging {
   }
 
   private def resultString(execResult: ExecResult): String = {
-    ExecResult.resultWrites.writes(execResult).toString()
+//           Json.prettyPrint(ExecResult.resultWrites.writes(execResult))
+
+    var ret = "{\r\n\"succeed\":" + execResult.succeed + ",\r\n" +
+      "\"status\":" + execResult.status + ",\r\n" +
+      "\"message\":\"" + execResult.message + "\",\r\n"
+    if (execResult.result.startsWith("{"))
+      ret += "\"result\":" + execResult.result + "\r\n}"
+    else
+      ret += "\"result\":\"" + execResult.result + "\"\r\n}"
+
+    ret
   }
 
   /*def completeFuture()*/

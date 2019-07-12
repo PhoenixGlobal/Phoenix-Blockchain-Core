@@ -21,7 +21,7 @@ import com.apex.common.ApexLogging
 import com.apex.core.Blockchain
 import com.apex.crypto.Ecdsa.PublicKey
 import com.apex.crypto.UInt160
-import com.apex.settings.{ApexSettings, ConsensusSettings, Witness}
+import com.apex.settings.{ApexSettings, ConsensusSettings, InitWitness}
 
 import scala.concurrent.ExecutionContext
 import scala.concurrent.duration.FiniteDuration
@@ -29,10 +29,15 @@ import scala.concurrent.duration.FiniteDuration
 trait ProduceState
 
 case class NotSynced(nextProduceTime: Long, currTime: Long) extends ProduceState
+
 case class NotYet(nextProduceTime: Long, currTime: Long) extends ProduceState
+
 case class NotMyTurn(producer: String, pubKey: PublicKey) extends ProduceState
+
 case class TimeMissed(thisProduceTime: Long, currTime: Long) extends ProduceState
+
 case class Success(time: Long) extends ProduceState
+
 case class Failed(e: Throwable) extends ProduceState
 
 class Producer(apexSettings: ApexSettings)
@@ -52,6 +57,11 @@ class Producer(apexSettings: ApexSettings)
   private val noDelay = blockDuration(0)
 
   private var enableProduce = false
+
+  if (apexSettings.miner.forceStartProduce) {
+    log.info("forceStartProduce is set, set enableProduce to true")
+    enableProduce = true
+  }
 
   scheduleBegin()
 
@@ -83,7 +93,14 @@ class Producer(apexSettings: ApexSettings)
   }
 
   private def endProduce(chain: Blockchain): Unit = {
-    chain.produceBlockFinalize()
+    try {
+      chain.produceBlockFinalize(true)
+    } catch {
+      case e: Throwable => log.error("end produce failed", e)
+    }
+    if (chain.isProducingBlock) {
+      chain.stopProduceBlock
+    }
     scheduleBegin()
   }
 
@@ -98,9 +115,9 @@ class Producer(apexSettings: ApexSettings)
         producing(chain)
         true
       } else {
-//        val curr = chain.getHeadTime
-//        val next = nextTime(curr)
-//        println(s"not synced, ${Instant.ofEpochMilli(curr).toString} ${Instant.ofEpochMilli(next).toString}")
+        //        val curr = chain.getHeadTime
+        //        val next = nextTime(curr)
+        //        println(s"not synced, ${Instant.ofEpochMilli(curr).toString} ${Instant.ofEpochMilli(next).toString}")
         false
       }
     } catch {
@@ -120,18 +137,21 @@ class Producer(apexSettings: ApexSettings)
       val next = ProducerUtil.nextBlockTime(headTime, now, minProducingTime, settings.produceInterval)
       //println(s"head: $headTime, now: $now, next: $next, delta: ${headTime - now}")
       val witness = chain.getWitness(next) // ProducerUtil.getWitness(next, settings)
-      val myTurn = apexSettings.miner.findPrivKey(witness).isDefined
-      if (!myTurn) {
-        val now = Instant.now.toEpochMilli
-        val delay = calcDelay(now, next, myTurn)
-        //println(delay)
-        scheduleBegin(delay)
-      } else {
-        chain.startProduceBlock(apexSettings.miner.findPrivKey(witness).get,
-                                 next, next - apexSettings.runtimeParas.stopProcessTxTimeSlot)
-        val now = Instant.now.toEpochMilli
-        val delay = calcDelay(now, next, myTurn)
+      val privateKey = apexSettings.miner.findPrivKey(witness)
+      privateKey.foreach(key => {
+        try {
+          chain.startProduceBlock(key, next, next - apexSettings.runtimeParas.stopProcessTxTimeSlot)
+        } catch {
+          case e: Throwable => {
+            log.error("startProduceBlock failed", e)
+          }
+        }
+      })
+      val delay = calcDelay(Instant.now.toEpochMilli, next, privateKey.isDefined)
+      if (chain.isProducingBlock) {
         scheduleEnd(delay)
+      } else {
+        scheduleBegin(delay)
       }
     }
   }
@@ -141,7 +161,7 @@ class Producer(apexSettings: ApexSettings)
     // produce last block in advance
     val rest = restBlocks(next)
     if (myTurn && rest == 1) {
-        delay = if (delay < earlyMS) 0 else delay - earlyMS
+      delay = if (delay < earlyMS) 0 else delay - earlyMS
     }
     //log.info(s"now: $now, next: $next, delay: $delay, delta: ${next - now}, rest: $rest")
     calcDuration(delay.toInt)
@@ -176,26 +196,26 @@ object ProducerUtil {
   }
 
   // "timeMs": time from 1970 in ms, should be divided evenly with no remainder by settings.produceInterval
-//  def getWitness(timeMs: Long, settings: ConsensusSettings): Witness = {
-//    val slot = timeMs / settings.produceInterval
-//    var index = slot % (settings.initialWitness.size * settings.producerRepetitions)
-//    index /= settings.producerRepetitions
-//    settings.initialWitness(index.toInt)
-//  }
+  //  def getWitness(timeMs: Long, settings: ConsensusSettings): Witness = {
+  //    val slot = timeMs / settings.produceInterval
+  //    var index = slot % (settings.initialWitness.size * settings.producerRepetitions)
+  //    index /= settings.producerRepetitions
+  //    settings.initialWitness(index.toInt)
+  //  }
 
   def isTimeStampValid(timeStamp: Long, produceInterval: Int): Boolean = {
     timeStamp % produceInterval == 0
   }
 
-//  def isProducerValid(timeStamp: Long, producer: UInt160, settings: ConsensusSettings): Boolean = {
-//    var isValid = false
-//    if (getWitness(timeStamp, settings).pubkeyHash.data sameElements producer.data) {
-//      if (isTimeStampValid(timeStamp, settings.produceInterval)) {
-//        isValid = true
-//      }
-//    }
-//    isValid
-//  }
+  //  def isProducerValid(timeStamp: Long, producer: UInt160, settings: ConsensusSettings): Boolean = {
+  //    var isValid = false
+  //    if (getWitness(timeStamp, settings).pubkeyHash.data sameElements producer.data) {
+  //      if (isTimeStampValid(timeStamp, settings.produceInterval)) {
+  //        isValid = true
+  //      }
+  //    }
+  //    isValid
+  //  }
 }
 
 object ProducerRef {

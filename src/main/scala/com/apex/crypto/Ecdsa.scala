@@ -34,7 +34,7 @@ case class BinaryData(data: Seq[Byte]) {
 }
 
 object Ecdsa {
-  val params = SECNamedCurves.getByName("secp256k1")
+  val params = SECNamedCurves.getByName("secp256r1")  // secp256k1
   val curve = new ECDomainParameters(params.getCurve, params.getG, params.getN, params.getH)
   val halfCurveOrder = params.getN().shiftRight(1)
   val zero = BigInteger.valueOf(0)
@@ -120,6 +120,8 @@ object Ecdsa {
   case class PrivateKey(value: Scalar, compressed: Boolean = true) extends com.apex.common.Serializable {
 
     def publicKey: PublicKey = PublicKey(value.toPoint, compressed)
+
+    def publicKeyUncompressed: PublicKey = new PublicKey(value.toPoint, false)
 
     // 32 or 33 bytes
     //def toBin: BinaryData = if (compressed) value.toBin :+ 1.toByte else value.toBin
@@ -208,13 +210,15 @@ object Ecdsa {
 
     //def hash160: BinaryData = Ecdsa.hash160(toBin)
 
-    def pubKeyHash: UInt160 = UInt160.fromBytes(Ecdsa.hash160(toBin))
+    def pubKeyScript: BinaryData = BinaryData("21") ++ toBin ++ BinaryData("ac")
+
+    //TODO: rename to scriptHash
+    def pubKeyHash: UInt160 = UInt160.fromBytes(Ecdsa.hash160(pubKeyScript))
 
     override def toString = toBin.toString
 
-    def address: String = {
-      PublicKeyHash.toAddress(pubKeyHash.data)
-    }
+    def address: String = pubKeyHash.address
+    def neoAddress: String = pubKeyHash.neoAddress
 
     override def serialize(os: DataOutputStream): Unit = {
       import com.apex.common.Serializable._
@@ -225,25 +229,6 @@ object Ecdsa {
   implicit def publickey2point(pub: PublicKey): Point = pub.value
 
   implicit def publickey2bin(pub: PublicKey): BinaryData = pub.toBin
-
-  object PublicKeyHash {
-    def toAddress(hash: Array[Byte]): String = {
-      assert(hash.length == 20)
-      // "0548" is for the "AP" prefix
-      Base58Check.encode(BinaryData("0548"), hash)
-    }
-
-    def fromAddress(address: String): Option[UInt160] = {
-      var publicKeyHash: Option[UInt160] = None
-      if (address.startsWith("AP") && address.length == 35) {
-        val decode = Base58Check.decode(address).getOrElse(Array[Byte]())
-        // 2 bytes prefix + 20 bytes data (+ 4 bytes checksum)
-        if (decode.length == 22)
-          publicKeyHash = Some(UInt160.fromBytes(decode.slice(2, 22)))
-      }
-      publicKeyHash
-    }
-  }
 
   def hash(digest: Digest)(input: Seq[Byte]): BinaryData = {
     digest.update(input.toArray, 0, input.length)

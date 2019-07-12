@@ -12,10 +12,12 @@ import java.io.{ByteArrayInputStream, ByteArrayOutputStream, DataInputStream, Da
 
 import com.apex.consensus._
 import com.apex.core.Block.deserialize
-import com.apex.crypto.{FixedNumber, UInt160, UInt256}
+import com.apex.crypto.{BinaryData, Crypto, FixedNumber, UInt160, UInt256}
+import com.apex.proposal.{Proposal, ProposalList, ProposalStatus, ProposalType}
 import org.junit.Test
 
 import scala.collection.mutable
+import scala.collection.mutable.ArrayBuffer
 
 @Test
 class WitnessTest {
@@ -35,7 +37,7 @@ class WitnessTest {
   @Test
   def testSerialize_WitnessInfo = {
     val a = new WitnessInfo(UInt160.Zero, false, "wefwe", "1 2", "3", "4",
-      170, 240, FixedNumber.One, 2)
+      170, 240, FixedNumber.One, true, 2)
 
     val o = new SerializerHelper[WitnessInfo](
       WitnessInfo.deserialize,
@@ -54,12 +56,12 @@ class WitnessTest {
   @Test
   def testSerialize_Vote = {
 
-    val a = new Vote(UInt160.Zero, scala.collection.mutable.Map[UInt160, FixedNumber](
+    val a = new WitnessVote(UInt160.Zero, scala.collection.mutable.Map[UInt160, FixedNumber](
       UInt160.parse("1212121212121212121212121212121212121212").get -> FixedNumber.One,
       UInt160.parse("9999999999999999999999999999999999999999").get -> FixedNumber.Ten   ),2)
 
-    val o = new SerializerHelper[Vote](
-      Vote.deserialize,
+    val o = new SerializerHelper[WitnessVote](
+      WitnessVote.deserialize,
       (x, _) => x.version.equals(a.version)
         && x.voter.data.sameElements(a.voter.data)
         && x.targetMap.size == a.targetMap.size
@@ -72,21 +74,21 @@ class WitnessTest {
   def testSerialize_WitnessList = {
     val a = new WitnessInfo(UInt160.parse("1212121212121212121212121212121212121211").get, false,
       "123", "1 2", "3", "000",
-      171, 240, FixedNumber(2), 2)
+      171, 240, FixedNumber(2), true, 2)
 
     val b = new WitnessInfo(UInt160.parse("1212121212121212121212121212121212121212").get, false,
       "456", "8374", "311", "666",
-      172, 241, FixedNumber(1),  3)
+      172, 241, FixedNumber(1),  true, 3)
 
     val c = new WitnessInfo(UInt160.parse("1212121212121212121212121212121212121213").get, false,
       "789", "1 33", "9847", "4",
-      173, 242, FixedNumber(4),  4)
+      173, 242, FixedNumber(4),  true, 4)
 
     val d = new WitnessInfo(UInt160.parse("1212121212121212121212121212121212121214").get, false,
       "789", "1 33", "9847", "4",
-      173, 242, FixedNumber(3),  4)
+      173, 242, FixedNumber(3),  true, 4)
 
-    val list1 = WitnessList.create(Array(a, b, c, d), UInt256.Zero, 7)
+    val list1 = WitnessList.create(Array(a, b, c, d), UInt256.Zero, 0, 7)
 
     assert(!list1.contains(UInt160.Zero))
     assert(list1.contains(UInt160.parse("1212121212121212121212121212121212121212").get))
@@ -122,23 +124,23 @@ class WitnessTest {
   def testSerialize_WitnessMap = {
     val a = new WitnessInfo(UInt160.parse("1212121212121212121212121212121212121211").get, false,
       "123", "1 2", "3", "000",
-      171, 240, FixedNumber(2), 2)
+      171, 240, FixedNumber(2), true,2)
 
     val b = new WitnessInfo(UInt160.parse("1212121212121212121212121212121212121212").get, false,
       "456", "8374", "311", "666",
-      172, 241, FixedNumber(1),  3)
+      172, 241, FixedNumber(1),  true,3)
 
     val c = new WitnessInfo(UInt160.parse("1212121212121212121212121212121212121213").get, false,
       "789", "1 33", "9847", "4",
-      173, 242, FixedNumber(4),  4)
+      173, 242, FixedNumber(4),  true,4)
 
     val d = new WitnessInfo(UInt160.parse("1212121212121212121212121212121212121214").get, false,
       "789", "1 33", "9847", "4",
-      173, 242, FixedNumber(3),  4)
+      173, 242, FixedNumber(3), true, 4)
 
     val ddd = new WitnessInfo(UInt160.parse("1212121212121212121212121212121212121214").get, false,
       "789", "1 3ddd3", "9847", "4",
-      173, 242, FixedNumber(999),  456)
+      173, 242, FixedNumber(999), true, 456)
 
     val map1 = new WitnessMap(mutable.Map.empty, 67)
     map1.set(a)
@@ -178,39 +180,39 @@ class WitnessTest {
   def testSortByLocation = {
     val w1 = new WitnessInfo(UInt160.parse("1212121212121212121212121212121212121211").get, false,
       "w1", "1 2", "3", "000",
-      171, 240, FixedNumber(2), 2)
+      171, 240, FixedNumber(2),true, 2)
 
     val w2 = new WitnessInfo(UInt160.parse("1212121212121212121212121212121212121212").get, false,
       "w2", "8374", "311", "666",
-      172, 241, FixedNumber(1),  3)
+      172, 241, FixedNumber(1), true, 3)
 
     val w3 = new WitnessInfo(UInt160.parse("1212121212121212121212121212121212121213").get, false,
       "w3", "1 33", "9847", "4",
-      2, 242, FixedNumber(4),  4)
+      2, 242, FixedNumber(4), true, 4)
 
     val w4 = new WitnessInfo(UInt160.parse("1212121212121212121212121212121212121214").get, false,
       "w4", "1 33", "9847", "4",
-      999, 242, FixedNumber(3),  4)
+      999, 242, FixedNumber(3), true, 4)
 
     val w5 = new WitnessInfo(UInt160.parse("1212121212121212121212121212121212121215").get, false,
       "w5", "1 3ddd3", "9847", "4",
-      173, 10, FixedNumber(999),  456)
+      173, 10, FixedNumber(999), true, 456)
 
     val w6 = new WitnessInfo(UInt160.parse("1212121212121212121212121212121212121216").get, false,
       "w6", "1 3ddd3", "9847", "4",
-      173, 300, FixedNumber(999),  456)
+      173, 300, FixedNumber(999), true, 456)
 
     val w7 = new WitnessInfo(UInt160.parse("2000000000000000000000000000000000000000").get, false,
       "w7", "1 3ddd3", "9847", "4",
-      173, 242, FixedNumber(999),  456)
+      173, 242, FixedNumber(999),  true,456)
 
     val w8 = new WitnessInfo(UInt160.parse("1000000000000000000000000000000000000000").get, false,
       "w8", "1 3ddd3", "9847", "4",
-      173, 242, FixedNumber(999),  456)
+      173, 242, FixedNumber(999), true, 456)
 
     val w9 = new WitnessInfo(UInt160.parse("3000000000000000000000000000000000000000").get, false,
       "w9", "1 3ddd3", "9847", "4",
-      173, 242, FixedNumber(999),  456)
+      173, 242, FixedNumber(999), true, 456)
 
     val witArray = Array(w1, w2, w3, w4, w5, w6, w7, w8, w9)
 
@@ -230,39 +232,39 @@ class WitnessTest {
   def testSortByVote = {
     val w1 = new WitnessInfo(UInt160.parse("1212121212121212121212121212121212121211").get, false,
       "w1", "1 2", "3", "000",
-      171, 240, FixedNumber(400), 2)
+      171, 240, FixedNumber(400),true, 2)
 
     val w2 = new WitnessInfo(UInt160.parse("1212121212121212121212121212121212121212").get, false,
       "w2", "8374", "311", "666",
-      172, 241, FixedNumber(500),  3)
+      172, 241, FixedNumber(500), true, 3)
 
     val w3 = new WitnessInfo(UInt160.parse("1212121212121212121212121212121212121213").get, false,
       "w3", "1 33", "9847", "4",
-      2, 242, FixedNumber(600),  4)
+      2, 242, FixedNumber(600),  true,4)
 
     val w4 = new WitnessInfo(UInt160.parse("1212121212121212121212121212121212121214").get, false,
       "w4", "1 33", "9847", "4",
-      999, 242, FixedNumber(700),  4)
+      999, 242, FixedNumber(700), true, 4)
 
     val w5 = new WitnessInfo(UInt160.parse("1212121212121212121212121212121212121215").get, false,
       "w5", "1 3ddd3", "9847", "4",
-      173, 10, FixedNumber(800),  456)
+      173, 10, FixedNumber(800),  true,456)
 
     val w6 = new WitnessInfo(UInt160.parse("1212121212121212121212121212121212121216").get, false,
       "w6", "1 3ddd3", "9847", "4",
-      173, 300, FixedNumber(2000),  456)
+      173, 300, FixedNumber(2000),  true, 456)
 
     val w7 = new WitnessInfo(UInt160.parse("2000000000000000000000000000000000000000").get, false,
       "w7", "1 3ddd3", "9847", "4",
-      173, 242, FixedNumber(999),  456)
+      173, 242, FixedNumber(999),  true,456)
 
     val w8 = new WitnessInfo(UInt160.parse("1000000000000000000000000000000000000000").get, false,
       "w8", "1 3ddd3", "9847", "4",
-      173, 242, FixedNumber(999),  456)
+      173, 242, FixedNumber(999),  true,456)
 
     val w9 = new WitnessInfo(UInt160.parse("3000000000000000000000000000000000000000").get, false,
       "w9", "1 3ddd3", "9847", "4",
-      173, 242, FixedNumber(999),  456)
+      173, 242, FixedNumber(999),  true, 456)
 
     val witArray = Array(w1, w2, w3, w4, w5, w6, w7, w8, w9)
 
@@ -276,6 +278,82 @@ class WitnessTest {
     assert(sorted(6).name == "w3")  //
     assert(sorted(7).name == "w2")  //
     assert(sorted(8).name == "w1")  //
+  }
+
+  @Test
+  def testSortByVote2 = {
+    val wits = ArrayBuffer.empty[WitnessInfo]
+    for (i <- 0 to 99) {
+      wits.append(new WitnessInfo(UInt160.fromBytes(Crypto.randomBytes(20))))
+    }
+    val sorted = WitnessList.sortByVote(wits.toArray)
+    sorted.foreach(w => println(w.addr.address))
+  }
+
+  @Test
+  def testWitnessBlockCount1 = {
+
+    val blockCount = mutable.Map.empty[UInt160, Int]
+
+    val wbc1 = new WitnessBlockCount(blockCount, 2)
+
+    val bos = new ByteArrayOutputStream
+    val dos = new DataOutputStream(bos)
+    wbc1.serialize(dos)
+    val ba = bos.toByteArray
+    val bis = new ByteArrayInputStream(ba)
+    val is = new DataInputStream(bis)
+    val wbc2 = WitnessBlockCount.deserialize(is)
+
+    assert(wbc2.blockCount.size == 0)
+    assert(wbc2.version == 2)
+  }
+
+  @Test
+  def testWitnessBlockCount2 = {
+
+    val blockCount = mutable.Map.empty[UInt160, Int]
+    blockCount.update(UInt160.Zero, 5)
+
+    val wbc1 = new WitnessBlockCount(blockCount, 3)
+
+    val bos = new ByteArrayOutputStream
+    val dos = new DataOutputStream(bos)
+    wbc1.serialize(dos)
+    val ba = bos.toByteArray
+    val bis = new ByteArrayInputStream(ba)
+    val is = new DataInputStream(bis)
+    val wbc2 = WitnessBlockCount.deserialize(is)
+
+    assert(wbc2.blockCount.size == 1)
+    assert(wbc2.blockCount.get(UInt160.Zero).get == 5)
+    assert(wbc2.version == 3)
+  }
+
+  @Test
+  def testWitnessBlockCount3 = {
+
+    val a = UInt160.parse("1212121212121212121212121212121212121211").get
+    val b = UInt160.parse("1212121212121212121212121212121212121212").get
+
+    val blockCount = mutable.Map.empty[UInt160, Int]
+    blockCount.update(a, 51)
+    blockCount.update(b, 61)
+
+    val wbc1 = new WitnessBlockCount(blockCount, 3)
+
+    val bos = new ByteArrayOutputStream
+    val dos = new DataOutputStream(bos)
+    wbc1.serialize(dos)
+    val ba = bos.toByteArray
+    val bis = new ByteArrayInputStream(ba)
+    val is = new DataInputStream(bis)
+    val wbc2 = WitnessBlockCount.deserialize(is)
+
+    assert(wbc2.blockCount.size == 2)
+    assert(wbc2.blockCount.get(a).get == 51)
+    assert(wbc2.blockCount.get(b).get == 61)
+    assert(wbc2.version == 3)
   }
 
 //  @Test
@@ -292,5 +370,21 @@ class WitnessTest {
 //
 //    assert(newA.location == "abc")
 //  }
+
+  @Test
+  def testProposalListSort = {
+    val p1 = new Proposal(UInt256.Zero, ProposalType.BlockAward, ProposalStatus.PendingActive,
+      0, 0, 10, Array.empty, BinaryData.empty)
+    val p2 = new Proposal(UInt256.Zero, ProposalType.BlockAward, ProposalStatus.PendingActive,
+      0, 0, 15, Array.empty, BinaryData.empty)
+    val p3 = new Proposal(UInt256.Zero, ProposalType.BlockAward, ProposalStatus.PendingActive,
+      0, 0, 7, Array.empty, BinaryData.empty)
+
+    val sorted = ProposalList.sortByActiveTime(Array(p1, p2, p3))
+
+    assert(sorted(0).activeTime == 7)
+    assert(sorted(1).activeTime == 10)
+    assert(sorted(2).activeTime == 15)
+  }
 
 }

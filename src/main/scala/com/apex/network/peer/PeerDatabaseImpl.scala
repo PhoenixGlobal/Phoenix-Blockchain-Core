@@ -4,9 +4,10 @@ import java.io.{File, PrintWriter}
 import java.net.InetSocketAddress
 
 import com.apex.utils.NetworkTime
+
 import scala.collection.mutable
 import com.apex.common.ApexLogging
-import com.apex.network.NodeInfo
+import com.apex.network.{NodeInfo, NodeType}
 
 import scala.io.Source
 import scala.util.Random
@@ -18,72 +19,92 @@ class PeerDatabaseImpl(filename: String) extends PeerDatabase with ApexLogging {
     * key: raw IP address
     * value: NodeInfo class
     */
-  private val whitelistPersistence = mutable.Map[String, NodeInfo]()
+  private val knownPeersMap = mutable.Map[InetSocketAddress, NodeInfo]()
 
   private val blacklist = mutable.Map[String, NetworkTime.Time]()
 
+  private val knowPeersFileName = filename + "/" + "knowPeers.txt"
+  private val blackListFileName = filename + "/" + "blackListPeers.txt"
 
   def flush2DB(): Unit = {
-    val file = new File(filename)
-    if (!file.exists() && !file.isDirectory()) {
-      file.mkdir()
+    try {
+      val file = new File(filename)
+      if (!file.exists() && !file.isDirectory()) {
+        file.mkdir()
+      }
+
+      val fw = new PrintWriter(knowPeersFileName)
+      knownPeersMap.values.foreach(node => {
+        fw.println(node.address + ":" + node.port + ":" + node.nodeType.toByte)
+      })
+      log.info("write peers into file " + knowPeersFileName)
+      fw.close()
+
+      val fw2 = new PrintWriter(blackListFileName)
+      blacklist.keys.foreach(address => {
+        fw2.println(address)
+      })
+
+      fw2.close()
+      log.info("write black list into file " + blackListFileName)
+    } catch {
+      case e: Exception =>
+        log.info(s"cann't write ${knowPeersFileName},${blackListFileName}")
+        e.printStackTrace()
     }
-    val whileListFile = filename + "/white_list.txt"
-    val fw = new PrintWriter(whileListFile)
-    whitelistPersistence.values.foreach(node => {
-      fw.println(node.address + ":" + node.port)
-    })
-    log.info("write while list into file " + whileListFile)
-    fw.close()
-
-    val blackListFile = filename + "/black_list.txt"
-
-    val fw2 = new PrintWriter(blackListFile)
-    blacklist.keys.foreach(address => {
-      fw2.println(address)
-    })
-
-    fw2.close()
-    log.info("write black list into file " + blackListFile)
   }
 
   def loadFromDB(): Unit = {
-    val whileListFile = filename + "/white_list.txt"
-    val wlf = new File(whileListFile)
-    if (!wlf.exists()) {
-      return
-    }
-    val file = Source.fromFile(whileListFile)
-    val it = file.getLines
-    while (it.hasNext) {
-      val line: Array[String] = it.next().toString.split(":")
-      addOrUpdateKnownPeer(line(0), new NodeInfo(line(0), line(1).toInt))
-    }
+    try {
+      val knowPeers = loadFromFile(knowPeersFileName)
+      knowPeers.foreach { lineStr =>
+        val line: Array[String] = lineStr.toString.split(":")
+        addOrUpdateKnownPeer(new InetSocketAddress(line(0), line(1).toInt), new NodeInfo(line(0), line(1).toInt, NodeType(line(2).toInt)))
+      }
 
-    val blackFilePath = filename + "/black_list.txt"
-    val bfp = new File(blackFilePath)
-    if (!bfp.exists()) {
-      return
-    }
-    val bfile = Source.fromFile(blackFilePath)
-    val it2 = bfile.getLines
-    while (it2.hasNext) {
-      val line: Array[String] = it2.next().toString.split(":")
-      val address = new InetSocketAddress(line(0), line(1).toInt)
-      addBlacklistPeer(address, System.currentTimeMillis())
+      val blackLists = loadFromFile(blackListFileName)
+      blackLists.foreach { lineStr =>
+        val line: Array[String] = lineStr.toString.split(":")
+        val address = new InetSocketAddress(line(0), 0)
+        addBlacklistPeer(address, System.currentTimeMillis())
+      }
+    } catch {
+      case e: Exception =>
+        log.error(e.getMessage)
+        e.printStackTrace().toString
     }
   }
 
-  override def addOrUpdateKnownPeer(address: String, peerInfo: NodeInfo): Unit = {
-    whitelistPersistence.put(address, peerInfo)
+  private def loadFromFile(path: String): Seq[String] = {
+    try {
+      val bfp = new File(path)
+      if (!bfp.exists())
+        Seq()
+      else {
+        val source = Source.fromFile(path)
+        val lines = source.getLines.toList
+        source.close()
+        lines
+      }
+    } catch {
+      case e: Exception =>
+        log.error(s"init failed, cannot read from ${path}.")
+        e.printStackTrace()
+        Seq()
+    }
+  }
+
+  def addPeerIfEmpty(address: InetSocketAddress, peerInfo: NodeInfo): Unit = {
+    if (!knownPeersMap.contains(address))
+      knownPeersMap.put(address, peerInfo)
   }
 
   def addOrUpdateKnownPeer(address: InetSocketAddress, peerInfo: NodeInfo): Unit = {
-    addOrUpdateKnownPeer(address.getAddress.getHostAddress, peerInfo)
+    knownPeersMap.put(address, peerInfo)
   }
 
   override def addBlacklistPeer(address: InetSocketAddress, time: NetworkTime.Time): Unit = {
-    whitelistPersistence.remove(address.getAddress.getHostAddress)
+    knownPeersMap.remove(address)
     if (!isBlacklisted(address)) blacklist += address.getAddress.getHostAddress -> time
   }
 
@@ -91,43 +112,33 @@ class PeerDatabaseImpl(filename: String) extends PeerDatabase with ApexLogging {
     blacklist.synchronized(blacklist.contains(address.getAddress.getHostAddress))
   }
 
-  override def knownPeers(): Map[String, NodeInfo] = {
-    whitelistPersistence.keys.flatMap(k => whitelistPersistence.get(k).map(v => k -> v)).toMap
+  override def knownPeers(): Map[InetSocketAddress, NodeInfo] = {
+    knownPeersMap.keys.flatMap(k => knownPeersMap.get(k).map(v => k -> v)).toMap
   }
 
   override def blacklistedPeers(): Seq[String] = blacklist.keys.toSeq
 
-  override def isEmpty(): Boolean = whitelistPersistence.isEmpty
+  override def isEmpty(): Boolean = knownPeersMap.isEmpty
 
-  override def remove(address: InetSocketAddress): Boolean = whitelistPersistence.remove(address.getAddress.getHostAddress).nonEmpty
+  override def remove(address: InetSocketAddress): Boolean = {
+    log.info("remove peer:" + address)
+    knownPeersMap.remove(address).nonEmpty
+  }
+
 
   //从whitelist里随机选出number个peer
-  override def selectPeersByRandom(number: Long): Seq[NodeInfo] = {
-
-    val allSeq = whitelistPersistence.values.toSeq
+  override def selectPeersByRandom(number: Int): Seq[NodeInfo] = {
+    val allSeq = knownPeersMap.values.toSeq
     if (allSeq.size < number)
       return allSeq
 
-    var ret = Seq[NodeInfo]()
-    val size: Int = whitelistPersistence.size
-    var rand: Int = Random.nextInt(size)
-
-    while (ret.size < number && rand < size) {
-      ret = ret :+ allSeq(rand)
-      rand = rand + 1
-    }
-
-    rand = 0
-    while (ret.size < number) {
-      ret = ret :+ allSeq(rand)
-      rand = rand + 1
-    }
+    val ret = Random.shuffle(allSeq).take(number)
 
     ret
   }
 
   override def peerSize(): Int = {
-    whitelistPersistence.size
+    knownPeersMap.size
   }
 
 }

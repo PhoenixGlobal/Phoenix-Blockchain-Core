@@ -23,18 +23,18 @@
  *
  */
 
-package com.apex.vm
+package com.apex.vm.precompiled
 
 import java.math.BigInteger
 
+import com.apex.vm._
 import akka.util.ByteString
-import com.apex.consensus.{RegisterData, VoteData}
 import com.apex.core.{DataBase, Transaction}
 import com.apex.crypto.zksnark.{BN128Fp, BN128G1, BN128G2, PairingCheck}
 
 import scala.util.Try
 import com.apex.crypto.{Crypto, ECDSASignature, FixedNumber, UInt160}
-import com.apex.settings.ContractSettings
+import com.apex.settings.{ConsensusSettings, ContractSettings}
 
 object PrecompiledContracts {
   private val ecRecover = new ECRecover
@@ -62,14 +62,20 @@ object PrecompiledContracts {
   val registerNodeAddr = DataWord.of("0000000000000000000000000000000000000000000000000000000000000101")
 
   // AP1xWDozWvuVah1W86DKtcWzdw1LqMYokMU
-  val voteAddr = DataWord.of("0000000000000000000000000000000000000000000000000000000000000102")
+  val witnessVoteAddr = DataWord.of("0000000000000000000000000000000000000000000000000000000000000102")
 
-  def isVoteOrRegisterAddr(address: UInt160): Boolean ={
-    registerNodeAddr.getLast20Bytes.sameElements(address.data) || voteAddr.getLast20Bytes.sameElements(address.data)
-  }
+  // AP1xWDozWvuVah1W86DKtcWzdw1LqRxiSfr
+  val proposalAddr = DataWord.of("0000000000000000000000000000000000000000000000000000000000000103")
 
-  def getContractForAddress(address: DataWord, settings: ContractSettings, cacheTrack: DataBase = null,
-                            tx: Transaction = null, timeStamp: Long = 0): PrecompiledContract = {
+  // AP1xWDozWvuVah1W86DKtcWzdw1LqdV35rk
+  val proposalVoteAddr = DataWord.of("0000000000000000000000000000000000000000000000000000000000000104")
+
+  //  def isVoteOrRegisterAddr(address: UInt160): Boolean = {
+  //    registerNodeAddr.getLast20Bytes.sameElements(address.data) || witnessVoteAddr.getLast20Bytes.sameElements(address.data)
+  //  }
+
+  def getContractForAddress(address: DataWord, settings: ContractSettings, //consensusSettings: ConsensusSettings,
+                            cacheTrack: DataBase = null, tx: Transaction = null, timeStamp: Long = 0): PrecompiledContract = {
     if (address == null) identity
     else if (address == ecRecoverAddr) ecRecover
     else if (address == sha256Addr) sha256
@@ -81,7 +87,9 @@ object PrecompiledContracts {
     else if (address == altBN128MulAddr) altBN128Mul
     else if (address == altBN128PairingAddr) altBN128Pairing
     else if (address == registerNodeAddr) registerNode(cacheTrack, tx, settings.registerSpend, timeStamp)
-    else if (address == voteAddr) vote(cacheTrack, tx, timeStamp)
+    else if (address == witnessVoteAddr) vote(cacheTrack, tx, timeStamp)
+    else if (address == proposalAddr) new ProposalContract(cacheTrack, tx, timeStamp)
+    else if (address == proposalVoteAddr) new ProposalVoteContract(cacheTrack, tx, timeStamp)
     else null
   }
 
@@ -253,9 +261,9 @@ class ModExp extends PrecompiledContract {
       val base = parseArg(data, ARGS_OFFSET, baseLen)
       val exp = parseArg(data, addSafely(ARGS_OFFSET, baseLen), expLen)
       val mod = parseArg(data, addSafely(addSafely(ARGS_OFFSET, baseLen), expLen), modLen)
-      if (mod == 0) {
-        (true, Array.emptyByteArray)
-      } else {
+      if (mod == 0)
+        (true, new Array[Byte](modLen))
+      else {
         val res = base.modPow(exp, mod).toByteArray.stripLeadingZeroes
         // adjust result to the same length as the modulus has
         if (res.length < modLen) {

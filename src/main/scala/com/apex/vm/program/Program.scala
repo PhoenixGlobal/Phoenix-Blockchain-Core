@@ -32,16 +32,18 @@ import java.util
 import com.apex.common.ApexLogging
 import com.apex.core.{Account, DataBase}
 import com.apex.crypto.{Crypto, FixedNumber, UInt160}
-import com.apex.settings.ContractSettings
+import com.apex.settings.{ConsensusSettings, ContractSettings}
 import com.apex.vm.DataWord
 import com.apex.vm.exceptions._
 import com.apex.vm.hook.VMHook
+import com.apex.vm.precompiled.PrecompiledContract
 import com.apex.vm.program.invoke.{ProgramInvoke, ProgramInvokeImpl}
 import com.apex.vm.program.listener.{CompositeProgramListener, ProgramListenerAware, ProgramStorageChangeListener}
 import com.apex.vm.program.trace.{ProgramTrace, ProgramTraceListener}
 import org.apex.vm.{OpCache, OpCode}
 
-class Program(settings: ContractSettings, ops: Array[Byte], invoke: ProgramInvoke, stopTime: Long, vmHook: VMHook = VMHook.EMPTY) extends ApexLogging {
+class Program(settings: ContractSettings, ops: Array[Byte], invoke: ProgramInvoke,
+              stopTime: Long, vmHook: VMHook = VMHook.EMPTY) extends ApexLogging {
   import Program._
 
   private var listener: ProgramOutListener = _
@@ -215,7 +217,7 @@ class Program(settings: ContractSettings, ops: Array[Byte], invoke: ProgramInvok
 
   def getBlockHash(index: Long): DataWord = {
     if (index < getNumber.longValue)
-      DataWord.of(invoke.getChain.getBlock(index).get.id())
+      DataWord.of(invoke.getChain.getBlockHash(index).get)
     else
       DataWord.ZERO
   }
@@ -256,7 +258,7 @@ class Program(settings: ContractSettings, ops: Array[Byte], invoke: ProgramInvok
     val senderAddress = getOwnerAddress.toUInt160
     val endowment = value.value
     if (verifyCall(senderAddress, endowment)) {
-      val nonce = getStorage.getNonce(senderAddress).toBytes
+      val nonce = getStorage.getNonce(senderAddress)
       val contractAddress = Crypto.calcNewAddr(senderAddress, nonce)
       val programCode = memoryChunk(memStart.intValue, memSize.intValue)
       createContractImpl(value, programCode, contractAddress)

@@ -42,7 +42,11 @@ case class FixedNumber(value: BigInt = 0) extends Serializable {
 
   def *(that: FixedNumber): FixedNumber = FixedNumber(value * that.value)
 
+  def /(that: FixedNumber): FixedNumber = FixedNumber(value / that.value)
+
   def *(that: BigInt): FixedNumber = FixedNumber(value * that)
+
+  def /(that: BigInt): FixedNumber = FixedNumber(value / that)
 
   def >(that: FixedNumber): Boolean = value > that.value
 
@@ -69,6 +73,8 @@ object FixedNumber {
   final val KP: FixedNumber = P * 1000
   final val MP: FixedNumber = KP * 1000
   final val GP: FixedNumber = MP * 1000
+  final val KGP: FixedNumber = GP * 1000
+  final val MGP: FixedNumber = KGP * 1000
   final val CPX: FixedNumber = One
 
   implicit val serializer: DataInputStream => FixedNumber = deserialize

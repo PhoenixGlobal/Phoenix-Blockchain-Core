@@ -124,7 +124,7 @@ object SolidityCompiler {
 
     def getContent: String = getContent(true)
 
-    def getContent(waitForComplete: Boolean): String = {
+    def getContent(waitForComplete: Boolean): String = this.synchronized {
       if (waitForComplete)
         while (stream != null)
           try

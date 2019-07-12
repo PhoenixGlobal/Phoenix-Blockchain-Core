@@ -18,7 +18,7 @@ import com.apex.common.ApexLogging
 import com.apex.consensus.WitnessList
 import com.apex.crypto.Ecdsa.PublicKey
 import com.apex.crypto.{UInt160, UInt256}
-import com.apex.settings.{ForkBaseSettings, Witness}
+import com.apex.settings.ForkBaseSettings
 import com.apex.storage.{Batch, Storage}
 
 import scala.collection.immutable.{Map => IMap}
@@ -323,6 +323,10 @@ case class ForkItem(block: Block, lastProducerHeight: mutable.Map[UInt160, Long]
       os.writeLong(p._2)
     })
   }
+
+  override def toString: String = {
+    s"#${height} ${block.shortId} prev=${prev()} master=${master}"
+  }
 }
 
 object ForkItem {
@@ -345,13 +349,20 @@ object ForkItem {
 }
 
 // context information about chain switching
-case class SwitchState(oldHead: UInt256, newHead: UInt256, forkPoint: UInt256, height: Long) extends com.apex.common.Serializable {
+case class SwitchState(oldHead: UInt256, newHead: UInt256, forkPoint: UInt256, height: Long) extends com.apex.common.Serializable with ApexLogging {
   override def serialize(os: DataOutputStream): Unit = {
     import com.apex.common.Serializable._
     os.write(oldHead)
     os.write(newHead)
     os.write(forkPoint)
     os.writeLong(height)
+  }
+  def logInfo() = {
+    log.info(s"SwitchState: ")
+    log.info(s"    oldHead: ${oldHead}")
+    log.info(s"    newHead: ${newHead}")
+    log.info(s"  forkPoint: ${forkPoint}")
+    log.info(s"     height: ${height}")
   }
 }
 
@@ -379,8 +390,8 @@ case class SwitchResult(succeed: Boolean, failedItem: ForkItem = null)
 class ForkBase(settings: ForkBaseSettings,
                //witnesses: Array[Witness],
                onConfirmed: Block => Unit,
-               onSwitch: (Seq[ForkItem], Seq[ForkItem], SwitchState) => SwitchResult) extends ApexLogging {
-  private val db = Storage.open(settings.dbType, settings.dir)
+               onSwitch: (Seq[ForkItem], Seq[ForkItem], SwitchState, Boolean) => SwitchResult) extends ApexLogging {
+  private val db = Storage.openTemp(settings.dbType, settings.dir)
   private val forkStore = new ForkItemStore(db, settings.cacheSize)
   private val switchStateStore = new SwitchStateStore(db)
 
@@ -392,6 +403,8 @@ class ForkBase(settings: ForkBaseSettings,
   private var _head: Option[ForkItem] = None
 
   init()
+
+  def forkItemNum(): Int = indexById.size
 
   // get switch state
   def switchState(): Option[SwitchState] = {
@@ -408,7 +421,8 @@ class ForkBase(settings: ForkBaseSettings,
   def getBranch(head: UInt256, tail: UInt256): Seq[ForkItem] = {
     var curr = indexById.get(head)
     val branch = ListBuffer.empty[ForkItem]
-    while (curr.exists(!_.prev.equals(tail))) {
+
+    while (curr.exists(!_.id.equals(tail))) {
       branch.append(curr.get)
       curr = indexById.get(curr.get.prev)
     }
@@ -471,7 +485,7 @@ class ForkBase(settings: ForkBaseSettings,
         }
       }
       if (block.height() > 0)
-        lph.put(block.header.producer, block.height)
+        lph.put(block.producer, block.height)
       require(lph.size == curWitnessList.witnesses.size)
       ForkItem(block, lph, master)
     }
@@ -522,8 +536,10 @@ class ForkBase(settings: ForkBaseSettings,
     val (originFork, newFork, switchState) = getForks(from, to)
     require(switchState != null)
 
+    log.info("beginSwitch set switchState")
+    switchState.logInfo()
     if (switchStateStore.set(switchState)) {
-      val result = onSwitch(originFork, newFork, switchState)
+      val result = onSwitch(originFork, newFork, switchState, false)
       endSwitch(originFork, newFork, result)
     } else {
       log.error("begin switch failed")

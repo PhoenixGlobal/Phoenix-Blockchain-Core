@@ -8,20 +8,24 @@
 
 package com.apex
 
+import java.time.Instant
+
 import akka.actor.{Actor, ActorRef, ActorSystem, Props}
 import akka.dispatch.{PriorityGenerator, UnboundedStablePriorityMailbox}
 import com.apex.common.ApexLogging
-import com.apex.consensus._
+import com.apex.consensus.ProducerRef
 import com.apex.core._
 import com.apex.crypto.UInt256
 import com.apex.network._
 import com.apex.network.peer.PeerHandlerManager.ReceivableMessages.ReceivedPeers
 import com.apex.network.peer.PeerHandlerManagerRef
-import com.apex.rpc.{ExecResult, _}
+import com.apex.rpc._
 import com.apex.plugins.mongodb.MongodbPluginRef
+import com.apex.plugins.gasprice.GasPricePluginRef
 import com.apex.settings.ApexSettings
 import com.apex.utils.NetworkTimeProvider
 import com.typesafe.config.Config
+
 import scala.collection.mutable.ArrayBuffer
 import scala.concurrent.ExecutionContext
 import scala.util.Try
@@ -43,7 +47,17 @@ object Node {
         // 'highpriority messages should be treated first if possible
         case task: AsyncTask => 0
 
-        case message: NetworkMessage if message.messageType == MessageType.Block => 1
+        case message: NetworkMessage => {
+          if (message.messageType == MessageType.Block)
+            1
+          else if (message.messageType == MessageType.Inventory) {
+            val invMsg = message.asInstanceOf[InventoryMessage]
+            if (invMsg.inv.invType == InventoryType.Tx)
+              9   // set TX INV to lowest
+            else 2
+          }
+          else 2
+        }
 
         // 'lowpriority messages should be treated last if possible
         //case 'lowpriority ⇒ 2
@@ -63,29 +77,38 @@ class Node(val settings: ApexSettings, config: Config)
 
   log.info("Node starting")
 
-  private val hashCountMax = 10
+  private val hashCountMax = 20
+  //private val sendBlockNumMax: Int = 20
 
   private val notification = Notification()
 
-  private val timeProvider = new NetworkTimeProvider(settings.ntp)
+  private val timeProvider = new NetworkTimeProvider()
+  private var mongodbPlugin: Option[ActorRef] = None
 
   if (settings.plugins.mongodb.enabled) {
-    val mongodbPlugin = MongodbPluginRef(settings)
-    notification.register(mongodbPlugin)
+    mongodbPlugin = Some(MongodbPluginRef(settings))
+    notification.register(mongodbPlugin.get)
   }
 
-  private val chain = new Blockchain(settings.chain, settings.consensus, settings.runtimeParas, notification)
+  if (settings.miner.privKeys.size > 0) {
+    settings.miner.privKeys.foreach(key => {log.info(s"miner: ${key.publicKey.address}")})
+    val producer = ProducerRef(settings)
+  }
+  private val chain = new Blockchain(settings.chain, settings.consensus, settings.runtimeParas,
+                                     notification, settings.miner.forceStartProduce)
+
+  if (!chain.checkInitSuccess())
+    context.stop(self)
 
   private val peerHandlerManager = PeerHandlerManagerRef(settings.network, timeProvider)
   notification.register(peerHandlerManager)
 
   private val networkManager = NetworkManagerRef(settings.network, chain.getChainInfo, timeProvider, peerHandlerManager)
 
-  if (settings.miner.privKeys.size > 0) {
-    val producer = ProducerRef(settings)
-  }
   if (settings.rpc.enabled) {
-    RpcServer.run(settings, config, self)
+    val gasPricePlugin = GasPricePluginRef(settings, mongodbPlugin)
+    notification.register(gasPricePlugin)
+    RpcServer.run(settings, config, self, gasPricePlugin)
   }
 
   override def receive: Receive = {
@@ -108,11 +131,13 @@ class Node(val settings: ApexSettings, config: Config)
   }
 
   override def postStop(): Unit = {
+    log.info("node postStop")
     //    if (settings.rpc.enabled) {
     //      RpcServer.stop()
     //    }
     chain.close()
     super.postStop()
+    context.system.terminate()
   }
 
   private def processAsyncTask(asyncTask: AsyncTask): Unit = {
@@ -150,6 +175,7 @@ class Node(val settings: ApexSettings, config: Config)
             if (i >= 0)
               blocks.append(chain.getBlock(i).get)
           }
+          blocks
         }
         sender() ! blockList
       }
@@ -168,11 +194,33 @@ class Node(val settings: ApexSettings, config: Config)
       case SendRawTransactionCmd(tx) => {
         val sendTx = Try {
           if (tx.verifySignature()) {
-            peerHandlerManager ! InventoryMessage(new InventoryPayload(InventoryType.Tx, Seq(tx.id)))
-            if (chain.addTransaction(tx)) true
-            else false
+            val addResult = chain.addTransactionEx(tx)
+            if (addResult.added)
+              broadcastInvMsg(InventoryPayload.create(InventoryType.Tx, Seq(tx.id)))
+            else
+              log.error(s"SendRawTransactionCmd addTransaction error, txid=${tx.id.toString}  ${addResult.result}")
+
+            new AddTxResult(addResult.added, addResult.result, tx.id().toString)
           }
-          else false
+          else SignatureFail
+        }
+        sender() ! sendTx
+      }
+      case SendRawTransactionsCmd(txs) => {
+        val sendTx = Try {
+          val newTxs = ArrayBuffer.empty[UInt256]
+          txs.foreach(tx => {
+            if (tx.verifySignature()) {
+              val addResult = chain.addTransactionEx(tx)
+              if (addResult.added)
+                newTxs.append(tx.id)
+              else
+                log.error(s"SendRawTransactionsCmd addTransaction error, txid=${tx.id.toString}  ${addResult.result}")
+            }
+          })
+          if (newTxs.size > 0)
+            broadcastInvMsg(InventoryPayload.create(InventoryType.Tx, newTxs))
+          new AddTxResult(true, s"added ${newTxs.size} of ${txs.size} txs")
         }
         sender() ! sendTx
       }
@@ -181,18 +229,6 @@ class Node(val settings: ApexSettings, config: Config)
           chain.getReceipt(id)
         }
         sender() ! receipt
-      }
-      case SetGasLimitCmd(gasLimit) => {
-        val setGas = Try {
-          chain.setGasLimit(gasLimit)
-        }
-        sender() ! setGas
-      }
-      case GetGasLimitCmd() => {
-        val gasLimit = Try {
-          chain.getGasLimit()
-        }
-        sender() ! gasLimit
       }
       case GetProducersCmd(listType) => {
         val producers = Try {
@@ -206,11 +242,35 @@ class Node(val settings: ApexSettings, config: Config)
         }
         sender() ! producer
       }
+      case GetProducerAllVoterCmd(addr) => {
+        val voters = Try {
+          chain.getProducerVotes(addr)
+        }
+        sender() ! voters
+      }
+      case GetProposalCmd(id) => {
+        val proposal = Try {
+          chain.getProposal(id)
+        }
+        sender() ! proposal
+      }
       case GetVotesCmd(addr) => {
         val votes = Try {
-          chain.getVote(addr)
+          chain.getWitnessVoteInfo(addr)
         }
         sender() ! votes
+      }
+      case GetAllProposalVotesCmd() => {
+        val votes = Try {
+          chain.getProposalVoteList()
+        }
+        sender() ! votes
+      }
+      case GetAllProposalCmd() => {
+        val ps = Try {
+          chain.getProposalList()
+        }
+        sender() ! ps
       }
     }
   }
@@ -242,6 +302,15 @@ class Node(val settings: ApexSettings, config: Config)
       case PeerInfoMessage(peerInfoPayload) => {
         processPeerInfoMessage(message.asInstanceOf[PeerInfoMessage])
       }
+      case GetNextBlocksMessage(inv) => {
+        processGetNextBlocksMessage(message.asInstanceOf[GetNextBlocksMessage])
+      }
+      case NextBlocksMessage(blocksPayload) => {
+        processNextBlocksMessage(message.asInstanceOf[NextBlocksMessage])
+      }
+      case BlocksSendStopMessage(block) => {
+        processBlocksSendStopMessage(message.asInstanceOf[BlocksSendStopMessage])
+      }
     }
   }
 
@@ -252,14 +321,18 @@ class Node(val settings: ApexSettings, config: Config)
 
   private def processVersionMessage(msg: VersionMessage) = {
     // first msg, start to sync
-    sendGetBlocksMessage()
+
+    if (Instant.now.toEpochMilli - chain.getLatestHeader().timeStamp > 100000)
+      sendGetNextBlocksMessage() // new
+    else
+      sendGetBlocksMessage()
   }
 
   private def processGetBlocksMessage(msg: GetBlocksMessage) = {
-    def findLatestHash(hashs: Seq[UInt256]): UInt256 = {
+    def findLatestHash(hashs: Seq[UInt256]): (UInt256, Boolean) = {
       var index = 0
       var found = false
-      var latest = chain.getHeader(0).get.id
+      var latest = UInt256.Zero
       while (index < hashs.size && found == false) {
         if (chain.containsBlock(hashs(index))) {
           latest = hashs(index)
@@ -267,37 +340,104 @@ class Node(val settings: ApexSettings, config: Config)
         }
         index += 1
       }
-      latest
+      (latest, found)
     }
     //log.info(s"receive GetBlocksMessage  ${msg.blockHashs.hashStart(0).shortString}")
     if (msg.blockHashs.hashStart(0).equals(UInt256.Zero)) {
-      sender() ! InventoryMessage(new InventoryPayload(InventoryType.Block, Seq(chain.getLatestHeader.id))).pack()
+      sender() ! InventoryMessage(InventoryPayload.create(InventoryType.Block, Seq(chain.getLatestHeader.id))).pack()
     }
     else {
-      val hash = findLatestHash(msg.blockHashs.hashStart)
-      val hashs = ArrayBuffer.empty[UInt256]
-      //val hashCountMax = 10
-      var hashCount = 1
-      hashs.append(hash)
-      var next = chain.getNextBlockId(hash)
-      while (next.isDefined && hashCount < hashCountMax) {
-        hashCount += 1
-        hashs.append(next.get)
-        next = chain.getNextBlockId(next.get)
+      val (hash, found) = findLatestHash(msg.blockHashs.hashStart)
+      if (found) {
+        val hashs = ArrayBuffer.empty[UInt256]
+        var hashCount = 1
+        hashs.append(hash)
+        var next = chain.getNextBlockId(hash)
+        while (next.isDefined && hashCount < hashCountMax) {
+          hashCount += 1
+          hashs.append(next.get)
+          next = chain.getNextBlockId(next.get)
+        }
+        //log.info(s"send InventoryMessage, block hash count = ${hashs.size}")
+        sender() ! InventoryMessage(InventoryPayload.create(InventoryType.Block, hashs)).pack()
       }
-      //log.info(s"send InventoryMessage, block hash count = ${hashs.size}")
-      sender() ! InventoryMessage(new InventoryPayload(InventoryType.Block, hashs)).pack()
+    }
+  }
+
+  private def sendBlocks(from: Long, blockNum: Int) = {
+    var blockCount = 0
+    val blocks = ArrayBuffer.empty[Block]
+    var height = from
+    var block = chain.getBlock(height)
+    while (block.isDefined && blockCount < blockNum) {
+      blocks.append(block.get)
+      blockCount += 1
+      height += 1
+      block = chain.getBlock(height)
+    }
+    if (blocks.size > 0) {
+      log.info(s"send out ${blocks.size} blocks, from ${blocks.head.height()}")
+      sender() ! NextBlocksMessage(new BlocksPayload(blocks)).pack
+    }
+  }
+
+  private def processGetNextBlocksMessage(msg: GetNextBlocksMessage) = {
+    var from = msg.from
+    val blockNum = 20
+
+    for (i <- 1 to 10) {
+      sendBlocks(from, blockNum)
+      from += blockNum
+    }
+    sender() ! BlocksSendStopMessage(from - 1).pack
+  }
+
+  private def processNextBlocksMessage(msg: NextBlocksMessage) = {
+    var lastInsertBlock: Long = 0
+    log.info(s"received ${msg.blocks.blocks.size} blocks, from ${msg.blocks.blocks.head.height}")
+    msg.blocks.blocks.foreach(block => {
+      if (chain.tryInsertBlock(block, true)) {
+        lastInsertBlock = block.height()
+        log.info(s"success insert block ${block.logInfo()}")
+      }
+    })
+    tryCheckCacheBlock(lastInsertBlock + 1)
+  }
+
+  private def processBlocksSendStopMessage(msg: BlocksSendStopMessage) = {
+    if (isSyncingBlocks()) {
+      log.info(s"recv BlocksSendStopMessage, continue sync, msg=${msg.block} head=${chain.getLatestHeader().index}")
+      sendGetNextBlocksMessage()
+    }
+    else
+      log.info(s"recv BlocksSendStopMessage, stop sync, msg=${msg.block}  head=${chain.getLatestHeader().index}")
+  }
+
+  private def tryCheckCacheBlock(height: Long) = {
+    val maxBlock = 500
+    var blockCount = 0
+    var h = height
+    while (chain.tryInsertCacheBlock(h) && blockCount < maxBlock) {
+      h += 1
+      blockCount += 1
     }
   }
 
   private def processBlockMessage(msg: BlockMessage) = {
-    log.debug(s"received a block #${msg.block.height} (${msg.block.shortId})")
-    if (chain.tryInsertBlock(msg.block, true)) {
-      peerHandlerManager ! InventoryMessage(new InventoryPayload(InventoryType.Block, Seq(msg.block.id())))
-      log.info(s"success insert block #${msg.block.height} ${msg.block.shortId} by ${msg.block.header.producer.address.substring(0, 7)} ")
-    } else {
-      log.error(s"failed insert block #${msg.block.height}, ${msg.block.shortId} by ${msg.block.header.producer.address.substring(0, 7)} to db")
-      if (!chain.containsBlock(msg.block.id)) {
+    //log.info(s"received a block ${msg.block.height} ${msg.block.shortId} by ${msg.block.producer().shortAddr}")
+    if (msg.block.height() <= chain.getConfirmedHeight()) {
+      // minor fork chain, do nothing, should disconnect peer
+      log.info(s"received minor fork block, do nothing, ${msg.block.height} ${msg.block.shortId} by ${msg.block.producer.shortAddr}")
+    }
+    else if (chain.tryInsertBlock(msg.block, true)) {
+      broadcastInvMsg(InventoryPayload.create(InventoryType.Block, Seq(msg.block.id)))
+      log.info(s"success insert a block ${msg.block.logInfo()}")
+      tryCheckCacheBlock(msg.block.height() + 1)
+    }
+    else {
+      log.info(s"failed insert a block #${msg.block.height}, ${msg.block.shortId} by ${msg.block.producer.shortAddr} to db")
+      if (!chain.containsBlock(msg.block)) {
+        chain.addBlockToCache(msg.block)
         // out of sync, or there are fork chains,  to get more blocks
         if (msg.block.height - chain.getHeight < 10) // do not send too many request during init sync
           sendGetBlocksMessage()
@@ -306,28 +446,48 @@ class Node(val settings: ApexSettings, config: Config)
   }
 
   private def processBlocksMessage(msg: BlocksMessage) = {
+    var isMinorForkChain = false
+    var lastInsertBlock: Long = 0
     log.info(s"received ${msg.blocks.blocks.size} blocks, first is ${msg.blocks.blocks.head.height} ${msg.blocks.blocks.head.shortId}")
     msg.blocks.blocks.foreach(block => {
-      if (chain.tryInsertBlock(block, true)) {
-        log.info(s"success insert block #${block.height} (${block.shortId})")
-        // no need to send INV during sync
-        //peerHandlerManager ! InventoryMessage(new Inventory(InventoryType.Block, Seq(block.id())))
-      } else {
-        log.debug(s"failed insert block #${block.height}, (${block.shortId}) to db")
+      if (block.height() <= chain.getConfirmedHeight()) {
+        // minor fork chain, do nothing, should disconnect peer
+        isMinorForkChain = true
+        log.info(s"received minor fork block, do nothing, ${block.height} ${block.shortId} by ${block.producer.shortAddr}")
+      }
+      else if (chain.tryInsertBlock(block, true)) {
+        lastInsertBlock = block.height()
+        log.info(s"success insert block ${block.logInfo()}")
+        if (msg.blocks.blocks.size == 1) // no need to send INV during sync
+          broadcastInvMsg(InventoryPayload.create(InventoryType.Block, Seq(block.id)))
+      }
+      else {
+        log.debug(s"failed insert block #${block.height}, (${block.shortId}) by ${block.producer.shortAddr} to db")
+        if (!chain.containsBlock(block))
+          chain.addBlockToCache(block)
       }
     })
-    if (msg.blocks.blocks.size > 1)
+    tryCheckCacheBlock(lastInsertBlock + 1)
+
+    // continue get more following blocks
+    //if (msg.blocks.blocks.size > 1) // if (msg.blocks.blocks.size > 1 && isMinorForkChain == false)
       sender() ! GetBlocksMessage(new GetBlocksPayload(Seq(msg.blocks.blocks.last.id), UInt256.Zero)).pack
   }
 
   private def processTransactionsMessage(msg: TransactionsMessage) = {
     log.debug(s"received ${msg.txs.txs.size} transactions from network")
-    //producer ! ReceivedNewTransactions(txsPayload.txs)
+    val newTxs = ArrayBuffer.empty[UInt256]
     msg.txs.txs.foreach(tx => {
-      if (tx.verifySignature())
-        chain.addTransaction(tx)
+      if (tx.verifySignature()) {
+        val addResult = chain.addTransactionEx(tx)
+        if (addResult.added)
+          newTxs.append(tx.id)
+        else
+          log.error(s"processTransactionsMessage addTransaction error, txid=${tx.id.toString} ${addResult.result}")
+      }
     })
-    // TODO: for the new txs broadcast INV
+    if (newTxs.size > 0) // for the new txs broadcast INV
+      broadcastInvMsg(InventoryPayload.create(InventoryType.Tx, newTxs))
   }
 
   private def processInventoryMessage(msg: InventoryMessage) = {
@@ -341,40 +501,55 @@ class Node(val settings: ApexSettings, config: Config)
       })
       if (newBlocks.size > 0) {
         log.debug(s"send GetDataMessage to request ${newBlocks.size} new blocks.  ${newBlocks(0).shortString}")
-        sender() ! GetDataMessage(new InventoryPayload(InventoryType.Block, newBlocks)).pack
+        if (inv.hashs.size > 1 && newBlocks.size == 1) {
+          // ugly hack to make sure newBlocks.size always > 1 to prevent sync stop in some cases
+          newBlocks.append(UInt256.Zero)
+        }
+        sender() ! GetDataMessage(InventoryPayload.create(InventoryType.Block, newBlocks)).pack
       }
-      else if (inv.hashs.size == hashCountMax) {
-        log.info("all the block hashs in the inv are not new, request more")
+      else if (inv.hashs.size > 1) { // >= hashCountMax
+        log.info(s"all the ${inv.hashs.size} block hashs in the inv are not new, request more, last hash is ${inv.hashs.last.shortString()} block #${chain.getBlockHeight(inv.hashs.last).get}")
         sender() ! GetBlocksMessage(new GetBlocksPayload(Seq(inv.hashs.last), UInt256.Zero)).pack
       }
     }
     else if (inv.invType == InventoryType.Tx) {
-      // val newTxs = ArrayBuffer.empty[UInt256]
-      // TODO: only request the txs that we don't have
-      sender() ! GetDataMessage(new InventoryPayload(InventoryType.Tx, inv.hashs)).pack
+      if (isSyncingBlocks()) {
+        //log.info("isSyncingBlocks, ignore tx inventory")
+      }
+      else if (Instant.now.toEpochMilli - inv.invTime > 7000) {
+        log.info(s"ignore ${inv.hashs.size} old tx inv, time gap is ${Instant.now.toEpochMilli - inv.invTime}")
+      }
+      else {
+        val newTxs = ArrayBuffer.empty[UInt256]
+        inv.hashs.foreach(h => {
+          if (chain.getTransactionFromMempool(h).isEmpty)
+            newTxs.append(h)
+        })
+        sender() ! GetDataMessage(InventoryPayload.create(InventoryType.Tx, newTxs)).pack
+      }
     }
   }
 
   private def processGetDataMessage(msg: GetDataMessage) = {
     //log.info(s"received GetDataMessage")
     if (msg.inv.invType == InventoryType.Block) {
-      val sendBlockNumMax: Int = 10
       var sentBlockNum: Int = 0
       val blocks = ArrayBuffer.empty[Block]
       msg.inv.hashs.foreach(h => {
         val block = chain.getBlock(h)
-        if (block != None) {
-          if (sentBlockNum < sendBlockNumMax) {
-            //sender() ! BlockMessage(block.get).pack
-            blocks.append(block.get)
-            sentBlockNum += 1
-          }
+        if (block != None) { // && sentBlockNum < sendBlockNumMax
+          blocks.append(block.get)
+          sentBlockNum += 1
         }
-        else
-          log.error("received GetDataMessage but block not found")
       })
       if (blocks.size > 0) {
-        sender() ! BlocksMessage(new BlocksPayload(blocks)).pack
+        if (msg.inv.hashs.size == 1) {
+          sender() ! BlockMessage(blocks.head).pack
+        }
+        else {
+          log.info(s"send out ${blocks.size} blocks, first is ${blocks.head.height()}")
+          sender() ! BlocksMessage(new BlocksPayload(blocks)).pack
+        }
       }
     }
     else if (msg.inv.invType == InventoryType.Tx) {
@@ -393,22 +568,38 @@ class Node(val settings: ApexSettings, config: Config)
 
   private def sendGetBlocksMessage() = {
     var index = chain.getHeight()
+    val confirmedHeight = chain.getConfirmedHeight()
     var step = 1
     var count = 0
     val blockLocatorHashes = ArrayBuffer.empty[UInt256]
-    while (index > 0) {
+    while (index > confirmedHeight) {
       blockLocatorHashes.append(chain.getHeader(index).get.id)
       count += 1
-      if (count > 10)
+      if (count > 20)
         step *= 2
-      if (step > 7200)
-        step = 7200
+      if (step > 720)
+        step = 720
       index -= step
     }
-    blockLocatorHashes.append(chain.getHeader(0).get.id)
-    log.info(s"send GetBlocksMessage. Current status: ${chain.getHeight()} ${chain.getLatestHeader().shortId}")
+    blockLocatorHashes.append(chain.getHeader(confirmedHeight).get.id)
+    log.info(s"send GetBlocksMessage. Current status: Height=${chain.getHeight()} ${chain.getLatestHeader().shortId} confirmedHeight=${confirmedHeight}")
     sender() ! GetBlocksMessage(new GetBlocksPayload(blockLocatorHashes, UInt256.Zero)).pack
   }
+
+  private def sendGetNextBlocksMessage() = {
+    val latestBlock = chain.getLatestHeader()
+    sender() ! GetNextBlocksMessage(latestBlock.index + 1).pack
+  }
+
+  private def broadcastInvMsg(invPayload: InventoryPayload) = {
+    // broadcast to all connected peers
+    peerHandlerManager ! InventoryMessage(invPayload)
+  }
+
+  private def isSyncingBlocks(): Boolean = {
+    Instant.now.toEpochMilli - chain.getLatestHeader().timeStamp > 5000
+  }
+
 }
 
 object NodeRef {

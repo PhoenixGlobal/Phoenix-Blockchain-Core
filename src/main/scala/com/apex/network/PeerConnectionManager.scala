@@ -12,6 +12,7 @@ import com.apex.core.{Blockchain, ChainInfo}
 import com.apex.settings.NetworkSettings
 import com.apex.utils.{NetworkTimeProvider, Version}
 import com.apex.network.PeerConnectionManager.{AwaitingHandshake, WorkingCycle}
+import com.apex.network.peer.PeerHandlerManager.ReceivableMessages.AddToBlacklist
 
 import scala.collection.mutable.ArrayBuffer
 import scala.concurrent.ExecutionContext
@@ -127,6 +128,7 @@ class PeerConnectionManager(settings: NetworkSettings,
           case Success(handshake) => handleHandshake(handshake)
           case Failure(t) =>
             log.error(s"Error parsing Handshake, closing connection. ", t)
+            peerHandlerManagerRef ! AddToBlacklist(remote)
             self ! CloseConnection
         }
       }
@@ -139,11 +141,13 @@ class PeerConnectionManager(settings: NetworkSettings,
   private def handleHandshake(handshakeMsg: Handshake): Unit = {
     if (!chainInfo.id.equals(handshakeMsg.chainId)) {
       log.error(f"Peer on a different chain. Closing connection")
+      log.error(s"  local: ${chainInfo.id}")
+      log.error(s"  peer:  ${handshakeMsg.chainId}")
       self ! CloseConnection
     } else {
       val myTime = System.currentTimeMillis()
       val timeGap = math.abs(handshakeMsg.time - myTime)
-      log.info(s"peer timeGap = $timeGap")
+      log.info(s"peer timeGap = $timeGap ms")
       if (timeGap > settings.peerMaxTimeGap) {
         log.error(s"peer timeGap too large $timeGap  Closing connection")
         self ! CloseConnection
@@ -191,8 +195,9 @@ class PeerConnectionManager(settings: NetworkSettings,
     builder.putByte(msg.messageType.id.toByte)
     builder.putBytes(msg.data)
 
-    //log.info(s"write ${builder.result().size} bytes")
+    //log.info(s"write ${builder.result().size} bytes, ${msg.messageType}")
     connection ! Write(builder.result(), Ack)
+    //log.info(s"write done")
   }
 
   private def acknowledge(): Unit = {

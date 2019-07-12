@@ -13,7 +13,8 @@ import com.apex.consensus.{ProducerUtil, RegisterData, WitnessInfo}
 import com.apex.core.{OperationType, Transaction, TransactionType}
 import com.apex.crypto.{BinaryData, FixedNumber, UInt160}
 import com.apex.test.ResourcePrepare.BlockChainPrepare
-import com.apex.vm.{DataWord, PrecompiledContracts}
+import com.apex.vm.{DataWord}
+import com.apex.vm.precompiled._
 import org.junit.{AfterClass, Test}
 
 import scala.reflect.io.Directory
@@ -30,6 +31,26 @@ class RegisterContractTest extends BlockChainPrepare{
         Then.checkTx()
         And.checkAccount()
         When.makeRegisterTransaction()(checkRegisterSuccess)
+    }
+    finally {
+      chain.close()
+    }
+  }
+
+  @Test
+  def testRegisterFailIfWitnessUnregisteredInDb(){
+    try {
+      val baseDir = "RegisterContractTest/testRegisterFailIfWitnessUnregisteredInDb"
+      Given.createChain(baseDir){}
+      When.produceBlock()
+      Then.checkTx()
+      And.checkAccount()
+      When.makeRegisterTransaction()(checkRegisterSuccess)
+      val witness = chain.getWitness(_acct3.publicKey.pubKeyHash).get.copy(register = false)
+      chain.setWitness(witness)
+      When.makeRegisterTransaction(OperationType.resisterCancel, 1){
+        tx => {
+          assert(chain.addTransaction(tx))}}
     }
     finally {
       chain.close()
@@ -126,17 +147,18 @@ class RegisterContractTest extends BlockChainPrepare{
         tx => {
           assert(chain.addTransaction(tx))
           val witness = chain.getWitness(_acct3.publicKey.pubKeyHash)
-          assert(witness.isEmpty)
+          assert(witness.isDefined)
+          assert(!witness.get.register)
 
           assert(chain.getScheduleTx().size == 2)
-          assert(chain.getBalance(_acct3).get == FixedNumber.fromDecimal(2) - FixedNumber(49888))
+          //assert(chain.getBalance(_acct3).get == FixedNumber.fromDecimal(2) - FixedNumber(50024))
           assert(chain.getBalance(new UInt160(PrecompiledContracts.registerNodeAddr.getLast20Bytes)).get == FixedNumber.One)
         }
       }
       val block1 = chain.produceBlockFinalize()
       assert(block1.isDefined)
       assert(block1.get.transactions.size == 8)
-      assert(chain.getBalance(_acct2).get == (FixedNumber.fromDecimal(230.2) -FixedNumber(88200) - FixedNumber(42000)) )
+//      assert(chain.getBalance(_acct2).get == (FixedNumber.fromDecimal(230.2) -FixedNumber(88200) - FixedNumber(42000)) )
 
       assert(!chain.isProducingBlock())
       assert(chain.getHeight() == 1)
@@ -260,7 +282,8 @@ class RegisterContractTest extends BlockChainPrepare{
     assert(witness.isDefined)
     assert(witness.get.name == "register node1")
 //    val fixedNumber = FixedNumber(24912)
-    assert(chain.getBalance(_acct3).get == (FixedNumber.fromDecimal(2) - FixedNumber(24912)))
+    val ewfwef = chain.getBalance(_acct3).get
+    assert(chain.getBalance(_acct3).get == (FixedNumber.fromDecimal(2) - FixedNumber(25108)))  // 24980
     assert(chain.getBalance(new UInt160(PrecompiledContracts.registerNodeAddr.getLast20Bytes)).get == FixedNumber.One)
   }
 
@@ -272,7 +295,7 @@ class RegisterContractTest extends BlockChainPrepare{
 
   def checkTx(executeTime: Long = 0): Unit ={
     val sheduleTime = if (executeTime ==0) blockTimeForSchedule + 750 else executeTime+ 750
-    assert(!chain.addTransaction(makeTx(_acct1, _acct3, FixedNumber.fromDecimal(123), 1)))
+    //assert(!chain.addTransaction(makeTx(_acct1, _acct3, FixedNumber.fromDecimal(123), 1)))
     assert(chain.addTransaction(makeTx(_acct1, _acct3, FixedNumber.fromDecimal(1), 0)))
     assert(!chain.addTransaction(makeTx(_acct1, _acct3, FixedNumber.fromDecimal(2), 0)))
     assert(chain.addTransaction(makeTx(_acct1, _acct3, FixedNumber.fromDecimal(2), 1)))

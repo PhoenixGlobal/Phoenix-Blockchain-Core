@@ -9,18 +9,20 @@
 package com.apex.rpc
 
 import java.io.{ByteArrayInputStream, DataInputStream}
+
 import com.apex.core.Transaction
 import com.apex.crypto.{BinaryData, UInt160, UInt256}
-import com.apex.crypto.Ecdsa.PublicKeyHash
 import play.api.libs.json.Reads._
 import play.api.libs.json._
+
+import scala.collection.mutable.ArrayBuffer
 
 object Validators {
   def uint256Validator = Reads.StringReads.filter(JsonValidationError("invalid UInt256"))(UInt256.parse(_).isDefined)
 
   def amountValidator = Reads.StringReads.filter(JsonValidationError("invalid amount"))(d => BigDecimal(d).signum > 0)
 
-  def addressValidator = Reads.StringReads.filter(JsonValidationError("invalid Address"))(PublicKeyHash.fromAddress(_).isDefined)
+  def addressValidator = Reads.StringReads.filter(JsonValidationError("invalid Address"))(UInt160.fromAddress(_).isDefined)
 
   // TODO
   def HexValidator = Reads.StringReads.filter(JsonValidationError("invalid Address"))(d => true)
@@ -44,6 +46,8 @@ object GetBlockCountResult {
 
 case class GetLatesBlockInfoCmd() extends RPCCommand
 
+case class GetAverageCmd() extends RPCCommand
+
 case class GetAccountCmd(address: UInt160) extends RPCCommand
 
 object GetAccountCmd {
@@ -53,24 +57,9 @@ object GetAccountCmd {
     )
   }
   implicit val testReads: Reads[GetAccountCmd] = (
-    (__ \ "address").read[String](Validators.addressValidator).map(c => PublicKeyHash.fromAddress(c).get)
+    (__ \ "address").read[String](Validators.addressValidator).map(c => UInt160.fromAddress(c).get)
     ) map (GetAccountCmd.apply _)
 }
-
-case class SetGasLimitCmd(gasLimit: BigInt) extends RPCCommand
-
-object SetGasLimitCmd {
-  implicit val testWrites = new Writes[SetGasLimitCmd] {
-    override def writes(o: SetGasLimitCmd): JsValue = Json.obj(
-      "gasLimit" -> o.gasLimit.longValue()
-    )
-  }
-  implicit val testReads: Reads[SetGasLimitCmd] = (
-    (__ \ "gasLimit").read[String](Validators.amountValidator).map(c => BigInt.apply(c))
-    ) map (SetGasLimitCmd.apply _)
-}
-
-case class GetGasLimitCmd() extends RPCCommand
 
 case class SendRawTransactionCmd(rawTx: Transaction) extends RPCCommand
 
@@ -86,6 +75,29 @@ object SendRawTransactionCmd {
       Transaction.deserialize(is)
     })
     ) map (SendRawTransactionCmd.apply _)
+}
+
+//  {"txs" : [
+//     {"rawTx" : "aabbcc"  },
+//     {"rawTx" : "ddeeff"  }
+//  ] }
+case class SendRawTransactionsCmd(rawTxs: List[Transaction]) extends RPCCommand
+
+object SendRawTransactionsCmd {
+  implicit val testReads: Reads[SendRawTransactionsCmd] = (
+    (__ \ "txs").read[List[Map[String, String]]].map(_.map(_("rawTx")))
+    ) map (f => {
+      val txs = ArrayBuffer.empty[Transaction]
+      f.foreach(tx => {
+        try {
+          val is = new DataInputStream(new ByteArrayInputStream(BinaryData(tx)))
+          txs.append(Transaction.deserialize(is))
+        }
+        catch {
+          case e: Throwable => println(e.getMessage)
+        }
+      })
+      SendRawTransactionsCmd(txs.toList)  })
 }
 
 case class GetBlockByHeightCmd(height: Int) extends RPCCommand
@@ -162,8 +174,33 @@ object GetProducerCmd {
     )
   }
   implicit val testReads: Reads[GetProducerCmd] = (
-    (__ \ "address").read[String](Validators.addressValidator).map(c => PublicKeyHash.fromAddress(c).get)
+    (__ \ "address").read[String](Validators.addressValidator).map(c => UInt160.fromAddress(c).get)
     ) map (GetProducerCmd.apply _)
+}
+
+case class GetProducerAllVoterCmd(address: UInt160) extends RPCCommand
+
+object GetProducerAllVoterCmd {
+  implicit val testWrites = new Writes[GetProducerAllVoterCmd] {
+    override def writes(o: GetProducerAllVoterCmd): JsValue = Json.obj(
+      "address" -> o.address.toString
+    )
+  }
+  implicit val testReads: Reads[GetProducerAllVoterCmd] = (
+    (__ \ "address").read[String](Validators.addressValidator).map(c => UInt160.fromAddress(c).get)
+    ) map (GetProducerAllVoterCmd.apply _)
+}
+
+case class GetProposalCmd(proposalID: UInt256) extends RPCCommand
+object GetProposalCmd {
+  implicit val testWrites = new Writes[GetProposalCmd] {
+    override def writes(o: GetProposalCmd): JsValue = Json.obj(
+      "id" -> o.proposalID.toString
+    )
+  }
+  implicit val testReads: Reads[GetProposalCmd] = (
+    (__ \ "id").read[String](Validators.uint256Validator).map(c => UInt256.parse(c).get)
+    ) map (GetProposalCmd.apply _)
 }
 
 case class GetVotesCmd(address: UInt160) extends RPCCommand
@@ -175,9 +212,12 @@ object GetVotesCmd {
     )
   }
   implicit val testReads: Reads[GetVotesCmd] = (
-    (__ \ "address").read[String](Validators.addressValidator).map(c => PublicKeyHash.fromAddress(c).get)
+    (__ \ "address").read[String](Validators.addressValidator).map(c => UInt160.fromAddress(c).get)
     ) map (GetVotesCmd.apply _)
 }
+
+case class GetAllProposalCmd() extends RPCCommand
+case class GetAllProposalVotesCmd() extends RPCCommand
 
 case class GetProducersCmd(listType: String) extends RPCCommand
 

@@ -23,17 +23,19 @@ class Transaction(val txType: TransactionType.Value,
 
   require(gasPrice > FixedNumber.Zero, "transaction gas price must be lager than 0")
 
+  require(executeTime >= 0, "executeTime must be lager than or equal to 0")
+
   def sender(): UInt160 = from
 
   def toAddress(): String = {
     toPubKeyHash.address
   }
 
-  def isContractCreation(): Boolean = txType == TransactionType.Deploy && toPubKeyHash == UInt160.Zero
+  def isContractCreation(): Boolean = txType == TransactionType.Deploy // && toPubKeyHash == UInt160.Zero
 
   def getContractAddress(): Option[UInt160] = {
     if (isContractCreation()) {
-      Some(Crypto.calcNewAddr(from, BigInt(nonce).toByteArray))
+      Some(Crypto.calcNewAddr(from, nonce))
     }
     else
       None
@@ -68,12 +70,12 @@ class Transaction(val txType: TransactionType.Value,
   override def serialize(os: DataOutputStream): Unit = {
     import com.apex.common.Serializable._
 
-    serializeForSign(os)
+    serializeWithoutSignature(os)
 
     os.writeByteArray(signature)
   }
 
-  def serializeForSign(os: DataOutputStream) = {
+  private def serializeWithoutSignature(os: DataOutputStream) = {
     import com.apex.common.Serializable._
     os.writeInt(version)
     os.writeByte(txType.toByte)
@@ -93,7 +95,7 @@ class Transaction(val txType: TransactionType.Value,
   def dataForSigning(): Array[Byte] = {
     val bs = new ByteArrayOutputStream()
     val os = new DataOutputStream(bs)
-    serializeForSign(os)
+    serializeWithoutSignature(os)
     bs.toByteArray
   }
 
@@ -108,6 +110,16 @@ class Transaction(val txType: TransactionType.Value,
       Crypto.verifySignature(dataForSigning(), signature, from)
   }
 
+  def size: Int = {
+    val bs = new ByteArrayOutputStream()
+    val os = new DataOutputStream(bs)
+    serialize(os)
+    bs.toByteArray.size
+  }
+
+  def approximateSize: Int = {
+    data.size + 79
+  }
 }
 
 object Transaction {
@@ -119,7 +131,11 @@ object Transaction {
         "from" -> {
           if (o.txType == TransactionType.Miner) "" else o.from.address
         },
-        "to" -> o.toAddress,
+        "to" -> {
+          if (o.txType == TransactionType.Deploy)
+            o.getContractAddress().get.address
+          else o.toAddress
+        },
         "amount" -> o.amount.toString,
         "nonce" -> o.nonce.toString,
         /*"data" -> o.data.toString,*/

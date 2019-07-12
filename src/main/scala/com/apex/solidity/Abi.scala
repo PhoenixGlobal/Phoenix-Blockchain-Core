@@ -6,7 +6,7 @@ import java.util
 
 import com.apex.utils.ByteUtil
 import com.apex.crypto.Crypto.sha3
-import com.apex.solidity.Abi.Entry.Param
+import com.apex.solidity.Abi.Entry.{EntryType, Param}
 import com.apex.solidity.SolidityType.IntType.{decodeInt, encodeInt}
 import com.fasterxml.jackson.core.JsonProcessingException
 import com.fasterxml.jackson.databind.ObjectMapper
@@ -53,9 +53,11 @@ object Abi {
         }
         result
       }
+
       def create(indexed: Boolean, name: String, solidityType: String): Param = {
         new Param(indexed, name, SolidityType.getType(solidityType))
       }
+
       def fromJson(j: String) = {
         Json.parse(j).validate[Param].get
       }
@@ -135,30 +137,24 @@ object Abi {
     }
   }
 
-  class Constructor(override val inputs: Seq[Entry.Param], override val outputs: Seq[Entry.Param])    //  util.List
+  class Constructor(override val inputs: Seq[Entry.Param], override val outputs: Seq[Entry.Param]) //  util.List
     extends Abi.Entry(null, null, "", inputs, outputs, Entry.EntryType.constructor, false) {
 
     def decode(encoded: Array[Byte]): util.List[_] = Param.decodeList(inputs, encoded)
 
     def formatSignature(contractName: String): String = format("function %s(%s)", contractName, join(inputs, ", "))
+
+    def encodeArguments(args: Array[AnyRef]) = {
+      Function.encodeArgs(inputs, args)
+    }
   }
 
   object Function {
     private val ENCODED_SIGN_LENGTH: Int = 4
 
     def extractSignature(data: Array[Byte]): Array[Byte] = subarray(data, 0, ENCODED_SIGN_LENGTH)
-  }
 
-  class Function(override val constant: Option[Boolean],
-                 override val name: String,
-                 override val inputs: Seq[Entry.Param],
-                 override val outputs: Seq[Entry.Param],
-                 override val payable: Boolean)
-    extends Abi.Entry(null, constant, name, inputs, outputs, Entry.EntryType.function, payable) {
-
-    def encode(args: AnyRef*): Array[Byte] = ByteUtil.merge(Array(encodeSignature, encodeArguments(args:_*)))
-
-    private def encodeArguments(args: AnyRef*): Array[Byte] = {
+    def encodeArgs(inputs: Seq[Entry.Param], args: Array[AnyRef]): Array[Byte] = {
       if (args.length > inputs.size)
         throw new RuntimeException("Too many arguments: " + args.length + " > " + inputs.size)
       var staticSize: Int = 0
@@ -166,7 +162,7 @@ object Abi {
       // calculating static size and number of dynamic params
       var i: Int = 0
       while (i < args.length) {
-        val solidityType: SolidityType = inputs(i).solidityType   //inputs.get(i).solidityType
+        val solidityType: SolidityType = inputs(i).solidityType //inputs.get(i).solidityType
         if (solidityType.isDynamicType) dynamicCnt += 1
         staticSize += solidityType.getFixedSize
         i += 1
@@ -176,7 +172,7 @@ object Abi {
       var curDynamicCnt: Int = 0
       i = 0
       while (i < args.length) {
-        val solidityType: SolidityType = inputs(i).solidityType   //.get(i).solidityType
+        val solidityType: SolidityType = inputs(i).solidityType //.get(i).solidityType
         if (solidityType.isDynamicType) {
           val dynBB: Array[Byte] = solidityType.encode(args(i))
           bb(i) = encodeInt(curDynamicPtr)
@@ -189,6 +185,20 @@ object Abi {
         i += 1
       }
       ByteUtil.merge(bb)
+    }
+  }
+
+  class Function(override val constant: Option[Boolean],
+                 override val name: String,
+                 override val inputs: Seq[Entry.Param],
+                 override val outputs: Seq[Entry.Param],
+                 override val payable: Boolean)
+    extends Abi.Entry(null, constant, name, inputs, outputs, Entry.EntryType.function, payable) {
+
+    def encode(args: AnyRef*): Array[Byte] = ByteUtil.merge(Array(encodeSignature, encodeArguments(args: _*)))
+
+    private def encodeArguments(args: AnyRef*): Array[Byte] = {
+      Function.encodeArgs(inputs, args.toArray)
     }
 
     def decode(encoded: Array[Byte]): util.List[_] = Param.decodeList(inputs, subarray(encoded, Function.ENCODED_SIGN_LENGTH, encoded.length))
@@ -253,7 +263,7 @@ object Abi {
 
 }
 
-case class Abi(entries: Seq[Abi.Entry])  {
+case class Abi(entries: Seq[Abi.Entry]) {
   def toJson: String = try
     new ObjectMapper().writeValueAsString(this)
   catch {
@@ -277,7 +287,7 @@ case class Abi(entries: Seq[Abi.Entry])  {
         val script = s"function ${func.name}(){ return Array.prototype.slice.call(arguments); };$callString;"
         val args = engine.eval(script).asInstanceOf[ScriptObjectMirror]
         if (args.size == func.inputs.length) {
-          data = func.asInstanceOf[Abi.Function].encode(args.asScala.map(_._2).toSeq:_*)
+          data = func.asInstanceOf[Abi.Function].encode(args.asScala.map(_._2).toSeq: _*)
           matched = true
         }
       } catch {
@@ -287,21 +297,18 @@ case class Abi(entries: Seq[Abi.Entry])  {
     data
   }
 
-//  private def find[T <: Abi.Entry](resultClass: Class[T], entryType: Abi.Entry.EntryType.Value, searchPredicate: Predicate[T]): T = {
-//    CollectionUtils.find(this, (entry: Abi.Entry) => (entry.`type` eq `type`) && searchPredicate.evaluate(entry.asInstanceOf[T])).asInstanceOf[T]
-//  }
-//
-//  def findFunction(searchPredicate: Predicate[Abi.Function]): Abi.Function = {
-//    find(classOf[Abi.Function], Abi.Entry.EntryType.function, searchPredicate)
-//  }
-//
-//  def findEvent(searchPredicate: Predicate[Abi.Event]): Abi.Event = {
-//    find(classOf[Abi.Event], Abi.Entry.EntryType.event, searchPredicate)
-//  }
-//
-//  def findConstructor: Abi.Constructor = {
-//    find(classOf[Abi.Constructor], Abi.Entry.EntryType.constructor, (`object`: Abi.Constructor) => true)
-//  }
+  //
+  //  def findFunction(searchPredicate: Predicate[Abi.Function]): Abi.Function = {
+  //    find(classOf[Abi.Function], Abi.Entry.EntryType.function, searchPredicate)
+  //  }
+  //
+  //  def findEvent(searchPredicate: Predicate[Abi.Event]): Abi.Event = {
+  //    find(classOf[Abi.Event], Abi.Entry.EntryType.event, searchPredicate)
+  //  }
+  //
+  def findConstructor: Option[Abi.Constructor] = {
+    entries.find(_.entryType == EntryType.constructor).map(_.asInstanceOf[Abi.Constructor])
+  }
 
   override def toString: String = toJson
 }

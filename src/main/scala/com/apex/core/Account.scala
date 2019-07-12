@@ -14,10 +14,9 @@ class Account(val pubKeyHash: UInt160,
               val codeHash: Array[Byte] = Array.empty,
               val version: Int = 0x01) extends com.apex.common.Serializable {
 
-  //TODO check balance and code
   def isEmpty: Boolean = balance.isZero
 
-  def address: String = Ecdsa.PublicKeyHash.toAddress(pubKeyHash.data)
+  def address: String = pubKeyHash.address
 
   override def serialize(os: DataOutputStream): Unit = {
     import com.apex.common.Serializable._

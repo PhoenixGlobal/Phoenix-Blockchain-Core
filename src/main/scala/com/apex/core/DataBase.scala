@@ -13,36 +13,47 @@ package com.apex.core
 import java.time.Instant
 
 import com.apex.common.ApexLogging
-import com.apex.consensus.{Vote, WitnessInfo, WitnessList, WitnessMap}
+import com.apex.consensus._
 import com.apex.crypto.{BinaryData, FixedNumber, UInt160, UInt256}
-import com.apex.settings.DataBaseSettings
+import com.apex.proposal.{Proposal, ProposalVote, ProposalVoteList}
+import com.apex.settings.{ConsensusSettings, DataBaseSettings}
 import com.apex.storage.Storage
-import com.apex.vm.{DataWord, PrecompiledContracts}
+import com.apex.vm.DataWord
+import com.apex.vm.precompiled.PrecompiledContracts
 
 import scala.collection.mutable
 import scala.collection.mutable.ArrayBuffer
 
-class DataBase(settings: DataBaseSettings, db: Storage.lowLevelRaw, tracking: Tracking) extends ApexLogging {
+class DataBase(settings: DataBaseSettings, consensusSettings: ConsensusSettings,
+               db: Storage.lowLevelRaw, tracking: Tracking) extends ApexLogging {
   private val accountStore = new AccountStore(tracking, settings.cacheSize)
-  private val receiptStore = new ReceiptStore(tracking, settings.cacheSize)
   private val contractStore = new ContractStore(tracking, settings.cacheSize)
   private val contractStateStore = new ContractStateStore(tracking, settings.cacheSize)
-  private val nameToAccountStore = new NameToAccountStore(tracking, settings.cacheSize)
-  private val scheduleTxStore = new TransactionStore(tracking, settings.cacheSize)
+  private val scheduleTxStore = new ScheduleTxStore(tracking, settings.cacheSize)
 
-  private val voteStore = new VoteStore(tracking, settings.cacheSize)
-  private val witnessInfoStore = new WitnessInfoStore(tracking)
+  private val witnessVoteStore = new WitnessVoteStore(tracking, settings.cacheSize)
+  private val witnessInfoStore = new WitnessInfoStore(tracking, settings.cacheSize)
 
   private val previousWitnessStore = new PreviousWitnessStore(tracking)
   private val currentWitnessStore = new CurrentWitnessStore(tracking)
   private val pendingWitnessStore = new PendingWitnessStore(tracking)
 
-  def this(settings: DataBaseSettings, db: Storage.lowLevelRaw) = {
-    this(settings, db, Tracking.root(db))
+  private val proposalStore = new ProposalStore(tracking, settings.cacheSize)
+  private val proposalVoteListStore = new ProposalVoteListStore(tracking)
+
+  private val witnessBlockCountLastWeekStore = new WitnessBlockCountLastWeekStore(tracking)
+  private val witnessBlockCountThisWeekStore = new WitnessBlockCountThisWeekStore(tracking)
+
+  private val minerAwardStore = new MinerAwardStore(tracking)
+  private val minGasPriceStore = new MinGasPriceStore(tracking)
+  private val txMaxGasLimitStore = new TxMaxGasLimitStore(tracking)
+
+  def this(settings: DataBaseSettings, consensusSettings: ConsensusSettings, db: Storage.lowLevelRaw) = {
+    this(settings, consensusSettings, db, Tracking.root(db))
   }
 
-  def this(settings: DataBaseSettings) = {
-    this(settings, Storage.open(settings.dbType, settings.dir))
+  def this(settings: DataBaseSettings, consensusSettings: ConsensusSettings) = {
+    this(settings, consensusSettings, Storage.openTemp(settings.dbType, settings.dir))
   }
 
   //  def nameExists(name: String): Boolean = {
@@ -53,7 +64,7 @@ class DataBase(settings: DataBaseSettings, db: Storage.lowLevelRaw, tracking: Tr
     scheduleTxStore.getLists(Array(StoreType.Data.id.toByte, DataType.scheduleTransaction.id.toByte))
   }
 
-  def setScheduleTx(id: UInt256, tx: Transaction) ={
+  def setScheduleTx(id: UInt256, tx: Transaction) = {
     scheduleTxStore.set(id, tx)
   }
 
@@ -61,7 +72,7 @@ class DataBase(settings: DataBaseSettings, db: Storage.lowLevelRaw, tracking: Tr
     scheduleTxStore.get(id)
   }
 
-  def deleteScheduleTx(id: UInt256): Unit ={
+  def deleteScheduleTx(id: UInt256): Unit = {
     scheduleTxStore.delete(id)
   }
 
@@ -95,15 +106,8 @@ class DataBase(settings: DataBaseSettings, db: Storage.lowLevelRaw, tracking: Tr
 
   // transfer values
   def transfer(from: UInt160, to: UInt160, value: FixedNumber): Unit = {
-    val fromAcct = getAccount(from)
-      .getOrElse(Account.newAccount(from))
-      .addBalance(-value)
-    val toAcct = getAccount(to)
-      .getOrElse(Account.newAccount(to))
-      .addBalance(value)
-
-    accountStore.set(from, fromAcct)
-    accountStore.set(to, toAcct)
+    addBalance(from, -value)
+    addBalance(to, value)
   }
 
   // transfer values
@@ -155,42 +159,43 @@ class DataBase(settings: DataBaseSettings, db: Storage.lowLevelRaw, tracking: Tr
     contractStateStore.set(address.data ++ key, value)
   }
 
-  // get tx receipt
-  def getReceipt(txid: UInt256): Option[TransactionReceipt] = {
-    receiptStore.get(txid)
-  }
-
-  // set tx receipt
-  def setReceipt(txid: UInt256, receipt: TransactionReceipt) = {
-    receiptStore.set(txid, receipt)
-  }
-
   def getAllWitness(): ArrayBuffer[WitnessInfo] = {
-    witnessInfoStore.get().get.getAll()
+    witnessInfoStore.getLists(Array(StoreType.Data.id.toByte, DataType.WitnessInfo.id.toByte))
   }
 
   def getWitness(address: UInt160): Option[WitnessInfo] = {
-    witnessInfoStore.get().get.get(address)
+    witnessInfoStore.get(address)
   }
 
-  def createWitness(witness: WitnessInfo) = {
-    val all = witnessInfoStore.get().getOrElse(new WitnessMap(mutable.Map.empty))
-    all.set(witness)
-    witnessInfoStore.set(all)
+  def setWitness(witness: WitnessInfo) = {
+    witnessInfoStore.set(witness.addr, witness)
   }
 
   def deleteWitness(address: UInt160): Unit = {
-    val all = witnessInfoStore.get().getOrElse(new WitnessMap(mutable.Map.empty))
-    all.delete(address)
-    witnessInfoStore.set(all)
+    witnessInfoStore.delete(address)
   }
 
-  def getVote(address: UInt160): Option[Vote] = {
-    voteStore.get(address)
+  def getWitnessVote(address: UInt160): Option[WitnessVote] = {
+    witnessVoteStore.get(address)
   }
 
-  def createVote(address: UInt160, vote: Vote): Unit = {
-    voteStore.set(address, vote)
+  def getAllWitnessVote(): ArrayBuffer[WitnessVote] = {
+    witnessVoteStore.getLists(Array(StoreType.Data.id.toByte, DataType.WitnessVotes.id.toByte))
+  }
+
+  def getWitnessAllVoter(witness: UInt160): AddressVoteList = {
+    val allVotes = getAllWitnessVote()
+    val voters = ArrayBuffer.empty[AddressVote]
+    allVotes.foreach(v => {
+      if (v.targetMap.contains(witness)) {
+        voters.append(new AddressVote(v.voter, v.targetMap.get(witness).get))
+      }
+    })
+    new AddressVoteList(voters.toArray)
+  }
+
+  def createWitnessVote(address: UInt160, vote: WitnessVote): Unit = {
+    witnessVoteStore.set(address, vote)
   }
 
   // Previous active producer
@@ -205,9 +210,57 @@ class DataBase(settings: DataBaseSettings, db: Storage.lowLevelRaw, tracking: Tr
   def getPendingWitnessList(): Option[WitnessList] = pendingWitnessStore.get()
   def setPendingWitnessList(wl: WitnessList): Unit = pendingWitnessStore.set(wl)
 
+  def setProposal(p: Proposal): Unit = proposalStore.set(p.proposalID, p)
+  def getProposal(proposalID: UInt256): Option[Proposal] = proposalStore.get(proposalID)
+  def deleteProposal(proposalID: UInt256) = proposalStore.delete(proposalID)
+
+  def getAllProposal(): ArrayBuffer[Proposal] = {
+    proposalStore.getLists(Array(StoreType.Data.id.toByte, DataType.Proposal.id.toByte))
+  }
+
+  def addProposalVote(vote: ProposalVote) = {
+    proposalVoteListStore.set(getProposalVoteList().add(vote))
+  }
+  def getProposalVoteList(): ProposalVoteList = proposalVoteListStore.get.getOrElse(new ProposalVoteList(Array.empty))
+  def deleteProposalVote(proposalID: UInt256) = {
+    val votes = getProposalVoteList()
+    proposalVoteListStore.set(votes.remove(proposalID))
+  }
+
+  def getBlockCountLastWeek(): WitnessBlockCount = {
+    witnessBlockCountLastWeekStore.get.getOrElse(new WitnessBlockCount(mutable.Map.empty))
+  }
+
+  def getLastWeekValidVoters(): Array[UInt160] = {
+    witnessBlockCountLastWeekStore.get.map(_.getTop(consensusSettings.witnessNum)).getOrElse(Array.empty)
+  }
+
+  def getBlockCountThisWeek(): WitnessBlockCount = {
+    witnessBlockCountThisWeekStore.get.getOrElse(new WitnessBlockCount(mutable.Map.empty))
+  }
+
+  def setWitnessBlockCountNewWeek() = {
+    witnessBlockCountLastWeekStore.set(witnessBlockCountThisWeekStore.get().getOrElse(new WitnessBlockCount(mutable.Map.empty)))
+    witnessBlockCountThisWeekStore.set(new WitnessBlockCount(mutable.Map.empty))
+  }
+
+  def witnessBlockCountAdd(producer: UInt160) = {
+    val thisWeek = getBlockCountThisWeek()
+    thisWeek.increase(producer)
+    witnessBlockCountThisWeekStore.set(thisWeek)
+  }
+
+  def getMinerAward(): FixedNumber = minerAwardStore.get().getOrElse(FixedNumber.Zero)
+  def setMinerAward(award: FixedNumber) = minerAwardStore.set(award)
+
+  def getMinGasPrice(): FixedNumber = minGasPriceStore.get().getOrElse(FixedNumber.Zero)
+  def setMinGasPrice(gp: FixedNumber) = minGasPriceStore.set(gp)
+
+  def getTxMaxGasLimit(): FixedNumber = txMaxGasLimitStore.get().getOrElse(FixedNumber.Zero)
+  def setTxMaxGasLimit(gp: FixedNumber) = txMaxGasLimitStore.set(gp)
 
   def startTracking(): DataBase = {
-    new DataBase(settings, db, tracking.newTracking)
+    new DataBase(settings, consensusSettings, db, tracking.newTracking)
   }
 
   // start new session

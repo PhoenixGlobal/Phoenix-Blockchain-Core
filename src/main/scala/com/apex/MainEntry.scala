@@ -19,15 +19,37 @@ import scala.concurrent.ExecutionContext
 
 object MainEntry extends ApexLogging {
 
+  import java.lang.management.ManagementFactory
+  import java.lang.management.RuntimeMXBean
+
+  private def getProcessID: Int = {
+    val runtimeMXBean = ManagementFactory.getRuntimeMXBean
+    System.out.println(runtimeMXBean.getName)
+    Integer.valueOf(runtimeMXBean.getName.split("@")(0)).intValue
+  }
+
   def main(args: Array[String]): Unit = {
+
+    //val pid: Long = Seq("sh", "-c", "echo $PPID").!!.trim.toLong
+
+    log.info(s"version=2019.07.12.B   main pid ${getProcessID}")
+
+    Thread.setDefaultUncaughtExceptionHandler((t, e) => {
+      log.error(s"Thread [${t.getId}], there is an unhandled exception", e)
+    })
+
     val (settings, config) = getApexSettings(args)
     log.debug(s"genesis: ${settings.chain.genesis.timeStamp.toEpochMilli}, now: ${java.time.Instant.now.toEpochMilli}")
 
     implicit val system = ActorSystem("APEX-NETWORK", config)
     implicit val executionContext: ExecutionContext = system.dispatcher
-    system.registerOnTermination(log.info("node terminated"))
+    system.registerOnTermination({
+      log.info("node terminated")
+      System.exit(0)
+    })
 
     NodeRef(settings, config)
+    //log.info("main() end")
   }
 
   private def parseArgs(args: Array[String]): Namespace = {

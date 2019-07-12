@@ -13,7 +13,7 @@ import scala.collection.mutable.{ArrayBuffer, ListBuffer, Map}
 import scala.util.Try
 
 // KV Store implementation, use LevelDB as low level store
-class LevelDbStorage(private val db: DB) extends LowLevelStorage[Array[Byte], Array[Byte]] with ApexLogging {
+class LevelDbStorage(val db: DB) extends LowLevelStorage[Array[Byte], Array[Byte]] with ApexLogging {
   private lazy val sessionMgr = new SessionManager(db)
 
   private val actions = ListBuffer.empty[() => Unit]
@@ -61,14 +61,15 @@ class LevelDbStorage(private val db: DB) extends LowLevelStorage[Array[Byte], Ar
   }
 
   // return last element
-  override def last(): Option[Entry[Array[Byte], Array[Byte]]] = {
+  override def last(): (Array[Byte], Array[Byte]) = {
     val it = db.iterator()
     try {
       it.seekToLast()
       if (it.hasNext) {
-        Some(it.peekNext())
+        val entry = it.next
+        (entry.getKey, entry.getValue)
       } else {
-        None
+        (null, null)
       }
     } finally {
       it.close()
@@ -221,10 +222,22 @@ class LevelDBIterator(it: DBIterator) extends LowLevelDBIterator {
   override def hasNext(): Boolean = {
     it.hasNext
   }
+
+  override def close(): Unit = {
+    it.close()
+  }
+
+  override def seekToLast(): Unit = {
+    it.seekToLast()
+  }
+
+  override def seekToFirst(): Unit = {
+    it.seekToFirst()
+  }
 }
 
 // adapter class for low level db
-class LevelDB(db: DB) extends LowLevelDB {
+class LevelDB(db: DB) extends LowLevelDB with ApexLogging {
   override def get(key: Array[Byte]): Array[Byte] = {
     db.get(key)
   }
@@ -246,6 +259,39 @@ class LevelDB(db: DB) extends LowLevelDB {
     try {
       action(update)
       db.write(update.batch)
+    } finally {
+      update.close()
+    }
+  }
+
+  override def createWriteBatch(): LowLevelWriteBatch = {
+    new LevelDBWriteBatch(db.createWriteBatch())
+  }
+
+  override def write(batch: LowLevelWriteBatch): Unit = {
+    db.write(batch.asInstanceOf[LevelDBWriteBatch].batch)
+  }
+
+  override def close(): Unit = {
+    db.close()
+  }
+
+  override def addToBatch(): LowLevelWriteBatch = ???
+
+  override def writeBatchToDB(batch: Batch): Boolean = {
+    val update = db.createWriteBatch()
+    try {
+      batch.ops.foreach(_ match {
+        case PutOperationItem(k, v) => update.put(k, v)
+        case DeleteOperationItem(k) => update.delete(k)
+      })
+      db.write(update)
+      true
+    } catch {
+      case e: Throwable => {
+        log.error("apply batch failed", e)
+        false
+      }
     } finally {
       update.close()
     }
@@ -301,6 +347,7 @@ class SessionItem(val insert: Map[ByteArray, Array[Byte]] = Map.empty[ByteArray,
 
 // base KV Store session
 class Session {
+
   def onSet(key: Array[Byte], value: Array[Byte], batch: Batch): Batch = {
     val newBatch = originOrNew(batch)
     newBatch.put(key, value)

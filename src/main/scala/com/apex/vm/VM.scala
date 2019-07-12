@@ -34,6 +34,7 @@ import com.apex.vm.hook.VMHook
 import com.apex.vm.program.{Program, ProgramResult}
 import com.apex.vm.program.trace.LogInfo
 import org.apex.vm._
+import com.apex.vm.precompiled._
 import org.slf4j.Logger
 
 import scala.collection.mutable.ListBuffer
@@ -1197,7 +1198,7 @@ class ExecuteContext(val op: OpObject, val program: Program, val settings: Contr
 
   def logHint() = {
     if (log.isInfoEnabled) {
-      log.info(s"[${program.getPC.formatted("%5s")}]    Op: [${op.code.name.formatted("%-12s")}]  Gas: [${program.getGas.value}] Deep: [${program.getCallDeep}]  Hint: [${hint}]")
+      log.info(s"[${program.getPC.formatted("%5s")}]    Op: [${op.code.name.formatted("%-12s")}]  Gas: [${program.getGas.value}] Deep: [${program.getCallDeep}]  Hint: [${hint}] Stack: ${java.util.Arrays.toString(program.getStack.toArray())}")
     }
   }
 

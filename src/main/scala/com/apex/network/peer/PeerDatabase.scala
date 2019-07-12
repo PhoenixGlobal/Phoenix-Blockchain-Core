@@ -11,9 +11,7 @@ trait PeerDatabase {
 
   def isEmpty(): Boolean
 
-  def addOrUpdateKnownPeer(address: String, peerInfo: NodeInfo): Unit
-
-  def knownPeers(): Map[String, NodeInfo]
+  def knownPeers(): Map[InetSocketAddress, NodeInfo]
 
   def addBlacklistPeer(peer: InetSocketAddress, time: NetworkTime.Time): Unit
 
@@ -23,7 +21,7 @@ trait PeerDatabase {
 
   def remove(address: InetSocketAddress): Boolean
 
-  def selectPeersByRandom(number: Long): Seq[NodeInfo]
+  def selectPeersByRandom(number: Int): Seq[NodeInfo]
 
   def peerSize(): Int
 }

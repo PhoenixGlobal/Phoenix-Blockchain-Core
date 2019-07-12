@@ -10,7 +10,7 @@ package com.apex.test
 
 import java.io.{ByteArrayOutputStream, DataOutputStream}
 
-import com.apex.crypto.Ecdsa.PublicKey
+import com.apex.crypto.Ecdsa.{PrivateKey, PublicKey, Scalar}
 import com.apex.crypto.{Base58, Base58Check, BinaryData, Crypto, Ecdsa}
 import org.junit.Test
 
@@ -56,32 +56,89 @@ class CryptoTest {
      val hash = Crypto.RIPEMD160(data)
      assert(hash sameElements BinaryData("b3be159860842cebaa7174c8fff0aa9e50a5199f"))     
   }
-  @Test
-  def testEcdsaKey = {
-     var privKey = new Ecdsa.PrivateKey(BinaryData("18e14a7b6a307f426a94f8114701e7c8e774e7f9a47e2c2035db29a206321725"))
-     var pubKey = privKey.publicKey
+  //@Test
+  def testEcdsaKey_secp256k1 = {
+    val privKey = new Ecdsa.PrivateKey(BinaryData("18e14a7b6a307f426a94f8114701e7c8e774e7f9a47e2c2035db29a206321725"))
+    val pubKey = privKey.publicKey
+    val pubKeyUncompressed = privKey.publicKeyUncompressed.toBin
 
-     //  compressed pub key:  02 50863ad64a87ae8a2fe83c1af1a8403cb53f53e486d8511dad8a04887e5b2352    
-     assert(pubKey.toBin.data.toArray sameElements BinaryData("0250863ad64a87ae8a2fe83c1af1a8403cb53f53e486d8511dad8a04887e5b2352"))
-     
+    //  compressed pub key:  02 50863ad64a87ae8a2fe83c1af1a8403cb53f53e486d8511dad8a04887e5b2352
+    assert(pubKey.toBin.data.toArray sameElements BinaryData("0250863ad64a87ae8a2fe83c1af1a8403cb53f53e486d8511dad8a04887e5b2352"))
+
+    // uncompressed pub key: 04 50863AD64A87AE8A2FE83C1AF1A8403CB53F53E486D8511DAD8A04887E5B2352 2CD470243453A299FA9E77237716103ABC11A1DF38855ED6F2EE187E9C582BA6
+    assert(pubKeyUncompressed sameElements BinaryData("0450863AD64A87AE8A2FE83C1AF1A8403CB53F53E486D8511DAD8A04887E5B23522CD470243453A299FA9E77237716103ABC11A1DF38855ED6F2EE187E9C582BA6"))
   }
   @Test
-  def testSign = {
+  def testEcdsaKey_secp256r1 = {
+    val privKey = new Ecdsa.PrivateKey(BinaryData("5ec03da4ea5e188897a2994a391f31b1a2ceb060cdcd74bff3643ef614e650c6"))
+    val pubKey = privKey.publicKey
+    val pubKeyUncompressed = privKey.publicKeyUncompressed.toBin
+
+    //  compressed pub key:  03 46ac2dd51a3e5c9ab0188c8cb26c0768c831b2f755939be4569d8a2dc2d51134
+    assert(pubKey.toBin.data.toArray sameElements BinaryData("0346ac2dd51a3e5c9ab0188c8cb26c0768c831b2f755939be4569d8a2dc2d51134"))
+
+    assert(pubKey.pubKeyScript sameElements BinaryData("210346ac2dd51a3e5c9ab0188c8cb26c0768c831b2f755939be4569d8a2dc2d51134ac"))
+
+    // uncompressed pub key: 04 46ac2dd51a3e5c9ab0188c8cb26c0768c831b2f755939be4569d8a2dc2d51134 688fb8bfdcfff78f9f89f4668820962aefccdfe305feb21bd6efaf63105d97d1 2CD470243453A299FA9E77237716103ABC11A1DF38855ED6F2EE187E9C582BA6
+    assert(pubKeyUncompressed sameElements BinaryData("0446ac2dd51a3e5c9ab0188c8cb26c0768c831b2f755939be4569d8a2dc2d51134688fb8bfdcfff78f9f89f4668820962aefccdfe305feb21bd6efaf63105d97d1"))
+  }
+  //@Test
+  def testSign_secp256k1 = {
      val privKey = BinaryData("f8b8af8ce3c7cca5e300d33939540c10d45ce001b8f252bfbc57ba0342904181")
      val message = "Alan Turing".getBytes("US-ASCII")
      val sig = Crypto.sign(message, privKey)
      assert(sig sameElements BinaryData("304402207063ae83e7f62bbb171798131b4a0564b956930092b33b07b395615d9ec7e15c022058dfcc1e00a35e1572f366ffe34ba0fc47db1e7189759b9fb233c5b05ab388ea"))
-     
   }
-  @Test
-  def testSign2 = {
+  //@Test
+  def testSign2_secp256k1 = {
     val privKey = Ecdsa.PrivateKey(BinaryData("f8b8af8ce3c7cca5e300d33939540c10d45ce001b8f252bfbc57ba0342904181"))
     val pubkey = privKey.publicKey
     val message = "Alan Turing".getBytes("US-ASCII")
     val sig = Crypto.sign(message, privKey)
     assert(sig sameElements BinaryData("304402207063ae83e7f62bbb171798131b4a0564b956930092b33b07b395615d9ec7e15c022058dfcc1e00a35e1572f366ffe34ba0fc47db1e7189759b9fb233c5b05ab388ea"))
-
   }
+
+  @Test
+  def testSign_secp256r1 = {
+    val privKey = BinaryData("5ec03da4ea5e188897a2994a391f31b1a2ceb060cdcd74bff3643ef614e650c6")
+    val message = "Alan Turing".getBytes("US-ASCII")
+    val sig = Crypto.sign(message, privKey)
+    val wefwefef = BinaryData(sig)
+    assert(sig sameElements BinaryData("304402204aed8dd7c0afe71e170fe8dc0d70c6af489cdaf7f684db156140147ea7f4c414022036d742e5b6c081b03832535d739f697ba82619c91d363c3492291b988c7c90e8"))
+  }
+  @Test
+  def testSign2_secp256r1 = {
+    val privKey = Ecdsa.PrivateKey(BinaryData("5ec03da4ea5e188897a2994a391f31b1a2ceb060cdcd74bff3643ef614e650c6"))
+    val pubkey = privKey.publicKey
+    val message = "Alan Turing".getBytes("US-ASCII")
+    val sig = Crypto.sign(message, privKey)
+    assert(sig sameElements BinaryData("304402204aed8dd7c0afe71e170fe8dc0d70c6af489cdaf7f684db156140147ea7f4c414022036d742e5b6c081b03832535d739f697ba82619c91d363c3492291b988c7c90e8"))
+  }
+
+  def ethPrivKeyToAddr(pKey: BinaryData): String = {
+    require(pKey.length == 32)
+    val privKey = new PrivateKey(Scalar(pKey), compressed = false) //Ecdsa.PrivateKey(pKey)
+    val pubkey65 = privKey.publicKey
+    val pubKey64 = BinaryData(pubkey65.toBin.drop(1))
+    require(pubKey64.size == 64)
+    val hashKeccak256 = BinaryData(Crypto.sha3(pubKey64))
+    val hash20 = BinaryData(hashKeccak256.takeRight(20))
+    val ethAddr: String = "0x" + hash20.toString
+    ethAddr
+  }
+
+  //@Test
+  def testEthAddrGen() = {   // secp256k1
+    val a1 = ethPrivKeyToAddr(BinaryData("f8F8a2f43c8376ccb0871305060d7b27b0554d2cc72bccf41b2705608452f315"))
+    assert(a1 == "0x001d3f1ef827552ae1114027Bd3ecf1F086ba0f9".toLowerCase)
+
+    val a2 = ethPrivKeyToAddr(BinaryData("b783d2edc76647afa25b2fb380c0cd4953c153bdd44893bdaab6334720893ae9"))
+    assert(a2 == "0x6750d5b2c624972FA6d59618574E24942543d8Fe".toLowerCase)
+
+    val a3 = ethPrivKeyToAddr(BinaryData("8b98d41945a8a6f4ea2dd777213fa459124430937881ed1f7a608967455251b5"))
+    assert(a3 == "0xb3C4c41B691f182a8C26128A4E880480141e3Ff2".toLowerCase)
+  }
+
   @Test
   def testRecoverPublicKey() = {
     val random = new scala.util.Random()
@@ -103,8 +160,8 @@ class CryptoTest {
       assert(pub == pub1 || pub == pub2)
     }
   }
-  @Test
-  def testVerifySignature = {
+  //@Test
+  def testVerifySignature_secp256k1 = {
      val message = "Alan Turing".getBytes("US-ASCII")
 
      val sig = BinaryData("304402207063ae83e7f62bbb171798131b4a0564b956930092b33b07b395615d9ec7e15c022058dfcc1e00a35e1572f366ffe34ba0fc47db1e7189759b9fb233c5b05ab388ea")
@@ -118,6 +175,22 @@ class CryptoTest {
      assert(Crypto.verifySignature(message, sig, pub1.toBin))
      assert(Crypto.verifySignature(message, sig, pub2.toBin))
      assert(Crypto.verifySignature(message, sig, pubKey.pubKeyHash))
+  }
+  @Test
+  def testVerifySignature_secp256r1 = {
+    val message = "Alan Turing".getBytes("US-ASCII")
+
+    val sig = BinaryData("304402204aed8dd7c0afe71e170fe8dc0d70c6af489cdaf7f684db156140147ea7f4c414022036d742e5b6c081b03832535d739f697ba82619c91d363c3492291b988c7c90e8")
+
+    // 32+1=33 bytes compressed pub key
+    val pubKey = PublicKey(BinaryData("0346ac2dd51a3e5c9ab0188c8cb26c0768c831b2f755939be4569d8a2dc2d51134"))
+
+    val (pub1, pub2) = Ecdsa.recoverPublicKey(sig, Crypto.sha256(message))
+
+    assert(Crypto.verifySignature(message, sig, pubKey.toBin))
+    assert(Crypto.verifySignature(message, sig, pub1.toBin))
+    assert(Crypto.verifySignature(message, sig, pub2.toBin))
+    assert(Crypto.verifySignature(message, sig, pubKey.pubKeyHash))
   }
   @Test
   def testBase58 = {     
@@ -149,8 +222,8 @@ class CryptoTest {
       val dec = Crypto.AesDecrypt(encrypted1, key, iv)
       assert(dec sameElements BinaryData("12345678"))
    }
-   @Test
-   def testPointSerialize = {
+   //@Test
+   def testPointSerialize_k1 = {
       
       var privKey = new Ecdsa.PrivateKey(BinaryData("18e14a7b6a307f426a94f8114701e7c8e774e7f9a47e2c2035db29a206321725"))
       var pubKey = privKey.publicKey
@@ -170,4 +243,25 @@ class CryptoTest {
       // 0x02 : compressed type
       assert(bs.toByteArray sameElements BinaryData("210250863ad64a87ae8a2fe83c1af1a8403cb53f53e486d8511dad8a04887e5b2352"))      
    }
+  @Test
+  def testPointSerialize_r1 = {
+
+    var privKey = new Ecdsa.PrivateKey(BinaryData("5ec03da4ea5e188897a2994a391f31b1a2ceb060cdcd74bff3643ef614e650c6"))
+    var pubKey = privKey.publicKey
+
+    //  compressed pub key:  03 46ac2dd51a3e5c9ab0188c8cb26c0768c831b2f755939be4569d8a2dc2d51134
+    assert(pubKey.toBin.data.toArray sameElements BinaryData("0346ac2dd51a3e5c9ab0188c8cb26c0768c831b2f755939be4569d8a2dc2d51134"))
+
+    val point : Ecdsa.Point = pubKey.value
+
+    val bs = new ByteArrayOutputStream
+    val os = new DataOutputStream(bs)
+
+    point.serialize(os)
+
+    // 21 03 46ac2dd51a3e5c9ab0188c8cb26c0768c831b2f755939be4569d8a2dc2d51134
+    // 0x21 = 33 = (32 + 1) bytes
+    // 0x03 : compressed type
+    assert(bs.toByteArray sameElements BinaryData("210346ac2dd51a3e5c9ab0188c8cb26c0768c831b2f755939be4569d8a2dc2d51134"))
+  }
 }

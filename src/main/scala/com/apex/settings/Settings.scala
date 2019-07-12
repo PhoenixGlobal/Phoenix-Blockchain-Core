@@ -7,7 +7,6 @@ import java.time.Instant
 import java.util.TimeZone
 
 import com.apex.common.ApexLogging
-import com.apex.core.PeerBase
 import com.apex.crypto.{BinaryData, FixedNumber, UInt160}
 import com.apex.crypto.Crypto.hash256
 import com.apex.crypto.Ecdsa.{Point, PrivateKey, PublicKey}
@@ -32,6 +31,7 @@ case class NetworkSettings(nodeName: String,
                            addedMaxDelay: Option[FiniteDuration],
                            localOnly: Boolean,
                            peersDB: String,
+                           seedPeers: Seq[InetSocketAddress],
                            knownPeers: Seq[InetSocketAddress],
                            bindAddress: InetSocketAddress,
                            maxConnections: Int,
@@ -46,6 +46,7 @@ case class NetworkSettings(nodeName: String,
                            maxPacketSize: Int,
                            controllerTimeout: Option[FiniteDuration],
                            peerMaxTimeGap: Int,
+                           acceptOtherPeers: Boolean,
                            peerSyncNumber: Int,
                            peerDatabaseMax: Int)
 
@@ -53,10 +54,8 @@ case class NetworkTimeProviderSettings(server: String, updateEvery: FiniteDurati
 
 
 case class ApexSettings(network: NetworkSettings,
-                        ntp: NetworkTimeProviderSettings,
                         chain: ChainSettings,
                         rpc: RPCSettings,
-                        secretRpc: SecretRPCSettings,
                         consensus: ConsensusSettings,
                         miner: MinerSettings,
                         plugins: PluginsSettings,
@@ -68,8 +67,6 @@ object DBType extends Enumeration {
   val LevelDB = Value(1)
   val RocksDB = Value(2)
 }
-
-case class PeerBaseSettings(dir: String, cacheEnabled: Boolean, cacheSize: Int, dbType: DBType.Value)
 
 case class ScheduleBaseSettings(dir: String, cacheEnabled: Boolean, cacheSize: Int, dbType: DBType.Value)
 
@@ -86,29 +83,24 @@ case class GenesisSettings(timeStamp: Instant,
 case class ChainSettings(blockBase: BlockBaseSettings,
                          dataBase: DataBaseSettings,
                          forkBase: ForkBaseSettings,
-                         peerBase: PeerBaseSettings,
                          minerAward: Double,
-                         genesis: GenesisSettings)
+                         genesis: GenesisSettings,
+                         lightNode: Boolean = false)
 
 case class PluginsSettings(mongodb: MongodbSettings)
 
-case class RuntimeParas(stopProcessTxTimeSlot: Int,
-                        var txAcceptGasLimit: Long) {
-
-  def setAcceptGasLimit(gasLimit: Long): Unit = {
-    txAcceptGasLimit = gasLimit
-  }
-}
+case class RuntimeParas(stopProcessTxTimeSlot: Int)
 
 case class MongodbSettings(enabled: Boolean, uri: String)
 
-case class MinerSettings(privKeys: Array[PrivateKey]) {
+case class MinerSettings(privKeys: Array[PrivateKey],
+                         forceStartProduce: Boolean = false) {
 
   def findPrivKey(miner: UInt160): Option[PrivateKey] = {
     privKeys.find(p => p.publicKey.pubKeyHash == miner)
   }
 
-  def findPrivKey(miner: Witness): Option[PrivateKey] = {
+  def findPrivKey(miner: InitWitness): Option[PrivateKey] = {
     findPrivKey(miner.pubkeyHash)
   }
 }
@@ -118,7 +110,7 @@ case class ConsensusSettings(produceInterval: Int,
                              producerRepetitions: Int,
                              witnessNum: Int,
                              electeTime: Long,
-                             initialWitness: Array[Witness]) {
+                             initialWitness: Array[InitWitness]) {
 
   require(initialWitness.size == witnessNum)
   require(electeTime >= witnessNum * producerRepetitions * produceInterval)
@@ -134,7 +126,6 @@ case class ConsensusSettings(produceInterval: Int,
     initialWitness.foreach(w => {
       os.writeBytes(w.name)
       os.writeBytes(w.pubkeyHash.toString)
-      // do not include privkey
     })
     hash256(bs.toByteArray)
   }
@@ -143,7 +134,7 @@ case class ConsensusSettings(produceInterval: Int,
 case class CoinAirdrop(addr: String,
                        coins: Double)
 
-case class Witness(name: String,
+case class InitWitness(name: String,
                    pubkeyHash: UInt160)
 
 object ApexSettings extends SettingsReaders with ApexLogging {
@@ -171,6 +162,7 @@ object ApexSettings extends SettingsReaders with ApexLogging {
   }
 
   def read(configFilePath: String): (ApexSettings, Config) = {
+    log.info(s"read config file ${configFilePath}")
     val conf = readConfigFromPath(Some(configFilePath), configPath)
     (conf.as[ApexSettings](configPath), conf)
   }
