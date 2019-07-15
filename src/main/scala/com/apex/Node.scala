@@ -444,7 +444,7 @@ class Node(val settings: ApexSettings, config: Config)
       if (!chain.containsBlock(msg.block)) {
         chain.addBlockToCache(msg.block)
         // out of sync, or there are fork chains,  to get more blocks
-        if (msg.block.height - chain.getHeight < 10) // do not send too many request during init sync
+        if (msg.block.height - chain.getHeight < 100) // do not send too many request during init sync
           sendGetBlocksMessage()
       }
     }
