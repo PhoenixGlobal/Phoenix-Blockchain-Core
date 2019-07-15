@@ -364,7 +364,7 @@ class Node(val settings: ApexSettings, config: Config)
     }
   }
 
-  private def sendBlocks(from: Long, blockNum: Int) = {
+  private def sendBlocks(from: Long, blockNum: Int): Int = {
     var blockCount = 0
     val blocks = ArrayBuffer.empty[Block]
     var height = from
@@ -379,17 +379,22 @@ class Node(val settings: ApexSettings, config: Config)
       log.info(s"send out ${blocks.size} blocks, from ${blocks.head.height()}")
       sender() ! NextBlocksMessage(new BlocksPayload(blocks)).pack
     }
+    blocks.size
   }
 
   private def processGetNextBlocksMessage(msg: GetNextBlocksMessage) = {
     var from = msg.from
     val blockNum = 20
+    var blocks = 0
 
     for (i <- 1 to 10) {
-      sendBlocks(from, blockNum)
+      blocks += sendBlocks(from, blockNum)
       from += blockNum
     }
-    sender() ! BlocksSendStopMessage(from - 1).pack
+    if (blocks > 0)
+      sender() ! BlocksSendStopMessage(from - 1).pack
+    else
+      log.info(s"no blocks sent, from=${msg.from}")
   }
 
   private def processNextBlocksMessage(msg: NextBlocksMessage) = {
