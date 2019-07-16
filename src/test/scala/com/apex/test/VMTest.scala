@@ -686,10 +686,10 @@ object VMTest {
   val contractAddress = Crypto.calcNewAddr(author, 1)
   val vmSettings = ContractSettings(0, false, Int.MaxValue)
 
-  private val _witness1 = InitWitness("init1", priv1.publicKey.pubKeyHash)
-  private val _witness2 = InitWitness("init2", priv2.publicKey.pubKeyHash)
-  private val _witness3 = InitWitness("init3", priv3.publicKey.pubKeyHash)
-  private val _witness4 = InitWitness("init4", priv4.publicKey.pubKeyHash)
+  private val _witness1 = InitWitness("init1", priv1.publicKey.address)
+  private val _witness2 = InitWitness("init2", priv2.publicKey.address)
+  private val _witness3 = InitWitness("init3", priv3.publicKey.address)
+  private val _witness4 = InitWitness("init4", priv4.publicKey.address)
 
   private val _consensusSettings = ConsensusSettings(500, 500, 1, 4, 63000, Array(_witness1, _witness2, _witness3, _witness4))
 

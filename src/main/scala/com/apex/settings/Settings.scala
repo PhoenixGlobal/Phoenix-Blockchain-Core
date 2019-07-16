@@ -132,10 +132,16 @@ case class ConsensusSettings(produceInterval: Int,
 }
 
 case class CoinAirdrop(addr: String,
-                       coins: Double)
+                       coins: Double) {
+  require(UInt160.fromAddress(addr).isDefined, s"addr ${addr} invalid, please double check")
+}
 
 case class InitWitness(name: String,
-                   pubkeyHash: UInt160)
+                       addr: String) {
+  require(UInt160.fromAddress(addr).isDefined, s"addr ${addr} invalid, please double check")
+
+  def pubkeyHash: UInt160 = UInt160.fromAddress(addr).get
+}
 
 object ApexSettings extends SettingsReaders with ApexLogging {
   protected val configPath: String = "apex"
