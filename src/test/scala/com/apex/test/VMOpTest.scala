@@ -398,10 +398,10 @@ object VMOpTest {
   private val _witAcct3 = Ecdsa.PrivateKey.fromWIF("KyAHDybvf2dSoiKbfEgdNvMLsJjn67w3HYMPLAcVpVTBhfhGF3gB").get
   private val _witAcct4 = Ecdsa.PrivateKey.fromWIF("KyWL2DuAosLkSzuVaGb3RkGWrAr26sdbkLVAZ6FNPBrCBD7cMCGo").get
 
-  private val _witness1 = InitWitness("init1", _witAcct1.publicKey.pubKeyHash)
-  private val _witness2 = InitWitness("init2", _witAcct2.publicKey.pubKeyHash)
-  private val _witness3 = InitWitness("init3", _witAcct3.publicKey.pubKeyHash)
-  private val _witness4 = InitWitness("init4", _witAcct4.publicKey.pubKeyHash)
+  private val _witness1 = InitWitness("init1", _witAcct1.publicKey.address)
+  private val _witness2 = InitWitness("init2", _witAcct2.publicKey.address)
+  private val _witness3 = InitWitness("init3", _witAcct3.publicKey.address)
+  private val _witness4 = InitWitness("init4", _witAcct4.publicKey.address)
 
   private val _consensusSettings = ConsensusSettings(500, 500, 1, 4, 63000, Array(_witness1, _witness2, _witness3, _witness4))
 
