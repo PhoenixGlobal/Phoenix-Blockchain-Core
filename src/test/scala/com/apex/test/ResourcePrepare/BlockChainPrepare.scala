@@ -23,17 +23,10 @@ class BlockChainPrepare {
   val priv3 = new PrivateKey(BinaryData("db71fe7c0ac4ca3e8cef95bf55cf535eaa8fe0c80d18e0cb19af8d7071b8a184"))
   val priv4 = new PrivateKey(BinaryData("9456beec947b368eda4be03f6c306703d9b2eda49f661285944b4e1f07ae18f3"))
 
-  val _witness1 = InitWitness("init1", priv1.publicKey.pubKeyHash)
-
-
-  val _witness2 = InitWitness("init2",
-    priv2.publicKey.pubKeyHash)
-
-  val _witness3 = InitWitness("init3",
-    priv3.publicKey.pubKeyHash)
-
-  val _witness4 = InitWitness("init4",  // APPnx5YahVg1dTgeWkp1fE33ftvAaGbeQaR  L2C4Za8VSx2iBgszQarHx4YzqHvfumkHjbi6bNqvqst6mc8QcuZ7
-    priv4.publicKey.pubKeyHash)
+  val _witness1 = InitWitness("init1", priv1.publicKey.address)
+  val _witness2 = InitWitness("init2", priv2.publicKey.address)
+  val _witness3 = InitWitness("init3", priv3.publicKey.address)
+  val _witness4 = InitWitness("init4", priv4.publicKey.address)
 
   val _miners = MinerSettings(Array(
     priv1,

@@ -30,10 +30,10 @@ class ProposalVoteTest {
   val priv3 = new PrivateKey(BinaryData("43427dd5def74e97ab0409eaec3d64aff0557707a6edc1004d1c6e08ea705b45"))
   val priv4 = new PrivateKey(BinaryData("adc2a556a1a1726ecce71eb38e306914af4d82f547a545eed677ba555409932f"))
 
-  val _witness1 = InitWitness("init1", priv1.publicKey.pubKeyHash)
-  val _witness2 = InitWitness("init2", priv2.publicKey.pubKeyHash)
-  val _witness3 = InitWitness("init3", priv3.publicKey.pubKeyHash)
-  val _witness4 = InitWitness("init4", priv4.publicKey.pubKeyHash)
+  val _witness1 = InitWitness("init1", priv1.publicKey.address)
+  val _witness2 = InitWitness("init2", priv2.publicKey.address)
+  val _witness3 = InitWitness("init3", priv3.publicKey.address)
+  val _witness4 = InitWitness("init4", priv4.publicKey.address)
 
   val _acct1 = Ecdsa.PrivateKey.fromWIF("KwmuSp41VWBtGSWaQQ82ZRRSFzkJVTAyuDLQ9NzP9CPqLWirh4UQ").get
   val _acct2 = Ecdsa.PrivateKey.fromWIF("L32JpLopG2hWjEMSCkAjS1nUnPixVrDTPqFAGYbddQrtUjRfkjEP").get

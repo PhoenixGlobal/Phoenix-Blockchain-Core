@@ -521,7 +521,7 @@ class Node(val settings: ApexSettings, config: Config)
       if (isSyncingBlocks()) {
         //log.info("isSyncingBlocks, ignore tx inventory")
       }
-      else if (Instant.now.toEpochMilli - inv.invTime > 7000) {
+      else if (Instant.now.toEpochMilli - inv.invTime > 4000) {
         log.info(s"ignore ${inv.hashs.size} old tx inv, time gap is ${Instant.now.toEpochMilli - inv.invTime}")
       }
       else {

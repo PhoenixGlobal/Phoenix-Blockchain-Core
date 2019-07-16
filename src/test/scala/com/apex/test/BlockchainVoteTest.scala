@@ -35,10 +35,10 @@ class BlockchainVoteTest {
   val w3 = new PrivateKey(BinaryData("db71fe7c0ac4ca3e8cef95bf55cf535eaa8fe0c80d18e0cb19af8d7071b8a184"))
   val w4 = new PrivateKey(BinaryData("9456beec947b368eda4be03f6c306703d9b2eda49f661285944b4e1f07ae18f3"))
 
-  val _witness1 = InitWitness("init1", w1.publicKey.pubKeyHash)
-  val _witness2 = InitWitness("init2", w2.publicKey.pubKeyHash)
-  val _witness3 = InitWitness("init3", w3.publicKey.pubKeyHash)
-  val _witness4 = InitWitness("init4", w4.publicKey.pubKeyHash)
+  val _witness1 = InitWitness("init1", w1.publicKey.address)
+  val _witness2 = InitWitness("init2", w2.publicKey.address)
+  val _witness3 = InitWitness("init3", w3.publicKey.address)
+  val _witness4 = InitWitness("init4", w4.publicKey.address)
 
   val _miners = MinerSettings(Array(w1, w2, w3, w4, _acct1))
 
