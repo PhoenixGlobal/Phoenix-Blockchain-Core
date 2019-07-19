@@ -84,6 +84,9 @@ class Node(val settings: ApexSettings, config: Config)
 
   private val timeProvider = new NetworkTimeProvider()
   private var mongodbPlugin: Option[ActorRef] = None
+  
+  //private var gotNextBlocksMessageTime = Instant.now.toEpochMilli
+  private var timeSendGetNextBlocksMessage = Instant.now.toEpochMilli
 
   if (settings.plugins.mongodb.enabled) {
     mongodbPlugin = Some(MongodbPluginRef(settings))
@@ -398,6 +401,7 @@ class Node(val settings: ApexSettings, config: Config)
   }
 
   private def processNextBlocksMessage(msg: NextBlocksMessage) = {
+    //gotNextBlocksMessageTime = Instant.now.toEpochMilli
     var lastInsertBlock: Long = 0
     log.info(s"received ${msg.blocks.blocks.size} blocks, from ${msg.blocks.blocks.head.height} ${msg.blocks.blocks.head.shortId()}")
     msg.blocks.blocks.foreach(block => {
@@ -447,7 +451,17 @@ class Node(val settings: ApexSettings, config: Config)
         if (msg.block.height - chain.getHeight < 100) // do not send too many request during init sync
           sendGetBlocksMessage()
       }
-    }
+      
+      if (Instant.now.toEpochMilli - timeSendGetNextBlocksMessage > 8000) {
+
+        if (msg.block.height - chain.getHeight > 5) {
+           log.info(s"sync lost, try restart,  sendGetNextBlocksMessage ${chain.getLatestHeader().index}")
+           
+           sendGetNextBlocksMessage(chain.getLatestHeader().index)
+        
+        }           
+      }
+    }    
   }
 
   private def processBlocksMessage(msg: BlocksMessage) = {
@@ -593,6 +607,7 @@ class Node(val settings: ApexSettings, config: Config)
 
   private def sendGetNextBlocksMessage(fromHeight: Long) = {
     //val latestBlock = chain.getLatestHeader()
+    timeSendGetNextBlocksMessage = Instant.now.toEpochMilli
     sender() ! GetNextBlocksMessage(fromHeight).pack
   }
 
