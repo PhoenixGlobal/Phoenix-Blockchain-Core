@@ -93,22 +93,22 @@ class PeerConnectionManager(settings: NetworkSettings,
 
   private def processErrors(stateName: String): Receive = {
     case CommandFailed(w: Write) =>
-      log.warn(s"写入失败 :$w " + remote + s" 状态 $stateName")
+      log.warn(s"write fail :$w " + remote + s" in state $stateName")
       connection ! Close
       connection ! ResumeReading
       connection ! ResumeWriting
 
     case cc: ConnectionClosed =>
       peerHandlerManagerRef ! Disconnected(remote)
-      log.info("链接关闭 : " + remote + ": " + cc.getErrorCause + s" in state $stateName")
+      log.info("Connection close : " + remote + ": " + cc.getErrorCause + s" in state $stateName")
       context stop self
 
     case CloseConnection =>
-      log.info(s"强制中止通信: " + remote + s" 状态  $stateName")
+      log.info(s"force stop communication: " + remote + s" in state $stateName")
       connection ! Close
 
     case CommandFailed(cmd: Tcp.Command) =>
-      log.info("执行命令失败 : " + cmd + s" 状态 $stateName")
+      log.info("command fail: " + cmd + s" in state $stateName")
       connection ! ResumeReading
   }
 
@@ -116,7 +116,7 @@ class PeerConnectionManager(settings: NetworkSettings,
     case StartInteraction =>
       val hb = constructHandshakeMsg.bytes
       connection ! Tcp.Write(ByteString(hb))
-      log.info(s"发送握手到: $remote")
+      log.info(s"send handshake to: $remote")
       handshakeSent = true
       if (handshakeGot && handshakeSent) self ! HandshakeDone
   }
@@ -153,7 +153,7 @@ class PeerConnectionManager(settings: NetworkSettings,
         self ! CloseConnection
       } else {
         receivedHandshake = Some(handshakeMsg)
-        log.info(s"获得握手: $remote")
+        log.info(s"got handshake: $remote")
         connection ! ResumeReading
         networkManager ! GetHandlerToPeerConnectionManager //握手成功后，向PeerConnectionManager发送远程handler
         if (handshakeGot && handshakeSent) {
@@ -165,7 +165,7 @@ class PeerConnectionManager(settings: NetworkSettings,
 
   private def handshakeTimeout: Receive = {
     case HandshakeTimeout =>
-      log.info(s"与远程 $remote 握手超时, 将删除连接")
+      log.info(s"Handshake Timeout with $remote CloseConnection")
       self ! CloseConnection
   }
 
@@ -275,7 +275,7 @@ class PeerConnectionManager(settings: NetworkSettings,
 
   private def reportStrangeInput: Receive = {
     case nonsense: Any =>
-      log.warn(s"未知的错误: $nonsense")
+      log.warn(s"unknown error: $nonsense")
   }
 
   def workingCycle: Receive =
