@@ -323,7 +323,7 @@ class Node(val settings: ApexSettings, config: Config)
     // first msg, start to sync
 
     if (Instant.now.toEpochMilli - chain.getLatestHeader().timeStamp > 100000)
-      sendGetNextBlocksMessage() // new
+      sendGetNextBlocksMessage(chain.getConfirmedHeight()) // new
     else
       sendGetBlocksMessage()
   }
@@ -399,7 +399,7 @@ class Node(val settings: ApexSettings, config: Config)
 
   private def processNextBlocksMessage(msg: NextBlocksMessage) = {
     var lastInsertBlock: Long = 0
-    log.info(s"received ${msg.blocks.blocks.size} blocks, from ${msg.blocks.blocks.head.height}")
+    log.info(s"received ${msg.blocks.blocks.size} blocks, from ${msg.blocks.blocks.head.height} ${msg.blocks.blocks.head.shortId()}")
     msg.blocks.blocks.foreach(block => {
       if (chain.tryInsertBlock(block, true)) {
         lastInsertBlock = block.height()
@@ -412,7 +412,7 @@ class Node(val settings: ApexSettings, config: Config)
   private def processBlocksSendStopMessage(msg: BlocksSendStopMessage) = {
     if (isSyncingBlocks()) {
       log.info(s"recv BlocksSendStopMessage, continue sync, msg=${msg.block} head=${chain.getLatestHeader().index}")
-      sendGetNextBlocksMessage()
+      sendGetNextBlocksMessage(chain.getLatestHeader().index)
     }
     else
       log.info(s"recv BlocksSendStopMessage, stop sync, msg=${msg.block}  head=${chain.getLatestHeader().index}")
@@ -591,9 +591,9 @@ class Node(val settings: ApexSettings, config: Config)
     sender() ! GetBlocksMessage(new GetBlocksPayload(blockLocatorHashes, UInt256.Zero)).pack
   }
 
-  private def sendGetNextBlocksMessage() = {
-    val latestBlock = chain.getLatestHeader()
-    sender() ! GetNextBlocksMessage(latestBlock.index + 1).pack
+  private def sendGetNextBlocksMessage(fromHeight: Long) = {
+    //val latestBlock = chain.getLatestHeader()
+    sender() ! GetNextBlocksMessage(fromHeight).pack
   }
 
   private def broadcastInvMsg(invPayload: InventoryPayload) = {
