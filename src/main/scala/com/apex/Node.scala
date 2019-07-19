@@ -399,7 +399,7 @@ class Node(val settings: ApexSettings, config: Config)
 
   private def processNextBlocksMessage(msg: NextBlocksMessage) = {
     var lastInsertBlock: Long = 0
-    log.info(s"received ${msg.blocks.blocks.size} blocks, from ${msg.blocks.blocks.head.height}")
+    log.info(s"received ${msg.blocks.blocks.size} blocks, from ${msg.blocks.blocks.head.height} ${msg.blocks.blocks.head.shortId()}")
     msg.blocks.blocks.foreach(block => {
       if (chain.tryInsertBlock(block, true)) {
         lastInsertBlock = block.height()
