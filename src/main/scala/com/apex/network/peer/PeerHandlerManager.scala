@@ -94,7 +94,7 @@ class PeerHandlerManager(settings: NetworkSettings, timeProvider: NetworkTimePro
   private def connecting: Receive = {
     case DoConnecting(remote, direction) =>
       if (peerDatabase.isBlacklisted(remote)) {
-        log.info(s"从黑名单中获得传入连接 $remote")
+        log.info(s"got connection from blacklist $remote")
       } else {
         val peerHandlerRef = sender
         val isIncoming = direction == Incoming
@@ -103,7 +103,7 @@ class PeerHandlerManager(settings: NetworkSettings, timeProvider: NetworkTimePro
           peerHandlerRef ! CloseConnection
         } else {
           if (!isIncoming) {
-            log.info(s"远程链接 $remote")
+            log.info(s"remote connection $remote")
             connectingPeers += remote
           }
           peerHandlerRef ! StartInteraction
@@ -140,7 +140,7 @@ class PeerHandlerManager(settings: NetworkSettings, timeProvider: NetworkTimePro
   private def handshaked: Receive = {
     case Handshaked(peer) =>
       if (peerDatabase.isBlacklisted(peer.socketAddress)) {
-        log.info(s"从黑名单中得到握手 ${peer.socketAddress}")
+        log.info(s"got handshake from blacklist ${peer.socketAddress}")
       } else {
         if (peer.direction == Outgoing && isSelf(peer.socketAddress, peer.handshake.declaredAddress)) {
           log.info("send CloseConnection")
@@ -155,7 +155,7 @@ class PeerHandlerManager(settings: NetworkSettings, timeProvider: NetworkTimePro
           }
 
           connectedPeers += peer.socketAddress -> peer
-          log.info("更新本节点连接的节点=" + connectedPeers)
+          log.info("update connected Peers " + connectedPeers)
           // Once connected, try get the peer's latest block to sync
           Thread.sleep(50) // to avoid peer mess with the "handshakeDone"
           peer.connectionRef ! VersionMessage(0).pack
