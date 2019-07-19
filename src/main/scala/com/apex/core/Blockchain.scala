@@ -350,6 +350,15 @@ class Blockchain(chainSettings: ChainSettings,
   }
 
   def tryInsertBlock(block: Block, doApply: Boolean = true): Boolean = {
+    if (containsBlock(block)) {
+      log.info(s"tryInsertBlock but block already exist: ${block.height()} ${block.shortId()}")
+      false
+    }
+    else
+      tryInsertBlockEx(block, doApply)
+  }
+
+  private def tryInsertBlockEx(block: Block, doApply: Boolean = true): Boolean = {
     var inserted = false
     if (isProducingBlock()) {
       log.info(s"tryInsertBlock ${block.height} ${block.shortId} but we are producing, stop produce block ${pendingState.blockIndex}")
