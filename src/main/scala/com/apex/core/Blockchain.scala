@@ -351,7 +351,7 @@ class Blockchain(chainSettings: ChainSettings,
 
   def tryInsertBlock(block: Block, doApply: Boolean = true): Boolean = {
     if (containsBlock(block)) {
-      log.info(s"tryInsertBlock but block already exist: ${block.height()} ${block.shortId()}")
+      //log.info(s"tryInsertBlock but block already exist: ${block.height()} ${block.shortId()}")
       false
     }
     else
