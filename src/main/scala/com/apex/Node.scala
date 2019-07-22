@@ -27,6 +27,7 @@ import com.apex.utils.NetworkTimeProvider
 import com.typesafe.config.Config
 
 import scala.collection.mutable.ArrayBuffer
+import scala.collection.mutable
 import scala.concurrent.ExecutionContext
 import scala.util.Try
 
@@ -37,6 +38,8 @@ trait AsyncTask
 case class NodeStopMessage() extends NodeMessage
 
 case class ProduceTask(task: Blockchain => Unit) extends AsyncTask
+
+case class InvCount(firstSeenTime: Long, count: Int)
 
 object Node {
 
@@ -87,6 +90,9 @@ class Node(val settings: ApexSettings, config: Config)
   
   //private var gotNextBlocksMessageTime = Instant.now.toEpochMilli
   private var timeSendGetNextBlocksMessage = Instant.now.toEpochMilli
+
+  private var invCounter = mutable.Map.empty[UInt256, InvCount]
+  private var invCounterCleanTime = Instant.now.toEpochMilli
 
   if (settings.plugins.mongodb.enabled) {
     mongodbPlugin = Some(MongodbPluginRef(settings))
@@ -451,15 +457,11 @@ class Node(val settings: ApexSettings, config: Config)
         if (msg.block.height - chain.getHeight < 100) // do not send too many request during init sync
           sendGetBlocksMessage()
       }
-      
       if (Instant.now.toEpochMilli - timeSendGetNextBlocksMessage > 8000) {
-
-        if (msg.block.height - chain.getHeight > 5) {
+        if (msg.block.height - chain.getHeight > 50) {
            log.info(s"sync lost, try restart,  sendGetNextBlocksMessage ${chain.getLatestHeader().index}")
-           
            sendGetNextBlocksMessage(chain.getLatestHeader().index)
-        
-        }           
+        }
       }
     }    
   }
@@ -511,12 +513,20 @@ class Node(val settings: ApexSettings, config: Config)
 
   private def processInventoryMessage(msg: InventoryMessage) = {
     val inv = msg.inv
+    inv.hashs.foreach(h => {
+      val old = invCounter.get(h).getOrElse(new InvCount(Instant.now.toEpochMilli, 0))
+      invCounter.update(h, new InvCount(old.firstSeenTime, old.count + 1))
+    })
     //log.info(s"received Inventory, inv type ${inv.invType}, hash count ${inv.hashs.size}")
     if (inv.invType == InventoryType.Block) {
       val newBlocks = ArrayBuffer.empty[UInt256]
       inv.hashs.foreach(h => {
-        if (chain.containsBlock(h) == false)
-          newBlocks.append(h)
+        if (chain.containsBlock(h) == false) {
+          if (inv.hashs.size > 1)
+            newBlocks.append(h)
+          else if (invCounter.get(h).get.count <= 1)
+            newBlocks.append(h)
+        }
       })
       if (newBlocks.size > 0) {
         log.debug(s"send GetDataMessage to request ${newBlocks.size} new blocks.  ${newBlocks(0).shortString}")
@@ -541,11 +551,17 @@ class Node(val settings: ApexSettings, config: Config)
       else {
         val newTxs = ArrayBuffer.empty[UInt256]
         inv.hashs.foreach(h => {
-          if (chain.getTransactionFromMempool(h).isEmpty)
+          if (chain.getTransactionFromMempool(h).isEmpty && invCounter.get(h).get.count <= 1)
             newTxs.append(h)
         })
         sender() ! GetDataMessage(InventoryPayload.create(InventoryType.Tx, newTxs)).pack
       }
+    }
+    val curTime = Instant.now.toEpochMilli
+    if (curTime - invCounterCleanTime > 20000) {
+      invCounterCleanTime = curTime
+      invCounter = invCounter.filter(p => {curTime - p._2.firstSeenTime < 20000})
+      log.info(s"invCounter.size=${invCounter.size}")
     }
   }
 
