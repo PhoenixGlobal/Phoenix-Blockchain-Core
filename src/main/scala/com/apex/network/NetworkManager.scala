@@ -57,10 +57,10 @@ class NetworkManager(settings: NetworkSettings,
 
   private def bindingLogic: Receive = {
     case Bound(_) =>
-      log.info("成功绑定到端口 " + settings.bindAddress.getPort)
+      log.info("success bind to port " + settings.bindAddress.getPort)
       scheduleConnectToPeer();
     case CommandFailed(_: Bind) =>
-      log.error("端口 " + settings.bindAddress.getPort + " already in use!")
+      log.error("port " + settings.bindAddress.getPort + " already in use!")
       context stop self
   }
 
@@ -95,8 +95,8 @@ class NetworkManager(settings: NetworkSettings,
     case Connected(remote, local) =>
       val direction: ConnectionType = if (outgoing.contains(remote)) Outgoing else Incoming
       val logMsg = direction match {
-        case Incoming => s"incoming:远程连接 $remote 绑定到本地 $local"
-        case Outgoing => s"outgoing:远程连接 $remote 绑定到本地 $local"
+        case Incoming => s"incoming:remote $remote bind to local $local"
+        case Outgoing => s"outgoing:remote $remote bind to local $local"
       }
       log.info(logMsg)
       val connection = sender()
@@ -134,10 +134,10 @@ class NetworkManager(settings: NetworkSettings,
 
   override def receive: Receive = bindingLogic orElse peerLogic orElse getHandler orElse {
     case CommandFailed(cmd: Tcp.Command) =>
-      log.info("执行命令失败 : " + cmd)
+      log.info("CommandFailed : " + cmd)
 
     case nonsense: Any =>
-      log.warn(s"NetworkController: 未知的错误  $nonsense")
+      log.warn(s"NetworkController: unknown error  $nonsense")
   }
 
   /**
