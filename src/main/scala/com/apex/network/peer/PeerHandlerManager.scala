@@ -155,7 +155,7 @@ class PeerHandlerManager(settings: NetworkSettings, timeProvider: NetworkTimePro
           }
 
           connectedPeers += peer.socketAddress -> peer
-          log.info("update connected Peers " + connectedPeers)
+          log.info(s"connected ${connectedPeers.size} peers: " + connectedPeers)
           // Once connected, try get the peer's latest block to sync
           Thread.sleep(50) // to avoid peer mess with the "handshakeDone"
           peer.connectionRef ! VersionMessage(0).pack
