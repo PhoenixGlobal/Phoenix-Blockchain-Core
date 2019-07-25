@@ -796,7 +796,7 @@ class Blockchain(chainSettings: ChainSettings,
       log.error(s"verifyHeader error: index error ${header.index} ${prevBlock.get.block.height()}")
     }
     else if (!isProducerValid(header.timeStamp, header.producer)) {
-      log.error("verifyHeader error: producer not valid")
+      log.error(s"verifyHeader error: producer not valid, ${header.producer.shortAddr} ${header.timeString()}")
     }
     else if (!header.verifySig()) {
       log.error("verifyHeader error: verifySig fail")

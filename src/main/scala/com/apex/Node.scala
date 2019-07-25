@@ -94,6 +94,8 @@ class Node(val settings: ApexSettings, config: Config)
   private var invCounter = mutable.Map.empty[UInt256, InvCount]
   private var invCounterCleanTime = Instant.now.toEpochMilli
 
+  private var blockRequestLatest: Long = 0
+  private var timeBlockRequestLatest: Long = 0
   private var blockRequestTime = mutable.Map.empty[Long, Long]
 
   private var syncSpeedHeight: Long = 0
@@ -336,8 +338,10 @@ class Node(val settings: ApexSettings, config: Config)
   private def processVersionMessage(msg: VersionMessage) = {
     // first msg, start to sync
 
-    if (Instant.now.toEpochMilli - chain.getLatestHeader().timeStamp > 100000)
+    if (Instant.now.toEpochMilli - chain.getLatestHeader().timeStamp > 100000) {
+      log.info(s"peer start sync, get from ${chain.getConfirmedHeight()}")
       sendGetNextBlocksMessage(chain.getConfirmedHeight()) // new
+    }
     else
       sendGetBlocksMessage()
   }
@@ -441,29 +445,38 @@ class Node(val settings: ApexSettings, config: Config)
     tryCheckCacheBlock(lastInsertBlock + 1)
   }
 
-  private def requestBlockIndex(height: Long, curTime: Long): Boolean = {
+  private def requestBlockIndex(height: Long, curTime: Long): (Boolean, Boolean) = {
     if (blockRequestTime.get(height).isEmpty)
-      true // never requested before
+      (true, false) // never requested before
     else {
       if (curTime - blockRequestTime.get(height).get > 5000)
-        true // requested long times ago
+        (true, true) // requested long times ago
       else
-        false // recently requested
+        (false, false) // recently requested
     }
   }
 
   private def processBlocksSendStopMessage(msg: BlocksSendStopMessage) = {
+    val blockNumPerRequest = 100
     if (isSyncingBlocks()) {
       val curTime = Instant.now.toEpochMilli
       var found = false
+      var isTimeout = false
       var target = chain.getLatestHeader().index + 1
       while (!found) {
-        if (requestBlockIndex(target, curTime))
+        val result = requestBlockIndex(target, curTime)
+        if (result._1)
           found = true
         else
-          target += 100
+          target += blockNumPerRequest
+        isTimeout = result._2
       }
-      log.info(s"recv BlocksSendStopMessage, continue sync, target=${target} head=${chain.getLatestHeader().index} msg=${msg.block}")
+      if (!isTimeout && target <= blockRequestLatest && curTime - timeBlockRequestLatest < 5000) {
+        //log.info(s"less than blockRequestLatest  target=${target}  blockRequestLatest=${blockRequestLatest}")
+        target = blockRequestLatest + blockNumPerRequest
+      }
+      val head = chain.getLatestHeader().index
+      log.info(s"recv BlocksSendStopMessage, continue sync, target=${target} head=${head} diff=${target - head} msg=${msg.block}")
       sendGetNextBlocksMessage(target)
     }
     else
@@ -664,13 +677,18 @@ class Node(val settings: ApexSettings, config: Config)
   }
 
   private def sendGetNextBlocksMessage(fromHeight: Long) = {
+    var curTime = Instant.now.toEpochMilli
     //val latestBlock = chain.getLatestHeader()
-    timeSendGetNextBlocksMessage = Instant.now.toEpochMilli
-    blockRequestTime.update(fromHeight, Instant.now.toEpochMilli)
+    timeSendGetNextBlocksMessage = curTime
+    blockRequestTime.update(fromHeight, curTime)
     //log.info(s"blockRequestTime size ${blockRequestTime.size}")
-    if (blockRequestTime.size > 1000)
+    if (blockRequestTime.size > 1000) {
+      log.info("blockRequestTime clear")
       blockRequestTime.clear()
+    }
     sender() ! GetNextBlocksMessage(fromHeight).pack
+    blockRequestLatest = fromHeight
+    timeBlockRequestLatest = curTime
   }
 
   private def broadcastInvMsg(invPayload: InventoryPayload) = {
