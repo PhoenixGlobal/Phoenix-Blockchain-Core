@@ -714,6 +714,63 @@ class ContractTxTest {
     }
   }
 
+  @Test
+  def testCALLVALUE(): Unit = {
+    val chain = createChain("testCALLVALUE")
+    try {
+      /*
+      *
+      *   pragma solidity ^0.5.2;
+          contract TestEth {
+            function testE() public payable returns (uint256) {
+               if(msg.value >= 10 ether) {  return 2;   }
+               else {  return 3;   }
+            }
+          }
+      *
+      * */
+      val contractSrc = "pragma solidity ^0.5.2;\n\ncontract TestEth {\n  function testE() public payable returns (uint256) {   \n     if(msg.value >= 10 ether) {  return 2;   }\n     else {  return 3;   }      \n  }\n}"
+      val res = SolidityCompiler.compile(contractSrc.getBytes, true, Seq(ABI, BIN, INTERFACE, METADATA))
+      val result = CompilationResult.parse(res.output)
+      val abiString = result.getContract("TestEth").abi
+      val binString = result.getContract("TestEth").bin
+
+      var nowTime = Instant.now.toEpochMilli - 90000
+      var blockTime = ProducerUtil.nextBlockTime(chain.getHeadTime(), nowTime, _produceInterval / 10, _produceInterval) //  chain.getHeadTime() + _consensusSettings.produceInterval
+      blockTime += _produceInterval
+      val producer = chain.getWitness(blockTime)
+      chain.startProduceBlock(_miners.findPrivKey(producer).get, blockTime, Long.MaxValue)
+
+      assert(chain.getBalance(_acct1).get == FixedNumber.fromDecimal(123.12))
+
+      var deployTx = new Transaction(TransactionType.Deploy, _acct1.publicKey.pubKeyHash,
+        UInt160.Zero, FixedNumber.Zero, 0, BinaryData(binString),
+        FixedNumber(1), 9000000L, BinaryData.empty)
+      assert(chain.addTransaction(deployTx))
+
+      assert(chain.getAccount(_acct1).get.nextNonce == 1)
+      var balance1 = chain.getBalance(_acct1).get
+
+      var txData = Abi.fromJson(abiString).encode(s"testE()")
+      var tx = new Transaction(TransactionType.Call, _acct1.publicKey.pubKeyHash,
+        contractAddress, FixedNumber.fromDecimal(11),
+        1, txData, FixedNumber(100000), 9000000L, BinaryData.empty)
+      assert(chain.addTransaction(tx))
+      assert(chain.getReceipt(tx.id()).get.status == 0)
+      assert(DataWord.of(chain.getReceipt(tx.id()).get.output).value == BigInt(2))
+
+      tx = new Transaction(TransactionType.Call, _acct1.publicKey.pubKeyHash,
+        contractAddress, FixedNumber.fromDecimal(9),
+        2, txData, FixedNumber(100000), 9000000L, BinaryData.empty)
+      assert(chain.addTransaction(tx))
+      assert(chain.getReceipt(tx.id()).get.status == 0)
+      assert(DataWord.of(chain.getReceipt(tx.id()).get.output).value == BigInt(3))
+    }
+    finally {
+      chain.close()
+    }
+  }
+
 
   def sleepTo(time: Long) = {
     val nowTime = Instant.now.toEpochMilli
