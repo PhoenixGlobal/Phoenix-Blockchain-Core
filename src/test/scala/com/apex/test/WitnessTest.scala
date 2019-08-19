@@ -32,12 +32,14 @@ class WitnessTest {
       && x.longitude == a.longitude
       && x.latitude == a.latitude
       && x.voteCounts.value == a.voteCounts.value
+      && x.register == a.register
+      && x.frozen == a.frozen
       )
   }
   @Test
   def testSerialize_WitnessInfo = {
     val a = new WitnessInfo(UInt160.Zero, false, "wefwe", "1 2", "3", "4",
-      170, 240, FixedNumber.One, true, 2)
+      170, 240, FixedNumber.One, true, false, 2)
 
     val o = new SerializerHelper[WitnessInfo](
       WitnessInfo.deserialize,
@@ -50,6 +52,8 @@ class WitnessTest {
         && x.longitude == a.longitude
         && x.latitude == a.latitude
         && x.voteCounts.value == a.voteCounts.value
+        && x.register == a.register
+        && x.frozen == a.frozen
     )
     o.test(a)
   }
@@ -74,19 +78,19 @@ class WitnessTest {
   def testSerialize_WitnessList = {
     val a = new WitnessInfo(UInt160.parse("1212121212121212121212121212121212121211").get, false,
       "123", "1 2", "3", "000",
-      171, 240, FixedNumber(2), true, 2)
+      171, 240, FixedNumber(2), true, false, 2)
 
     val b = new WitnessInfo(UInt160.parse("1212121212121212121212121212121212121212").get, false,
       "456", "8374", "311", "666",
-      172, 241, FixedNumber(1),  true, 3)
+      172, 241, FixedNumber(1),  true, false,3)
 
     val c = new WitnessInfo(UInt160.parse("1212121212121212121212121212121212121213").get, false,
       "789", "1 33", "9847", "4",
-      173, 242, FixedNumber(4),  true, 4)
+      173, 242, FixedNumber(4),  true, false,4)
 
     val d = new WitnessInfo(UInt160.parse("1212121212121212121212121212121212121214").get, false,
       "789", "1 33", "9847", "4",
-      173, 242, FixedNumber(3),  true, 4)
+      173, 242, FixedNumber(3),  true, false,4)
 
     val list1 = WitnessList.create(Array(a, b, c, d), UInt256.Zero, 0, 7)
 
@@ -124,23 +128,23 @@ class WitnessTest {
   def testSerialize_WitnessMap = {
     val a = new WitnessInfo(UInt160.parse("1212121212121212121212121212121212121211").get, false,
       "123", "1 2", "3", "000",
-      171, 240, FixedNumber(2), true,2)
+      171, 240, FixedNumber(2), true, false,2)
 
     val b = new WitnessInfo(UInt160.parse("1212121212121212121212121212121212121212").get, false,
       "456", "8374", "311", "666",
-      172, 241, FixedNumber(1),  true,3)
+      172, 241, FixedNumber(1),  true, false,3)
 
     val c = new WitnessInfo(UInt160.parse("1212121212121212121212121212121212121213").get, false,
       "789", "1 33", "9847", "4",
-      173, 242, FixedNumber(4),  true,4)
+      173, 242, FixedNumber(4),  true, false,4)
 
     val d = new WitnessInfo(UInt160.parse("1212121212121212121212121212121212121214").get, false,
       "789", "1 33", "9847", "4",
-      173, 242, FixedNumber(3), true, 4)
+      173, 242, FixedNumber(3), true, false, 4)
 
     val ddd = new WitnessInfo(UInt160.parse("1212121212121212121212121212121212121214").get, false,
       "789", "1 3ddd3", "9847", "4",
-      173, 242, FixedNumber(999), true, 456)
+      173, 242, FixedNumber(999), true, false, 456)
 
     val map1 = new WitnessMap(mutable.Map.empty, 67)
     map1.set(a)
@@ -180,39 +184,39 @@ class WitnessTest {
   def testSortByLocation = {
     val w1 = new WitnessInfo(UInt160.parse("1212121212121212121212121212121212121211").get, false,
       "w1", "1 2", "3", "000",
-      171, 240, FixedNumber(2),true, 2)
+      171, 240, FixedNumber(2),true, version = 2)
 
     val w2 = new WitnessInfo(UInt160.parse("1212121212121212121212121212121212121212").get, false,
       "w2", "8374", "311", "666",
-      172, 241, FixedNumber(1), true, 3)
+      172, 241, FixedNumber(1), true, version = 3)
 
     val w3 = new WitnessInfo(UInt160.parse("1212121212121212121212121212121212121213").get, false,
       "w3", "1 33", "9847", "4",
-      2, 242, FixedNumber(4), true, 4)
+      2, 242, FixedNumber(4), true, version = 4)
 
     val w4 = new WitnessInfo(UInt160.parse("1212121212121212121212121212121212121214").get, false,
       "w4", "1 33", "9847", "4",
-      999, 242, FixedNumber(3), true, 4)
+      999, 242, FixedNumber(3), true, version = 4)
 
     val w5 = new WitnessInfo(UInt160.parse("1212121212121212121212121212121212121215").get, false,
       "w5", "1 3ddd3", "9847", "4",
-      173, 10, FixedNumber(999), true, 456)
+      173, 10, FixedNumber(999), true, version = 456)
 
     val w6 = new WitnessInfo(UInt160.parse("1212121212121212121212121212121212121216").get, false,
       "w6", "1 3ddd3", "9847", "4",
-      173, 300, FixedNumber(999), true, 456)
+      173, 300, FixedNumber(999), true, version = 456)
 
     val w7 = new WitnessInfo(UInt160.parse("2000000000000000000000000000000000000000").get, false,
       "w7", "1 3ddd3", "9847", "4",
-      173, 242, FixedNumber(999),  true,456)
+      173, 242, FixedNumber(999),  true, version = 456)
 
     val w8 = new WitnessInfo(UInt160.parse("1000000000000000000000000000000000000000").get, false,
       "w8", "1 3ddd3", "9847", "4",
-      173, 242, FixedNumber(999), true, 456)
+      173, 242, FixedNumber(999), true, version = 456)
 
     val w9 = new WitnessInfo(UInt160.parse("3000000000000000000000000000000000000000").get, false,
       "w9", "1 3ddd3", "9847", "4",
-      173, 242, FixedNumber(999), true, 456)
+      173, 242, FixedNumber(999), true, version = 456)
 
     val witArray = Array(w1, w2, w3, w4, w5, w6, w7, w8, w9)
 
@@ -232,39 +236,39 @@ class WitnessTest {
   def testSortByVote = {
     val w1 = new WitnessInfo(UInt160.parse("1212121212121212121212121212121212121211").get, false,
       "w1", "1 2", "3", "000",
-      171, 240, FixedNumber(400),true, 2)
+      171, 240, FixedNumber(400),true, version = 2)
 
     val w2 = new WitnessInfo(UInt160.parse("1212121212121212121212121212121212121212").get, false,
       "w2", "8374", "311", "666",
-      172, 241, FixedNumber(500), true, 3)
+      172, 241, FixedNumber(500), true, version = 3)
 
     val w3 = new WitnessInfo(UInt160.parse("1212121212121212121212121212121212121213").get, false,
       "w3", "1 33", "9847", "4",
-      2, 242, FixedNumber(600),  true,4)
+      2, 242, FixedNumber(600),  true, version = 4)
 
     val w4 = new WitnessInfo(UInt160.parse("1212121212121212121212121212121212121214").get, false,
       "w4", "1 33", "9847", "4",
-      999, 242, FixedNumber(700), true, 4)
+      999, 242, FixedNumber(700), true, version = 4)
 
     val w5 = new WitnessInfo(UInt160.parse("1212121212121212121212121212121212121215").get, false,
       "w5", "1 3ddd3", "9847", "4",
-      173, 10, FixedNumber(800),  true,456)
+      173, 10, FixedNumber(800),  true,version = 456)
 
     val w6 = new WitnessInfo(UInt160.parse("1212121212121212121212121212121212121216").get, false,
       "w6", "1 3ddd3", "9847", "4",
-      173, 300, FixedNumber(2000),  true, 456)
+      173, 300, FixedNumber(2000),  true, version = 456)
 
     val w7 = new WitnessInfo(UInt160.parse("2000000000000000000000000000000000000000").get, false,
       "w7", "1 3ddd3", "9847", "4",
-      173, 242, FixedNumber(999),  true,456)
+      173, 242, FixedNumber(999),  true, version = 456)
 
     val w8 = new WitnessInfo(UInt160.parse("1000000000000000000000000000000000000000").get, false,
       "w8", "1 3ddd3", "9847", "4",
-      173, 242, FixedNumber(999),  true,456)
+      173, 242, FixedNumber(999),  true, version = 456)
 
     val w9 = new WitnessInfo(UInt160.parse("3000000000000000000000000000000000000000").get, false,
       "w9", "1 3ddd3", "9847", "4",
-      173, 242, FixedNumber(999),  true, 456)
+      173, 242, FixedNumber(999),  true, version = 456)
 
     val witArray = Array(w1, w2, w3, w4, w5, w6, w7, w8, w9)
 

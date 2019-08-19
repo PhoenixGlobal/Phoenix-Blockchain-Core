@@ -23,6 +23,7 @@ case class WitnessInfo(addr: UInt160,
                        latitude: Int = 0,
                        voteCounts: FixedNumber = FixedNumber.Zero,
                        register: Boolean = true,
+                       frozen: Boolean = false,
                        version: Int = 0x01) extends com.apex.common.Serializable {
 
   def updateVoteCounts(votes: FixedNumber): WitnessInfo = {
@@ -49,7 +50,7 @@ case class WitnessInfo(addr: UInt160,
     os.writeInt(latitude)
     os.write(voteCounts)
     os.writeBoolean(register)
-
+    os.writeBoolean(frozen)
   }
 }
 
@@ -69,8 +70,9 @@ object WitnessInfo {
     val latitude = is.readInt()
     val voteCounts = FixedNumber.deserialize(is)
     val register = is.readBoolean()
+    val frozen = is.readBoolean()
 
-    new WitnessInfo(addr, isGenesisWitness, name, url, country, address, longitude, latitude, voteCounts,register, version)
+    new WitnessInfo(addr, isGenesisWitness, name, url, country, address, longitude, latitude, voteCounts,register, frozen, version)
 
   }
 
@@ -88,6 +90,7 @@ object WitnessInfo {
         "latitude" -> o.latitude,
         "voteCounts" -> o.voteCounts.toString,
         "register" -> o.register.toString,
+        "frozen" -> o.frozen.toString,
         "version" -> o.version
       )
     }
