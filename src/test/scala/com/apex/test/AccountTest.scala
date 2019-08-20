@@ -24,7 +24,8 @@ class AccountTest {
   def testSerialize = {
     val codeHash = new Array[Byte](Random.nextInt(33))
     Random.nextBytes(codeHash)
-    val a = new Account(UInt160.Zero, false, "iiruf", FixedNumber(567), 123, codeHash)
+    val a = new Account(UInt160.Zero, false, "iiruf",
+      FixedNumber(567), FixedNumber(123), 123, codeHash)
 
     assert(a.address == UInt160.Zero.address)
     assert(!a.isEmpty)
@@ -35,6 +36,7 @@ class AccountTest {
         && x.active == a.active
         && x.name == a.name
         && x.balance == a.balance
+        && x.pendingBalance == a.pendingBalance
         && x.nextNonce == a.nextNonce
         && x.codeHash.sameElements(a.codeHash)
         && x.version == a.version)
@@ -44,6 +46,6 @@ class AccountTest {
     //val efwef = s"""{"address":"${a.address}","active":false,"name":"${a.name}","balance":"${a.balance.toString}","nextNonce":${a.nextNonce},"codeHash":"${Hex.toHexString(a.codeHash)}","version":${a.version}}"""
 
     assert(Json.toJson(a).toString.equals(
-      s"""{"address":"${a.address}","active":false,"name":"${a.name}","balance":"${a.balance.toString}","nextNonce":${a.nextNonce},"codeHash":"${Hex.toHexString(a.codeHash)}","version":${a.version}}"""))
+      s"""{"address":"${a.address}","active":false,"name":"${a.name}","balance":"${a.balance.toString}","pendingBalance":"${a.pendingBalance.toString}","nextNonce":${a.nextNonce},"codeHash":"${Hex.toHexString(a.codeHash)}","version":${a.version}}"""))
   }
 }
