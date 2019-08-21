@@ -12,7 +12,7 @@ import org.bouncycastle.math.ec.{ECCurve, ECPoint}
 
 object ECDSASignature {
 
-  val curveParams: X9ECParameters = SECNamedCurves.getByName("secp256k1")
+  val curveParams: X9ECParameters = SECNamedCurves.getByName(Ecdsa.curveName)
   val curve: ECDomainParameters = new ECDomainParameters(curveParams.getCurve, curveParams.getG, curveParams.getN, curveParams.getH)
 
   val SLength = 32

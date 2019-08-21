@@ -34,7 +34,10 @@ case class BinaryData(data: Seq[Byte]) {
 }
 
 object Ecdsa {
-  val params = SECNamedCurves.getByName("secp256r1")  // secp256k1
+
+  val curveName = "secp256r1"  // secp256k1
+
+  val params = SECNamedCurves.getByName(curveName)
   val curve = new ECDomainParameters(params.getCurve, params.getG, params.getN, params.getH)
   val halfCurveOrder = params.getN().shiftRight(1)
   val zero = BigInteger.valueOf(0)
