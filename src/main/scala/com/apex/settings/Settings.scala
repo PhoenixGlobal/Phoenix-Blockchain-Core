@@ -108,12 +108,14 @@ case class MinerSettings(privKeys: Array[PrivateKey],
 case class ConsensusSettings(produceInterval: Int,
                              acceptableTimeError: Int,
                              producerRepetitions: Int,
-                             witnessNum: Int,
+                             witnessNum: Int,  // 21
+                             totalWitnessNum: Int,  // 50
                              electeTime: Long,
                              initialWitness: Array[InitWitness]) {
 
   require(initialWitness.size == witnessNum)
   require(electeTime >= witnessNum * producerRepetitions * produceInterval)
+  require(totalWitnessNum > witnessNum)
 
   def fingerprint(): BinaryData = {
     val bs = new ByteArrayOutputStream()
@@ -122,6 +124,7 @@ case class ConsensusSettings(produceInterval: Int,
     os.writeInt(acceptableTimeError)
     os.writeInt(producerRepetitions)
     os.writeInt(witnessNum)
+    os.writeInt(totalWitnessNum)
     os.writeLong(electeTime)
     initialWitness.foreach(w => {
       os.writeBytes(w.name)

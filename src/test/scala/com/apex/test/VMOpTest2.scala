@@ -39,7 +39,7 @@ class VMOpTest2 {
     new PrivateKey(BinaryData("db71fe7c0ac4ca3e8cef95bf55cf535eaa8fe0c80d18e0cb19af8d7071b8a184")),
     new PrivateKey(BinaryData("9456beec947b368eda4be03f6c306703d9b2eda49f661285944b4e1f07ae18f3"))     ))
 
-  val _consensusSettings = ConsensusSettings(_produceInterval, 500, 1, 4, 63000,
+  val _consensusSettings = ConsensusSettings(_produceInterval, 500, 1, 4, 5, 63000,
     Array(_witness1, _witness2, _witness3, _witness4))
 
   val _runtimeParas = RuntimeParas(100)

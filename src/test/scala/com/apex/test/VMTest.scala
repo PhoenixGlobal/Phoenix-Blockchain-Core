@@ -691,7 +691,7 @@ object VMTest {
   private val _witness3 = InitWitness("init3", priv3.publicKey.address)
   private val _witness4 = InitWitness("init4", priv4.publicKey.address)
 
-  private val _consensusSettings = ConsensusSettings(500, 500, 1, 4, 63000, Array(_witness1, _witness2, _witness3, _witness4))
+  private val _consensusSettings = ConsensusSettings(500, 500, 1, 4, 5, 63000, Array(_witness1, _witness2, _witness3, _witness4))
 
   private var nonce = 0
 

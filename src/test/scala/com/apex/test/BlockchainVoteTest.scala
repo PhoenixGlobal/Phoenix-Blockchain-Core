@@ -42,7 +42,7 @@ class BlockchainVoteTest {
 
   val _miners = MinerSettings(Array(w1, w2, w3, w4, _acct1))
 
-  val _consensusSettings  = ConsensusSettings(_produceInterval, 500, 1, 4, 2000, Array(_witness1, _witness2, _witness3, _witness4))
+  val _consensusSettings  = ConsensusSettings(_produceInterval, 500, 1, 4, 5, 2000, Array(_witness1, _witness2, _witness3, _witness4))
   //val _consensusSettings2 = ConsensusSettings(_produceInterval, 500, 3, 4, 63000, Array(_witness1, _witness2, _witness3, _witness4))
 
   val _runtimeParas = RuntimeParas(100)
