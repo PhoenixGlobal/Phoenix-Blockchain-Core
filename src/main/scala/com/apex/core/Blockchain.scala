@@ -483,6 +483,16 @@ class Blockchain(chainSettings: ChainSettings,
       }
       require(newElectedWitnesses.size == consensusSettings.witnessNum)
 
+      var candidateWitnesses = mutable.Map.empty[UInt160, WitnessInfo]
+      val allWitnessesSortedByVote = WitnessList.sortByVote(allWitnesses.toArray)
+      val allWitnessSortedByVoteIterator = allWitnessesSortedByVote.iterator
+      while (allWitnessSortedByVoteIterator.hasNext && candidateWitnesses.size < (consensusSettings.totalWitnessNum - consensusSettings.witnessNum)) {
+        val witness = allWitnessSortedByVoteIterator.next()
+        if (!newElectedWitnesses.contains(witness.addr))
+          candidateWitnesses.update(witness.addr, witness)
+      }
+      require(candidateWitnesses.size + consensusSettings.witnessNum <= consensusSettings.totalWitnessNum)
+
       pendingWitnessList.logInfo("setCurrentWitnessList")
       dataBase.setCurrentWitnessList(pendingWitnessList)
       val newPending = WitnessList.create(newElectedWitnesses.toArray.map(_._2), curblock.id, curblock.timeStamp())
@@ -491,6 +501,9 @@ class Blockchain(chainSettings: ChainSettings,
 
       mCurWitnessList = dataBase.getCurrentWitnessList()
       mPendingWitnessList = dataBase.getPendingWitnessList()
+
+      log.info(s"candidateWitnesses num: ${candidateWitnesses.size}")
+
     }
     checkUpdateProposalVote(curblock)
   }

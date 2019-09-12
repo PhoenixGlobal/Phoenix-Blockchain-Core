@@ -48,8 +48,8 @@ class BlockchainTest {
     _witAcct3,
     _witAcct4))
 
-  val _consensusSettings  = ConsensusSettings(_produceInterval, 500, 1, 4, 5, 63000, Array(_witness1, _witness2, _witness3, _witness4))
-  val _consensusSettings2 = ConsensusSettings(_produceInterval, 500, 3, 4, 5, 63000, Array(_witness1, _witness2, _witness3, _witness4))
+  val _consensusSettings  = ConsensusSettings(_produceInterval, 500, 1, 4, 5, 2.1, 63000, Array(_witness1, _witness2, _witness3, _witness4))
+  val _consensusSettings2 = ConsensusSettings(_produceInterval, 500, 3, 4, 5, 2.1, 63000, Array(_witness1, _witness2, _witness3, _witness4))
 
   val _runtimeParas = RuntimeParas(100)
 

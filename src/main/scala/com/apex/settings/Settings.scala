@@ -110,6 +110,7 @@ case class ConsensusSettings(produceInterval: Int,
                              producerRepetitions: Int,
                              witnessNum: Int,  // 21
                              totalWitnessNum: Int,  // 50
+                             candidateAward: Double,
                              electeTime: Long,
                              initialWitness: Array[InitWitness]) {
 
@@ -125,6 +126,7 @@ case class ConsensusSettings(produceInterval: Int,
     os.writeInt(producerRepetitions)
     os.writeInt(witnessNum)
     os.writeInt(totalWitnessNum)
+    os.writeDouble(candidateAward)
     os.writeLong(electeTime)
     initialWitness.foreach(w => {
       os.writeBytes(w.name)
