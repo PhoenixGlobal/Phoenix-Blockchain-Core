@@ -19,7 +19,6 @@ import com.apex.common.ApexLogging
 import com.apex.consensus._
 import com.apex.core._
 import com.apex.proposal.{Proposal, ProposalList, ProposalVoteList}
-import com.apex.rpc.RpcServer.sussesRes
 import com.apex.settings.ApexSettings
 import com.typesafe.config.Config
 import play.api.libs.json._
@@ -60,7 +59,7 @@ object RpcServer extends ApexLogging {
                       case Success(blockOption) => {
                         blockOption match {
                           case Some(block) => sussesRes(Json.prettyPrint(Block.blockWrites.writes(block)))
-                          case None => sussesRes("")
+                          case None => sussesRes("{}")
                         }
                       }
                       case Failure(e) => error500Res(e.getMessage)
@@ -77,7 +76,7 @@ object RpcServer extends ApexLogging {
                           case Success(blockOption) => {
                             blockOption match {
                               case Some(block) => sussesRes(Json.prettyPrint(Block.blockWrites.writes(block)))
-                              case None => sussesRes("")
+                              case None => sussesRes("{}")
                             }
                           }
                           case Failure(e) => error500Res(e.getMessage)
@@ -123,7 +122,7 @@ object RpcServer extends ApexLogging {
                         case Success(accountOption) => {
                           accountOption match {
                             case Some(account) => sussesRes(Json.prettyPrint(Account.accountWrites.writes(account)))
-                            case None => sussesRes("")
+                            case None => sussesRes("{}")
                           }
                         }
                         case Failure(e) => error500Res(e.getMessage)
@@ -150,7 +149,7 @@ object RpcServer extends ApexLogging {
                         case Success(contractOption) => {
                           contractOption match {
                             case Some(contract) => sussesRes(Json.prettyPrint(TransactionReceipt.TransactionReceiptWrites.writes(contract)))
-                            case None => sussesRes("")
+                            case None => sussesRes("{}")
                           }
                         }
                         case Failure(e) => error500Res(e.getMessage)
@@ -272,7 +271,7 @@ object RpcServer extends ApexLogging {
                         case Success(producerOption) => {
                           producerOption match {
                             case Some(producer) => sussesRes(Json.prettyPrint(WitnessInfo.witnessInfoWrites.writes(producer)))
-                            case None => sussesRes("")
+                            case None => sussesRes("{}")
                           }
                         }
                         case Failure(e) => error500Res(e.getMessage)
@@ -321,7 +320,7 @@ object RpcServer extends ApexLogging {
                         case Success(proposalOption) => {
                           proposalOption match {
                             case Some(proposal) => sussesRes(Json.prettyPrint(Proposal.proposalWrites.writes(proposal)))
-                            case None => sussesRes("")
+                            case None => sussesRes("{}")
                           }
                         }
                         case Failure(e) => error500Res(e.getMessage)
@@ -394,7 +393,7 @@ object RpcServer extends ApexLogging {
               val f = (gasPricePlugin ? GetAverageCmd)
                 .mapTo[Try[String]]
                 .map(s => s match {
-                  case Success(average) => sussesRes(average)
+                  case Success(average) => sussesRes("{\"averageGasPrice\":\"$average\"}")
                   case Failure(e) => error500Res(e.getMessage)
                 })
               complete(f)

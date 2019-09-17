@@ -232,7 +232,10 @@ object GetProducersCmd {
     ) map (GetProducersCmd.apply _)
 }
 
-case class ExecResult(var succeed: Boolean = true, var status: Int = 200, var message: String = "", var result: String = "")
+case class ExecResult(var succeed: Boolean = true,
+                      var status: Int = 200,
+                      var message: String = "",
+                      var result: String = "{}")
 
 object ExecResult {
   implicit val resultWrites = new Writes[ExecResult] {
