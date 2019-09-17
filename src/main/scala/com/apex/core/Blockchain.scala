@@ -503,7 +503,10 @@ class Blockchain(chainSettings: ChainSettings,
       mPendingWitnessList = dataBase.getPendingWitnessList()
 
       log.info(s"candidateWitnesses num: ${candidateWitnesses.size}")
-
+      candidateWitnesses.foreach(f => {
+        log.info(s"  candidate ${f._1.shortAddr} addBalance ${consensusSettings.candidateAward}")
+        dataBase.addBalance(f._1, FixedNumber.fromDecimal(consensusSettings.candidateAward))
+      })
     }
     checkUpdateProposalVote(curblock)
   }
