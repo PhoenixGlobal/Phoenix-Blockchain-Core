@@ -42,8 +42,7 @@ class BlockchainVoteTest {
 
   val _miners = MinerSettings(Array(w1, w2, w3, w4, _acct1))
 
-  val _consensusSettings  = ConsensusSettings(_produceInterval, 500, 1, 4, 2000, Array(_witness1, _witness2, _witness3, _witness4))
-  //val _consensusSettings2 = ConsensusSettings(_produceInterval, 500, 3, 4, 63000, Array(_witness1, _witness2, _witness3, _witness4))
+  val _consensusSettings  = ConsensusSettings(_produceInterval, 500, 1, 4, 6, 2.1, 2000, Array(_witness1, _witness2, _witness3, _witness4))
 
   val _runtimeParas = RuntimeParas(100)
 
@@ -132,8 +131,12 @@ class BlockchainVoteTest {
       _minerAward,
       GenesisSettings(Instant.EPOCH,
         "7a93d447bffe6d89e690f529a3a0bdff8ff6169172458e04849ef1d4eafd7f86",
-        Array(CoinAirdrop(_acct1.publicKey.address, 200),
-          CoinAirdrop(_acct2.publicKey.address, 300))
+        Array(
+          CoinAirdrop(_acct1.publicKey.address, 200),
+          CoinAirdrop(_acct2.publicKey.address, 300),
+          CoinAirdrop(_acct3.publicKey.address, 300),
+          CoinAirdrop(_acct4.publicKey.address, 300)
+        )
       )
     )
 
@@ -249,10 +252,6 @@ class BlockchainVoteTest {
 
       println("block9 inserted")
       assert(chain.getProducers("active").contains(_acct1.publicKey.pubKeyHash))
-
-
-
-
 
       val block10 = makeBlock(chain, block9, Seq.empty)
       assert(chain.tryInsertBlock(block10))
@@ -424,6 +423,154 @@ class BlockchainVoteTest {
       assert(chain.tryInsertBlock(block2error))
       assert(chain.getProducers("all").contains(_acct1.publicKey.pubKeyHash))
       assert(chain.getProducers("all").witnesses.size == 5)
+    }
+    finally {
+      chain.close()
+    }
+  }
+
+  @Test
+  def testBasicRegVote5_pendingWitness(): Unit = {
+    val chain = createChain("testBasicRegVote5")
+    try {
+
+      assert(chain.getHeight() == 0)
+
+      var nowTime = Instant.now.toEpochMilli - 90000
+      var blockTime = ProducerUtil.nextBlockTime(chain.getHeadTime(), nowTime, _produceInterval / 10, _produceInterval) //  chain.getHeadTime() + _consensusSettings.produceInterval
+      //sleepTo(blockTime)
+      blockTime += _produceInterval
+      startProduceBlock(chain, blockTime, Long.MaxValue)
+
+      assert(chain.isProducingBlock())
+
+      val block1 = chain.produceBlockFinalize().get
+      assert(chain.head.id() == block1.id())
+
+      assert(chain.getProducers("all").witnesses.size == 4)
+      assert(!chain.getProducers("all").contains(_acct1.publicKey.pubKeyHash))
+      assert(!chain.getProducers("all").contains(_acct2.publicKey.pubKeyHash))
+      assert(!chain.getProducers("all").contains(_acct3.publicKey.pubKeyHash))
+      assert(!chain.getProducers("all").contains(_acct4.publicKey.pubKeyHash))
+
+      assert(chain.getBalance(_acct1).get == FixedNumber.fromDecimal(200))
+
+      val block2 = makeBlock(chain, block1, Seq(
+        createRegisterTransaction(0, _acct1),
+        createRegisterTransaction(0, _acct3),
+        createRegisterTransaction(0, _acct4),
+      ))
+      assert(chain.tryInsertBlock(block2))
+
+      println("block2 inserted")
+
+      var balance1 = chain.getBalance(_acct1).get
+      var balance3 = chain.getBalance(_acct3).get
+      var balance4 = chain.getBalance(_acct4).get
+
+      assert(chain.getProducers("all").witnesses.size == 7)
+
+      val currentWitness = chain.getProducers("active").witnesses
+      assert(currentWitness.length == 4)
+
+      assert(chain.getProducers("all").contains(_acct1.publicKey.pubKeyHash))
+      assert(!chain.getProducers("all").contains(_acct2.publicKey.pubKeyHash))
+      assert(chain.getProducers("all").contains(_acct3.publicKey.pubKeyHash))
+      assert(chain.getProducers("all").contains(_acct4.publicKey.pubKeyHash))
+
+      val block3 = makeBlock(chain, block2, Seq(
+        createVoteTransaction(_acct2, _acct1, OperationType.register, FixedNumber.fromDecimal(7), 0),
+        createVoteTransaction(_acct2, w1, OperationType.register, FixedNumber.fromDecimal(10), 1),
+        createVoteTransaction(_acct2, w2, OperationType.register, FixedNumber.fromDecimal(10), 2),
+        createVoteTransaction(_acct2, w3, OperationType.register, FixedNumber.fromDecimal(10), 3),
+        createVoteTransaction(_acct2, w4, OperationType.register, FixedNumber.fromDecimal(10), 4),
+        createVoteTransaction(_acct2, _acct3, OperationType.register, FixedNumber.fromDecimal(3), 5),
+        createVoteTransaction(_acct2, _acct4, OperationType.register, FixedNumber.fromDecimal(5), 6)
+      ))
+      assert(chain.tryInsertBlock(block3))
+      //
+      //      val newAcct1Witness = chain.getWitness(_acct1.publicKey.pubKeyHash).get.copy(register = false)
+      //      chain.setWitness(newAcct1Witness)
+      //      chain.updateWitnessList(block1)
+
+      println("block3 inserted")
+
+      val block4 = makeBlock(chain, block3, Seq.empty)
+      assert(chain.tryInsertBlock(block4))
+
+      println("block4 inserted")
+      assert(!chain.getProducers("pending").contains(_acct1.publicKey.pubKeyHash))
+
+      val block5 = makeBlock(chain, block4, Seq.empty)
+      assert(chain.tryInsertBlock(block5))
+      println("block5 inserted")
+
+      // check pending witness award
+
+      assert(chain.getBalance(_acct1).get == balance1 + FixedNumber.fromDecimal(2.1))
+      assert(chain.getBalance(_acct3).get == balance3)
+      assert(chain.getBalance(_acct4).get == balance4 + FixedNumber.fromDecimal(2.1))
+
+      assert(!chain.getProducers("pending").contains(_acct1.publicKey.pubKeyHash))
+
+      val block6 = makeBlock(chain, block5, Seq.empty)
+      assert(chain.tryInsertBlock(block6))
+
+      val block7 = makeBlock(chain, block6, Seq.empty)
+      assert(chain.tryInsertBlock(block7))
+      println("block7 inserted")
+
+      val block8 = makeBlock(chain, block7, Seq.empty)
+      assert(chain.tryInsertBlock(block8))
+
+      println("block8 inserted")
+      assert(!chain.getProducers("active").contains(_acct1.publicKey.pubKeyHash))
+
+      val block9 = makeBlock(chain, block8, Seq.empty)
+      assert(chain.tryInsertBlock(block9))
+
+      println("block9 inserted")
+      assert(!chain.getProducers("active").contains(_acct1.publicKey.pubKeyHash))
+
+      val block10 = makeBlock(chain, block9, Seq.empty)
+      assert(chain.tryInsertBlock(block10))
+      println("block10 inserted")
+      assert(!chain.getProducers("active").contains(_acct1.publicKey.pubKeyHash))
+
+      val block11 = makeBlock(chain, block10, Seq.empty)
+      assert(chain.tryInsertBlock(block11))
+
+      println("block11 inserted")
+      assert(!chain.getProducers("active").contains(_acct1.publicKey.pubKeyHash))
+
+      val block12 = makeBlock(chain, block11, Seq.empty)
+      assert(chain.tryInsertBlock(block12))
+
+      println("block12 inserted")
+      assert(!chain.getProducers("active").contains(_acct1.publicKey.pubKeyHash))
+
+      //test getBlock()
+      assert(chain.getBlock(0).get.height() == 0)
+      assert(chain.getBlock(1).get.id == block1.id)
+      assert(chain.getBlock(2).get.id == block2.id)
+      assert(chain.getBlock(3).get.id == block3.id)
+      assert(chain.getBlock(11).get.id == block11.id)
+      assert(chain.getBlock(11).get.id != block12.id)
+      //assert(chain.getBlock(13) == None)
+
+      // getHeader()
+      assert(chain.getHeader(1).get.id == block1.id)
+      assert(chain.getHeader(11).get.id == block11.id)
+      //assert(chain.getHeader(13) == None)
+      assert(chain.getHeader(block1.id).get.id == block1.id)
+      assert(chain.getHeader(block11.id).get.id == block11.id)
+
+      // getNextBlockId()
+      assert(chain.getNextBlockId(block1.id).get == block2.id)
+      assert(chain.getNextBlockId(block2.id).get == block3.id)
+      assert(chain.getNextBlockId(block11.id).get == block12.id)
+      assert(chain.getNextBlockId(block12.id) == None)
+
     }
     finally {
       chain.close()

@@ -10,6 +10,7 @@ class Account(val pubKeyHash: UInt160,
               val active: Boolean,
               val name: String,
               val balance: FixedNumber,
+              //val pendingBalance: FixedNumber,
               val nextNonce: Long,
               val codeHash: Array[Byte] = Array.empty,
               val version: Int = 0x01) extends com.apex.common.Serializable {
@@ -25,6 +26,7 @@ class Account(val pubKeyHash: UInt160,
     os.writeBoolean(active)
     os.writeString(name)
     os.write(balance)
+    //os.write(pendingBalance)
     os.writeLong(nextNonce)
     os.writeByteArray(codeHash)
   }
@@ -33,11 +35,13 @@ class Account(val pubKeyHash: UInt160,
 object Account {
   implicit class Extension(account: Account) {
     def increaseNonce(): Account = {
-      new Account(account.pubKeyHash, account.active, account.name, account.balance, account.nextNonce + 1, account.codeHash, account.version)
+      new Account(account.pubKeyHash, account.active, account.name, account.balance, //account.pendingBalance,
+        account.nextNonce + 1, account.codeHash, account.version)
     }
 
     def addBalance(value: FixedNumber): Account = {
-      new Account(account.pubKeyHash, account.active, account.name, account.balance + value, account.nextNonce, account.codeHash, account.version)
+      new Account(account.pubKeyHash, account.active, account.name, account.balance + value, //account.pendingBalance,
+        account.nextNonce, account.codeHash, account.version)
     }
   }
 
@@ -57,6 +61,7 @@ object Account {
     val active = is.readBoolean
     val name = is.readString
     val balance = is.readObj[FixedNumber]
+    //val pendingBalance = is.readObj[FixedNumber]
     val nextNonce = is.readLong
     val codeHash = is.readByteArray
 
@@ -65,6 +70,7 @@ object Account {
       active = active,
       name = name,
       balance = balance,
+      //pendingBalance = pendingBalance,
       nextNonce = nextNonce,
       codeHash = codeHash,
       version = version
@@ -78,6 +84,7 @@ object Account {
         "active" -> o.active,
         "name" -> o.name,
         "balance" -> o.balance.toString,
+        //"pendingBalance" -> o.pendingBalance.toString,
         "nextNonce" -> o.nextNonce,
         "codeHash" -> Hex.toHexString(o.codeHash),
         "version" -> o.version
