@@ -208,7 +208,7 @@ class Blockchain(chainSettings: ChainSettings,
     }
     require(!isProducingBlock())
     val forkHead = forkBase.head.get
-    if (forceStartProduce == false && forkBase.forkItemNum() > 50 * consensusSettings.witnessNum * consensusSettings.producerRepetitions) {
+    if (forceStartProduce == false && forkBase.forkItemNum() > 20 * consensusSettings.witnessNum * consensusSettings.producerRepetitions) {
       log.error(s"too many unconfirmed block, abort produce new block. forkItemNum=${forkBase.forkItemNum()} head=${forkHead.block.height()} ${forkHead.block.shortId()}")
     }
     else {
