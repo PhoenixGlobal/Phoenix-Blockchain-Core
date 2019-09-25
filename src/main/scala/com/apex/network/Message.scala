@@ -32,6 +32,7 @@ object MessageType extends Enumeration {
   val GetNextBlocks = Value(11)
   val NextBlocks = Value(12)
   val BlocksSendStop = Value(13)
+  val Sync = Value(14)
 }
 
 trait PackMessage {
@@ -105,6 +106,12 @@ case class NextBlocksMessage(blocks: BlocksPayload) extends NetworkMessage(Messa
 case class BlocksSendStopMessage(block: Long) extends NetworkMessage(MessageType.BlocksSendStop) {
   override def pack(): MessagePack = {
     MessagePack(messageType, BigInt(block).toByteArray)
+  }
+}
+
+case class SyncMessage(syncInfo: SyncPayload) extends NetworkMessage(MessageType.Sync) {
+  override def pack(): MessagePack = {
+    MessagePack(messageType, syncInfo.toBytes)
   }
 }
 
@@ -239,6 +246,42 @@ object PeerInfoPayload {
   }
 }
 
+
+
+class SyncPayload(val confirmHeight: Long,
+                  val confirmHash: UInt256,
+                  val latestHeight: Long,
+                  val latestHash: UInt256) extends com.apex.common.Serializable {
+  def serialize(os: DataOutputStream) = {
+    import com.apex.common.Serializable._
+
+    os.writeLong(confirmHeight)
+    os.write(confirmHash)
+    os.writeLong(latestHeight)
+    os.write(latestHash)
+  }
+}
+
+object SyncPayload {
+  def deserialize(is: DataInputStream): SyncPayload = {
+    import com.apex.common.Serializable._
+
+    val confirmHeight = is.readLong()
+    val confirmHash = is.readObj(UInt256.deserialize)
+    val latestHeight = is.readLong()
+    val latestHash = is.readObj(UInt256.deserialize)
+
+    new SyncPayload(confirmHeight, confirmHash, latestHeight, latestHash)
+  }
+
+  def fromBytes(data: Array[Byte]): SyncPayload = {
+    val bs = new ByteArrayInputStream(data)
+    val is = new DataInputStream(bs)
+    deserialize(is)
+  }
+}
+
+
 object MessagePack {
   def fromBytes(bytes: Array[Byte], addr: InetSocketAddress = null): Option[NetworkMessage] = {
     try {
@@ -277,6 +320,9 @@ object MessagePack {
         }
         case MessageType.BlocksSendStop => {
           Some(BlocksSendStopMessage(BigInt(data).toLong))
+        }
+        case MessageType.Sync => {
+          Some(SyncMessage(SyncPayload.fromBytes(data)))
         }
       }
     }

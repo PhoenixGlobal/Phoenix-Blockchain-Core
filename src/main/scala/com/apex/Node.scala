@@ -297,6 +297,9 @@ class Node(val settings: ApexSettings, config: Config)
       case VersionMessage(height) => {
         processVersionMessage(message.asInstanceOf[VersionMessage])
       }
+      case SyncMessage(syncInfo) => {
+        processSyncMessage(message.asInstanceOf[SyncMessage])
+      }
       case GetBlocksMessage(blockHashs) => {
         processGetBlocksMessage(message.asInstanceOf[GetBlocksMessage])
       }
@@ -337,6 +340,20 @@ class Node(val settings: ApexSettings, config: Config)
 
   private def processVersionMessage(msg: VersionMessage) = {
     // first msg, start to sync
+
+    log.info("get VersionMessage")
+
+    sender() ! SyncMessage(new SyncPayload(
+      chain.getConfirmedHeight(),
+      chain.getConfirmedHeader().id(),
+      chain.getLatestHeader().index,
+      chain.getLatestHeader().id())).pack
+  }
+
+  private def processSyncMessage(syncMsg: SyncMessage) = {
+
+    log.info(s"get SyncMessage, confirm: ${syncMsg.syncInfo.confirmHeight} ${syncMsg.syncInfo.confirmHash.shortString()} latest: ${syncMsg.syncInfo.latestHeight} ${syncMsg.syncInfo.latestHash.shortString()}")
+    log.info(s"current local status: confirm: ${chain.getConfirmedHeight()} ${chain.getConfirmedHeader().shortId()} latest: ${chain.getLatestHeader().index} ${chain.getLatestHeader().shortId()}")
 
     if (Instant.now.toEpochMilli - chain.getLatestHeader().timeStamp > 100000) {
       log.info(s"peer start sync, get from ${chain.getConfirmedHeight()}")
