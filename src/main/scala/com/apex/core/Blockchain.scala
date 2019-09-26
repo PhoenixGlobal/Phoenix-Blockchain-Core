@@ -466,7 +466,7 @@ class Blockchain(chainSettings: ChainSettings,
       isLastBlockOfProducer(curBlock.timeStamp()) &&
       curBlock.timeStamp() - pendingWitnessList.generateTime >= consensusSettings.electeTime) {
 
-      log.info(s"block ${curBlock.height()} applied, it's time to electe new producers")
+      log.info(s"block ${curBlock.height()} ${curBlock.shortId()} applied, it's time to elect new producers")
       val currentWitness = mCurWitnessList.get
       val allWitnesses = dataBase.getAllWitness().filter(_.register)
       new WitnessList(allWitnesses.toArray, UInt256.Zero, 0).logInfo("current all Witness")
