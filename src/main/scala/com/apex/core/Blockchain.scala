@@ -443,13 +443,27 @@ class Blockchain(chainSettings: ChainSettings,
     // will not get mPendingWitnessList
   }
 
-  private def checkUpdateWitnessList(curblock: Block) = {
+  private def checkUpdateWitnessList(curBlock: Block) = {
     val pendingWitnessList = mPendingWitnessList.get
+    val roundBlockNum = consensusSettings.witnessNum * consensusSettings.producerRepetitions
+    if (curBlock.height() % (roundBlockNum) == 0) {
+      var count = 0
+      var blockIndex = curBlock.height() - 1
+      val producerCount = mutable.Map.empty[UInt160, Int]
+      while (count < roundBlockNum && blockIndex > 0) {
+        count += 1
+        val block = getBlock(blockIndex)
+        if (block.isDefined)
+          producerCount.update(block.get.producer(), 1)
+        blockIndex -= 1
+      }
+      log.info(s"there are ${producerCount.size} producers in last ${count} blocks")
+    }
     if (blockIsConfirmed(pendingWitnessList.generateInBlock) &&
-      isLastBlockOfProducer(curblock.timeStamp()) &&
-      curblock.timeStamp() - pendingWitnessList.generateTime >= consensusSettings.electeTime) {
+      isLastBlockOfProducer(curBlock.timeStamp()) &&
+      curBlock.timeStamp() - pendingWitnessList.generateTime >= consensusSettings.electeTime) {
 
-      log.info(s"block ${curblock.height()} applied, it's time to electe new producers")
+      log.info(s"block ${curBlock.height()} applied, it's time to electe new producers")
       val currentWitness = mCurWitnessList.get
       val allWitnesses = dataBase.getAllWitness().filter(_.register)
       new WitnessList(allWitnesses.toArray, UInt256.Zero, 0).logInfo("current all Witness")
@@ -495,7 +509,7 @@ class Blockchain(chainSettings: ChainSettings,
 
       pendingWitnessList.logInfo("setCurrentWitnessList")
       dataBase.setCurrentWitnessList(pendingWitnessList)
-      val newPending = WitnessList.create(newElectedWitnesses.toArray.map(_._2), curblock.id, curblock.timeStamp())
+      val newPending = WitnessList.create(newElectedWitnesses.toArray.map(_._2), curBlock.id, curBlock.timeStamp())
       newPending.logInfo("setPendingWitnessList")
       dataBase.setPendingWitnessList(newPending)
 
@@ -508,7 +522,7 @@ class Blockchain(chainSettings: ChainSettings,
         dataBase.addBalance(f._1, FixedNumber.fromDecimal(consensusSettings.candidateAward))
       })
     }
-    checkUpdateProposalVote(curblock)
+    checkUpdateProposalVote(curBlock)
   }
 
   private def checkUpdateProposalVote(curBlock: Block) = {
