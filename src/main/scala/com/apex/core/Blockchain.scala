@@ -114,6 +114,9 @@ class Blockchain(chainSettings: ChainSettings,
     log.info("blockchain closed")
   }
 
+  //for debug
+  def getDataBase() = dataBase
+
   def getChainInfo(): ChainInfo = {
     ChainInfo(genesisBlock.id.toString)
   }

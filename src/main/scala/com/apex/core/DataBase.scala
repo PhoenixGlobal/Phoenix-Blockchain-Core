@@ -32,7 +32,7 @@ class DataBase(settings: DataBaseSettings, consensusSettings: ConsensusSettings,
   private val scheduleTxStore = new ScheduleTxStore(tracking, settings.cacheSize)
 
   private val witnessVoteStore = new WitnessVoteStore(tracking, settings.cacheSize)
-  private val witnessInfoStore = new WitnessInfoStore(tracking, settings.cacheSize)
+  private val witnessInfoStore = new WitnessInfoStore(tracking)
 
   private val previousWitnessStore = new PreviousWitnessStore(tracking)
   private val currentWitnessStore = new CurrentWitnessStore(tracking)
@@ -160,20 +160,34 @@ class DataBase(settings: DataBaseSettings, consensusSettings: ConsensusSettings,
   }
 
   def getAllWitness(): ArrayBuffer[WitnessInfo] = {
-    witnessInfoStore.getLists(Array(StoreType.Data.id.toByte, DataType.WitnessInfo.id.toByte))
+    //witnessInfoStore.getLists(Array(StoreType.Data.id.toByte, DataType.WitnessInfo.id.toByte))
+    val witnessMap = witnessInfoStore.get
+    if (witnessMap.isDefined)
+      witnessMap.get.getAll()
+    else
+      ArrayBuffer.empty[WitnessInfo]
   }
 
   def getWitness(address: UInt160): Option[WitnessInfo] = {
-    witnessInfoStore.get(address)
+    val witnessMap = witnessInfoStore.get
+    if (witnessMap.isDefined)
+      witnessMap.get.get(address)
+    else
+      None
   }
 
   def setWitness(witness: WitnessInfo) = {
-    witnessInfoStore.set(witness.addr, witness)
+    var newMap = new WitnessMap(mutable.Map.empty[UInt160, WitnessInfo])
+    val witnessMap = witnessInfoStore.get
+    if (witnessMap.isDefined)
+      newMap = witnessMap.get
+    newMap.set(witness)
+    witnessInfoStore.set(newMap)
   }
 
-  def deleteWitness(address: UInt160): Unit = {
-    witnessInfoStore.delete(address)
-  }
+//  def deleteWitness(address: UInt160): Unit = {
+//    witnessInfoStore.delete(address)
+//  }
 
   def getWitnessVote(address: UInt160): Option[WitnessVote] = {
     witnessVoteStore.get(address)
