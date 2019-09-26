@@ -150,16 +150,16 @@ class TxMaxGasLimitStore(db: Storage.raw)
     with TxMaxGasLimitPrefix
     with FixedNumberValue
 
-//class WitnessInfoStore(db: Storage.raw)
-//  extends StateStore[WitnessMap](db)
-//    with AllWitnessMapStatePrefix
-//    with WitnessMapValue
+class WitnessInfoStore(db: Storage.raw)
+  extends StateStore[WitnessMap](db)
+    with AllWitnessMapStatePrefix
+    with WitnessMapValue
 
-class WitnessInfoStore(db: Storage.raw, capacity: Int)
-  extends StoreBase[UInt160, WitnessInfo](db, capacity)
-    with WitnessInfoPrefix
-    with UInt160Key
-    with WitnessInfoValue
+//class WitnessInfoStore(db: Storage.raw, capacity: Int)
+//  extends StoreBase[UInt160, WitnessInfo](db, capacity)
+//    with WitnessInfoPrefix
+//    with UInt160Key
+//    with WitnessInfoValue
 
 class ProposalStore(db: Storage.raw, capacity: Int)
   extends StoreBase[UInt256, Proposal](db, capacity)
@@ -343,6 +343,10 @@ trait MinGasPricePrefix extends StatePrefix {
 
 trait TxMaxGasLimitPrefix extends StatePrefix {
   override val stateType: StateType.Value = StateType.TxMaxGasLimit
+}
+
+trait AllWitnessMapStatePrefix extends StatePrefix {
+  override val stateType: StateType.Value = StateType.AllWitnessMapState
 }
 
 trait Converter[A] {
