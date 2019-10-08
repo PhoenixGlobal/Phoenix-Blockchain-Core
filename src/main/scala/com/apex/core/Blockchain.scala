@@ -449,7 +449,7 @@ class Blockchain(chainSettings: ChainSettings,
   private def checkUpdateWitnessList(curBlock: Block) = {
     val pendingWitnessList = mPendingWitnessList.get
     val roundBlockNum = consensusSettings.witnessNum * consensusSettings.producerRepetitions
-    if (curBlock.height() % (roundBlockNum) == 0) {
+    if (curBlock.height() % roundBlockNum == 0) {
       var count = 0
       var blockIndex = curBlock.height() - 1
       val producerCount = mutable.Map.empty[UInt160, Int]

@@ -7,8 +7,9 @@ import com.apex.core._
 import com.apex.crypto.{BinaryData, Crypto, Ecdsa, FixedNumber, MerkleTree, UInt160, UInt256}
 import com.apex.crypto.Ecdsa.{PrivateKey, PublicKey}
 import com.apex.settings.{ConsensusSettings, RuntimeParas, _}
+import com.apex.proposal._
 import com.apex.solidity.Abi
-import com.apex.vm.{DataWord}
+import com.apex.vm.DataWord
 import com.apex.vm.precompiled._
 import org.junit.{AfterClass, Test}
 
@@ -1177,6 +1178,89 @@ class BlockchainTest {
       chain.close()
     }
   }
+
+  @Test
+  def testDBGetAll1(): Unit = {
+    val chain = createChain("testDBGetAll1")
+    try {
+
+      assert(chain.getHeight() == 0)
+
+      var nowTime = Instant.now.toEpochMilli - 90000
+      var blockTime = ProducerUtil.nextBlockTime(chain.getHeadTime(), nowTime, _produceInterval / 10, _produceInterval) //  chain.getHeadTime() + _consensusSettings.produceInterval
+      sleepTo(blockTime)
+      blockTime += _produceInterval
+      startProduceBlock(chain, blockTime, Long.MaxValue)
+
+      assert(chain.isProducingBlock())
+
+      val db = chain.getDataBase()
+
+      val id1 = UInt256.fromBytes(BinaryData("15e52a9bab596291d0afef27bfa40de6993ebd7c3837f2e4634f5bd60d22d841"))
+      val id2 = UInt256.fromBytes(BinaryData("25e52a9bab596291d0afef27bfa40de6993ebd7c3837f2e4634f5bd60d22d841"))
+
+      val p1 = new Proposal(id1, ProposalType.BlockAward, ProposalStatus.PendingActive, 1, 1, 1, Array.empty, BinaryData.empty)
+      val p2 = new Proposal(id2, ProposalType.BlockAward, ProposalStatus.PendingActive, 1, 1, 1, Array.empty, BinaryData.empty)
+      val p22 = new Proposal(id2, ProposalType.BlockAward, ProposalStatus.PendingActive, 2, 2, 2, Array.empty, BinaryData.empty)
+
+      db.setProposal(p1)
+      db.setProposal(p2)
+
+      var allP = db.getAllProposal()
+      assert(allP.size == 2)
+
+      db.commit()
+      db.startSession()
+
+      db.setProposal(p22)
+
+      allP = db.getAllProposal()
+      assert(allP.size == 2)
+
+    }
+    finally {
+      chain.close()
+    }
+  }
+
+  @Test
+  def testDBGetAll2(): Unit = {
+    val chain = createChain("testDBGetAll2")
+    try {
+
+      assert(chain.getHeight() == 0)
+
+      var nowTime = Instant.now.toEpochMilli - 90000
+      var blockTime = ProducerUtil.nextBlockTime(chain.getHeadTime(), nowTime, _produceInterval / 10, _produceInterval) //  chain.getHeadTime() + _consensusSettings.produceInterval
+      sleepTo(blockTime)
+      blockTime += _produceInterval
+      startProduceBlock(chain, blockTime, Long.MaxValue)
+
+      assert(chain.isProducingBlock())
+
+      val db = chain.getDataBase()
+
+      val id1 = UInt256.fromBytes(BinaryData("15e52a9bab596291d0afef27bfa40de6993ebd7c3837f2e4634f5bd60d22d841"))
+      val id2 = UInt256.fromBytes(BinaryData("25e52a9bab596291d0afef27bfa40de6993ebd7c3837f2e4634f5bd60d22d841"))
+
+      val p1 = new Proposal(id1, ProposalType.BlockAward, ProposalStatus.PendingActive, 1, 1, 1, Array.empty, BinaryData.empty)
+      val p2 = new Proposal(id2, ProposalType.BlockAward, ProposalStatus.PendingActive, 1, 1, 1, Array.empty, BinaryData.empty)
+
+      db.setProposal(p1)
+      db.setProposal(p2)
+
+      db.deleteProposal(id2)
+
+      var allP = db.getAllProposal()
+      assert(allP.size == 1)
+
+    }
+    finally {
+      chain.close()
+    }
+  }
+
+
 }
 
 object BlockchainTest {
