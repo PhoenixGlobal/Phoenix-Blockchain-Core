@@ -1209,7 +1209,7 @@ class BlockchainTest {
       var allP = db.getAllProposal()
       assert(allP.size == 2)
 
-      db.commit()
+//      db.commit()
       db.startSession()
 
       db.setProposal(p22)
