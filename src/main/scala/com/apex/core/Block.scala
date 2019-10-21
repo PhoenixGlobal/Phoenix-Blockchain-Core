@@ -39,6 +39,10 @@ class Block(val header: BlockHeader,
     MerkleTree.root(transactions.map(_.id))
   }
 
+  def minerTx(): Option[Transaction] = {
+    transactions.find(p => p.txType == TransactionType.Miner)
+  }
+
   //  def getTransaction(id: UInt256): Option[Transaction] = {
   //    txMp.get(id)
   //  }

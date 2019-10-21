@@ -526,6 +526,14 @@ class Blockchain(chainSettings: ChainSettings,
       })
     }
     checkUpdateProposalVote(curBlock)
+    if (curBlock.height() == 1500L) {
+      log.info(s"block ${curBlock.height()} now it is fork height")
+      if (getChainInfo().id.equals("79879832e3c15a4d0d05312bb64fcf8ce7de741fa6325715242b02eb835feb31")) {
+        val newValue = FixedNumber.fromDecimal(3.5)
+        log.info(s"new Block Award is ${newValue}")
+        dataBase.setMinerAward(newValue)
+      }
+    }
   }
 
   private def checkUpdateProposalVote(curBlock: Block) = {
@@ -1004,6 +1012,7 @@ class Blockchain(chainSettings: ChainSettings,
     }
 
     if (appliedCount < to.size) {
+      log.error(s"fork switch fail, appliedCount=${appliedCount} to.size=${to.size}")
       while (dataBase.revision > switchState.height + 1) {
         dataBase.rollBack()
         updateWitnessLists()
