@@ -1002,6 +1002,7 @@ class Blockchain(chainSettings: ChainSettings,
     var appliedCount = 0
     var continueApply = true
     for (item <- to if continueApply) {
+      log.info(s"try apply ${item.block.height()} ${item.block.shortId()}")
       if (applyBlock(item.block)) {
         checkUpdateWitnessList(item.block)
         dataBase.commit()
@@ -1017,7 +1018,20 @@ class Blockchain(chainSettings: ChainSettings,
         dataBase.rollBack()
         updateWitnessLists()
       }
-      from.foreach(item => applyBlock(item.block))
+      log.info("switch back to old chain")
+      var continueApplyFrom = true
+      from.foreach(item => {
+        if (continueApplyFrom) {
+          log.info(s"re apply block ${item.block.height()} ${item.block.shortId()}")
+          if (applyBlock(item.block)) {
+            checkUpdateWitnessList(item.block)
+            dataBase.commit()
+          } else {
+            continueApplyFrom = false
+            log.error("ERROR, stop apply old chain")
+          }
+        }
+      })
       SwitchResult(false, to(appliedCount))
     } else {
       var fromBlocksSummary = Seq[BlockSummary]()
