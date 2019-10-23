@@ -526,7 +526,7 @@ class Blockchain(chainSettings: ChainSettings,
       })
     }
     checkUpdateProposalVote(curBlock)
-    if (curBlock.height() == 1500L) {
+    if (curBlock.height() == 5511000L) {
       log.info(s"block ${curBlock.height()} now it is fork height")
       if (getChainInfo().id.equals("79879832e3c15a4d0d05312bb64fcf8ce7de741fa6325715242b02eb835feb31")) {
         val newValue = FixedNumber.fromDecimal(3.5)
