@@ -449,7 +449,7 @@ class Blockchain(chainSettings: ChainSettings,
   private def checkUpdateWitnessList(curBlock: Block) = {
     val pendingWitnessList = mPendingWitnessList.get
     val roundBlockNum = consensusSettings.witnessNum * consensusSettings.producerRepetitions
-    if (curBlock.height() % (roundBlockNum) == 0) {
+    if (curBlock.height() % roundBlockNum == 0) {
       var count = 0
       var blockIndex = curBlock.height() - 1
       val producerCount = mutable.Map.empty[UInt160, Int]
@@ -526,6 +526,14 @@ class Blockchain(chainSettings: ChainSettings,
       })
     }
     checkUpdateProposalVote(curBlock)
+    if (curBlock.height() == 5511000L) {
+      log.info(s"block ${curBlock.height()} now it is fork height")
+      if (getChainInfo().id.equals("79879832e3c15a4d0d05312bb64fcf8ce7de741fa6325715242b02eb835feb31")) {
+        val newValue = FixedNumber.fromDecimal(3.5)
+        log.info(s"new Block Award is ${newValue}")
+        dataBase.setMinerAward(newValue)
+      }
+    }
   }
 
   private def checkUpdateProposalVote(curBlock: Block) = {
@@ -994,6 +1002,7 @@ class Blockchain(chainSettings: ChainSettings,
     var appliedCount = 0
     var continueApply = true
     for (item <- to if continueApply) {
+      log.info(s"try apply ${item.block.height()} ${item.block.shortId()}")
       if (applyBlock(item.block)) {
         checkUpdateWitnessList(item.block)
         dataBase.commit()
@@ -1004,11 +1013,25 @@ class Blockchain(chainSettings: ChainSettings,
     }
 
     if (appliedCount < to.size) {
+      log.error(s"fork switch fail, appliedCount=${appliedCount} to.size=${to.size}")
       while (dataBase.revision > switchState.height + 1) {
         dataBase.rollBack()
         updateWitnessLists()
       }
-      from.foreach(item => applyBlock(item.block))
+      log.info("switch back to old chain")
+      var continueApplyFrom = true
+      from.foreach(item => {
+        if (continueApplyFrom) {
+          log.info(s"re apply block ${item.block.height()} ${item.block.shortId()}")
+          if (applyBlock(item.block)) {
+            checkUpdateWitnessList(item.block)
+            dataBase.commit()
+          } else {
+            continueApplyFrom = false
+            log.error("ERROR, stop apply old chain")
+          }
+        }
+      })
       SwitchResult(false, to(appliedCount))
     } else {
       var fromBlocksSummary = Seq[BlockSummary]()
