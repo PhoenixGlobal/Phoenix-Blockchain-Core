@@ -7,15 +7,8 @@ apply plugin: 'scala'
 
 buildscript {
     repositories {
-        def cn = "http://maven.aliyun.com/nexus/content/groups/public/"
-        def abroad = "http://central.maven.org/maven2/"
-
-        maven{
-            url cn
-            artifactUrls abroad
-        }
-        //url 'http://maven.aliyun.com/nexus/content/groups/public/'
         mavenLocal()
+        mavenCentral()
         jcenter()
     }
 
@@ -51,21 +44,13 @@ configurations {
 }
 
 repositories {
+    mavenCentral()
+    mavenLocal()
 
 
     maven { url "https://oss.jfrog.org/libs-snapshot/" }
     maven { url "https://dl.bintray.com/ethereum/maven/" }
     maven { url "https://repo.spring.io/libs-snapshot" }
-
-    def cn = "http://maven.aliyun.com/nexus/content/groups/public/"
-    def abroad = "http://central.maven.org/maven2/"
-
-    maven{
-        url cn
-        artifactUrls abroad
-    }
-
-    mavenLocal()
 }
 
 dependencies {
