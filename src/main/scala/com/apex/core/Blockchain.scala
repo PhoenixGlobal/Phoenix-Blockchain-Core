@@ -650,14 +650,14 @@ class Blockchain(chainSettings: ChainSettings,
   private def applyTransaction(tx: Transaction, blockProducer: UInt160,
                                stopTime: Long, blockTime: Long, blockIndex: Long): AddTxResult = {
     var txValid = checkTxGas(tx)
-
+    val blockOwnerAddress = getActualTransferAddress(blockProducer)
     if (txValid.added) {
       tx.txType match {
         case TransactionType.Miner => txValid = applyMinerTransaction(tx, blockProducer, blockIndex)
         case TransactionType.Transfer | TransactionType.Deploy | TransactionType.Call =>
-          txValid = applyContractTransaction(tx, blockProducer, stopTime, blockTime, blockIndex)
+          txValid = applyContractTransaction(tx, blockOwnerAddress, stopTime, blockTime, blockIndex)
         case TransactionType.Refund => txValid = applyRefundTransaction(tx, blockProducer, blockTime, blockIndex)
-        case TransactionType.Schedule => txValid = applyScheduleTransaction(tx, blockProducer, stopTime, blockTime, blockIndex)
+        case TransactionType.Schedule => txValid = applyScheduleTransaction(tx, blockOwnerAddress, stopTime, blockTime, blockIndex)
       }
     }
     if (!txValid.added)
@@ -745,11 +745,21 @@ class Blockchain(chainSettings: ChainSettings,
   }
 
   private def applyMinerTransaction(tx: Transaction, blockProducer: UInt160, blockIndex: Long): AddTxResult = {
-    dataBase.transfer(tx.from, tx.toPubKeyHash, tx.amount)
+    val actualTransferAddress = getActualTransferAddress(tx.toPubKeyHash)
+    dataBase.transfer(tx.from, actualTransferAddress, tx.amount)
     dataBase.increaseNonce(tx.from)
     blockBase.setReceipt(tx.id(), TransactionReceipt(tx.id(), tx.txType, tx.from, blockProducer,
       blockIndex, 0, BinaryData.empty, 0, ""))
     AddTxSucceed
+  }
+
+
+  private def getActualTransferAddress(toPubkeyHash: UInt160): UInt160 ={
+    val witness = getWitness(toPubkeyHash)
+    if(witness.isDefined && witness.get.ownerAddress != null) {
+         witness.get.ownerAddress
+    }
+    else toPubkeyHash
   }
 
   private def scheduleTxFirstExecute(tx: Transaction, blockProducer: UInt160,
@@ -926,6 +936,7 @@ class Blockchain(chainSettings: ChainSettings,
     }
 
     log.info("chain populate")
+    println(forkBase.head.isEmpty + forkBase.forkItemNum().toString)
     if (forkBase.head.isEmpty) {
       dataBase.setMinerAward(minerAward)
       dataBase.setMinGasPrice(FixedNumber.MinValue)

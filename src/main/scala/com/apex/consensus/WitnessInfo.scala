@@ -24,7 +24,8 @@ case class WitnessInfo(addr: UInt160,
                        voteCounts: FixedNumber = FixedNumber.Zero,
                        register: Boolean = true,
                        frozen: Boolean = false,
-                       version: Int = 0x01) extends com.apex.common.Serializable {
+                       version: Int = 0x01,
+                       ownerAddress: UInt160 = null) extends com.apex.common.Serializable {
 
   def updateVoteCounts(votes: FixedNumber): WitnessInfo = {
     val witness = this.copy(voteCounts = this.voteCounts + votes)

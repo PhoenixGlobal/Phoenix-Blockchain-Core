@@ -24,6 +24,9 @@ class ProposalContract(track: DataBase,
 
   override def execute(data: Array[Byte]): (Boolean, Array[Byte]) = {
     try {
+      val owner = track.getWitness(tx.from)
+      if(owner.isDefined && owner.get.ownerAddress != null && owner.get.ownerAddress.equals(tx.from))
+        return (false, ("the witness has an owner and has no right to raise a proposal").getBytes())
       val proposalData = ProposalData.fromBytes(data)
       log.info(s"new proposal: proposer=${tx.from.shortAddr} type=${proposalData.proposalType} activeTime=${proposalData.activeTime} proposalValue=${proposalData.proposalValue.toString} txid=${tx.id}")
       if (proposalData.proposalType == ProposalType.BlockAward

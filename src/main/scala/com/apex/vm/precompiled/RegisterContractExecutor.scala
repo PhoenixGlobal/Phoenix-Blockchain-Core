@@ -118,7 +118,9 @@ object RegisterContractExecutor {
       val time = timeStamp + 24 * 60 * 60 * 1000/*750/*60 * 1000 * 2*/*/
       //note: this scheduleTx from and to address are opposite to tx; amount is the register spend;
       // the tx hash exists in the data filed of scheduleTx
-      val scheduleTx = new Transaction(TransactionType.Refund, tx.toPubKeyHash, tx.from,
+      val owner = track.getWitness(registerData.registerInfo.addr)
+      val refundAddr = if(owner.isDefined && owner.get.ownerAddress != null) owner.get.ownerAddress else tx.from
+      val scheduleTx = new Transaction(TransactionType.Refund, tx.toPubKeyHash, refundAddr,
         FixedNumber(registerSpend.value), tx.nonce, tx.id.data, tx.gasPrice, tx.gasLimit, tx.signature, tx.version, time)
       track.setScheduleTx(scheduleTx.id, scheduleTx)
       val updatedWitness = track.getWitness(registerData.registerInfo.addr).get.copy(register = false)
@@ -128,7 +130,9 @@ object RegisterContractExecutor {
     }
 
     private def registerWitness(track: DataBase, registerSpend: FixedNumber) = {
-      track.addBalance(registerData.registerAccount, -registerSpend.value)
+      val owner = track.getWitness(registerData.registerInfo.addr)
+      val ownerAddr = if(owner.isDefined && owner.get.ownerAddress != null) owner.get.ownerAddress else registerData.registerAccount
+      track.addBalance(ownerAddr, -registerSpend.value)
       track.addBalance(new UInt160(PrecompiledContracts.registerNodeAddr.getLast20Bytes), registerSpend.value)
       val oldInfo = track.getWitness(registerData.registerInfo.addr)
       if (oldInfo.isDefined) {
