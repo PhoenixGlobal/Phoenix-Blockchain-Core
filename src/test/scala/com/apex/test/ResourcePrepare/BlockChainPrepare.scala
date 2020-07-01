@@ -151,14 +151,6 @@ class BlockChainPrepare {
           CoinAirdrop(_witness1.pubkeyHash.address, 234.2))
       )
     )
-    println("account 1 public key "+_witness1.pubkeyHash.address+"  "+_acct1.toString)
-    println("account 1 public key "+_witness2.pubkeyHash.address+"  "+_acct1.toString)
-    println("account 1 public key " +_witness3.pubkeyHash.address+"  "+_acct1.toString)
-    println("account 1 public key "+_witness4.pubkeyHash.address+"  "+_acct1.toString)
-    println("account 1 public key "+_acct1.publicKey.address+"  "+_acct1.toString)
-    println("account 1 public key "+_acct2.publicKey.address+"  "+_acct1.toString)
-    println("account 1 public key "+_acct3.publicKey.address+"  "+_acct1.toString)
-    println("account 1 public key "+_acct4.publicKey.address+"  "+_acct1.toString)
     chain = new Blockchain(chainSetting, _consensusSettings, _runtimeParas, Notification())
     f
   }

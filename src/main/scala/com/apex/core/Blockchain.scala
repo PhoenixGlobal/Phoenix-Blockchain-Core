@@ -880,7 +880,6 @@ class Blockchain(chainSettings: ChainSettings,
   }
 
   def setWitness(witnessInfo: WitnessInfo) {
-    println(witnessInfo.addr.address)
     dataBase.setWitness(witnessInfo)
   }
 
@@ -937,7 +936,6 @@ class Blockchain(chainSettings: ChainSettings,
     }
 
     log.info("chain populate")
-    println(forkBase.head.isEmpty + forkBase.forkItemNum().toString)
     if (forkBase.head.isEmpty) {
       dataBase.setMinerAward(minerAward)
       dataBase.setMinGasPrice(FixedNumber.MinValue)

@@ -5,7 +5,8 @@ import java.io.{ByteArrayInputStream, ByteArrayOutputStream, DataInputStream, Da
 import com.apex.common.{ApexLogging, Serializable}
 import com.apex.consensus.RegisterData
 import com.apex.crypto.{BinaryData, Crypto, Ecdsa, FixedNumber, UInt160, UInt256}
-import com.apex.vm.{DataWord, GasCost}
+import com.apex.vm.GasCost
+import com.apex.vm.precompiled.PrecompiledContracts
 import play.api.libs.json.{JsValue, Json, Writes}
 
 class Transaction(val txType: TransactionType.Value,
@@ -27,8 +28,7 @@ class Transaction(val txType: TransactionType.Value,
   require(executeTime >= 0, "executeTime must be lager than or equal to 0")
 
   def sender(): UInt160 = {
-    val registerContractAddr = new UInt160(DataWord.of("0000000000000000000000000000000000000000000000000000000000000101").getLast20Bytes)
-    if(txType == TransactionType.Call && toPubKeyHash == registerContractAddr) {
+    if(txType == TransactionType.Call && toPubKeyHash.equals(UInt160.fromBytes(PrecompiledContracts.registerNodeAddr.getLast20Bytes))) {
       val registerData = RegisterData.fromBytes(data)
       return registerData.registerInfo.ownerInfo.ownerAddress
     }

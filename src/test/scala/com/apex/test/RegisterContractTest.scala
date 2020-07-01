@@ -45,7 +45,7 @@ class RegisterContractTest extends BlockChainPrepare{
       When.produceBlock()
       Then.checkTx()
       And.checkAccount()
-      When.makeRegisterTransaction(owner = _witness1.pubkeyHash)(checkRegisterSuccessWithOwner)
+      When.makeRegisterTransaction(nonce = 2L, owner = _acct1.publicKey.pubKeyHash)(checkRegisterSuccessWithOwner)
     }
     finally {
       chain.close()
@@ -57,13 +57,12 @@ class RegisterContractTest extends BlockChainPrepare{
     val witness = chain.getWitness(_acct3.publicKey.pubKeyHash)
     assert(witness.isDefined)
     assert(witness.get.name == "register node1")
-    println(chain.getBalance(_acct3).get.toString)
     assert(chain.getBalance(_acct3).get == FixedNumber.fromDecimal(3))
     //    val fixedNumber = FixedNumber(24912)
     //assert(chain.getBalance(_acct3).get == (FixedNumber.fromDecimal(2) - FixedNumber(25108)))  // 24980
-    assert(chain.getBalance(_acct1).get == (FixedNumber.fromDecimal(120.12) - FixedNumber(42000)))
-    println(chain.getBalance(_witness1.pubkeyHash).get.toString)
-    assert(chain.getBalance(_witness1.pubkeyHash).get == (FixedNumber.fromDecimal(233.2) - FixedNumber(26472)))
+    assert(chain.getBalance(_acct1).get == (FixedNumber.fromDecimal(119.12) - FixedNumber(42000)- FixedNumber(26472)))
+    println("111111111111"+chain.getBalance(_witness1.pubkeyHash).get.toString)
+//    assert(chain.getBalance(_witness1.pubkeyHash).get == (FixedNumber.fromDecimal(233.2) - FixedNumber(26472)))
     assert(chain.getBalance(new UInt160(PrecompiledContracts.registerNodeAddr.getLast20Bytes)).get == FixedNumber.One)
 
   }
@@ -286,8 +285,9 @@ class RegisterContractTest extends BlockChainPrepare{
                               account: UInt160 = _acct3.publicKey.pubKeyHash,
                               name: String = "register node1",
                               owner: UInt160 = null)(f: Transaction => Unit){
-    val txData = RegisterData(account, WitnessInfo(account, false, name,  ownerInfo = OwnerInfo(account)),operationType).toBytes
-    println(txData)
+    val ownerInfor = if(owner == null) OwnerInfo(account) else OwnerInfo(owner)
+    val txData = RegisterData(account, WitnessInfo(account, false, name,  ownerInfo = ownerInfor),operationType).toBytes
+//    println(txData)
     val registerContractAddr = new UInt160(DataWord.of("0000000000000000000000000000000000000000000000000000000000000101").getLast20Bytes)
     val tx = new Transaction(TransactionType.Call, account ,registerContractAddr, FixedNumber.Zero,
       nonce, txData, FixedNumber.MinValue, 9000000L, BinaryData.empty)
@@ -299,7 +299,7 @@ class RegisterContractTest extends BlockChainPrepare{
                                    registerWitnessAddr: UInt160,
                                    operationType: OperationType.Value = OperationType.register,
                                    nonce: Long =0) (f: Transaction => Unit){
-    val txData = RegisterData(registerAccount, WitnessInfo(registerWitnessAddr, false, "register node1"),operationType).toBytes
+    val txData = RegisterData(registerAccount, WitnessInfo(registerWitnessAddr, false, "register node1", ownerInfo = OwnerInfo(registerWitnessAddr)),operationType).toBytes
     val registerContractAddr = new UInt160(DataWord.of("0000000000000000000000000000000000000000000000000000000000000101").getLast20Bytes)
     val tx = new Transaction(TransactionType.Call, txFromAccount ,registerContractAddr, FixedNumber.Zero,
       nonce, txData, FixedNumber.MinValue, 9000000L, BinaryData.empty)
@@ -317,10 +317,8 @@ class RegisterContractTest extends BlockChainPrepare{
     val ewfwef = chain.getBalance(_acct3).get
     //assert(chain.getBalance(_acct3).get == (FixedNumber.fromDecimal(2) - FixedNumber(25108)))  // 24980
     assert(chain.getBalance(_acct3).get > FixedNumber.fromDecimal(1.999))
-    println(chain.getBalance(_acct3).get)
     assert(FixedNumber.fromDecimal(2) > chain.getBalance(_acct3).get)
     assert(chain.getBalance(new UInt160(PrecompiledContracts.registerNodeAddr.getLast20Bytes)).get == FixedNumber.One)
-    println(chain.getBalance(_witness1.pubkeyHash).get)
   }
 
   def checkRegisterFailed(tx: Transaction): Unit ={

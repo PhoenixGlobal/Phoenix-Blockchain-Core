@@ -130,13 +130,7 @@ object RegisterContractExecutor {
     }
 
     private def registerWitness(track: DataBase, registerSpend: FixedNumber) = {
-//      val owner = track.getWitness(registerData.registerInfo.addr)
-////      val length = track.getAllWitness().length
-////      println("owner::"+length)
-////      println("owner::"+owner.get.addr.address+" "+length)
-      println(registerData.registerInfo.ownerInfo.ownerAddress != null)
       val ownerAddr = if(registerData.registerInfo.ownerInfo.ownerAddress != null) registerData.registerInfo.ownerInfo.ownerAddress else registerData.registerAccount
-      println(ownerAddr.address)
       track.addBalance(ownerAddr, -registerSpend.value)
       track.addBalance(new UInt160(PrecompiledContracts.registerNodeAddr.getLast20Bytes), registerSpend.value)
       val oldInfo = track.getWitness(registerData.registerInfo.addr)
