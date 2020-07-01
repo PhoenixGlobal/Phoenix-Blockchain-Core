@@ -10,7 +10,7 @@ package com.apex.test
 
 import java.io.{ByteArrayInputStream, ByteArrayOutputStream, DataInputStream, DataOutputStream}
 
-import com.apex.consensus._
+import com.apex.consensus.{OwnerInfo, _}
 import com.apex.core.Block.deserialize
 import com.apex.crypto.{BinaryData, Crypto, FixedNumber, UInt160, UInt256}
 import com.apex.proposal.{Proposal, ProposalList, ProposalStatus, ProposalType}
@@ -39,7 +39,7 @@ class WitnessTest {
   @Test
   def testSerialize_WitnessInfo = {
     val a = new WitnessInfo(UInt160.Zero, false, "wefwe", "1 2", "3", "4",
-      170, 240, FixedNumber.One, true, false, 2)
+      170, 240, FixedNumber.One, true, false, 2, OwnerInfo(UInt160.Zero))
 
     val o = new SerializerHelper[WitnessInfo](
       WitnessInfo.deserialize,
@@ -54,6 +54,7 @@ class WitnessTest {
         && x.voteCounts.value == a.voteCounts.value
         && x.register == a.register
         && x.frozen == a.frozen
+      &&x.ownerInfo.ownerAddress.data.sameElements(a.ownerInfo.ownerAddress.data)
     )
     o.test(a)
   }
@@ -78,19 +79,19 @@ class WitnessTest {
   def testSerialize_WitnessList = {
     val a = new WitnessInfo(UInt160.parse("1212121212121212121212121212121212121211").get, false,
       "123", "1 2", "3", "000",
-      171, 240, FixedNumber(2), true, false, 2)
+      171, 240, FixedNumber(2), true, false, 2, OwnerInfo(UInt160.Zero))
 
     val b = new WitnessInfo(UInt160.parse("1212121212121212121212121212121212121212").get, false,
       "456", "8374", "311", "666",
-      172, 241, FixedNumber(1),  true, false,3)
+      172, 241, FixedNumber(1),  true, false,3, OwnerInfo(UInt160.Zero))
 
     val c = new WitnessInfo(UInt160.parse("1212121212121212121212121212121212121213").get, false,
       "789", "1 33", "9847", "4",
-      173, 242, FixedNumber(4),  true, false,4)
+      173, 242, FixedNumber(4),  true, false,4, OwnerInfo(UInt160.Zero))
 
     val d = new WitnessInfo(UInt160.parse("1212121212121212121212121212121212121214").get, false,
       "789", "1 33", "9847", "4",
-      173, 242, FixedNumber(3),  true, false,4)
+      173, 242, FixedNumber(3),  true, false,4, OwnerInfo(UInt160.Zero))
 
     val list1 = WitnessList.create(Array(a, b, c, d), UInt256.Zero, 0, 7)
 
@@ -128,23 +129,23 @@ class WitnessTest {
   def testSerialize_WitnessMap = {
     val a = new WitnessInfo(UInt160.parse("1212121212121212121212121212121212121211").get, false,
       "123", "1 2", "3", "000",
-      171, 240, FixedNumber(2), true, false,2)
+      171, 240, FixedNumber(2), true, false,2,OwnerInfo(UInt160.Zero))
 
     val b = new WitnessInfo(UInt160.parse("1212121212121212121212121212121212121212").get, false,
       "456", "8374", "311", "666",
-      172, 241, FixedNumber(1),  true, false,3)
+      172, 241, FixedNumber(1),  true, false,3,OwnerInfo(UInt160.Zero))
 
     val c = new WitnessInfo(UInt160.parse("1212121212121212121212121212121212121213").get, false,
       "789", "1 33", "9847", "4",
-      173, 242, FixedNumber(4),  true, false,4)
+      173, 242, FixedNumber(4),  true, false,4,OwnerInfo(UInt160.Zero))
 
     val d = new WitnessInfo(UInt160.parse("1212121212121212121212121212121212121214").get, false,
       "789", "1 33", "9847", "4",
-      173, 242, FixedNumber(3), true, false, 4)
+      173, 242, FixedNumber(3), true, false, 4,OwnerInfo(UInt160.Zero))
 
     val ddd = new WitnessInfo(UInt160.parse("1212121212121212121212121212121212121214").get, false,
       "789", "1 3ddd3", "9847", "4",
-      173, 242, FixedNumber(999), true, false, 456)
+      173, 242, FixedNumber(999), true, false, 456,OwnerInfo(UInt160.Zero))
 
     val map1 = new WitnessMap(mutable.Map.empty, 67)
     map1.set(a)

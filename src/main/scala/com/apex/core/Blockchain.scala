@@ -756,8 +756,8 @@ class Blockchain(chainSettings: ChainSettings,
 
   private def getActualTransferAddress(toPubkeyHash: UInt160): UInt160 ={
     val witness = getWitness(toPubkeyHash)
-    if(witness.isDefined && witness.get.ownerAddress != null) {
-         witness.get.ownerAddress
+    if(witness.isDefined && witness.get.ownerInfo.ownerAddress != null) {
+         witness.get.ownerInfo.ownerAddress
     }
     else toPubkeyHash
   }
@@ -880,6 +880,7 @@ class Blockchain(chainSettings: ChainSettings,
   }
 
   def setWitness(witnessInfo: WitnessInfo) {
+    println(witnessInfo.addr.address)
     dataBase.setWitness(witnessInfo)
   }
 
@@ -921,7 +922,7 @@ class Blockchain(chainSettings: ChainSettings,
     def initGenesisWitness() = {
       val witnesses = ArrayBuffer.empty[WitnessInfo]
       consensusSettings.initialWitness.foreach(w => {
-        val initWitness = new WitnessInfo(w.pubkeyHash, true, w.name)
+        val initWitness = new WitnessInfo(w.pubkeyHash, true, w.name, ownerInfo = OwnerInfo(w.pubkeyHash))
         witnesses.append(initWitness)
         dataBase.setWitness(initWitness)
       })

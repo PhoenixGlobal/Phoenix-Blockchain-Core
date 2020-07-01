@@ -19,7 +19,7 @@ class ProposalVoteContract(track: DataBase,
 
   override def execute(data: Array[Byte]): (Boolean, Array[Byte]) = {
     try {
-      val ownerAddress = track.getWitness(tx.from).orNull.ownerAddress
+      val ownerAddress = track.getWitness(tx.from).orNull.ownerInfo.ownerAddress
       if(!ownerAddress.equals(tx.from) && ownerAddress!= null) return (false, ("the witness has an owner and has no right to vote a proposal").getBytes())
       val proposalVoteData = ProposalVoteData.fromBytes(data)
       log.info(s"new proposal vote, voter=${tx.from.shortAddr} agree=${proposalVoteData.agree} proposalID=${proposalVoteData.proposalID}")

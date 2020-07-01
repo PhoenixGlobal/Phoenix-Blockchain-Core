@@ -25,7 +25,7 @@ case class WitnessInfo(addr: UInt160,
                        register: Boolean = true,
                        frozen: Boolean = false,
                        version: Int = 0x01,
-                       ownerAddress: UInt160 = null) extends com.apex.common.Serializable {
+                       ownerInfo: OwnerInfo = OwnerInfo()) extends com.apex.common.Serializable {
 
   def updateVoteCounts(votes: FixedNumber): WitnessInfo = {
     val witness = this.copy(voteCounts = this.voteCounts + votes)
@@ -52,6 +52,7 @@ case class WitnessInfo(addr: UInt160,
     os.write(voteCounts)
     os.writeBoolean(register)
     os.writeBoolean(frozen)
+    os.write(ownerInfo)
   }
 }
 
@@ -72,8 +73,8 @@ object WitnessInfo {
     val voteCounts = FixedNumber.deserialize(is)
     val register = is.readBoolean()
     val frozen = is.readBoolean()
-
-    new WitnessInfo(addr, isGenesisWitness, name, url, country, address, longitude, latitude, voteCounts,register, frozen, version)
+    val owner = OwnerInfo.deserialize(is)
+    new WitnessInfo(addr, isGenesisWitness, name, url, country, address, longitude, latitude, voteCounts,register, frozen, version,owner)
 
   }
 
@@ -95,6 +96,35 @@ object WitnessInfo {
         "version" -> o.version
       )
     }
+  }
+
+}
+
+object OwnerInfo{
+  def deserialize(is: DataInputStream): OwnerInfo = {
+    val ownerAddress = UInt160.deserialize(is)
+
+    OwnerInfo(ownerAddress)
+
+  }
+
+  implicit val witnessInfoWrites = new Writes[OwnerInfo] {
+    override def writes(o: OwnerInfo): JsValue = {
+      Json.obj(
+
+        "ownerAddress" -> o.ownerAddress.address
+      )
+    }
+  }
+}
+
+case class OwnerInfo(ownerAddress: UInt160 = null) extends com.apex.common.Serializable{
+
+
+  override def serialize(os: DataOutputStream): Unit = {
+    import com.apex.common.Serializable._
+
+    os.write(ownerAddress)
   }
 
 }
