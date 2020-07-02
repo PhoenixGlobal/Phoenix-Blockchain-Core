@@ -236,6 +236,8 @@ class ProposalVoteTest {
 
       println("block10 inserted")
 
+      println("2222222222222"+_acct1.publicKey.pubKeyHash.address)
+
       val proposalTx = createProposalTransaction(0, _acct1, ProposalType.BlockAward, FixedNumber.One.toBytes)
 
       val block11 = makeBlock(chain, block10, Seq(proposalTx))
