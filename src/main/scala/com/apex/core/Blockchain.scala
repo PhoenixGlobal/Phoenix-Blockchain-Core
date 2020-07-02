@@ -921,7 +921,6 @@ class Blockchain(chainSettings: ChainSettings,
     def initGenesisWitness() = {
       val witnesses = ArrayBuffer.empty[WitnessInfo]
       consensusSettings.initialWitness.foreach(w => {
-        println("111111111111111111111"+w.pubkeyHash.address)
         val initWitness = new WitnessInfo(w.pubkeyHash, true, w.name, ownerInfo = OwnerInfo(w.pubkeyHash))
         witnesses.append(initWitness)
         dataBase.setWitness(initWitness)

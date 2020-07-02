@@ -175,7 +175,9 @@ object RpcServer extends ApexLogging {
                     .map(s =>
                       s match {
                         case Success(sendTx) => sussesRes(Json.prettyPrint(AddTxResult.resultWrites.writes(sendTx)))
-                        case Failure(e) => error500Res(e.getMessage)
+                        case Failure(e) => {
+                          e.printStackTrace()
+                          error500Res(e.getMessage)}
                       })
                   complete(f)
                 }

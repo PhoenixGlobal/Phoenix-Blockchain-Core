@@ -11,6 +11,7 @@ import java.util.Date
 
 import com.apex.consensus.{OwnerInfo, ProducerUtil, RegisterData, WitnessInfo}
 import com.apex.core.{OperationType, Transaction, TransactionType}
+import com.apex.crypto.Ecdsa.PrivateKey
 import com.apex.crypto.{BinaryData, FixedNumber, UInt160}
 import com.apex.test.ResourcePrepare.BlockChainPrepare
 import com.apex.vm.DataWord
@@ -45,7 +46,7 @@ class RegisterContractTest extends BlockChainPrepare{
       When.produceBlock()
       Then.checkTx()
       And.checkAccount()
-      When.makeRegisterTransaction(nonce = 2L, owner = _acct1.publicKey.pubKeyHash)(checkRegisterSuccessWithOwner)
+      When.makeRegisterTransaction(nonce = 2L, owner = _acct1)(checkRegisterSuccessWithOwner)
     }
     finally {
       chain.close()
@@ -282,15 +283,15 @@ class RegisterContractTest extends BlockChainPrepare{
 
   def makeRegisterTransaction(operationType: OperationType.Value = OperationType.register,
                               nonce: Long = 0,
-                              account: UInt160 = _acct3.publicKey.pubKeyHash,
+                              account: PrivateKey = _acct3,
                               name: String = "register node1",
-                              owner: UInt160 = null)(f: Transaction => Unit){
-    val ownerInfor = if(owner == null) OwnerInfo(account) else OwnerInfo(owner)
-    val txData = RegisterData(account, WitnessInfo(account, false, name,  ownerInfo = ownerInfor),operationType).toBytes
+                              owner: PrivateKey = _acct3)(f: Transaction => Unit){
+    val txData = RegisterData(account.publicKey.pubKeyHash, WitnessInfo(account.publicKey.pubKeyHash, false, name,  ownerInfo = OwnerInfo(owner.publicKey.pubKeyHash)),operationType).toBytes
 //    println(txData)
     val registerContractAddr = new UInt160(DataWord.of("0000000000000000000000000000000000000000000000000000000000000101").getLast20Bytes)
-    val tx = new Transaction(TransactionType.Call, account ,registerContractAddr, FixedNumber.Zero,
+    val tx = new Transaction(TransactionType.Call, owner.publicKey.pubKeyHash ,registerContractAddr, FixedNumber.Zero,
       nonce, txData, FixedNumber.MinValue, 9000000L, BinaryData.empty)
+    tx.sign(owner)
     f(tx)
   }
 

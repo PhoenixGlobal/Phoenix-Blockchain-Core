@@ -27,7 +27,7 @@ object RegisterContractExecutor {
     //check the register account address is equal to transaction sender
     def isValid(track: DataBase, tx: Transaction): RegisterContractContext = {
       errorDetected {
-        if (!(tx.from == registerData.registerAccount && registerData.registerAccount == registerData.registerInfo.addr)){
+        if (!(registerData.registerAccount == registerData.registerInfo.addr)){
           setResult(false, ("register address must be same as transaction from address").getBytes)
         }
       }
@@ -47,7 +47,7 @@ object RegisterContractExecutor {
     //check the account balance is enough to register a witness
     def isAccountBalanceEnough(track: DataBase, registerSpend: FixedNumber): RegisterContractContext ={
       errorDetected {
-        val account = track.getAccount(registerData.registerAccount).get
+        val account = track.getAccount(registerData.registerInfo.ownerInfo.ownerAddress).get
         if (registerData.operationType == OperationType.register &&
           (account.balance.value < registerSpend.value)) {
           setResult(false, ("register account balance is not enough to register a producer").getBytes)

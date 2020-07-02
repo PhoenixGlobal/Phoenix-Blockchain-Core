@@ -118,7 +118,7 @@ object OwnerInfo{
   }
 }
 
-case class OwnerInfo(ownerAddress: UInt160 = null) extends com.apex.common.Serializable{
+case class OwnerInfo(var ownerAddress: UInt160 = null) extends com.apex.common.Serializable{
 
 
   override def serialize(os: DataOutputStream): Unit = {

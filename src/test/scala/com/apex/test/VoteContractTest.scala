@@ -219,7 +219,7 @@ class VoteContractTest extends RegisterContractTest {
       And.checkAccount()
       When.makeRegisterTransaction()(checkRegisterSuccess)
       When.makeVoteTransaction(nonce = 2)(checkVoteSuccess)
-      When.makeRegisterTransaction(account = _acct4.publicKey.pubKeyHash, name = "node 2")(tx => {
+      When.makeRegisterTransaction(account = _acct4, name = "node 2")(tx => {
         assert(chain.addTransaction(tx))
         val witness = chain.getWitness(_acct4.publicKey.pubKeyHash)
         assert(witness.isDefined)
