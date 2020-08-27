@@ -8,7 +8,7 @@
 
 package com.apex.test
 
-import com.apex.crypto.{BinaryData, UInt256, MerkleTree}
+import com.apex.crypto.{BinaryData, Crypto, MerkleTree, UInt256}
 import org.junit.Test
 
 @Test
@@ -28,6 +28,47 @@ class MerkleTreeTest {
     assert(MerkleTree.root(Seq[UInt256](h1, h2, h3)).toString == "2cfe3fa489e89ce5c4b64bcc27a5b41cd2f23b940c8238cad963477c28f3fb98")
     assert(MerkleTree.root(Seq[UInt256](h1, h2, h3, h4)).toString == "c2237cc814f33840f0d900293539ae5aa7f1526155de4d05642c1f4a16572a06")
     assert(MerkleTree.root(Seq[UInt256](h1, h2, h3, h4, h5)).toString == "a8e16367797f4a27275dd69607819764685890b8ec1ebec7a06303f5e6693a4c")
+
+  }
+
+  @Test
+  def testHashMarkle = {
+    val dataA = "abc".getBytes("US-ASCII")
+    val dataA2 = "abcdefg".getBytes("US-ASCII")
+    val dataB = "def".getBytes("US-ASCII")
+    val dataC = "ghi".getBytes("US-ASCII")
+    val dataD = "jkl".getBytes("US-ASCII")
+    val dataE = "mno".getBytes("US-ASCII")
+    val data1F = "pqr".getBytes("US-ASCII")
+    val hashA = Crypto.hash256(dataA)
+    val hashA2 = Crypto.hash256(dataA2)
+    val hashB = Crypto.hash256(dataB)
+    val hashC = Crypto.hash256(dataC)
+    val hashD = Crypto.hash256(dataD)
+    val hashE = Crypto.hash256(dataE)
+    val hashF = Crypto.hash256(data1F)
+
+    val HashAB = MerkleTree.root(Seq[UInt256](new UInt256(hashA), new UInt256(hashB)))
+    val HashA2B = MerkleTree.root(Seq[UInt256](new UInt256(hashA2), new UInt256(hashB)))
+    val HashCD = MerkleTree.root(Seq[UInt256](new UInt256(hashC),new UInt256(hashD)))
+    val HashEF = MerkleTree.root(Seq[UInt256](new UInt256(hashE),new UInt256(hashF)))
+    val HashABCD = MerkleTree.root(Seq[UInt256](HashAB,HashCD))
+    val HashA2BCD = MerkleTree.root(Seq[UInt256](HashA2B,HashCD))
+    val HashEFEF = MerkleTree.root(Seq[UInt256](HashEF,HashEF))
+    val HashABCDEFEF = MerkleTree.root(Seq[UInt256](HashABCD,HashEFEF)).toString
+    val HashA2BCDEFEF = MerkleTree.root(Seq[UInt256](new UInt256(hashA2), new UInt256(hashB),new UInt256(hashC),new UInt256(hashD),new UInt256(hashE),new UInt256(hashF))).toString
+
+    println(HashAB.toString)
+    println(HashCD.toString)
+    println(HashEF.toString)
+    println(HashABCD.toString)
+    println(HashEFEF.toString)
+    println(HashABCDEFEF)
+
+    val rootHash = MerkleTree.root(Seq[UInt256](new UInt256(hashA), new UInt256(hashB),new UInt256(hashC),new UInt256(hashD),new UInt256(hashE),new UInt256(hashF))).toString
+    assert(hashA sameElements BinaryData("4F8B42C22DD3729B519BA6F68D2DA7CC5B2D606D05DAED5AD5128CC03E6C6358"))
+    assert(rootHash sameElements HashABCDEFEF)
+    assert(!(rootHash sameElements HashA2BCDEFEF))
 
   }
   

@@ -32,6 +32,12 @@ class BlockBase(settings: BlockBaseSettings,
     headBlockStore.get()
   }
 
+  def getMaxBlockCount() : Long = {
+    maxBlockCount
+  }
+
+  def isLightNode = lightNode
+
   def add(block: Block): Unit = {
     require(head.forall(_.id.equals(block.prev)))
 
@@ -43,10 +49,10 @@ class BlockBase(settings: BlockBaseSettings,
 
       blockCacheStore.delete(block.height(), batch)
     })
+  }
 
-    if (lightNode && block.height() > (maxBlockCount + 1)) {
-      delete(block.height() - maxBlockCount)
-    }
+  def deleteLightNodeData(height: Long): Unit = {
+    if(lightNode) delete(height)
   }
 
   private def delete(height: Long): Unit = {

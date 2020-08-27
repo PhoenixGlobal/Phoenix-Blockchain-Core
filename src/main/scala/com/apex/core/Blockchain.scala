@@ -179,6 +179,14 @@ class Blockchain(chainSettings: ChainSettings,
     forkBase.get(id).map(_.block.height()).orElse(blockBase.getBlockHeight(id))
   }
 
+  def getBlockMaxCount(): Long = {
+    blockBase.getMaxBlockCount()
+  }
+
+  def isLightNode(): Boolean = {
+    blockBase.isLightNode
+  }
+
   def containsBlock(id: UInt256): Boolean = {
     forkBase.contains(id) || blockBase.containBlock(id)
   }
@@ -984,6 +992,9 @@ class Blockchain(chainSettings: ChainSettings,
       blockBase.add(block)
     }
     notification.broadcast(BlockConfirmedNotify(block))
+    if (isLightNode() && genesisBlock.height() > getBlockMaxCount() + 1) {
+      blockBase.deleteLightNodeData(genesisBlock.height() - getBlockMaxCount())
+    }
   }
 
   private def onSwitch(from: Seq[ForkItem], to: Seq[ForkItem],
