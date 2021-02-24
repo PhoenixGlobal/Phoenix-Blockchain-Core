@@ -56,7 +56,7 @@ class Producer(apexSettings: ApexSettings)
   private val delayOneBlock = blockDuration(1)
   private val noDelay = blockDuration(0)
 
-  private var enableProduce = false
+  private var enableProduce = true
 
   if (apexSettings.miner.forceStartProduce) {
     log.info("forceStartProduce is set, set enableProduce to true")
