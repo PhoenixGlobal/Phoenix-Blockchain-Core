@@ -1,7 +1,12 @@
 # APEX-Blockchain-core
 
+
+> gradle version 4.9
+> 
+
 ## 构建方法：
-* gradle release
+* gradle shadow
+
 
 
 ## 运行方法：
