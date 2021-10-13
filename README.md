@@ -1,7 +1,7 @@
 # APEX-Blockchain-core
 
 ## 构建方法：
-* gradle release
+* gradle shadow
 
 
 ## 运行方法：
