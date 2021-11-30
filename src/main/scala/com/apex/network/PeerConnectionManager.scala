@@ -155,7 +155,7 @@ class PeerConnectionManager(settings: NetworkSettings,
         receivedHandshake = Some(handshakeMsg)
         log.info(s"got handshake: $remote")
         connection ! ResumeReading
-        networkManager ! GetHandlerToPeerConnectionManager //握手成功后，向PeerConnectionManager发送远程handler
+        networkManager ! GetHandlerToPeerConnectionManager //After handshake, send remote handler to PeerConnectionManager
         if (handshakeGot && handshakeSent) {
           self ! HandshakeDone
         }
